@@ -26,17 +26,3 @@ class DomainSemanticTable(Protocol):
     @classmethod
     def collect_domain_rules(cls) -> list["DomainRule"]: ...
 
-class ClinicalEvent(Protocol):
-    __tablename__: str
-
-    event_id: int
-    person_id: int
-    concept_id: int
-
-    start_date: date
-    end_date: Optional[date]
-
-    type_concept_id: int
-
-    visit_occurrence_id: Optional[int]
-    visit_detail_id: Optional[int]
