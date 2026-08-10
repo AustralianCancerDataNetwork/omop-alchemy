@@ -37,7 +37,7 @@ episode view to reach it through ordinary ``episode.episode_events``
 traversal.
 """
 
-from .dosing import DOSE_EVALUABLE, DoseEvaluability
+from .dosing import DoseEvaluability
 from .drug_episode import DrugEpisodeMixin
 from .event_windowing import (
     DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
@@ -60,7 +60,6 @@ from .summaries import (
 __all__ = [
     "DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS",
     "DEFAULT_EPISODE_WINDOW_DAYS_PRIOR",
-    "DOSE_EVALUABLE",
     "DoseEvaluability",
     "DrugEpisodeMixin",
     "DrugExposureSummary",

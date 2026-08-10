@@ -13,6 +13,8 @@ from oa_configurator import (
     load_stack_config,
 )
 
+from omop_alchemy.toolkit.core.concepts import register_vocabulary_identity
+
 
 # Mapping of PostgreSQL SQLAlchemy drivernames to the Python module they require.
 # Kept here (not in oa_configurator) because the driver choice and install instructions
@@ -106,12 +108,67 @@ def get_cdm_context() -> tuple[OmopAlchemyConfig, ResolvedResource]:
     return pkg_config, resolved
 
 
+def vocabulary_identity(resolved: ResolvedResource) -> str | None:
+    """Stable identity for the vocabulary dataset ``resolved`` reads, or None.
+
+    Concept-set expansions are a function of the vocabulary, so caching them
+    against this identity means recreating an engine against the same dataset
+    reuses the expansion instead of re-running ``concept_ancestor`` traversals.
+
+    Composed from the **vocab** role rather than the primary one, because
+    ``concept_ancestor`` is a vocabulary table. On any deployment that does not
+    configure a separate vocabulary target this resolves to the CDM database, so
+    it costs nothing today and stays correct if vocabulary routing is ever
+    honoured by the ORM. Do not "simplify" it to ``resolved.database``.
+
+    Uses ``safe_url``, the credential-redacted form, so no password reaches a
+    cache key.
+
+    Returns None for an ephemeral database — in-memory SQLite, where two engines
+    built from identical configuration are genuinely separate databases. Those
+    fall back to per-engine caching, which is correct but not shared. Exported so
+    that packages building their own engines compose the identity the same way;
+    two spellings of one dataset would produce two cache entries that each look
+    authoritative.
+    """
+    target = getattr(resolved, "vocab_database", None)
+    safe_url = getattr(target, "safe_url", None)
+    schema = getattr(resolved, "vocab_schema", None)
+
+    # Anything we cannot read as a concrete string leaves identity undetermined,
+    # which means per-engine caching: correct, just not shared. Failing safe here
+    # matters because a wrong identity would share one dataset's concept sets with
+    # another, whereas a missing one only costs a rebuild.
+    if not isinstance(safe_url, str) or not isinstance(schema, str):
+        return None
+    if _is_ephemeral_url(safe_url):
+        return None
+    return f"{safe_url}|{schema}"
+
+
+def _is_ephemeral_url(safe_url: str) -> bool:
+    """Whether ``safe_url`` names a database that cannot be shared across engines."""
+    lowered = safe_url.lower()
+    if not lowered.startswith("sqlite"):
+        return False
+    _, _, target = lowered.partition("://")
+    target = target.lstrip("/")
+    return target in ("", ":memory:") or "mode=memory" in lowered
+
+
 def create_cdm_engine(resolved: ResolvedResource) -> sa.Engine:
     """Create the CDM SQLAlchemy engine with helpful PostgreSQL driver error messages."""
     try:
-        return resolved.create_engine()
+        engine = resolved.create_engine()
     except ModuleNotFoundError as exc:
         msg = _missing_driver_message(resolved.database.url, exc)
         if msg is not None:
             raise RuntimeError(msg) from exc
         raise
+
+    # Register against the engine we return: create_engine may hand back a derived
+    # OptionEngine, and that is the object sessions bind to.
+    identity = vocabulary_identity(resolved)
+    if identity is not None:
+        register_vocabulary_identity(engine, identity)
+    return engine

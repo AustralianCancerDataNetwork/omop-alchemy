@@ -32,11 +32,13 @@ or regimens — a summary that cannot be interpreted as a dose says so
 rather than presenting a total that looks authoritative.
 
 **Concept sets.**  Which concepts constitute systemic therapy,
-radiotherapy, cancer-indicating surgery, diagnostic staging, and each
-episode type are declared in this package and resolved against the
-vocabulary tables on first use, then cached.  ``clear_concept_set_cache``
-discards that cache when the vocabulary changes underneath a long-running
-session.
+radiotherapy, cancer-indicating surgery, and diagnostic staging are
+governed by ``omop-semantics`` -- this package names those units rather
+than assembling concept IDs, so the clinical definitions live in one
+reviewable place shared with other consumers.  Expansion against
+``concept_ancestor`` happens on first use and is cached per vocabulary, so
+recreating an engine does not re-run it.  Each membership check answers both
+in Python and in SQL from the same definition.
 
 Governed default concept sets come from ``omop-semantics``, an optional
 dependency.  Install ``omop-alchemy[semantics]`` to use them; supply your
@@ -44,22 +46,16 @@ own concept sets otherwise.
 """
 
 from .concept_sets import (
-    cancer_indicating_surgery_parent_concept_ids,
-    cancer_indicating_surgery_point_concept_ids,
-    clear_concept_set_cache,
-    diagnostic_staging_procedure_parent_concept_ids,
-    diagnostic_staging_procedure_point_concept_ids,
+    CANCER_INDICATING_SURGERY,
+    DIAGNOSTIC_STAGING_PROCEDURES,
+    RADIOTHERAPY_PROCEDURES,
+    SACT_DRUGS,
     disease_episode_type_concept_ids,
-    drug_concept_membership_expression,
     overarching_episode_type_concept_id,
-    procedure_concept_membership_expression,
     resolve_cancer_indicating_surgery_procedure_concept_ids,
     resolve_diagnostic_staging_procedure_concept_ids,
     resolve_rt_procedure_concept_ids,
     resolve_sact_drug_concept_ids,
-    rt_procedure_parent_concept_ids,
-    sact_drug_excluded_parent_concept_ids,
-    sact_drug_parent_concept_ids,
     treatment_cycle_episode_concept_id,
     treatment_episode_type_concept_ids,
     treatment_regimen_episode_concept_id,
@@ -86,6 +82,10 @@ from .oncology_sact_dosing import (
 )
 
 __all__ = [
+    "CANCER_INDICATING_SURGERY",
+    "DIAGNOSTIC_STAGING_PROCEDURES",
+    "RADIOTHERAPY_PROCEDURES",
+    "SACT_DRUGS",
     "OncologyCriticalWeightLossMixin",
     "OncologyDrugExposure",
     "OncologyEpisode",
@@ -97,25 +97,15 @@ __all__ = [
     "OncologySACTDosingMixin",
     "RTDoseSummary",
     "SACTDoseSummary",
-    "cancer_indicating_surgery_parent_concept_ids",
-    "cancer_indicating_surgery_point_concept_ids",
-    "clear_concept_set_cache",
-    "diagnostic_staging_procedure_parent_concept_ids",
-    "diagnostic_staging_procedure_point_concept_ids",
     "disease_episode_type_concept_ids",
-    "drug_concept_membership_expression",
     "overarching_episode_type_concept_id",
-    "procedure_concept_membership_expression",
     "resolve_cancer_indicating_surgery_procedure_concept_ids",
     "resolve_diagnostic_staging_procedure_concept_ids",
     "resolve_rt_procedure_concept_ids",
     "resolve_sact_drug_concept_ids",
     "rt_dose_evaluability",
-    "rt_procedure_parent_concept_ids",
     "rt_site_key",
     "sact_dose_evaluability",
-    "sact_drug_excluded_parent_concept_ids",
-    "sact_drug_parent_concept_ids",
     "summarize_rt_procedures",
     "summarize_rt_procedures_by",
     "summarize_sact_exposures",
