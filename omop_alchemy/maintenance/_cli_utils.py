@@ -154,10 +154,10 @@ def omop_command(
             try:
                 from ..config import create_cdm_engine, get_cdm_context
                 pkg_config, resolved = get_cdm_context()
-                reject_reserved_schema(resolved.cdm_schema)
+                reject_reserved_schema(resolved.schema_name)
                 engine = create_cdm_engine(resolved)
                 conn = _ConnContext(
-                    db_schema=resolved.cdm_schema,
+                    db_schema=resolved.schema_name,
                     engine_url=engine.url.render_as_string(hide_password=True),
                     athena_source=pkg_config.athena_source_path,
                 )

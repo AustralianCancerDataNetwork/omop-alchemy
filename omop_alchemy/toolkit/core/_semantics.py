@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from omop_semantics.runtime.value_sets import RuntimeValueSets
 
 
-def default_semantics_runtime() -> Any:
+def default_semantics_runtime() -> RuntimeValueSets:
     """
     Return the bundled omop-semantics runtime, or fail with install guidance.
 

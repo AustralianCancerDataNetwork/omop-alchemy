@@ -81,7 +81,7 @@ docker compose --profile jupyter up -d
 
 ## Running PostgreSQL tests locally
 
-The test suite includes PostgreSQL-specific tests that skip automatically unless a `test_cdm_db` resource is configured in `~/.config/omop/config.toml`. Tests are marked with `@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)` and skipped at collection time when the resource is absent — no manual filtering required.
+The test suite includes PostgreSQL-specific tests that skip automatically unless a `test_cdm_db` database is configured in `~/.config/omop/config.toml`. Tests are marked with `@pytest.mark.requires_database("test_cdm_db")` and skipped at collection time when the database is absent — no manual filtering required.
 
 > **This test database is destructive.** The test suite drops and recreates the entire `public`
 > schema on every run. `test_cdm_db` must point to a **dedicated, empty test database** — never
@@ -94,7 +94,7 @@ The test suite includes PostgreSQL-specific tests that skip automatically unless
 omop-config configure omop_alchemy
 ```
 
-When prompted whether to configure a test database resource, answer **Y** and supply the connection details for your dedicated test PostgreSQL instance. The resource will be saved as `test_cdm_db` with `test_only = true`.
+When prompted whether to configure a test database, answer **Y** and supply the connection details for your dedicated test PostgreSQL instance. It will be saved as `test_cdm_db` with `test_only = true`.
 
 > **Note on permissions**: the test suite disables FK constraint triggers during bulk vocabulary
 > loads — an operation PostgreSQL restricts to superusers. Ensure the test database user has

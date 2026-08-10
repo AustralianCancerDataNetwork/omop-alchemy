@@ -41,10 +41,11 @@ def register_vocabulary_identity(engine: sa.Engine, identity: str) -> None:
     Concept-set caches keyed on this identity are shared by every engine
     registered under it, so recreating an engine reuses the expansion.
 
-    Pass the engine your factory *returns*.  ``ResolvedDatabase.create_engine``
-    ends with ``execution_options(schema_translate_map=...)``, which yields a
-    derived ``OptionEngine``; that is the object sessions bind to, and the one
-    lookups will see.
+    Pass the engine your factory *returns*.
+    ``ResolvedCDMDatabase.create_engine`` ends with
+    ``execution_options(schema_translate_map=...)``, which yields a derived
+    ``OptionEngine``; that is the object sessions bind to, and the one lookups
+    will see.
 
     Do not register an identity for an ephemeral database — notably in-memory
     SQLite, where two engines built from identical configuration are genuinely

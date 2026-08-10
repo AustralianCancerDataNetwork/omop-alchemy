@@ -13,35 +13,39 @@ Run the interactive configure command to set up the CDM database connection and 
 omop-config configure omop_alchemy
 ```
 
-This prompts for connection details (host, dialect, credentials) and schema names, then
-saves them under the canonical resource name `cdm_db` that all OMOP stack packages
+This prompts for connection details (host, dialect, credentials) and schema name, then
+saves them under the canonical database name `cdm_db` that all OMOP stack packages
 recognise.
 
 The resulting TOML looks like:
 
 ```toml
-[databases.cdm]
-dialect       = "postgresql+psycopg2"
+[connections.cdm]
+dialect       = "postgresql+psycopg"
 host          = "localhost"
 port          = 5432
 user          = "omop"
 password      = "changeme"
 database_name = "omop_cdm"
 
-[resources.cdm_db]
-database   = "cdm"
-cdm_schema = "omop"
+[databases.cdm_db]
+kind        = "cdm"
+connection  = "cdm"
+schema_name = "omop"
+
+[tools.omop_alchemy]
+cdm_db = "cdm_db"
 ```
 
 You can also write or edit this file manually.
 
 ## Vocabulary loading
 
-If you plan to load OMOP vocabulary from Athena CSV files, add the path to the package
-extras section:
+If you plan to load OMOP vocabulary from Athena CSV files, add the path to `[tools.omop_alchemy]`:
 
 ```toml
-[tools.omop_alchemy.extra]
+[tools.omop_alchemy]
+cdm_db             = "cdm_db"
 athena_source_path = "/path/to/athena/csvs"
 ```
 
@@ -97,22 +101,17 @@ loaded by OMOP_Alchemy at runtime.
 
 ## Multiple instances
 
-To configure a second CDM database (e.g. for production), use `--resource-name`:
+To configure a second CDM database (e.g. for production), create it under its own name
+and point the field's own flag at it:
 
 ```bash
-omop-config configure omop_alchemy --resource-name cdm_db_prod
+omop-config databases add cdm_db_prod --kind cdm --connection cdm_prod
+omop-config configure omop_alchemy --cdm-db cdm_db_prod
 ```
 
-This creates `cdm_db_prod` without touching the existing `cdm_db`. Because two
-resources now exist, configure automatically prompts you to choose the default at
-the end of the same run — no second invocation needed.
-
-To change the default later, set `default_resource` directly in `config.toml`:
-
-```toml
-[tools.omop_alchemy]
-default_resource = "cdm_db_prod"
-```
+This creates `cdm_db_prod` without touching the existing `cdm_db`. There is no "default"
+toggle to flip afterward; each deployment's `configure` call names the entry it wants
+directly.
 
 See the [oa-configurator integration guide](https://AustralianCancerDataNetwork.github.io/oa-configurator/integration/#multiple-environments) for the full multi-environment guide.
 

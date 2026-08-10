@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 import sqlalchemy.orm as so
 from sqlalchemy.ext.declarative import declared_attr
 
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.toolkit.episodes.handling import ResolvedEpisodeEvent
+from omop_alchemy.toolkit.episodes.handling.resolved_event import (
+    _episode_events_relationship,
+)
 
 from .oncology_drug_exposure import OncologyDrugExposure
 from .oncology_procedure_occurrence import OncologyProcedure
@@ -45,11 +48,4 @@ class OncologyEpisodeEventMixin:
     @declared_attr
     @classmethod
     def episode_events(cls) -> so.Mapped[list["OncologyEpisodeEvent"]]:
-        owner_episode_id = cast(Any, cls).__table__.c.episode_id
-        event_episode_id = OncologyEpisodeEvent.__table__.c.episode_id
-        return so.relationship(
-            "OncologyEpisodeEvent",
-            primaryjoin=lambda: owner_episode_id == event_episode_id,
-            viewonly=True,
-            lazy="selectin",
-        )
+        return _episode_events_relationship(cls, OncologyEpisodeEvent)

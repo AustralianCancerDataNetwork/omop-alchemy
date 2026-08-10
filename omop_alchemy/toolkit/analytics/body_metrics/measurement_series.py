@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from functools import cached_property
-from typing import ClassVar, Literal, Optional, Sequence
+from typing import ClassVar, Literal, Optional, Self, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.orm import object_session
@@ -25,20 +25,22 @@ class MeasurementReading:
     concept_id: int
     source: ReadingSource
 
-
-def reading_from_measurement(
-    measurement: Measurement,
-    *,
-    source: ReadingSource,
-) -> MeasurementReading:
-    return MeasurementReading(
-        measurement_id=measurement.measurement_id,
-        date=measurement.measurement_date,
-        value=measurement.value_as_number,
-        unit_concept_id=measurement.unit_concept_id,
-        concept_id=measurement.measurement_concept_id,
-        source=source,
-    )
+    @classmethod
+    def from_measurement(
+        cls,
+        measurement: Measurement,
+        *,
+        source: ReadingSource,
+    ) -> Self:
+        """Reduce an OMOP measurement row to trajectory input fields."""
+        return cls(
+            measurement_id=measurement.measurement_id,
+            date=measurement.measurement_date,
+            value=measurement.value_as_number,
+            unit_concept_id=measurement.unit_concept_id,
+            concept_id=measurement.measurement_concept_id,
+            source=source,
+        )
 
 
 def _explicit_episode_measurements(
@@ -57,7 +59,7 @@ def _explicit_episode_measurements(
             continue
         if exclude_modifiers and event.measurement_event_id is not None:
             continue
-        readings.append(reading_from_measurement(event, source="explicit"))
+        readings.append(MeasurementReading.from_measurement(event, source="explicit"))
         seen_ids.add(event.measurement_id)
 
     return readings, seen_ids
@@ -97,7 +99,7 @@ def resolve_measurement_series(
         for row in session.execute(stmt).scalars():
             if row.measurement_id in seen_ids:
                 continue
-            readings.append(reading_from_measurement(row, source="window"))
+            readings.append(MeasurementReading.from_measurement(row, source="window"))
             seen_ids.add(row.measurement_id)
 
     readings.sort(key=lambda r: r.date)
@@ -135,7 +137,7 @@ def resolve_person_measurement_series(
         for row in session.execute(stmt).scalars():
             if row.measurement_id in seen_ids:
                 continue
-            readings.append(reading_from_measurement(row, source="person"))
+            readings.append(MeasurementReading.from_measurement(row, source="person"))
             seen_ids.add(row.measurement_id)
 
     readings.sort(key=lambda r: r.date)

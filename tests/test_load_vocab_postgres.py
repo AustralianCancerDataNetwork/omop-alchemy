@@ -13,7 +13,6 @@ import pytest
 import sqlalchemy as sa
 
 from omop_alchemy.cdm.model.vocabulary import Concept
-from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance.cli_vocab import (
     _load_vocab_model_csv,
     load_vocab_source,
@@ -59,7 +58,7 @@ def _make_concept_source(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
+@pytest.mark.requires_database("test_cdm_db")
 def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
     """load_vocab_source() completes end-to-end on real Postgres via orm-loader>=0.4.0."""
     source_path = _copy_fixture_source(tmp_path)
@@ -74,7 +73,7 @@ def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
 
 
 
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
+@pytest.mark.requires_database("test_cdm_db")
 def test_quote_mode_auto_regression_on_postgres(pg_session, pg_engine, tmp_path):
     """
     quote_mode='auto' strips RFC-4180 double-quotes via PostgreSQL COPY.
@@ -113,7 +112,7 @@ def test_quote_mode_auto_regression_on_postgres(pg_session, pg_engine, tmp_path)
 
 
 
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
+@pytest.mark.requires_database("test_cdm_db")
 def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
     """
     _load_vocab_model_csv loads data correctly on a real PostgreSQL session.
@@ -138,7 +137,7 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
 
 
 
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
+@pytest.mark.requires_database("test_cdm_db")
 def test_replace_strategy_overwrites_existing_rows(pg_session, pg_engine, tmp_path):
     """merge_strategy='replace' fully replaces rows with the same PKs on second load."""
     concept_id = 99999
@@ -160,7 +159,7 @@ def test_replace_strategy_overwrites_existing_rows(pg_session, pg_engine, tmp_pa
 
 
 
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
+@pytest.mark.requires_database("test_cdm_db")
 def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
     """merge_strategy='upsert' preserves existing rows on second load with same PKs."""
     concept_id = 99998
@@ -184,7 +183,7 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
 
 
 
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
+@pytest.mark.requires_database("test_cdm_db")
 def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
     """
     load_vocab_source with db_schema creates vocabulary tables in the requested

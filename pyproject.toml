@@ -88,6 +88,12 @@ raw-options = { tag_regex = '^v?(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$' }
 packages = ["omop_alchemy"]
 
 [tool.uv]
+# TEMPORARY (local dev only): config.py targets the oa-configurator 1.0 API, which is
+# unreleased -- PyPI has 0.1.2. Replace with a published version pin before merge.
+sources = { oa-configurator = { path = "../oa-configurator", editable = true } }
+# orm-loader 0.5.3 also pins oa-configurator==0.1.2 exactly, so the local source
+# needs an override to be resolvable. Both lines go when 1.0 is published.
+override-dependencies = ["oa-configurator"]
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 [tool.pytest.ini_options]

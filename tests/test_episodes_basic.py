@@ -8,10 +8,19 @@ from omop_alchemy.cdm.model.structural import (
 from omop_alchemy.toolkit.episodes.handling import (
     DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
     ResolvedEpisodeEvent,
+    ResolvedEpisodeEventMixin,
     episode_attachment_window,
 )
 import datetime
 import sqlalchemy as sa
+
+
+class DiagnosticEpisode(ResolvedEpisodeEventMixin, EpisodeView):
+    """Non-oncology episode view used to verify the generic extension point."""
+
+    __tablename__ = "episode"
+    __mapper_args__ = {"concrete": False}
+
 
 def test_episode_view_expected_domains():
     """Test episode view expected domains."""
@@ -45,6 +54,21 @@ def test_episode_has_episode_events(session):
 
     assert ep is not None
     assert len(ep.episode_events) > 0
+
+
+def test_resolved_episode_event_mixin_targets_diagnostic_rows(session):
+    episode = (
+        session.query(DiagnosticEpisode)
+        .filter(DiagnosticEpisode.episode_events.any())
+        .first()
+    )
+
+    assert episode is not None
+    assert episode.episode_events
+    assert all(
+        isinstance(episode_event, ResolvedEpisodeEvent)
+        for episode_event in episode.episode_events
+    )
 
 
 def test_episode_event_resolves_target(session):

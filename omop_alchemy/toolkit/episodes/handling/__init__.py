@@ -53,7 +53,6 @@ from .resolved_event import (
 )
 from .summaries import (
     DrugExposureSummary,
-    summarize_drug_exposures,
     summarize_drug_exposures_by,
 )
 
@@ -69,6 +68,5 @@ __all__ = [
     "ResolvedEpisodeEventMixin",
     "episode_attachment_window",
     "resolve_drug_exposure_series",
-    "summarize_drug_exposures",
     "summarize_drug_exposures_by",
 ]

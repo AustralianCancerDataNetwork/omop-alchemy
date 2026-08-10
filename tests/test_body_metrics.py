@@ -9,6 +9,11 @@ from omop_alchemy.toolkit.analytics.body_metrics import (
     BodySizeMeasurementConcepts,
     MeasurementReading,
     WeightTrajectoryMixin,
+    WeightTrajectorySummary,
+)
+from omop_alchemy.toolkit.analytics.oncology import (
+    CriticalWeightLossSummary,
+    OncologyCriticalWeightLossMixin,
 )
 from omop_alchemy.toolkit.core.units import BodySizeUnitConcepts, BodyUnitConversionRules
 
@@ -62,6 +67,41 @@ class WeightTrajectoryStub(WeightTrajectoryMixin):
     @property
     def weight_readings(self) -> list[MeasurementReading]:
         return self._readings
+
+    @property
+    def height_m(self) -> float | None:
+        return None
+
+    @property
+    def baseline_bmi(self) -> float | None:
+        return None
+
+    @property
+    def baseline_bsa_mosteller_m2(self) -> float | None:
+        return None
+
+
+class CriticalWeightTrajectoryStub(OncologyCriticalWeightLossMixin):
+    def __init__(self, readings: list[MeasurementReading]) -> None:
+        self.episode_id = 1
+        self.person_id = 1
+        self._readings = readings
+
+    @property
+    def weight_readings(self) -> list[MeasurementReading]:
+        return self._readings
+
+    @property
+    def height_m(self) -> float | None:
+        return 1.8
+
+    @property
+    def baseline_bmi(self) -> float | None:
+        return 20.0
+
+    @property
+    def baseline_bsa_mosteller_m2(self) -> float | None:
+        return None
 
 
 def _weight_reading(
@@ -148,3 +188,36 @@ def test_sustained_loss_false_when_a_later_reading_recovers():
     )
 
     assert episode.sustained_loss() is False
+
+
+def test_weight_summary_contract_remains_dict_shaped():
+    episode = WeightTrajectoryStub(
+        [
+            _weight_reading(1, 100, date(2020, 1, 1)),
+            _weight_reading(2, 90, date(2020, 6, 1)),
+        ]
+    )
+
+    summary: WeightTrajectorySummary = episode.weight_trajectory_summary()
+
+    assert isinstance(summary, dict)
+    assert summary["episode_id"] == 1
+    assert summary["pct_change_from_baseline"] == pytest.approx(-10.0)
+
+
+def test_critical_weight_summary_extends_weight_contract_without_mutation():
+    episode = CriticalWeightTrajectoryStub(
+        [
+            _weight_reading(1, 100, date(2020, 1, 1)),
+            _weight_reading(2, 90, date(2020, 6, 1)),
+        ]
+    )
+
+    weight_summary = episode.weight_trajectory_summary()
+    summary: CriticalWeightLossSummary = episode.critical_weight_loss_summary()
+
+    assert isinstance(summary, dict)
+    assert "ctcae_weight_loss_grade" not in weight_summary
+    assert summary["ctcae_weight_loss_grade"] is not None
+    assert summary["martin_weight_loss_grade"] is not None
+    assert summary["critical_weight_loss_grade"] is not None

@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
 from functools import cached_property
-from typing import Any, Callable, Hashable, Sequence
+from typing import Any, Callable, Hashable, Self, Sequence
 
+from omop_alchemy.cdm.model import Drug_Exposure
+from omop_alchemy.toolkit.core._grouping import group_and_summarize
 from omop_alchemy.toolkit.episodes.handling import (
     DoseEvaluability,
     DrugExposureSummary,
-    summarize_drug_exposures,
 )
 
 from .oncology_drug_exposure import OncologyDrugExposure
 
 
 @dataclass(frozen=True)
-class SACTDoseSummary:
+class SACTDoseSummary(DrugExposureSummary):
     """
     SACT dose summary for one caller-chosen drug grouping.
 
@@ -25,40 +24,32 @@ class SACTDoseSummary:
     policy to interpret.
     """
 
-    exposure_summary: DrugExposureSummary
     evaluability: DoseEvaluability
 
-    @property
-    def group_key(self) -> object:
-        return self.exposure_summary.group_key
+    @classmethod
+    def from_exposures(
+        cls,
+        exposures: Sequence[Drug_Exposure],
+        *,
+        group_key: object,
+    ) -> Self:
+        """Summarize SACT exposures and attach dose evaluability policy.
 
-    @property
-    def n_exposures(self) -> int:
-        return self.exposure_summary.n_exposures
-
-    @property
-    def first_start_date(self) -> date | None:
-        return self.exposure_summary.first_start_date
-
-    @property
-    def last_start_date(self) -> date | None:
-        return self.exposure_summary.last_start_date
-
-    @property
-    def total_quantity(self) -> float | None:
-        return self.exposure_summary.total_quantity
-
-    @property
-    def dose_unit_source_values(self) -> frozenset[str]:
-        return self.exposure_summary.dose_unit_source_values
-
-    @property
-    def drug_concept_ids(self) -> frozenset[int]:
-        return self.exposure_summary.drug_concept_ids
+        Construction is field-based and therefore accepts the base OMOP exposure
+        type. Oncology filtering belongs to ``sact_exposures`` before this summary
+        boundary; keeping the inherited input type also preserves substitutability.
+        """
+        return cls(
+            **DrugExposureSummary._values_from_exposures(
+                exposures,
+                group_key=group_key,
+            ),
+            evaluability=sact_dose_evaluability(exposures),
+        )
 
 
 def sact_dose_evaluability(
-    exposures: Sequence[OncologyDrugExposure],
+    exposures: Sequence[Drug_Exposure],
 ) -> DoseEvaluability:
     if not exposures:
         return DoseEvaluability(False, "no_sact_exposures")
@@ -74,33 +65,20 @@ def sact_dose_evaluability(
     return DoseEvaluability(True)
 
 
-def summarize_sact_exposures(
-    exposures: Sequence[OncologyDrugExposure],
-    *,
-    group_key: object,
-) -> SACTDoseSummary:
-    return SACTDoseSummary(
-        exposure_summary=summarize_drug_exposures(exposures, group_key=group_key),
-        evaluability=sact_dose_evaluability(exposures),
-    )
-
-
 def summarize_sact_exposures_by(
     exposures: Sequence[OncologyDrugExposure],
     key: Callable[[OncologyDrugExposure], Hashable],
 ) -> list[SACTDoseSummary]:
-    grouped: dict[Hashable, list[OncologyDrugExposure]] = defaultdict(list)
-    for exposure in exposures:
-        grouped[key(exposure)].append(exposure)
-    return [
-        summarize_sact_exposures(rows, group_key=group_key)
-        for group_key, rows in grouped.items()
-    ]
+    return group_and_summarize(exposures, key, SACTDoseSummary.from_exposures)
 
 
 class OncologySACTDosingMixin:
     """
     SACT dose-summary interface for oncology treatment episodes.
+
+    The composed oncology episode supplies events linked directly to the episode
+    and to its direct children. This keeps regimen-level summaries inclusive of
+    exposures recorded against child treatment cycles.
     """
 
     @property
@@ -126,7 +104,7 @@ class OncologySACTDosingMixin:
 
     @cached_property
     def sact_dose_summary(self) -> SACTDoseSummary:
-        return summarize_sact_exposures(
+        return SACTDoseSummary.from_exposures(
             self.sact_exposures,
             group_key="all_sact",
         )

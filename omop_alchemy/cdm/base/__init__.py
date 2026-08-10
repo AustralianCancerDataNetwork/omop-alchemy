@@ -6,7 +6,7 @@ from .indexing import merge_table_args, omop_index, omop_primary_key_index_name,
 from .domain_validation import DomainValidationMixin, DomainRule, ExpectedDomain
 from .concept_validation import ConceptValidationMixin
 from .reference_context import ReferenceContext
-from .typing import HasConceptId, HasEpisodeId, HasPersonId, DomainSemanticTable, ClinicalEvent
+from .typing import HasConceptId, HasEpisodeId, HasPersonId, DomainSemanticTable
 from .modifier_interface import ModifierTargetMixin
 from .cdm_constants import ModifierFieldConcepts
 
@@ -26,7 +26,6 @@ __all__ = [
     "HasEpisodeId",
     "HasPersonId",
     "DomainSemanticTable",
-    "ClinicalEvent",
     "DatedEvent",
     "PersonScoped",
     "HealthSystemContext",

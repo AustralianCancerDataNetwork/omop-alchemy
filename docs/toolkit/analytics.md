@@ -1,66 +1,102 @@
 # analytics
 
-Clinical-domain logic, one subpackage per domain. Where `core` and `episodes` are
-deliberately domain-agnostic, the subpackages here encode what a value *means* in a
-particular clinical context: which concepts constitute a treatment, what counts as a
-significant change, how severity is graded. Each domain owns its own concept sets, kept
-beside the code that uses them, and domains may depend on each other where the clinical
-logic genuinely composes.
+Clinical-domain logic lives beside the concept sets and policies that give it meaning.
+The domain-neutral `core` and `episodes` packages provide the underlying resolution and
+traversal mechanisms.
 
 ## oncology
 
-Cancer treatment and disease episodes. `OncologyEpisode` is the main entry point — it
-classifies itself from its episode concepts and exposes the facts it contains:
+| API | Capability |
+|---|---|
+| `OncologyEpisode` | Classifies episode purpose and modality; traverses events linked to the episode and its direct children. |
+| `structural_modalities` / `concept_modalities` | Preserve every evidenced modality so mixed treatment and SACT classification disagreements remain visible. |
+| `structural_modality` / `concept_modality` | Select one deterministic modality in radiotherapy, surgery, diagnostic/staging, SACT priority order. |
+| `OncologyProcedure` / `OncologyDrugExposure` | Add governed `is_radiotherapy`, `is_surgery`, `is_diagnostic_staging`, and `is_sact` questions to CDM facts. |
+| `RTDoseSummary.from_procedures(...)` | Constructs one radiotherapy summary; `summarize_rt_procedures_by(...)` groups before construction. |
+| `SACTDoseSummary.from_exposures(...)` | Constructs one SACT summary; `summarize_sact_exposures_by(...)` groups before construction. |
+| `OncologyEpisodeEvent` | Resolves oncology-aware facts while retaining episode-event diagnostics. |
 
-```python
-from omop_alchemy.toolkit.analytics.oncology import OncologyEpisode
+Governed membership has two access modes:
 
-episode = session.get(OncologyEpisode, episode_id)
-episode.structural_modality   # OncologyModality.SACT, .RADIOTHERAPY, .SURGERY, ...
-episode.is_treatment_cycle
-episode.rt_dose_summaries_by_site
-episode.sact_dose_summary
-```
+| Access form | Behaviour |
+|---|---|
+| Loaded instance property | Expands once per vocabulary identity, then uses cached O(1) membership. Initial classification requires a live session; a cached result remains the snapshot computed while the instance was attached. |
+| Class-level hybrid expression | Emits a database subquery for each query and does not use the Python expansion cache. |
 
-Episode traversal resolves to oncology-aware fact classes — `OncologyDrugExposure` and
-`OncologyProcedure` extend their CDM counterparts with questions such as `is_sact` and
-`is_radiotherapy` — and `OncologyEpisodeEvent` carries resolution diagnostics the same
-way `episodes.handling`'s `ResolvedEpisodeEvent` does, since it extends it.
+::: omop_alchemy.toolkit.analytics.oncology.OncologyEpisode
+    options:
+      members:
+        - is_disease_episode
+        - is_overarching
+        - is_treatment_episode
+        - is_treatment_regimen
+        - is_treatment_cycle
+        - primary_episode
+        - child_treatment_episodes
+        - structural_modalities
+        - structural_modality
+        - concept_modalities
+        - concept_modality
+        - child_treatment_episodes_by_modality
+        - child_treatment_episodes_by_concept_modality
+        - rt_procedures
+        - rt_dose_summaries_by_site
+        - rt_dose_summary
+        - sact_exposures
+        - sact_dose_summaries_by_drug_concept
+        - sact_dose_summary
+        - ctcae_weight_loss_grade
+        - martin_weight_loss_grade
+        - critical_weight_loss_grade
+        - critical_weight_loss_summary
 
-::: omop_alchemy.toolkit.analytics.oncology
+::: omop_alchemy.toolkit.analytics.oncology.RTDoseSummary
+    options:
+      members:
+        - from_procedures
+
+::: omop_alchemy.toolkit.analytics.oncology.SACTDoseSummary
+    options:
+      members:
+        - from_exposures
 
 ## body_metrics
 
-Weight, height, and BMI as measurement series and trajectories. `WeightTrajectoryMixin`
-gives an episode view normalised weight and height, BMI, and windowed weight change:
+| API | Capability |
+|---|---|
+| `MeasurementReading.from_measurement(...)` | Reduces an OMOP measurement to the fields used by calculations and records its resolution source. |
+| `MeasurementSeriesMixin` | Resolves normalized measurement series for an episode. |
+| `WeightTrajectoryMixin` | Exposes normalized weight and height, BMI, BSA, windowed change, trajectories, and a dict-shaped typed summary. |
+| `WeightChange` | Represents percentage change and whether it was evaluable; unevaluable change has `pct_change=None`. |
+| `WeightTrajectorySummary` | Types the DataFrame- and JSON-friendly mapping returned by `weight_trajectory_summary()`. |
 
-```python
-from omop_alchemy.toolkit.analytics.body_metrics import WeightTrajectoryMixin
+::: omop_alchemy.toolkit.analytics.body_metrics.MeasurementReading
+    options:
+      members:
+        - from_measurement
 
-class MyEpisode(WeightTrajectoryMixin, EpisodeView):
-    ...
-
-episode.baseline_bmi
-episode.pct_change_over(days=180)
-```
-
-`WeightChange.pct_change` is `None` whenever the change is not evaluable — too few
-readings, or an unusable unit — so callers cannot mistake an unknown for a zero.
-
-::: omop_alchemy.toolkit.analytics.body_metrics
+::: omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin
+    options:
+      members:
+        - weight_readings
+        - height_readings_cm
+        - height_m
+        - baseline_weight
+        - latest_weight
+        - baseline_bmi
+        - baseline_bsa_mosteller_m2
+        - pct_change_from_baseline
+        - pct_change_over
+        - pct_change_trajectory
+        - sustained_loss
+        - weight_trajectory_summary
 
 ## adverse_events
 
-Grades clinical severity against published criteria, kept separate from the
-measurement code in `body_metrics` so the standard being applied is always explicit.
-
-```python
-from omop_alchemy.toolkit.analytics.adverse_events import critical_weight_loss_grade
-
-grade = critical_weight_loss_grade(pct_change=-12.0, bmi=21.4)
-```
-
-`critical_weight_loss_grade` uses the Martin et al. BMI-adjusted matrix where BMI is
-available and falls back to CTCAE-style percent-loss bins where it is not.
+| API | Policy |
+|---|---|
+| `ctcae_weight_loss_grade(...)` | Grades percentage weight loss against CTCAE-style bins. |
+| `martin_weight_loss_grade(...)` | Applies the Martin et al. BMI-adjusted matrix. |
+| `critical_weight_loss_grade(...)` | Uses the Martin matrix when BMI is available and otherwise falls back to CTCAE-style bins. |
 
 ::: omop_alchemy.toolkit.analytics.adverse_events

@@ -1,6 +1,5 @@
-from typing import Protocol, ClassVar, runtime_checkable, TYPE_CHECKING, Optional
+from typing import Protocol, ClassVar, runtime_checkable, TYPE_CHECKING
 from sqlalchemy.orm import DeclarativeMeta
-from datetime import date
 
 if TYPE_CHECKING:
     from omop_alchemy.cdm.base import ExpectedDomain, DomainRule

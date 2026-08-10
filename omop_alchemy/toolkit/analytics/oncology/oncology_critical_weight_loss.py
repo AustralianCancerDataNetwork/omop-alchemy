@@ -1,14 +1,24 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Any
 
 from omop_alchemy.toolkit.analytics.adverse_events import (
     critical_weight_loss_grade,
     ctcae_weight_loss_grade,
     martin_weight_loss_grade,
 )
-from omop_alchemy.toolkit.analytics.body_metrics import WeightTrajectoryMixin
+from omop_alchemy.toolkit.analytics.body_metrics import (
+    WeightTrajectoryMixin,
+    WeightTrajectorySummary,
+)
+
+
+class CriticalWeightLossSummary(WeightTrajectorySummary):
+    """Weight trajectory summary extended with oncology loss grades."""
+
+    ctcae_weight_loss_grade: int | None
+    martin_weight_loss_grade: int | None
+    critical_weight_loss_grade: int | None
 
 
 class OncologyCriticalWeightLossMixin(WeightTrajectoryMixin):
@@ -40,13 +50,10 @@ class OncologyCriticalWeightLossMixin(WeightTrajectoryMixin):
             self.baseline_bmi,
         )
 
-    def critical_weight_loss_summary(self) -> dict[str, Any]:
-        summary = self.weight_trajectory_summary()
-        summary.update(
-            {
-                "ctcae_weight_loss_grade": self.ctcae_weight_loss_grade,
-                "martin_weight_loss_grade": self.martin_weight_loss_grade,
-                "critical_weight_loss_grade": self.critical_weight_loss_grade,
-            }
-        )
-        return summary
+    def critical_weight_loss_summary(self) -> CriticalWeightLossSummary:
+        return {
+            **self.weight_trajectory_summary(),
+            "ctcae_weight_loss_grade": self.ctcae_weight_loss_grade,
+            "martin_weight_loss_grade": self.martin_weight_loss_grade,
+            "critical_weight_loss_grade": self.critical_weight_loss_grade,
+        }

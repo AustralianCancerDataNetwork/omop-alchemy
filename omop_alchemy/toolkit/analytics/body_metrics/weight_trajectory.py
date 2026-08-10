@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from functools import cached_property
-from typing import ClassVar, Optional
+from typing import ClassVar, Optional, TypedDict
 
 from .calculators import BodyMetricRules
 from .measurement_series import (
@@ -37,6 +37,28 @@ class WeightTrajectoryPoint:
     pct_change: float
     date: date
     weight_kg: float
+
+
+class WeightTrajectorySummary(TypedDict):
+    """Stable dict-shaped result returned by ``weight_trajectory_summary``."""
+
+    episode_id: int
+    person_id: int
+    n_weight_readings: int
+    baseline_weight_kg: float | None
+    baseline_weight_date: date | None
+    latest_weight_kg: float | None
+    latest_weight_date: date | None
+    height_m: float | None
+    baseline_bmi: float | None
+    baseline_bsa_mosteller_m2: float | None
+    pct_change_from_baseline: float | None
+    pct_change_from_baseline_evaluable: bool
+    pct_change_3mo: float | None
+    pct_change_3mo_evaluable: bool
+    pct_change_6mo: float | None
+    pct_change_6mo_evaluable: bool
+    sustained_5pct_loss: bool | None
 
 
 def normalize_weight_readings(
@@ -222,7 +244,7 @@ class WeightTrajectoryMixin:
             for r in tail
         )
 
-    def weight_trajectory_summary(self) -> dict:
+    def weight_trajectory_summary(self) -> WeightTrajectorySummary:
         baseline = self.baseline_weight
         latest = self.latest_weight
         change_from_baseline = self.pct_change_from_baseline()

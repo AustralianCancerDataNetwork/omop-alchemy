@@ -2,7 +2,7 @@ import importlib
 import sqlalchemy as sa
 import pytest
 from typer.testing import CliRunner
-from oa_configurator import StackConfig, DatabaseConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
 
 from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance._cli_utils import Status
@@ -44,8 +44,8 @@ def test_truncate_tables_cli_requires_confirmation(monkeypatch):
     """Test truncate tables cli requires confirmation."""
 
     cfg = StackConfig.for_session(
-        databases={"db": DatabaseConfig(dialect="sqlite", database_name=":memory:")},
-        resources={"cdm_db": {"database": "db", "cdm_schema": "main"}},
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -63,8 +63,8 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        databases={"db": DatabaseConfig(dialect="sqlite", database_name=":memory:")},
-        resources={"cdm_db": {"database": "db", "cdm_schema": "main"}},
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",

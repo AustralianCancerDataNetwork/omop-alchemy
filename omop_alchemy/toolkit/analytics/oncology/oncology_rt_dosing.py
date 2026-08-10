@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 from functools import cached_property
-from typing import Any, Callable, Hashable, Sequence
+from typing import Any, Callable, Hashable, Self, Sequence
 
+from omop_alchemy.toolkit.core._grouping import group_and_summarize
 from omop_alchemy.toolkit.episodes.handling import DoseEvaluability
 
 from .oncology_procedure_occurrence import OncologyProcedure
@@ -30,6 +30,41 @@ class RTDoseSummary:
     modifier_concept_ids: frozenset[int]
     evaluability: DoseEvaluability
 
+    @classmethod
+    def from_procedures(
+        cls,
+        procedures: Sequence[OncologyProcedure],
+        *,
+        group_key: object,
+    ) -> Self:
+        """Summarize radiotherapy procedure rows for one grouping key."""
+        dates = [
+            procedure.procedure_date
+            for procedure in procedures
+            if procedure.procedure_date is not None
+        ]
+        quantities = [
+            procedure.quantity
+            for procedure in procedures
+            if procedure.quantity is not None
+        ]
+        return cls(
+            group_key=group_key,
+            n_procedures=len(procedures),
+            first_date=min(dates) if dates else None,
+            last_date=max(dates) if dates else None,
+            total_quantity=sum(quantities) if quantities else None,
+            procedure_concept_ids=frozenset(
+                procedure.procedure_concept_id for procedure in procedures
+            ),
+            modifier_concept_ids=frozenset(
+                procedure.modifier_concept_id
+                for procedure in procedures
+                if procedure.modifier_concept_id is not None
+            ),
+            evaluability=rt_dose_evaluability(procedures),
+        )
+
 
 def rt_dose_evaluability(
     procedures: Sequence[OncologyProcedure],
@@ -41,51 +76,11 @@ def rt_dose_evaluability(
     return DoseEvaluability(True)
 
 
-def summarize_rt_procedures(
-    procedures: Sequence[OncologyProcedure],
-    *,
-    group_key: object,
-) -> RTDoseSummary:
-    dates = [
-        procedure.procedure_date
-        for procedure in procedures
-        if procedure.procedure_date is not None
-    ]
-    quantities = [
-        procedure.quantity
-        for procedure in procedures
-        if procedure.quantity is not None
-    ]
-    return RTDoseSummary(
-        group_key=group_key,
-        n_procedures=len(procedures),
-        first_date=min(dates) if dates else None,
-        last_date=max(dates) if dates else None,
-        total_quantity=sum(quantities) if quantities else None,
-        procedure_concept_ids=frozenset(
-            procedure.procedure_concept_id
-            for procedure in procedures
-        ),
-        modifier_concept_ids=frozenset(
-            procedure.modifier_concept_id
-            for procedure in procedures
-            if procedure.modifier_concept_id is not None
-        ),
-        evaluability=rt_dose_evaluability(procedures),
-    )
-
-
 def summarize_rt_procedures_by(
     procedures: Sequence[OncologyProcedure],
     key: Callable[[OncologyProcedure], Hashable],
 ) -> list[RTDoseSummary]:
-    grouped: dict[Hashable, list[OncologyProcedure]] = defaultdict(list)
-    for procedure in procedures:
-        grouped[key(procedure)].append(procedure)
-    return [
-        summarize_rt_procedures(rows, group_key=group_key)
-        for group_key, rows in grouped.items()
-    ]
+    return group_and_summarize(procedures, key, RTDoseSummary.from_procedures)
 
 
 def rt_site_key(procedure: OncologyProcedure) -> object:
@@ -121,7 +116,7 @@ class OncologyRTDosingMixin:
 
     @cached_property
     def rt_dose_summary(self) -> RTDoseSummary:
-        return summarize_rt_procedures(
+        return RTDoseSummary.from_procedures(
             self.rt_procedures,
             group_key="all_rt",
         )

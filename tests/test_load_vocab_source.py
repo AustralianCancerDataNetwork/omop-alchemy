@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
-from oa_configurator import StackConfig, DatabaseConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
 from sqlalchemy.orm import sessionmaker
 from typer.testing import CliRunner
 
@@ -163,9 +163,9 @@ def test_load_vocab_source_cli_uses_configured_athena_source(monkeypatch, tmp_pa
     athena_dir.mkdir()
 
     cfg = StackConfig.for_session(
-        databases={"db": DatabaseConfig(dialect="sqlite", database_name=":memory:")},
-        resources={"cdm_db": {"database": "db", "cdm_schema": "main"}},
-        tools={OmopAlchemyConfig.tool_name: {"extra": {"athena_source_path": str(athena_dir)}}},
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
+        tools={OmopAlchemyConfig.tool_name: {"athena_source_path": str(athena_dir)}},
     )
 
     monkeypatch.setattr(
@@ -437,8 +437,8 @@ def test_load_vocab_source_cli_surfaces_database_error_detail(monkeypatch):
     """Test load vocab source cli surfaces database error detail."""
 
     cfg = StackConfig.for_session(
-        databases={"db": DatabaseConfig(dialect="sqlite", database_name=":memory:")},
-        resources={"cdm_db": {"database": "db", "cdm_schema": "main"}},
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",

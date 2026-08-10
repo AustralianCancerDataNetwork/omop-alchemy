@@ -10,7 +10,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import object_session
 
 from omop_alchemy.cdm.model.structural import EpisodeView
-from omop_alchemy.toolkit.episodes.handling import DrugEpisodeMixin
 
 from .concept_sets import (
     disease_episode_type_concept_ids,
@@ -25,6 +24,7 @@ from .oncology_event import OncologyEpisodeEventMixin
 from .oncology_procedure_occurrence import OncologyProcedure
 from .oncology_rt_dosing import OncologyRTDosingMixin
 from .oncology_sact_dosing import OncologySACTDosingMixin
+from .session_guard import require_session
 
 
 class OncologyModality(StrEnum):
@@ -35,11 +35,25 @@ class OncologyModality(StrEnum):
     UNKNOWN = "unknown"
 
 
+_MODALITY_PRIORITY = (
+    OncologyModality.RADIOTHERAPY,
+    OncologyModality.SURGERY,
+    OncologyModality.DIAGNOSTIC_STAGING,
+    OncologyModality.SACT,
+)
+
+
+def _preferred_modality(modalities: frozenset[OncologyModality]) -> OncologyModality:
+    return next(
+        (modality for modality in _MODALITY_PRIORITY if modality in modalities),
+        OncologyModality.UNKNOWN,
+    )
+
+
 class OncologyEpisode(
     OncologyCriticalWeightLossMixin,
     OncologySACTDosingMixin,
     OncologyRTDosingMixin,
-    DrugEpisodeMixin,
     OncologyEpisodeEventMixin,
     EpisodeView,
 ):
@@ -140,55 +154,76 @@ class OncologyEpisode(
 
     @cached_property
     def _linked_oncology_events(self) -> list[object]:
+        """Resolved events linked to this episode or one of its direct children."""
+        require_session(self)
         resolved: list[object] = list(self.events)
         for child in cast(list[Self], self.children):
             resolved.extend(child.events)
         return resolved
 
     @cached_property
-    def structural_modality(self) -> OncologyModality:
+    def structural_modalities(self) -> frozenset[OncologyModality]:
         """
-        Classify modality from linked event structure.
+        All modalities supported by linked event structure.
 
         Any linked drug exposure is treated as structural SACT evidence, while
         radiotherapy, surgery, and diagnostic/staging require governed procedure
-        concept membership.
+        concept membership. Events linked to direct child episodes are included.
         """
-        has_drug_exposure = False
+        modalities: set[OncologyModality] = set()
         for event in self._linked_oncology_events:
             if isinstance(event, OncologyDrugExposure):
-                has_drug_exposure = True
+                modalities.add(OncologyModality.SACT)
                 continue
             if not isinstance(event, OncologyProcedure):
                 continue
             if event.is_radiotherapy:
-                return OncologyModality.RADIOTHERAPY
+                modalities.add(OncologyModality.RADIOTHERAPY)
             if event.is_surgery:
-                return OncologyModality.SURGERY
+                modalities.add(OncologyModality.SURGERY)
             if event.is_diagnostic_staging:
-                return OncologyModality.DIAGNOSTIC_STAGING
-        return OncologyModality.SACT if has_drug_exposure else OncologyModality.UNKNOWN
+                modalities.add(OncologyModality.DIAGNOSTIC_STAGING)
+        return frozenset(modalities)
+
+    @cached_property
+    def structural_modality(self) -> OncologyModality:
+        """
+        Highest-priority structural modality, or ``UNKNOWN`` when none apply.
+
+        Priority is radiotherapy, surgery, diagnostic/staging, then SACT.
+        """
+        return _preferred_modality(self.structural_modalities)
+
+    @cached_property
+    def concept_modalities(self) -> frozenset[OncologyModality]:
+        """
+        All modalities supported by linked procedure and drug concept identity.
+
+        This is intentionally distinct from ``structural_modalities`` so SACT
+        disagreements remain visible.
+        """
+        modalities: set[OncologyModality] = set()
+        for event in self._linked_oncology_events:
+            if isinstance(event, OncologyDrugExposure):
+                if event.is_sact:
+                    modalities.add(OncologyModality.SACT)
+            elif isinstance(event, OncologyProcedure):
+                if event.is_radiotherapy:
+                    modalities.add(OncologyModality.RADIOTHERAPY)
+                if event.is_surgery:
+                    modalities.add(OncologyModality.SURGERY)
+                if event.is_diagnostic_staging:
+                    modalities.add(OncologyModality.DIAGNOSTIC_STAGING)
+        return frozenset(modalities)
 
     @cached_property
     def concept_modality(self) -> OncologyModality:
         """
-        Classify modality from linked procedure/drug concept identity.
+        Highest-priority concept modality, or ``UNKNOWN`` when none apply.
 
-        This is intentionally distinct from ``structural_modality`` so SACT
-        disagreements remain visible.
+        Priority is radiotherapy, surgery, diagnostic/staging, then SACT.
         """
-        for event in self._linked_oncology_events:
-            if isinstance(event, OncologyDrugExposure):
-                if event.is_sact:
-                    return OncologyModality.SACT
-            elif isinstance(event, OncologyProcedure):
-                if event.is_radiotherapy:
-                    return OncologyModality.RADIOTHERAPY
-                if event.is_surgery:
-                    return OncologyModality.SURGERY
-                if event.is_diagnostic_staging:
-                    return OncologyModality.DIAGNOSTIC_STAGING
-        return OncologyModality.UNKNOWN
+        return _preferred_modality(self.concept_modalities)
 
     @cached_property
     def child_treatment_episodes_by_modality(

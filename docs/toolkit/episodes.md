@@ -33,6 +33,15 @@ episode.drug_exposures                # resolved Drug_Exposure rows
 episode.drug_exposure_summaries_by()  # grouped by drug concept by default
 ```
 
+Construct a summary for an already selected set of rows through the summary
+type itself:
+
+```python
+from omop_alchemy.toolkit.episodes.handling import DrugExposureSummary
+
+summary = DrugExposureSummary.from_exposures(exposures, group_key="regimen-a")
+```
+
 Dose quantities are frequently not comparable across agents, because source units and
 quantities arrive unnormalised. `DoseEvaluability` carries that judgement alongside the
 number, so a summary that cannot be interpreted as a dose says so rather than presenting

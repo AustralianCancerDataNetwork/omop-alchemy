@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, cast
+from typing import Any, Literal, TypeVar, cast
 
 import sqlalchemy.orm as so
 from sqlalchemy.ext.declarative import declared_attr
@@ -14,6 +14,8 @@ ResolutionDiagnosticKind = Literal[
     "unmapped_field_concept",
     "dangling_event",
 ]
+
+EpisodeEventT = TypeVar("EpisodeEventT", bound="ResolvedEpisodeEvent")
 
 
 @dataclass(frozen=True)
@@ -115,6 +117,21 @@ class ResolvedEpisodeEvent(Episode_EventView):
         return []
 
 
+def _episode_events_relationship(
+    owner_cls: type[Any],
+    target_cls: type[EpisodeEventT],
+) -> so.Mapped[list[EpisodeEventT]]:
+    """Build the view-only episode-event relationship used by episode mixins."""
+    owner_episode_id = cast(Any, owner_cls).__table__.c.episode_id
+    event_episode_id = target_cls.__table__.c.episode_id
+    return so.relationship(
+        target_cls,
+        primaryjoin=lambda: owner_episode_id == event_episode_id,
+        viewonly=True,
+        lazy="selectin",
+    )
+
+
 class ResolvedEpisodeEventMixin:
     """
     Relationship override so episode views can traverse to resolution diagnostics.
@@ -129,11 +146,4 @@ class ResolvedEpisodeEventMixin:
     @declared_attr
     @classmethod
     def episode_events(cls) -> so.Mapped[list["ResolvedEpisodeEvent"]]:
-        owner_episode_id = cast(Any, cls).__table__.c.episode_id
-        event_episode_id = ResolvedEpisodeEvent.__table__.c.episode_id
-        return so.relationship(
-            "ResolvedEpisodeEvent",
-            primaryjoin=lambda: owner_episode_id == event_episode_id,
-            viewonly=True,
-            lazy="selectin",
-        )
+        return _episode_events_relationship(cls, ResolvedEpisodeEvent)
