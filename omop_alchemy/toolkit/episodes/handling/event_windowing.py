@@ -17,15 +17,15 @@ def episode_attachment_window(
     than by an explicit ``Episode_Event`` link.
 
     Time-varying facts such as body measurements use a bounded
-    episode-relative window. Open episodes fall back to a finite post-start
-    window so an accidentally long-running episode does not absorb a
+    episode-relative window. An explicit ``episode_end_date`` is always
+    honoured, however long the episode ran. Only open-ended episodes fall back
+    to a finite post-start window, so a missing end date cannot absorb a
     person's entire future history.
     """
     start = episode.episode_start_date
     end = episode.episode_end_date
 
     window_start = start - timedelta(days=days_prior)
-    open_end_bound = start + timedelta(days=open_end_fallback_days)
-    window_end = min(end, open_end_bound) if end is not None else open_end_bound
+    window_end = end if end is not None else start + timedelta(days=open_end_fallback_days)
 
     return window_start, window_end

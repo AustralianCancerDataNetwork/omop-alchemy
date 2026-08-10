@@ -45,7 +45,7 @@ postgres = [
 ]
 
 semantics = [
-  "omop-semantics>=0.5.0",
+  "omop-semantics>=0.6.0",
 ]
 
 dev = [

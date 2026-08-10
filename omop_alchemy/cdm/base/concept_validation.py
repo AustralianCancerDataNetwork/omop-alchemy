@@ -1,21 +1,5 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from typing import TYPE_CHECKING, cast
-
-if TYPE_CHECKING:
-    from omop_alchemy.cdm.model.vocabulary.concept import Concept as ConceptModel
-
-
-def _concept_cls() -> "type[ConceptModel]":
-    # need to be able to query concept table but can't import directly here to avoid circular imports
-    from orm_loader.helpers import get_model_by_tablename
-
-    ConceptCls: object = get_model_by_tablename("Concept")
-    if ConceptCls is None:
-        raise RuntimeError(
-            "Concept model is not registered; cannot validate referenced concepts."
-        )
-    return cast("type[ConceptModel]", ConceptCls)
 
 
 class ConceptValidationMixin:
@@ -109,7 +93,8 @@ class ConceptValidationMixin:
         sqlalchemy.Select
             A SELECT returning a single column: the violating concept_id.
         """
-        Concept = _concept_cls()
+        # imported here rather than at module scope to avoid a circular import
+        from omop_alchemy.cdm.model.vocabulary.concept import Concept
 
         # Base join condition: concept_id match
         join_cond = Concept.concept_id == col

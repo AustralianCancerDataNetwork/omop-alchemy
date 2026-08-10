@@ -204,15 +204,16 @@ class WeightTrajectoryMixin:
         min_consecutive: int = 2,
     ) -> Optional[bool]:
         baseline = self.baseline_weight
-        readings = self.weight_readings
+        # the baseline is the first reading, so it cannot count towards a loss against itself
+        post_baseline = self.weight_readings[1:]
         if (
             baseline is None
             or baseline.value is None
             or baseline.value <= 0
-            or len(readings) < min_consecutive
+            or len(post_baseline) < min_consecutive
         ):
             return None
-        tail = readings[-min_consecutive:]
+        tail = post_baseline[-min_consecutive:]
         if any(r.value is None for r in tail):
             return None
         return all(

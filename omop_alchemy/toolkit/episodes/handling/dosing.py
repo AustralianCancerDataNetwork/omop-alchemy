@@ -17,6 +17,3 @@ class DoseEvaluability:
 
     evaluable: bool
     reason: Optional[str] = None
-
-
-DOSE_EVALUABLE = DoseEvaluability(evaluable=True)

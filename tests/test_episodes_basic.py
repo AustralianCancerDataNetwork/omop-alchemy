@@ -5,7 +5,12 @@ from omop_alchemy.cdm.model.structural import (
     Episode_EventView,
     clear_episode_event_target_class_cache,
 )
-from omop_alchemy.toolkit.episodes.handling import ResolvedEpisodeEvent
+from omop_alchemy.toolkit.episodes.handling import (
+    DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
+    ResolvedEpisodeEvent,
+    episode_attachment_window,
+)
+import datetime
 import sqlalchemy as sa
 
 def test_episode_view_expected_domains():
@@ -221,3 +226,29 @@ def test_episode_date_bounds(session):
 
     if ep.episode_end_date:
         assert ep.episode_start_date <= ep.episode_end_date
+
+
+class _WindowStub:
+    def __init__(self, start, end):
+        self.episode_start_date = start
+        self.episode_end_date = end
+
+
+def test_attachment_window_honours_an_explicit_end_date():
+    """A long but closed episode keeps its own end date, not the open-end cap."""
+    episode = _WindowStub(datetime.date(2020, 1, 1), datetime.date(2023, 6, 30))
+
+    window_start, window_end = episode_attachment_window(episode)
+
+    assert window_start == datetime.date(2019, 10, 3)
+    assert window_end == datetime.date(2023, 6, 30)
+
+
+def test_attachment_window_caps_open_ended_episodes():
+    episode = _WindowStub(datetime.date(2020, 1, 1), None)
+
+    _, window_end = episode_attachment_window(episode)
+
+    assert window_end == datetime.date(2020, 1, 1) + datetime.timedelta(
+        days=DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS
+    )

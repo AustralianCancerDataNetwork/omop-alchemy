@@ -13,6 +13,8 @@ class CTCAEWeightLoss:
     are not inferred here.
     """
 
+    # NCI CTCAE v5.0, "Weight loss": grade 1 is 5 to <10% loss from baseline,
+    # grade 2 is 10 to <20%, grade 3 is >=20%. CTCAE defines no grade 4 or 5.
     THRESHOLDS: ClassVar[tuple[float, ...]] = (5.0, 10.0, 20.0)
 
     @classmethod

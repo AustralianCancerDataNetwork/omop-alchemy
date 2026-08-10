@@ -7,7 +7,6 @@ from functools import cached_property
 from typing import Any, Callable, Hashable, Sequence
 
 from omop_alchemy.toolkit.episodes.handling import (
-    DOSE_EVALUABLE,
     DoseEvaluability,
     DrugExposureSummary,
     summarize_drug_exposures,
@@ -72,7 +71,7 @@ def sact_dose_evaluability(
     }
     if len(units) > 1:
         return DoseEvaluability(False, "mixed_dose_units")
-    return DOSE_EVALUABLE
+    return DoseEvaluability(True)
 
 
 def summarize_sact_exposures(
@@ -104,14 +103,15 @@ class OncologySACTDosingMixin:
     SACT dose-summary interface for oncology treatment episodes.
     """
 
-    def _linked_oncology_events(self, *, include_child_events: bool = True) -> list[Any]:
+    @property
+    def _linked_oncology_events(self) -> list[Any]:
         raise NotImplementedError
 
     @cached_property
     def sact_exposures(self) -> list[OncologyDrugExposure]:
         exposures = [
             event
-            for event in self._linked_oncology_events()
+            for event in self._linked_oncology_events
             if isinstance(event, OncologyDrugExposure) and event.is_sact
         ]
         exposures.sort(key=lambda exposure: exposure.drug_exposure_start_date)

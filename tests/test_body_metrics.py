@@ -111,3 +111,40 @@ def test_weight_change_near_zero_change_remains_evaluable():
 
     assert change.evaluable
     assert change.pct_change == pytest.approx(0.01)
+
+
+def test_sustained_loss_ignores_the_baseline_reading():
+    # min_consecutive readings *after* the baseline, all past the threshold
+    episode = WeightTrajectoryStub(
+        [
+            _weight_reading(1, 100, date(2020, 1, 1)),
+            _weight_reading(2, 93, date(2020, 2, 1)),
+            _weight_reading(3, 91, date(2020, 3, 1)),
+        ]
+    )
+
+    assert episode.sustained_loss() is True
+
+
+def test_sustained_loss_needs_enough_readings_after_the_baseline():
+    episode = WeightTrajectoryStub(
+        [
+            _weight_reading(1, 100, date(2020, 1, 1)),
+            _weight_reading(2, 93, date(2020, 2, 1)),
+        ]
+    )
+
+    assert episode.sustained_loss(min_consecutive=2) is None
+    assert episode.sustained_loss(min_consecutive=1) is True
+
+
+def test_sustained_loss_false_when_a_later_reading_recovers():
+    episode = WeightTrajectoryStub(
+        [
+            _weight_reading(1, 100, date(2020, 1, 1)),
+            _weight_reading(2, 93, date(2020, 2, 1)),
+            _weight_reading(3, 99, date(2020, 3, 1)),
+        ]
+    )
+
+    assert episode.sustained_loss() is False

@@ -54,8 +54,6 @@ class BodyUnitConversionRules:
     """
 
     units: BodySizeUnitConcepts
-    lb_to_kg: float = LB_US_TO_KG
-    inch_to_cm: float = INCH_TO_CM
 
     @classmethod
     def default(cls) -> "BodyUnitConversionRules":
@@ -65,14 +63,14 @@ class BodyUnitConversionRules:
     def weight_unit_conversion_to_kg(self) -> dict[int, float]:
         return {
             self.units.kg: 1.0,
-            self.units.lb: self.lb_to_kg,
+            self.units.lb: LB_US_TO_KG,
         }
 
     @property
     def height_unit_conversion_to_cm(self) -> dict[int, float]:
         return {
             self.units.cm: 1.0,
-            self.units.inch: self.inch_to_cm,
+            self.units.inch: INCH_TO_CM,
         }
 
     def normalize_weight_kg(

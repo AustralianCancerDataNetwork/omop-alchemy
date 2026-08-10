@@ -1,7 +1,9 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from sqlalchemy import event
+from sqlalchemy.orm import Mapper
 from typing import TYPE_CHECKING, Any, Type
-from functools import cached_property
+from functools import cached_property, cache
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     cdm_table,
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
     from ..vocabulary import Concept
     from .episode import Episode
 
-
+@cache
 def _modifier_target_classes_by_field_concept_id() -> dict[int, Type[Any]]:
     """
     Default field-concept -> ORM target class map, CDM classes only.
@@ -52,31 +54,24 @@ def _modifier_target_classes_by_field_concept_id() -> dict[int, Type[Any]]:
             classes[field_concept_id] = cls
     return classes
 
-
-class _EpisodeEventTargetClassCache:
-    def __init__(self) -> None:
-        self._cache: dict[int, Type[Any]] | None = None
-
-    def get(self) -> dict[int, Type[Any]]:
-        if self._cache is None:
-            self._cache = _modifier_target_classes_by_field_concept_id()
-        return self._cache
-
-    def clear(self) -> None:
-        self._cache = None
-
-
-_target_class_cache = _EpisodeEventTargetClassCache()
+@event.listens_for(Mapper, "after_mapper_constructed")
+def _invalidate_target_class_cache(
+    mapper: Mapper[Any],
+    class_: type[Any],
+) -> None:
+    _modifier_target_classes_by_field_concept_id.cache_clear()
 
 
 def clear_episode_event_target_class_cache() -> None:
     """
     Clear cached episode_event field-concept target mappings.
 
-    Honestly this isn't likely to be needed in normal operation, 
-    but the unenforced polymorphism is hard to capture otherwise.
+    Invalidation is automatic: ``after_mapper_constructed`` clears the cache
+    whenever a new mapper is configured, so a ``ModifierTargetMixin`` subclass
+    imported late is picked up without intervention. This remains as an escape
+    hatch for callers that build target classes outside the mapper lifecycle.
     """
-    _target_class_cache.clear()
+    _modifier_target_classes_by_field_concept_id.cache_clear()
 
 
 @cdm_table
@@ -117,14 +112,8 @@ class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMix
     def resolved_event_target_classes(cls) -> dict[int, Type[Any]]:
         """
         Map episode_event field concepts to ORM classes that can receive them.
-
-        Subclasses may override this to prefer domain-specific mapped views
-        over the base CDM views. The default map is built from registered
-        ``ModifierTargetMixin`` classes and keyed by the field concept id
-        itself, avoiding the fragile concept-name table parsing that the CDM
-        metadata labels happen to support today.
         """
-        return _target_class_cache.get()
+        return _modifier_target_classes_by_field_concept_id()
 
     @property
     def event_table(self) -> str | None:

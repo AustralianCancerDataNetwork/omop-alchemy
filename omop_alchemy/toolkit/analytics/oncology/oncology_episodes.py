@@ -57,6 +57,9 @@ class OncologyEpisode(
     @declared_attr
     @classmethod
     def children(cls) -> so.Mapped[list["OncologyEpisode"]]:
+        # Not redundant with EpisodeContext.children: that declared_attr fires only
+        # for EpisodeView, so inheriting it would give OncologyEpisode children
+        # typed as EpisodeView. Redeclaring re-runs it with cls=OncologyEpisode.
         episode_id = cls.__table__.c.episode_id
         episode_parent_id = cls.__table__.c.episode_parent_id
         return so.relationship(
@@ -135,11 +138,11 @@ class OncologyEpisode(
             if child.is_treatment_episode
         ]
 
-    def _linked_oncology_events(self, *, include_child_events: bool = True) -> list[object]:
+    @cached_property
+    def _linked_oncology_events(self) -> list[object]:
         resolved: list[object] = list(self.events)
-        if include_child_events:
-            for child in cast(list[Self], self.children):
-                resolved.extend(child.events)
+        for child in cast(list[Self], self.children):
+            resolved.extend(child.events)
         return resolved
 
     @cached_property
@@ -152,7 +155,7 @@ class OncologyEpisode(
         concept membership.
         """
         has_drug_exposure = False
-        for event in self._linked_oncology_events():
+        for event in self._linked_oncology_events:
             if isinstance(event, OncologyDrugExposure):
                 has_drug_exposure = True
                 continue
@@ -174,7 +177,7 @@ class OncologyEpisode(
         This is intentionally distinct from ``structural_modality`` so SACT
         disagreements remain visible.
         """
-        for event in self._linked_oncology_events():
+        for event in self._linked_oncology_events:
             if isinstance(event, OncologyDrugExposure):
                 if event.is_sact:
                     return OncologyModality.SACT

@@ -9,6 +9,11 @@ class MartinWeightLoss:
     """
     Martin et al. BMI-adjusted percent-weight-loss grading.
 
+    Source: Martin L, Senesse P, Gioulbasanis I, et al. "Diagnostic criteria for
+    the classification of cancer-associated weight loss." J Clin Oncol.
+    2015;33(1):90-99. The published system crosses five percent-weight-loss
+    categories with five BMI categories to give grades 0-4.
+
     This matrix is kept in adverse events because it is clinical
     severity policy over body measurements, not body-measurement
     arithmetic itself.
@@ -21,6 +26,10 @@ class MartinWeightLoss:
         11.0,
         15.0,
     )
+    # Rows are percent-weight-loss categories ascending (<2.5, 2.5-5.9, 6-10.9,
+    # 11-15, >15); columns are BMI categories *descending* (>=28, 25-27.9,
+    # 22-24.9, 20-21.9, <20), which is the reverse of the paper's layout because
+    # _bmi_category_index walks the boundaries in reverse.
     GRADE_MATRIX: ClassVar[tuple[tuple[int, int, int, int, int], ...]] = (
         (0, 0, 1, 1, 3),
         (1, 2, 2, 2, 3),

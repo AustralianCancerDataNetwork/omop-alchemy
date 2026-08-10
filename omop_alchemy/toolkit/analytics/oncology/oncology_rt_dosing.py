@@ -101,14 +101,15 @@ class OncologyRTDosingMixin:
     RT dose/site summary interface for oncology treatment episodes.
     """
 
-    def _linked_oncology_events(self, *, include_child_events: bool = True) -> list[Any]:
+    @property
+    def _linked_oncology_events(self) -> list[Any]:
         raise NotImplementedError
 
     @cached_property
     def rt_procedures(self) -> list[OncologyProcedure]:
         procedures = [
             event
-            for event in self._linked_oncology_events()
+            for event in self._linked_oncology_events
             if isinstance(event, OncologyProcedure) and event.is_radiotherapy
         ]
         procedures.sort(key=lambda procedure: procedure.procedure_date)
