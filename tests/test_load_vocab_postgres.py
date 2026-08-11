@@ -198,9 +198,19 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
 
 
 @pytest.mark.requires_database("test_cdm_db")
-def test_replace_strategy_overwrites_existing_rows(pg_session, pg_engine, tmp_path):
-    """merge_strategy='replace' fully replaces rows with the same PKs on second load."""
+def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
+    pg_session,
+    pg_engine,
+    tmp_path,
+):
+    """replace updates matching PKs without deleting rows absent from the next source."""
     concept_id = 99999
+    source_absent_id = 99997
+    source_absent = _make_concept_source(
+        tmp_path / "absent",
+        concept_id=source_absent_id,
+        concept_name="preserved",
+    )
     source_v1 = _make_concept_source(
         tmp_path / "v1", concept_id=concept_id, concept_name="name_v1"
     )
@@ -208,14 +218,21 @@ def test_replace_strategy_overwrites_existing_rows(pg_session, pg_engine, tmp_pa
         tmp_path / "v2", concept_id=concept_id, concept_name="name_v2"
     )
 
+    load_vocab_source(pg_engine, source_path=source_absent, merge_strategy="replace")
     load_vocab_source(pg_engine, source_path=source_v1, merge_strategy="replace")
     load_vocab_source(pg_engine, source_path=source_v2, merge_strategy="replace")
 
-    name = pg_session.execute(
-        sa.text("SELECT concept_name FROM concept WHERE concept_id = :cid"),
-        {"cid": concept_id},
-    ).scalar()
-    assert name == "name_v2", f"Expected 'name_v2' after replace, got {name!r}"
+    names = dict(
+        pg_session.execute(
+            sa.text(
+                "SELECT concept_id, concept_name FROM concept "
+                "WHERE concept_id IN (:matching_id, :absent_id)"
+            ),
+            {"matching_id": concept_id, "absent_id": source_absent_id},
+        ).all()
+    )
+    assert names[concept_id] == "name_v2"
+    assert names[source_absent_id] == "preserved"
 
 
 @pytest.mark.requires_database("test_cdm_db")

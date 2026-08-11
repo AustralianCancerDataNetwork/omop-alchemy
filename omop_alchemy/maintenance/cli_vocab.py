@@ -636,8 +636,9 @@ def load_vocab_source_command(
     merge_strategy: MergeStrategy = typer.Option(
         "replace",
         help=(
-            "CSV merge strategy. `replace` (default) keeps the DB in sync with the source. "
-            "`upsert` is incremental and non-destructive. "
+            "CSV merge strategy. `replace` (default) overwrites rows whose primary keys "
+            "appear in the source but does not delete source-absent rows. `upsert` preserves "
+            "existing rows on primary-key conflicts. "
             "`insert_if_empty` is the fast path for a fresh empty target."
         ),
     ),

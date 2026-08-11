@@ -94,9 +94,11 @@ of toggling per table — for a full Athena export the difference can be 10–20
 ignores this flag. Pass `--no-bulk-mode` if you need per-table rollback safety.
 
 **About `--merge-strategy replace`:**
-`replace` truncates each target table and reloads from the CSV. Use `upsert` for
-incremental vocabulary patches where you do not want to lose custom extensions.
-Use `insert_if_empty` as the fastest path when the target tables are guaranteed empty.
+`replace` overwrites rows whose primary keys occur in the CSV; it does not delete rows
+that are absent from the source. The explicit `truncate-tables` step above is therefore
+required when the database must exactly mirror a new Athena export. Use `upsert` for
+incremental vocabulary patches that must preserve existing conflicting rows. Use
+`insert_if_empty` as the fastest path when the target tables are guaranteed empty.
 
 **About `--quote-mode by_delimiter`:**
 The default preserves double-quotes as data in tab-delimited Athena exports and uses
