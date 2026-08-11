@@ -7,6 +7,7 @@ These tests require a running PostgreSQL container. Start one with:
 Then run:
     pytest -m postgres
 """
+
 from pathlib import Path
 
 import pytest
@@ -48,8 +49,23 @@ def _make_concept_source(
             _write_fixture_csv(source_path, table_name, data)
 
     concept_cols = list(_ATHENA_FIXTURE_DATA["concept"].keys())
-    concept_row = [concept_id, concept_name, "Gender", "Gender", "Gender", "S", "TEST", "19700101", "20991231", None]
-    _write_fixture_csv(source_path, "concept", {col: (val,) for col, val in zip(concept_cols, concept_row)})
+    concept_row = [
+        concept_id,
+        concept_name,
+        "Gender",
+        "Gender",
+        "Gender",
+        "S",
+        "TEST",
+        "19700101",
+        "20991231",
+        None,
+    ]
+    _write_fixture_csv(
+        source_path,
+        "concept",
+        {col: (val,) for col, val in zip(concept_cols, concept_row)},
+    )
     return source_path
 
 
@@ -72,44 +88,88 @@ def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
     assert count == 7
 
 
-
 @pytest.mark.requires_database("test_cdm_db")
-def test_quote_mode_auto_regression_on_postgres(pg_session, pg_engine, tmp_path):
+def test_default_quote_mode_preserves_literal_quotes_on_postgres(
+    pg_session, pg_engine, tmp_path
+):
     """
-    quote_mode='auto' strips RFC-4180 double-quotes via PostgreSQL COPY.
-
-    Under the old quote_mode='literal' a concept_name of exactly 255 chars
-    wrapped in double-quotes would be stored as 257 chars and violate the
-    VARCHAR(255) constraint. This test would fail under literal mode.
+    The default by_delimiter mode preserves quotes in tab-delimited Athena data.
     """
     source_path = tmp_path / "athena_source"
     source_path.mkdir()
 
-    long_name = "A" * 255  # exactly at VARCHAR(255) limit when unquoted
+    quoted_name = '"BRCA1 positive"'
 
     # All tables except concept get the standard fixture data.
     for table_name, data in _ATHENA_FIXTURE_DATA.items():
         if table_name != "concept":
             _write_fixture_csv(source_path, table_name, data)
 
-    # Concept gets a single row whose name is wrapped in RFC-4180 double-quotes
-    # so the raw file value is 257 chars. quote_mode='auto' must strip them.
     concept_cols = list(_ATHENA_FIXTURE_DATA["concept"].keys())
-    concept_row = [1, f'"{long_name}"', "Gender", "Gender", "Gender", "S", "TEST", "19700101", "20991231", None]
-    _write_fixture_csv(source_path, "concept", {col: (val,) for col, val in zip(concept_cols, concept_row)})
+    concept_row = [
+        1,
+        quoted_name,
+        "Gender",
+        "Gender",
+        "Gender",
+        "S",
+        "TEST",
+        "19700101",
+        "20991231",
+        None,
+    ]
+    _write_fixture_csv(
+        source_path,
+        "concept",
+        {col: (val,) for col, val in zip(concept_cols, concept_row)},
+    )
 
-    # Should not raise: literal mode would produce a 257-char value and fail.
     load_vocab_source(pg_engine, source_path=source_path)
 
     concept_name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
     ).scalar()
-    assert concept_name is not None
-    assert len(concept_name) == 255, (
-        f"Expected 255-char name; got {len(concept_name)}: {concept_name!r}"
-    )
-    assert not concept_name.startswith('"'), "Surrounding quotes were not stripped"
+    assert concept_name == quoted_name
 
+
+@pytest.mark.requires_database("test_cdm_db")
+def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
+    pg_session, pg_engine, tmp_path
+):
+    """Explicit csv mode keeps support for genuinely RFC-4180-wrapped fields."""
+    source_path = tmp_path / "athena_source"
+    source_path.mkdir()
+
+    long_name = "A" * 255
+    for table_name, data in _ATHENA_FIXTURE_DATA.items():
+        if table_name != "concept":
+            _write_fixture_csv(source_path, table_name, data)
+
+    concept_cols = list(_ATHENA_FIXTURE_DATA["concept"].keys())
+    concept_row = [
+        1,
+        f'"{long_name}"',
+        "Gender",
+        "Gender",
+        "Gender",
+        "S",
+        "TEST",
+        "19700101",
+        "20991231",
+        None,
+    ]
+    _write_fixture_csv(
+        source_path,
+        "concept",
+        {col: (val,) for col, val in zip(concept_cols, concept_row)},
+    )
+
+    load_vocab_source(pg_engine, source_path=source_path, quote_mode="csv")
+
+    concept_name = pg_session.execute(
+        sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
+    ).scalar()
+    assert concept_name == long_name
 
 
 @pytest.mark.requires_database("test_cdm_db")
@@ -136,7 +196,6 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
     assert count == 7
 
 
-
 @pytest.mark.requires_database("test_cdm_db")
 def test_replace_strategy_overwrites_existing_rows(pg_session, pg_engine, tmp_path):
     """merge_strategy='replace' fully replaces rows with the same PKs on second load."""
@@ -156,7 +215,6 @@ def test_replace_strategy_overwrites_existing_rows(pg_session, pg_engine, tmp_pa
         {"cid": concept_id},
     ).scalar()
     assert name == "name_v2", f"Expected 'name_v2' after replace, got {name!r}"
-
 
 
 @pytest.mark.requires_database("test_cdm_db")
@@ -182,14 +240,13 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
     )
 
 
-
 @pytest.mark.requires_database("test_cdm_db")
 def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
     """
     load_vocab_source with db_schema creates vocabulary tables in the requested
     PostgreSQL schema and loads data into them correctly.
     """
-    schema = 'VocabTest'
+    schema = "VocabTest"
     source_path = _copy_fixture_source(tmp_path)
     quoted_schema = '"' + schema.replace('"', '""') + '"'
 

@@ -113,6 +113,7 @@
 - expanded CLI and API documentation: architecture overview and full command reference
 
 ## 0.8.0
+- make Athena quote handling deterministic: `load-vocab-source` now defaults to `--quote-mode by_delimiter`, preserving literal quotes in tab-delimited exports while retaining explicit `csv`, `literal`, and `auto` modes
 - fix `manage_indexes()` raising `KeyError` for `cost.cost_type_concept_id` under any schema-qualified connection: `cost` was the only model using an implicitly-named column index (`required_concept_fk(index=True)`), whose auto-generated name embeds the schema and drifts from the unqualified name the maintenance CLI looks up by
 - fix `fact_relationship`'s primary key silently excluding `fact_id_1`/`fact_id_2`: `merge_table_args()` dropped the explicit `PrimaryKeyConstraint` because it's falsy (zero-length `.columns`) until attached to a table; the constraint never took effect and the table's real PK was only 3 of its intended 5 columns
 - harden `merge_table_args()` to filter on `is None` rather than truthiness, so a Constraint/Index built from unresolved column-name strings can no longer be silently dropped from `__table_args__`
