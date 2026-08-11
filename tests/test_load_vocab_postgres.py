@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 
+from omop_alchemy.backends.postgres import PostgresBackend
 from omop_alchemy.cdm.model.vocabulary import Concept
 from omop_alchemy.maintenance.cli_vocab import (
     _load_vocab_model_csv,
@@ -278,3 +279,25 @@ def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
         with pg_engine.connect() as conn:
             conn.execute(sa.text(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE"))
             conn.commit()
+
+
+@pytest.mark.requires_database("test_cdm_db")
+def test_postgres_catalog_queries_accept_explicit_schema(pg_engine):
+    """Schema-qualified catalog checks must bind cleanly with psycopg/PostgreSQL."""
+    backend = PostgresBackend()
+
+    with pg_engine.connect() as connection:
+        disabled, enabled = backend.get_fk_trigger_counts(
+            connection,
+            "concept",
+            "public",
+        )
+        clustered_index = backend.get_clustered_index_name(
+            connection,
+            "concept",
+            "public",
+        )
+
+    assert disabled >= 0
+    assert enabled >= 0
+    assert clustered_index is None or isinstance(clustered_index, str)

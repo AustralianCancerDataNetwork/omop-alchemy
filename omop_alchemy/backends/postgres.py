@@ -66,7 +66,7 @@ class PostgresBackend(Backend):
                 WHERE t.tgisinternal
                   AND t.tgname LIKE 'RI_ConstraintTrigger%'
                   AND c.relname = :table_name
-                  AND (:db_schema IS NULL OR n.nspname = :db_schema)
+                  AND (CAST(:db_schema AS TEXT) IS NULL OR n.nspname = :db_schema)
                 """
             ),
             {"table_name": table_name, "db_schema": db_schema},
@@ -135,7 +135,7 @@ class PostgresBackend(Backend):
                 JOIN pg_namespace n ON n.oid = t.relnamespace
                 WHERE ix.indisclustered
                   AND t.relname = :table_name
-                  AND (:db_schema IS NULL OR n.nspname = :db_schema)
+                  AND (CAST(:db_schema AS TEXT) IS NULL OR n.nspname = :db_schema)
                 """
             ),
             {"table_name": table_name, "db_schema": db_schema},
