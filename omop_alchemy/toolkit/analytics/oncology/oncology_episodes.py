@@ -1,3 +1,4 @@
+# pyright: reportAssignmentType=false
 from __future__ import annotations
 
 from enum import StrEnum
@@ -35,7 +36,10 @@ class OncologyModality(StrEnum):
     UNKNOWN = "unknown"
 
 
-_MODALITY_PRIORITY = (
+# Deterministic tie-breaker, not a clinical priority: when an episode contains
+# evidence for multiple modalities, prefer events that more reliably indicate a
+# treatment modality rather than depending on database return order.
+_MODALITY_PRIORITY: tuple[OncologyModality, ...] = (
     OncologyModality.RADIOTHERAPY,
     OncologyModality.SURGERY,
     OncologyModality.DIAGNOSTIC_STAGING,
