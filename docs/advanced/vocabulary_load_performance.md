@@ -37,9 +37,9 @@ The next biggest bottleneck after pagination is `synchronous_commit=on` (the Pos
 
 ### Recommended settings
 
-These settings are present in the docker-compose files for each package. If you are running PostgreSQL outside Docker, add them to `postgresql.conf` or pass them as `-c` flags.
+Apply these via `postgresql.conf` or `-c` flags on whatever PostgreSQL instance you're loading into (per-package `docker-compose.yaml` files no longer exist; Docker orchestration for the OMOP stack now happens at the workspace root).
 
-**devcontainer (omop-spires `docker-compose.override.yaml`) — 8 GB host:**
+**8 GB host:**
 ```
 synchronous_commit=off
 checkpoint_timeout=30min
@@ -53,7 +53,7 @@ wal_compression=zstd
 full_page_writes=off
 ```
 
-**standalone docker-compose (OMOP_Alchemy / omop-graph) — ~4 GB host:**
+**~4 GB host:**
 ```
 synchronous_commit=off
 checkpoint_timeout=30min
@@ -81,7 +81,7 @@ SELECT pg_reload_conf();
 SHOW synchronous_commit;  -- confirm: should show 'off'
 ```
 
-Settings that ARE overridden by `-c` (e.g. `checkpoint_timeout`) require a container restart to pick up the updated docker-compose value.
+Settings that ARE overridden by `-c` (e.g. `checkpoint_timeout`) require a container restart to pick up an updated value.
 
 To monitor whether WAL-write stalls are happening during a load:
 

@@ -57,7 +57,7 @@ dev = [
   "ty==0.0.61",
   "ruff>=0.4",
   "import-linter>=2.0",
-  "mkdocs-material>=9.7.1",
+  "mkdocs-material>=9.7.7",
   "mkdocstrings-python>=2.0.1",
   "mkdocs>=1.6.1",
   "mkdocs-mermaid2-plugin"

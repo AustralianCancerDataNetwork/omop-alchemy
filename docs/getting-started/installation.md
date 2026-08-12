@@ -17,7 +17,7 @@ engine = sa.create_engine(
     echo=False,
 )
 
-with so.Session(engine) as sess:
+with so.Session(engine) as session:
     concepts = (
         session.query(Concept)
         .filter(Concept.domain_id == "Drug")

@@ -57,7 +57,7 @@ These concerns are intentionally left to downstream tooling.
 ## Example (concept navigation)
 
 ```python
-from omop_alchemy.model.vocabulary import ConceptView
+from omop_alchemy.cdm.model.vocabulary.concept import ConceptView
 
 concept = session.get(ConceptView, 320128)  # Lung cancer
 concept.domain.domain_id        # "Condition"
@@ -94,25 +94,3 @@ omop-config configure omop_alchemy
 ```
 
 See [Configuration](docs/getting-started/configuration.md) for full details.
-
----
-
-## Docker Compose
-
-The included `docker-compose.yaml` provides a PostgreSQL database and a Python
-container with the `[postgres]` extra pre-installed. Default credentials work out of the box:
-
-```bash
-docker compose up
-```
-
-The `python-alchemy` service runs `omop-config configure` at startup and writes
-`~/.config/omop/config.toml` on the host on first start; subsequent starts skip
-configuration automatically.
-
-To override credentials, copy `.env.example` to `.env` and edit before starting:
-
-```bash
-cp .env.example .env
-docker compose up
-```
