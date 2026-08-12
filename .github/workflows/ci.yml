@@ -27,12 +27,17 @@ jobs:
       ty-src: omop_alchemy
       postgres-db: test_db
       setup-commands: |
+        uv run omop-config connections add pg_test \
+          --dialect postgresql+psycopg \
+          --host localhost \
+          --port 5432 \
+          --user test \
+          --password test \
+          --database-name test_db \
+          --test-only true
+        uv run omop-config databases add test_cdm_db \
+          --kind cdm \
+          --connection pg_test \
+          --schema-name public
         uv run omop-config configure omop_alchemy \
-          --test-dialect postgresql+psycopg \
-          --test-database pg_test \
-          --test-host localhost \
-          --test-port 5432 \
-          --test-cdm-schema public \
-          --test-user test \
-          --test-password test \
-          --test-database-name test_db
+          --test-cdm-db test_cdm_db
