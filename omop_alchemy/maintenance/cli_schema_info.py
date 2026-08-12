@@ -304,9 +304,17 @@ def _command_support_for_backend(
 
 def collect_maintenance_info(
     *,
+    engine: sa.engine.Engine | None = None,
+    db_schema: str | None = None,
+    resource_name: str | None = None,
     vocabulary_included: bool = True,
 ) -> MaintenanceInfo:
-    """Probe the current environment: resolve config, attempt a connection, and assess per-command readiness."""
+    """Probe connection readiness and assess per-command support.
+
+    When ``engine`` is omitted, resolve configuration and create an engine as
+    before. When a caller supplies an engine, inspect that engine directly and
+    leave its lifecycle under the caller's control.
+    """
     pg_dump_path = shutil.which("pg_dump")
     pg_restore_path = shutil.which("pg_restore")
     psql_path = shutil.which("psql")
@@ -326,10 +334,9 @@ def collect_maintenance_info(
     )
     cli_path = shutil.which("omop-alchemy")
 
-    db_schema: str | None = None
     engine_url: str | None = None
     backend: str | None = None
-    engine: sa.engine.Engine | None = None
+    owns_engine = engine is None
     engine_created = False
     engine_error: str | None = None
     connection_ready = False
@@ -337,30 +344,36 @@ def collect_maintenance_info(
     existing_table_count: int | None = None
     missing_table_count: int | None = None
 
-    db_name = OmopAlchemyConfig.model_fields["cdm_db"].default
-    try:
-        stack = load_stack_config()
-        resolver = Resolver(stack)
-        db_name = resolver.resolve_package_config(OmopAlchemyConfig).cdm_db
-        resolved = resolver.resolve_database(db_name)
-        if not isinstance(resolved, ResolvedCDMDatabase):
-            raise ValueError(
-                f"OmopAlchemyConfig.cdm_db must resolve to a CDM database, got "
-                f"{type(resolved).__name__}"
-            )
-        db_schema = resolved.schema_name
-        raw_url = sa.engine.make_url(resolved.connection.url)
-        engine_url = raw_url.render_as_string(hide_password=True)
-        backend = raw_url.get_backend_name()
-    except (FileNotFoundError, ValueError, ArgumentError, KeyError) as exc:
-        engine_error = f"Could not resolve engine configuration: {exc}"
+    db_name = resource_name or OmopAlchemyConfig.model_fields["cdm_db"].default
+    if engine is not None:
+        db_name = resource_name or "provided engine"
+        engine_url = engine.url.render_as_string(hide_password=True)
+        backend = engine.url.get_backend_name()
+        engine_created = True
     else:
-        from omop_alchemy.config import create_cdm_engine
         try:
-            engine = create_cdm_engine(resolved)
-            engine_created = True
-        except RuntimeError as exc:
-            engine_error = str(exc)
+            stack = load_stack_config()
+            resolver = Resolver(stack)
+            db_name = resolver.resolve_package_config(OmopAlchemyConfig).cdm_db
+            resolved = resolver.resolve_database(db_name)
+            if not isinstance(resolved, ResolvedCDMDatabase):
+                raise ValueError(
+                    f"OmopAlchemyConfig.cdm_db must resolve to a CDM database, got "
+                    f"{type(resolved).__name__}"
+                )
+            db_schema = resolved.schema_name
+            raw_url = sa.engine.make_url(resolved.connection.url)
+            engine_url = raw_url.render_as_string(hide_password=True)
+            backend = raw_url.get_backend_name()
+        except (FileNotFoundError, ValueError, ArgumentError, KeyError) as exc:
+            engine_error = f"Could not resolve engine configuration: {exc}"
+        else:
+            from omop_alchemy.config import create_cdm_engine
+            try:
+                engine = create_cdm_engine(resolved)
+                engine_created = True
+            except RuntimeError as exc:
+                engine_error = str(exc)
 
     if engine is not None:
         try:
@@ -379,7 +392,8 @@ def collect_maintenance_info(
         except Exception as exc:
             connection_error = str(exc)
         finally:
-            engine.dispose()
+            if owns_engine:
+                engine.dispose()
 
     if backend is None:
         command_support = _command_support_for_unavailable_engine(

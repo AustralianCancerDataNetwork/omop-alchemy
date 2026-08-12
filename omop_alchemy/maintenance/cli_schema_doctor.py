@@ -165,6 +165,8 @@ def _build_recommendations(
 def collect_doctor_report(
     *,
     engine: sa.engine.Engine,
+    db_schema: str | None = None,
+    resource_name: str | None = None,
     vocabulary_included: bool = True,
     deep: bool = False,
 ) -> DoctorReport:
@@ -174,9 +176,20 @@ def collect_doctor_report(
     ----------
     engine : sa.engine.Engine
         Already-resolved CDM engine (e.g. from the ``@omop_command`` decorator),
-        reused for the deep checks below instead of re-resolving config.
+        reused for all database checks instead of re-resolving config. The
+        caller retains ownership; this function does not dispose it.
+    db_schema : str, optional
+        CDM schema associated with ``engine``. Omit to use its default schema.
+    resource_name : str, optional
+        Configured database resource name. Programmatic callers that construct
+        an engine directly may omit this.
     """
-    info = collect_maintenance_info(vocabulary_included=vocabulary_included)
+    info = collect_maintenance_info(
+        engine=engine,
+        db_schema=db_schema,
+        resource_name=resource_name,
+        vocabulary_included=vocabulary_included,
+    )
 
     checks = [
         DoctorCheck(

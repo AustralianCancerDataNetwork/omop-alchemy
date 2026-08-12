@@ -100,7 +100,11 @@ def doctor_command(
     """Run a read-only maintenance health check across connection readiness, schema drift, and FK state."""
     with console.status("Running maintenance doctor checks..."):
         report = collect_doctor_report(
-            engine=engine, vocabulary_included=vocabulary_included, deep=deep
+            engine=engine,
+            db_schema=conn.db_schema,
+            resource_name=conn.resource_name,
+            vocabulary_included=vocabulary_included,
+            deep=deep,
         )
     console.print(render_info_environment(report.info))
     console.print(render_info_database(report.info))

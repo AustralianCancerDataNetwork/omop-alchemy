@@ -125,6 +125,7 @@ class _ConnContext:
     """Connection context derived from the oa_configurator resolved resource."""
     db_schema: str | None
     engine_url: str = ""
+    resource_name: str = ""
     athena_source: str | None = None  # from OmopAlchemyConfig.athena_source_path
 
 
@@ -159,6 +160,7 @@ def omop_command(
                 conn = _ConnContext(
                     db_schema=resolved.schema_name,
                     engine_url=engine.url.render_as_string(hide_password=True),
+                    resource_name=pkg_config.cdm_db,
                     athena_source=pkg_config.athena_source_path,
                 )
                 console.print(
