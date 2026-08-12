@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2710,7 +2710,7 @@
   <span class="md-ellipsis">
     
   
-    OMOP-Specific Validation
+    Toolkit
   
 
     
@@ -2723,6 +2723,207 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Toolkit
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/episodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    analytics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OMOP-Specific Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2845,10 +3046,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
         
           
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
             
   
   
@@ -2866,8 +3067,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3386,9 +3587,16 @@ load loop, then rebuilds them once at the end. This is much faster than the alte
 of toggling per table — for a full Athena export the difference can be 10–20×. SQLite
 ignores this flag. Pass <code>--no-bulk-mode</code> if you need per-table rollback safety.</p>
 <p><strong>About <code>--merge-strategy replace</code>:</strong>
-<code>replace</code> truncates each target table and reloads from the CSV. Use <code>upsert</code> for
-incremental vocabulary patches where you do not want to lose custom extensions.
-Use <code>insert_if_empty</code> as the fastest path when the target tables are guaranteed empty.</p>
+<code>replace</code> overwrites rows whose primary keys occur in the CSV; it does not delete rows
+that are absent from the source. The explicit <code>truncate-tables</code> step above is therefore
+required when the database must exactly mirror a new Athena export. Use <code>upsert</code> for
+incremental vocabulary patches that must preserve existing conflicting rows. Use
+<code>insert_if_empty</code> as the fastest path when the target tables are guaranteed empty.</p>
+<p><strong>About <code>--quote-mode by_delimiter</code>:</strong>
+The default preserves double-quotes as data in tab-delimited Athena exports and uses
+RFC-4180 quoting for comma-delimited files. Use <code>--quote-mode csv</code> only when the source
+genuinely wraps fields in CSV quotes; <code>--quote-mode literal</code> forces quotes to remain data.
+The <code>auto</code> mode samples content and is less predictable for large Athena files.</p>
 <p><strong>About <code>--strict</code> on <code>foreign-keys enable</code>:</strong>
 <code>--strict</code> validates all FK relationships before re-enabling RI triggers. If violations
 are found, no triggers are re-enabled and you get a report of the problematic rows.
@@ -3622,7 +3830,7 @@ it touches and the old/new sequence positions.</p>
 <tr>
 <td><code>load-vocab-source</code></td>
 <td>Load Athena vocabulary CSVs</td>
-<td><code>--athena-source</code>, <code>--merge-strategy</code>, <code>--bulk-mode/--no-bulk-mode</code>, <code>--dry-run</code></td>
+<td><code>--athena-source</code>, <code>--merge-strategy</code>, <code>--quote-mode</code>, <code>--bulk-mode/--no-bulk-mode</code>, <code>--dry-run</code></td>
 <td>PostgreSQL, SQLite</td>
 </tr>
 <tr>
@@ -3769,7 +3977,7 @@ it touches and the old/new sequence positions.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

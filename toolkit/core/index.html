@@ -1,0 +1,6003 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="SQLAlchemy-first, typed representation of the OMOP Common Data Model">
+      
+      
+      
+        <link rel="canonical" href="https://AustralianCancerDataNetwork.github.io/OMOP_Alchemy/toolkit/core/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../episodes/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>core - OMOP Alchemy</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#core" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="OMOP Alchemy" class="md-header__button md-logo" aria-label="OMOP Alchemy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            OMOP Alchemy
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              core
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/AustralianCancerDataNetwork/OMOP_Alchemy" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    OMOP_Alchemy
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="OMOP Alchemy" class="md-nav__button md-logo" aria-label="OMOP Alchemy" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    OMOP Alchemy
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/AustralianCancerDataNetwork/OMOP_Alchemy" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    OMOP_Alchemy
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CLI Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDM Base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/columns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Columns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/relationships/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Relationships
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/query/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query Filtering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object-Relational Mappings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Object-Relational Mappings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clinical
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Clinical
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/clinical/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/clinical/condition_occurrence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Condition Occurrence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/clinical/drug_exposure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Drug Exposure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/clinical/measurement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Measurement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/clinical/observation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/clinical/person/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Person
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Derived
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Derived
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/derived/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/derived/cohort/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cohort
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/derived/condition_era/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Condition Era
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/derived/dose_era/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dose Era
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/derived/drug_era/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Drug Era
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Health Economic
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Health Economic
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/health_economic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/health_economic/cost/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cost
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/health_economic/payer_plan_period/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Payer Plan Period
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Health System
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Health System
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/health_system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/health_system/care_site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Care Site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/health_system/location/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Location
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/health_system/provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/health_system/visit_detail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visit Detail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/health_system/visit_occurrence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visit Occurrence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Metadata
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/metadata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/metadata/cdm_source/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDM Source
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/metadata/metadata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structural
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Structural
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/structural/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/structural/episode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Episode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/structural/episode_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Episode Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/structural/fact_relationship/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fact Relationship
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8" id="__nav_5_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unstructured
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unstructured
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/unstructured/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/unstructured/image/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/unstructured/image_feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image Feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/unstructured/note/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Note
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/unstructured/note_nlp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Note NLP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_9" id="__nav_5_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vocabulary
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/vocabulary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/vocabulary/concept/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concept
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/vocabulary/concept_relationship/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concept Relationship
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/vocabulary/domain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/vocabulary/vocabulary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Toolkit
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Toolkit
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#concept-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concept resolution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        concepts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.CacheStats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CacheStats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConceptGroupRegistry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConceptGroupRegistry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.register_spec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_spec
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConceptGroupSpec
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConceptGroupSpec">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.exact_ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        exact_ids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.excluded_parent_ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        excluded_parent_ids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        expression_for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.parent_ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parent_ids
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConceptResolver
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConceptResolver">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.all_concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        all_concepts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.estimated_bytes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimated_bytes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConceptResolverRegistry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.LookupIndex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LookupIndex
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.LookupSpec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LookupSpec
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OMOPConceptSource
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OMOPConceptSource">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch_concepts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch_synonyms
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ResolvedConceptGroup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ResolvedConceptGroup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.estimated_bytes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimated_bytes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        expression
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.build_concept_group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_concept_group
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.clear_concept_group_cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        clear_concept_group_cache
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        clear_vocabulary_identity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.concept_group_cache_stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        concept_group_cache_stats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.concept_group_registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        concept_group_registry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.make_concept_resolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        make_concept_resolver
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_vocabulary_identity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resolve_concept_group
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#patient-timelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Patient timelines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unit-conversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit conversion
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.units" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        units
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.units.BodySizeUnitConcepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BodySizeUnitConcepts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.units.BodyUnitConversionRules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BodyUnitConversionRules
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../episodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    analytics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OMOP-Specific Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    OMOP-Specific Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/domain-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/domain-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain Rule Runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/timelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patient Timelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/fulltext/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PostgreSQL Full-Text Search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#concept-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concept resolution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        concepts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.CacheStats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CacheStats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConceptGroupRegistry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConceptGroupRegistry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.register_spec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_spec
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConceptGroupSpec
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConceptGroupSpec">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.exact_ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        exact_ids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.excluded_parent_ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        excluded_parent_ids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        expression_for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.parent_ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parent_ids
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConceptResolver
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConceptResolver">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.all_concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        all_concepts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.estimated_bytes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimated_bytes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConceptResolverRegistry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.LookupIndex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LookupIndex
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.LookupSpec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LookupSpec
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OMOPConceptSource
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OMOPConceptSource">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch_concepts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch_synonyms
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ResolvedConceptGroup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ResolvedConceptGroup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.estimated_bytes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimated_bytes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        expression
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.build_concept_group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_concept_group
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.clear_concept_group_cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        clear_concept_group_cache
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        clear_vocabulary_identity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.concept_group_cache_stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        concept_group_cache_stats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.concept_group_registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        concept_group_registry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.make_concept_resolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        make_concept_resolver
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_vocabulary_identity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resolve_concept_group
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#patient-timelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Patient timelines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unit-conversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit conversion
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.units" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        units
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.units.BodySizeUnitConcepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BodySizeUnitConcepts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omop_alchemy.toolkit.core.units.BodyUnitConversionRules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BodyUnitConversionRules
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Toolkit
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="core">core<a class="headerlink" href="#core" title="Permanent link">&para;</a></h1>
+<p>Foundational services with no clinical-domain assumptions. A concept resolver behaves
+the same whether it is mapping tumour morphology or procedures; a patient timeline is
+the same object whatever populates it. Domain-specific concept sets, thresholds, and
+grading rules belong in <a href="../analytics/"><code>analytics</code></a>, not here.</p>
+<h2 id="concept-resolution">Concept resolution<a class="headerlink" href="#concept-resolution" title="Permanent link">&para;</a></h2>
+<p>Turns a declarative description of <em>which</em> concepts belong in a lookup into a runtime
+resolver that maps free text and source codes to OMOP concept IDs.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.concepts</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_concept_resolver</span>
+
+<span class="n">resolver</span> <span class="o">=</span> <span class="n">make_concept_resolver</span><span class="p">(</span>
+    <span class="n">session</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;condition lookup&quot;</span><span class="p">,</span>
+    <span class="n">domain_id</span><span class="o">=</span><span class="s2">&quot;Condition&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">concept_id</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="s2">&quot;Adenocarcinoma of lung&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="omop_alchemy.toolkit.core.concepts"></a>
+    <div class="doc doc-contents first">
+
+        <p>Resolve free-text terms and source codes to OMOP concept IDs.</p>
+<p>Source data rarely arrives with concept IDs attached.  This module turns a
+declarative description of <em>which</em> concepts are eligible into a runtime
+resolver that maps incoming text to those concepts, applying the same
+normalisation on both sides so that matching is predictable.</p>
+<p>Three pieces make up the workflow:</p>
+<p><code>LookupSpec</code>
+    Declares which concepts belong in a lookup — by vocabulary, domain,
+    concept class, or explicit ancestry — and which text fields are
+    indexed.</p>
+<p><code>LookupIndex</code>
+    The materialised table of normalised text keys to concept IDs that a
+    spec produces against the vocabulary tables.</p>
+<p><code>ConceptResolver</code>
+    Wraps an index and resolves terms at runtime, applying the same
+    normalisation used to build the keys.</p>
+<p><code>make_concept_resolver</code> bundles all three for the common case::</p>
+<div class="highlight"><pre><span></span><code>from omop_alchemy.toolkit.core.concepts import make_concept_resolver
+
+resolver = make_concept_resolver(
+    session,
+    name=&quot;condition lookup&quot;,
+    domain_id=&quot;Condition&quot;,
+)
+concept_id = resolver.lookup(&quot;Adenocarcinoma of lung&quot;)
+</code></pre></div>
+<p>Normalisation is composable.  <code>compose_normalizers</code> chains individual
+rules — <code>normalize_default</code> for whitespace and casing, <code>strip_uicc</code>
+and <code>make_stage</code> for staging text, <code>site_to_NOS</code> for site
+generalisation — so that a resolver's matching behaviour is stated
+explicitly rather than implied.</p>
+<p>Building an index queries the vocabulary tables, so resolvers are worth
+reusing.  <code>ConceptResolverRegistry</code> constructs each resolver on first
+access and caches it for the registry's lifetime.</p>
+<p>Governed concept sets are the other half of this module.  Where a resolver maps
+<em>text</em> to concepts, a concept group answers whether a <em>concept ID</em> belongs to a
+governed clinical set::</p>
+<div class="highlight"><pre><span></span><code>from omop_alchemy.toolkit.core.concepts import (
+    ConceptGroupSpec,
+    resolve_concept_group,
+)
+
+RT = ConceptGroupSpec(name=&quot;radiotherapy&quot;, unit=...)   # governed anchors
+
+group = resolve_concept_group(session, RT)
+procedure.procedure_concept_id in group        # Python, O(1)
+group.expression(Procedure_Occurrence.procedure_concept_id)   # SQL
+</code></pre></div>
+<p>Both access paths derive from one spec, so they cannot disagree.  Expansions are
+cached per <em>vocabulary</em>, not per engine, so recreating an engine against the same
+database does not re-run the closure queries — see :mod:<code>.identity</code> for how an
+engine declares which vocabulary it reads, and note that a caller building its
+own engines must register that itself.</p>
+<p>Nothing here touches a database at import time: specs are declarative and
+registries build on first request.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.CacheStats" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CacheStats</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.CacheStats" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">CacheStats</span><span class="p">(</span>
+    <span class="n">entries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">cached_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">evictions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">rebuilds_after_evict</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Observability for a bounded registry.</p>
+<p><code>rebuilds_after_evict</code> is the load-bearing number.  Evicting an entry
+that is never asked for again is exactly what a bound is for; evicting one
+that is then rebuilt is thrashing, and it is otherwise invisible because it
+presents as ordinary slowness rather than as a cache problem.  While it
+stays at zero the bound is correct.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ConceptGroupRegistry</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ConceptGroupRegistry</span><span class="p">(</span>
+    <span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">max_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_CACHE_BYTES</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="omop_alchemy.toolkit.core.concepts.registry._LazyBoundedRegistry">_LazyBoundedRegistry</span>[<a class="autorefs autorefs-internal" title="ResolvedConceptGroup
+
+
+  
+      dataclass
+   (omop_alchemy.toolkit.core.concepts.groups.ResolvedConceptGroup)" href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup">ResolvedConceptGroup</a>]</code></p>
+
+
+
+        <p>Lazy registry for governed concept groups, scoped to one vocabulary.</p>
+<p>Obtain one through :func:<code>concept_group_registry</code> rather than constructing
+it directly, so registries are shared per vocabulary identity instead of
+per engine.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.register_spec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">register_spec</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.register_spec" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">register_spec</span><span class="p">(</span><span class="n">spec</span><span class="p">:</span> <span class="n">ConceptGroupSpec</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Register <code>spec</code> under its governed name, if not already present.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ConceptGroupSpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ConceptGroupSpec</span><span class="p">(</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">unit</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="n">include_descendants</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">standard_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A governed omop-semantics semantic unit plus how to expand it.</p>
+<p>Declarative and side-effect free — constructing one performs no I/O and
+touches no database.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Stable identifier for this group, used as the cache key.  Use the
+governed semantic-unit name so the key derives from the governed
+identity rather than a locally invented label.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>unit</code>
+            </td>
+            <td>
+                  <code><span title="typing.Any">Any</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The omop-semantics <code>RuntimeSemanticUnit</code> supplying anchors.  Read
+lazily, so a spec can be declared at module scope without loading the
+semantics runtime.  omop-semantics 0.6.0 put mixed-role composition on
+the semantic unit rather than on <code>RuntimeGroup</code>, which is why this
+takes a unit: <code>parent_ids</code> expand through descendants while
+<code>exact_ids</code> are matched directly.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_descendants</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Expand <code>parent_ids</code> through <code>concept_ancestor</code>.  When False only
+the anchors themselves are members.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>standard_only</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Restrict expansion to standard concepts.  Defaults to False, matching
+the historical oncology behaviour of reading <code>concept_ancestor</code>
+without a standard filter.  Note this is the <em>opposite</em> default to
+<code>OMOPConceptSource.descendants</code>; the difference is deliberate and
+declared here rather than left implicit.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.exact_ids" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">exact_ids</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.exact_ids" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">exact_ids</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Governed members matched directly, without descendant expansion.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.excluded_parent_ids" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">excluded_parent_ids</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.excluded_parent_ids" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">excluded_parent_ids</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Governed anchors whose descendants are subtracted.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">expression_for</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">expression_for</span><span class="p">(</span>
+    <span class="n">column</span><span class="p">:</span> <span class="n">SQLColumnExpression</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>SQL membership for this group, as a subquery over <code>concept_ancestor</code>.</p>
+<p>Available on the spec because the SQL form needs no session: the
+traversal is performed by the database when the query runs.  That is
+what lets a <code>hybrid_property</code> expose the same governed set at class
+level, where no session exists.</p>
+<p>Deliberately a subquery rather than a literal <code>IN</code> list built from a
+resolved group: a closure of tens of thousands of IDs degrades query
+plans and can exceed driver parameter limits.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.parent_ids" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">parent_ids</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.parent_ids" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">parent_ids</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Governed descendant-expanding anchors.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.ConceptResolver" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ConceptResolver</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ConceptResolver</span><span class="p">(</span>
+    <span class="n">index</span><span class="p">:</span> <span class="n">LookupIndex</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">normalizer</span><span class="p">:</span> <span class="n">Normaliser</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">corrections</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Runtime resolver for mapping free-text terms to OMOP concept IDs.</p>
+<p>A ConceptResolver wraps a pre-built LookupIndex and applies runtime
+normalisation and optional correction passes to resolve arbitrary
+input strings to concept IDs. It is intentionally lightweight and
+stateless: all semantic scope and vocabulary constraints are encoded
+upstream in the LookupSpec and LookupIndex.</p>
+<p>Resolution proceeds in ordered stages:
+1. Apply the primary normaliser to the input term and attempt a direct lookup.
+2. If no hit is found, apply each correction function in turn, re-normalise,
+   and retry the lookup.
+3. If no match is found, return the configured <code>unknown</code> concept ID.</p>
+<p>This design allows simple, explicit handling of common data quality issues
+(e.g. formatting differences, legacy codes, mild normalisation errors)
+without introducing fuzzy matching, probabilistic scoring, or hidden
+inference logic.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>index</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="LookupIndex
+
+
+  
+      dataclass
+   (omop_alchemy.toolkit.core.concepts.lookup.LookupIndex)" href="#omop_alchemy.toolkit.core.concepts.LookupIndex">LookupIndex</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Pre-built LookupIndex providing the normalised key → concept_id mapping.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>normalizer</code>
+            </td>
+            <td>
+                  <code><span title="omop_alchemy.toolkit.core.concepts.lookup.Normaliser">Normaliser</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional normalisation function applied to input terms at lookup time.
+Defaults to <code>normalize_default</code>. This should be compatible with the
+normaliser used when constructing the LookupIndex.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>corrections</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="typing.Callable">Callable</span>[[<span title="str">str</span>], <span title="str">str</span>]] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional ordered list of correction functions applied to the raw input
+term prior to normalisation and lookup. Each correction is tried in
+sequence until a match is found.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <ul>
+<li>ConceptResolver performs no database access and no dynamic expansion of
+  vocabularies; it operates over the materialised LookupIndex.</li>
+<li>Resolution is deterministic and transparent: there is no fuzzy matching,
+  ranking, or probabilistic inference.</li>
+<li>Correction functions are applied conservatively and in-order; later
+  corrections do not override earlier successful matches.</li>
+<li><code>lookup_exact</code> bypasses correction passes and performs a single
+  normalised lookup, which is useful for validation and debugging.</li>
+</ul>
+</details>
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">resolver</span> <span class="o">=</span> <span class="n">ConceptResolver</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">resolver</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="s2">&quot;Stage III&quot;</span><span class="p">)</span>
+<span class="go">123456</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">resolver</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="s2">&quot;stage-3&quot;</span><span class="p">)</span>
+<span class="go">123456</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.ConceptResolver.all_concepts" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">all_concepts</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-cached"><code>cached</code></small>
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.all_concepts" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">all_concepts</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Every concept ID reachable through this resolver's index.</p>
+<p>Cached: the index is fixed at construction, and callers legitimately
+union several resolvers' sets, which previously rebuilt each one per
+access.  Returned by reference, so treat it as read-only.</p>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.ConceptResolver.estimated_bytes" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">estimated_bytes</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.estimated_bytes" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimated_bytes</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Approximate retained size, for cache accounting.</p>
+<p>A name/code/synonym index costs several times more per concept than a
+bare ID set, which is why the cache bound is measured in bytes rather
+than entry counts.  Measured at ~350 bytes per concept for OMOP-length
+names and codes with one synonym each.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ConceptResolverRegistry</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ConceptResolverRegistry</span><span class="p">(</span>
+    <span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">max_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_CACHE_BYTES</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="omop_alchemy.toolkit.core.concepts.registry._LazyBoundedRegistry">_LazyBoundedRegistry</span>[<a class="autorefs autorefs-internal" title="ConceptResolver (omop_alchemy.toolkit.core.concepts.lookup.ConceptResolver)" href="#omop_alchemy.toolkit.core.concepts.ConceptResolver">ConceptResolver</a>]</code></p>
+
+
+
+        <p>Lazy registry for ConceptResolvers.</p>
+<p>Resolvers are constructed on first access and cached for the lifetime
+of this registry instance. The registry is scoped to a SQLAlchemy Engine,
+ensuring vocab lookups are built once per database.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.LookupIndex" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">LookupIndex</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.LookupIndex" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">LookupIndex</span><span class="p">(</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">unknown</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Materialised lookup table from normalised text keys to OMOP concept IDs.</p>
+<p>A LookupIndex is the <em>runtime artifact</em> produced by a LookupSpec and a
+ConceptSource. It represents a flat, precomputed mapping from one or more
+normalised string representations (e.g. concept names, codes, synonyms)
+to OMOP concept IDs.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupIndex.name">name</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Human-readable identifier for the lookup.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupIndex.unknown">unknown</span></code></td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Concept ID to return when a lookup fails, or None if failures should
+propagate as null.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupIndex.mapping">mapping</span></code></td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dictionary mapping normalised string keys to OMOP concept IDs.
+Keys are expected to already be normalised at build time.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>The mapping may contain multiple textual representations pointing to the
+same concept ID (e.g. name + code + synonym).</p>
+</details>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.LookupSpec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">LookupSpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.LookupSpec" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">LookupSpec</span><span class="p">(</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">unknown</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">domain_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">concept_class_id</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">vocabulary_id</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">standard_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">code_filter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">parents</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">include_non_standard_descendants</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">include_synonyms</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">normalizer</span><span class="p">:</span> <span class="n">Normaliser</span> <span class="o">=</span> <span class="n">normalize_default</span><span class="p">,</span>
+    <span class="n">include</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">&quot;concept_name&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;concept_code&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Declarative specification for constructing a vocabulary lookup index.</p>
+<p>A LookupSpec defines <em>what</em> concepts should be included in a lookup and
+<em>which textual representations</em> should be indexed for resolution.</p>
+<p>The spec is consumed by a OMOPConceptSource, which materialises a LookupIndex
+by querying an OMOP vocabulary source and extracting the requested fields.</p>
+<p>This separation allows lookup semantics (domain, vocabulary, hierarchy,
+standardness, synonyms, normalisation) to be expressed explicitly and
+versioned independently of runtime resolution logic.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.name">name</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Stable identifier for this lookup specification. </p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.unknown">unknown</span></code></td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Concept ID to return for unmatched terms. Set to None to preserve
+nulls, or to a sentinel concept ID to force closed-world behaviour.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.domain_id">domain_id</span></code></td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional OMOP domain filter </p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.concept_class_id">concept_class_id</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional list of OMOP concept_class_id values to restrict the lookup</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.vocabulary_id">vocabulary_id</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional list of OMOP vocabulary_id values to restrict the lookup</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.standard_only">standard_only</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, restricts the lookup to standard concepts only.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.code_filter">code_filter</span></code></td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional substring filter applied to concept_code (ILIKE-based).
+Useful for coarse scoping (e.g. AJCC-only codes).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.parents">parents</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="int">int</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional list of ancestor concept IDs from which to expand the lookup
+via the Concept_Ancestor table.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.include_non_standard_descendants">include_non_standard_descendants</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, includes non-standard concepts when expanding from parents.
+Has no effect if parents is None.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.include_synonyms">include_synonyms</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, include Concept_Synonym entries in the lookup keys.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.normalizer">normalizer</span></code></td>
+            <td>
+                  <code><span title="omop_alchemy.toolkit.core.concepts.lookup.Normaliser">Normaliser</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Function applied to all indexed strings at build time. This should
+match (or be compatible with) the normalisation used at resolution
+time by ConceptResolver.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.include">include</span></code></td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="str">str</span>, ...]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Tuple of ConceptRow attribute names to index as keys (e.g.
+("concept_name", "concept_code")). This controls which textual fields
+become resolvable inputs.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <ul>
+<li>LookupSpec encodes <em>semantic intent</em>; LookupIndex encodes <em>runtime state</em>.</li>
+<li>Specs are designed to be stable, inspectable configuration objects that
+  can be versioned and reviewed as part of phenotype or ETL definitions.</li>
+<li>Normalisation and correction policies are intentionally split between
+  build-time (this spec) and runtime (ConceptResolver) to make lookup
+  behaviour explicit and testable.</li>
+</ul>
+</details>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">OMOPConceptSource</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Concrete ConceptSource backed by OMOP CDM vocabulary tables.</p>
+<p>It is a thin, explicit adapter between SQLAlchemy + OMOP CDM
+and higher-level vocabulary indexing logic.</p>
+<p>Used exclusively to builds a query based on provided parameters (adds<br />
+filter for each non-None parameter, and joins to Concept_Ancestor 
+if parents are specified).</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_concepts" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">fetch_concepts</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_concepts" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fetch_concepts</span><span class="p">(</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">domain_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">concept_class_id</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">vocabulary_id</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">standard_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">code_filter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">parents</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">include_non_standard_descendants</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">ConceptRow</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Fetch concepts matching the provided constraints.</p>
+<p>This method supports two primary modes:
+1. Flat filtering by domain / class / vocabulary
+2. Hierarchical expansion from parent concept(s)</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">fetch_synonyms</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fetch_synonyms</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return (concept_id, synonym) pairs for all concept synonyms.</p>
+<p>Filtering (standard / domain / etc.) is intentionally left
+to higher layers.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ResolvedConceptGroup</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ResolvedConceptGroup</span><span class="p">(</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">ConceptGroupSpec</span><span class="p">,</span> <span class="n">ids</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A governed group expanded against one vocabulary.</p>
+<p>Membership is
+<code>(descendants(parents) - descendants(excluded parents)) | exact_ids</code>.
+Exact members are explicit inclusions and are never subtracted by the
+exclusion step, matching omop-semantics' composition contract.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.estimated_bytes" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">estimated_bytes</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.estimated_bytes" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimated_bytes</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Approximate retained size, for cache accounting.</p>
+<p>Measured at ~80 bytes per ID for a <code>frozenset</code> of OMOP-magnitude
+concept IDs: a distinct <code>PyLong</code> each, plus hash-table overhead at a
+0.6 load factor.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">expression</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">expression</span><span class="p">(</span>
+    <span class="n">column</span><span class="p">:</span> <span class="n">SQLColumnExpression</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>SQL membership for this group — delegates to the spec.</p>
+<p>Kept here so a caller holding a resolved group can reach either
+rendering without going back to the spec, but the definition lives in
+one place.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.build_concept_group" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">build_concept_group</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.build_concept_group" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">build_concept_group</span><span class="p">(</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">ConceptGroupSpec</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ResolvedConceptGroup</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Expand a governed group against the vocabulary behind <code>session</code>.</p>
+<p>Performs up to two queries — the include closure and, when the group
+declares exclusions, the exclude closure.  Callers should normally go
+through the cache in <code>registry</code> rather than calling this directly.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.clear_concept_group_cache" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">clear_concept_group_cache</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.clear_concept_group_cache" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">clear_concept_group_cache</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Drop every cached group expansion, across all vocabularies.</p>
+<p>Per-vocabulary keying means this is rarely needed — moving database gives a
+different identity and therefore a different registry.  It remains an escape
+hatch for a dataset reloaded in place under an unchanged identity.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">clear_vocabulary_identity</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">clear_vocabulary_identity</span><span class="p">(</span><span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Forget <code>engine</code>'s registered identity, if it had one.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.concept_group_cache_stats" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">concept_group_cache_stats</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.concept_group_cache_stats" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">concept_group_cache_stats</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span>
+    <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+<span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Per-scope cache statistics, for monitoring the bound.</p>
+<p>Watch <code>rebuilds_after_evict</code>: while it is zero the shared bound is
+holding, and if it climbs the per-scope byte totals are the evidence for
+raising it or splitting the budget by payload kind.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.concept_group_registry" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">concept_group_registry</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.concept_group_registry" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">concept_group_registry</span><span class="p">(</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConceptGroupRegistry</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return the group registry for the vocabulary behind <code>session</code>.</p>
+<p>Registries are keyed on vocabulary identity where one has been registered
+(see :mod:<code>.identity</code>), so recreating an engine against the same dataset
+reuses expansions.  Otherwise they are keyed weakly on the engine, which is
+still built-once-per-engine but is not shared across engines.</p>
+<p>In-memory SQLite intentionally lands in the second case: two such engines
+are separate databases despite identical configuration, so cross-engine
+sharing would serve one database's concept sets for another.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.make_concept_resolver" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">make_concept_resolver</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.make_concept_resolver" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">make_concept_resolver</span><span class="p">(</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">unknown</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">domain_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">concept_class_id</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">vocabulary_id</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">standard_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">code_filter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">parents</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">include_non_standard_descendants</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">include_synonyms</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">include</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">&quot;concept_name&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;concept_code&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">build_normalizer</span><span class="p">:</span> <span class="n">Normaliser</span> <span class="o">=</span> <span class="n">normalize_default</span><span class="p">,</span>
+    <span class="n">runtime_normalizer</span><span class="p">:</span> <span class="n">Normaliser</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">corrections</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConceptResolver</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Convenience factory for constructing a ConceptResolver from declarative inputs.</p>
+<p>This function bundles the common workflow of:
+- defining a LookupSpec
+- materialising a LookupIndex from OMOP
+- constructing a ConceptResolver for runtime use</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>session</code>
+            </td>
+            <td>
+                  <code><span title="sqlalchemy.orm.Session">Session</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Active SQLAlchemy session connected to the OMOP CDM database.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Stable identifier for this lookup specification, used in logging and debugging.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>unknown</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Concept ID to return for unmatched terms. Set to None to preserve nulls, or to 
+a sentinel concept ID to force closed-world behaviour.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>domain_id</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional OMOP domain filter for the concepts to include in the lookup.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>concept_class_id</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional list of OMOP concept_class_id values to restrict the lookup.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>vocabulary_id</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional list of OMOP vocabulary_id values to restrict the lookup.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>standard_only</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, restricts the lookup to standard concepts only.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>code_filter</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional substring filter applied to concept_code (ILIKE-based). 
+Useful for coarse scoping (e.g. AJCC-only codes).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>parents</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="int">int</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional list of ancestor concept IDs from which to expand the lookup 
+via the Concept_Ancestor table.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_non_standard_descendants</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, includes non-standard concepts when expanding from parents. Has no 
+effect if <code>parents</code> is None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_synonyms</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, include Concept_Synonym entries in the lookup keys.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include</code>
+            </td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="str">str</span>, ...]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Tuple of ConceptRow attribute names to index as keys (e.g. ("concept_name", 
+"concept_code")). This controls which textual fields become resolvable inputs.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(&#39;concept_name&#39;, &#39;concept_code&#39;)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>build_normalizer</code>
+            </td>
+            <td>
+                  <code><span title="omop_alchemy.toolkit.core.concepts.lookup.Normaliser">Normaliser</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Normalisation function applied to all indexed strings at build time. This should<br />
+match (or be compatible with) the normaliser used at resolution time by 
+ConceptResolver.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="omop_alchemy.toolkit.core.concepts.normalizers.normalize_default">normalize_default</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>runtime_normalizer</code>
+            </td>
+            <td>
+                  <code><span title="omop_alchemy.toolkit.core.concepts.lookup.Normaliser">Normaliser</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional normalisation function applied to input terms at lookup time. Defaults to 
+<code>normalize_default</code>. This should be compatible with the normaliser used when 
+constructing the LookupIndex.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>corrections</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="typing.Callable">Callable</span>[[<span title="str">str</span>], <span title="str">str</span>]] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional ordered list of correction functions applied to the raw input term prior 
+to normalisation and lookup</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">register_vocabulary_identity</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">register_vocabulary_identity</span><span class="p">(</span>
+    <span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">,</span> <span class="n">identity</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Declare which vocabulary dataset <code>engine</code> reads.</p>
+<p>Concept-set caches keyed on this identity are shared by every engine
+registered under it, so recreating an engine reuses the expansion.</p>
+<p>Pass the engine your factory <em>returns</em>.
+<code>ResolvedCDMDatabase.create_engine</code> ends with
+<code>execution_options(schema_translate_map=...)</code>, which yields a derived
+<code>OptionEngine</code>; that is the object sessions bind to, and the one lookups
+will see.</p>
+<p>Do not register an identity for an ephemeral database — notably in-memory
+SQLite, where two engines built from identical configuration are genuinely
+separate databases.  Those correctly fall back to per-engine caching.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">resolve_concept_group</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">resolve_concept_group</span><span class="p">(</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">ConceptGroupSpec</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ResolvedConceptGroup</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Expand <code>spec</code> against <code>session</code>'s vocabulary, cached.</p>
+<p>The cache key is <code>spec.name</code> within the vocabulary's registry, so it
+derives from the governed semantic-unit name rather than a locally invented
+label.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="patient-timelines">Patient timelines<a class="headerlink" href="#patient-timelines" title="Permanent link">&para;</a></h2>
+<p>Projects a person's clinical rows — conditions, measurements, drug exposures — into a
+single time-ordered event stream. This has its own dedicated page, since it predates the
+rest of the toolkit reorg: see <a href="../../advanced/timelines/">Patient Timelines</a>.</p>
+<h2 id="unit-conversion">Unit conversion<a class="headerlink" href="#unit-conversion" title="Permanent link">&para;</a></h2>
+<p>Converts measurement values to canonical units. Kilograms, pounds, centimetres, and
+inches mean the same thing in every clinical domain, so the conversion rules live here
+rather than with any one domain's measurement logic — see
+<a href="../analytics/#body_metrics"><code>analytics.body_metrics</code></a> for where those domain-specific
+measurements are resolved and normalised using these rules.</p>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="omop_alchemy.toolkit.core.units"></a>
+    <div class="doc doc-contents first">
+
+        <p>Convert measurement values to canonical units.</p>
+<p>Measurement rows carry whatever unit the source system recorded.  Before
+values can be compared, trended, or fed into a calculation they need to
+agree on a unit, and that conversion must be explicit about what it will
+and will not accept.</p>
+<p><code>BodyUnitConversionRules</code> converts anthropometric measurements to
+kilograms and centimetres, driven by the unit concept on each row rather
+than by guesswork.  <code>default_body_unit_conversion_rules</code> supplies the
+standard rule set; <code>INCH_TO_CM</code> and <code>LB_US_TO_KG</code> are the underlying
+factors where a caller needs them directly.</p>
+<p>A reading whose unit concept is unrecognised is not converted and not
+silently passed through — callers are told the value could not be
+normalised, so an unconvertible unit never reaches a calculation
+disguised as a valid one.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.units.BodySizeUnitConcepts" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">BodySizeUnitConcepts</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.units.BodySizeUnitConcepts" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">BodySizeUnitConcepts</span><span class="p">(</span>
+    <span class="n">kg</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">lb</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">cm</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">inch</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">m2</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>The unit concepts anthropometric conversion recognises.</p>
+<p>Kilograms, pounds, centimetres, inches, and square metres mean the same
+thing in every clinical domain, so the mapping from concept ID to unit
+lives here rather than with any one domain's measurement logic.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="omop_alchemy.toolkit.core.units.BodyUnitConversionRules" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">BodyUnitConversionRules</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.units.BodyUnitConversionRules" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">BodyUnitConversionRules</span><span class="p">(</span><span class="n">units</span><span class="p">:</span> <span class="n">BodySizeUnitConcepts</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Unit normalisation for anthropometric measurements.</p>
+<p>Conversion is driven by the unit concept recorded on each row. A value
+whose unit concept is not in <code>units</code> converts to None rather than being
+passed through, so a reading in an unrecognised unit cannot reach a
+calculation disguised as a valid one.</p>
+<p>Deployments that record body size against non-standard unit concepts can
+supply their own <code>units</code> instead of the governed defaults.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../../js/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2605,7 +2605,7 @@
   <span class="md-ellipsis">
     
   
-    OMOP-Specific Validation
+    Toolkit
   
 
     
@@ -2618,6 +2618,207 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Toolkit
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../toolkit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../toolkit/core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../toolkit/episodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../toolkit/analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    analytics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../toolkit/integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OMOP-Specific Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2740,10 +2941,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
         
           
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
             
   
   
@@ -2761,8 +2962,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3153,26 +3354,23 @@ omop-alchemy load-vocab-source -v   # ✗ flag is ignored
 <h3 id="what-it-does-behind-the-scenes">What it does behind the scenes<a class="headerlink" href="#what-it-does-behind-the-scenes" title="Permanent link">&para;</a></h3>
 <p>When a decorated command is invoked:</p>
 <ol>
-<li>Loads <code>~/.config/omop/config.toml</code> via <code>load_stack_config()</code>.</li>
-<li>Calls <code>OmopAlchemyConfig.from_stack(config)</code> to read package-specific settings and validate that the required <code>cdm_db</code> resource (or the <code>[tools.omop_alchemy] default_resource</code> override) is present. Raises <code>ConfigurationError</code> with a helpful message if it is missing.</li>
-<li>Resolves the resource: <code>Resolver(config).resolve_resource("cdm_db")</code>.</li>
-<li>Calls <code>.create_engine()</code> to build a SQLAlchemy engine with <code>schema_translate_map</code> applied.</li>
-<li>Prints a command header showing the resource name, CDM schema, and run mode.</li>
+<li>Calls <code>get_cdm_context()</code>, which loads <code>~/.config/omop/config.toml</code> (via <code>load_stack_config()</code>) and resolves whatever <code>OmopAlchemyConfig.cdm_db</code> currently names, returning <code>(pkg_config, resolved)</code>. Raises <code>RuntimeError</code> with a helpful message if no config file exists yet.</li>
+<li>Calls <code>create_cdm_engine(resolved)</code> to build a SQLAlchemy engine (<code>resolved.create_engine()</code>, with <code>schema_translate_map</code> applied) and register its vocabulary cache identity.</li>
+<li>Builds <code>conn</code> (<code>db_schema=resolved.schema_name</code>, <code>athena_source=pkg_config.athena_source_path</code>).</li>
+<li>Prints a command header showing the connection, CDM schema, and run mode.</li>
 <li>Calls the original function body with <code>(conn, engine, ...)</code>.</li>
 <li>Catches <code>RuntimeError</code>, <code>SQLAlchemyError</code>, and <code>BackendNotSupportedError</code>; renders them as formatted errors and exits with code 1.</li>
 </ol>
 <h3 id="before-and-after">Before and after<a class="headerlink" href="#before-and-after" title="Permanent link">&para;</a></h3>
 <p>Without the decorator, every command would need this boilerplate:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">TOOL_NAME</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_cdm_engine</span><span class="p">,</span> <span class="n">get_cdm_context</span>
+
 <span class="k">def</span><span class="w"> </span><span class="nf">my_command</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="n">stack</span> <span class="o">=</span> <span class="n">load_stack_config</span><span class="p">()</span>
-    <span class="n">tool</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">tools</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">TOOL_NAME</span><span class="p">)</span>
-    <span class="n">resource_name</span> <span class="o">=</span> <span class="p">(</span><span class="n">tool</span><span class="o">.</span><span class="n">default_resource</span> <span class="k">if</span> <span class="n">tool</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;cdm_db&quot;</span>
-    <span class="n">resolved</span> <span class="o">=</span> <span class="n">Resolver</span><span class="p">(</span><span class="n">stack</span><span class="p">)</span><span class="o">.</span><span class="n">resolve_resource</span><span class="p">(</span><span class="n">resource_name</span><span class="p">)</span>
-    <span class="n">engine</span> <span class="o">=</span> <span class="n">resolved</span><span class="o">.</span><span class="n">create_engine</span><span class="p">()</span>
+    <span class="n">pkg_config</span><span class="p">,</span> <span class="n">resolved</span> <span class="o">=</span> <span class="n">get_cdm_context</span><span class="p">()</span>
+    <span class="n">engine</span> <span class="o">=</span> <span class="n">create_cdm_engine</span><span class="p">(</span><span class="n">resolved</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># actual work here</span>
-        <span class="n">results</span> <span class="o">=</span> <span class="n">do_work</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">db_schema</span><span class="o">=</span><span class="n">resolved</span><span class="o">.</span><span class="n">cdm_schema</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">do_work</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">db_schema</span><span class="o">=</span><span class="n">resolved</span><span class="o">.</span><span class="n">schema_name</span><span class="p">)</span>
         <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">render_results</span><span class="p">(</span><span class="n">results</span><span class="p">))</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
         <span class="n">handle_error</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
@@ -3197,11 +3395,11 @@ omop-alchemy load-vocab-source -v   # ✗ flag is ignored
 <tbody>
 <tr>
 <td><code>conn.db_schema</code></td>
-<td>CDM schema name from the resolved resource (e.g. <code>"omop"</code>)</td>
+<td>CDM schema name from the resolved database (e.g. <code>"omop"</code>)</td>
 </tr>
 <tr>
 <td><code>conn.athena_source</code></td>
-<td>Athena vocabulary CSV directory from <code>[tools.omop_alchemy.extra]</code>; <code>None</code> if not configured</td>
+<td>Athena vocabulary CSV directory from <code>[tools.omop_alchemy]</code>'s <code>athena_source_path</code> field; <code>None</code> if not configured</td>
 </tr>
 </tbody>
 </table>
@@ -3263,7 +3461,7 @@ omop-alchemy load-vocab-source -v   # ✗ flag is ignored
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       
