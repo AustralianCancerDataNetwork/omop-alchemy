@@ -132,6 +132,13 @@ nav:
           - Domain: models/vocabulary/domain.md
           - Vocabulary: models/vocabulary/vocabulary.md
 
+  - Toolkit:
+      - Overview: toolkit/index.md
+      - core: toolkit/core.md
+      - episodes: toolkit/episodes.md
+      - analytics: toolkit/analytics.md
+      - integrations: toolkit/integrations.md
+
   - OMOP-Specific Validation:
       - Overview: validation/index.md
       - Domain Rules: validation/domain-rules.md

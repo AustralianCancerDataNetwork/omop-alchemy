@@ -1,0 +1,12 @@
+[importlinter]
+root_package = omop_alchemy
+
+[importlinter:contract:toolkit-layers]
+name = Toolkit tiers are strictly layered, cdm is the schema they are built on
+type = layers
+layers =
+    omop_alchemy.toolkit.integrations
+    omop_alchemy.toolkit.analytics
+    omop_alchemy.toolkit.episodes
+    omop_alchemy.toolkit.core
+    omop_alchemy.cdm

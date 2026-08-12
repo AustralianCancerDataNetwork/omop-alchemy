@@ -1,14 +1,18 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from typing import TYPE_CHECKING, Any, Type, cast
-from functools import cached_property
-from orm_loader.helpers import Base, get_model_by_tablename
+from sqlalchemy import event
+from sqlalchemy.orm import Mapper
+from typing import TYPE_CHECKING, Any, Type
+from functools import cached_property, cache
+from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     cdm_table,
-    CDMTableBase, 
+    CDMTableBase,
+    MODEL_MODULE_PREFIX,
     ReferenceContext,
     DomainValidationMixin,
     ExpectedDomain,
+    ModifierTargetMixin,
     merge_table_args,
     omop_index,
 )
@@ -16,6 +20,59 @@ from omop_alchemy.cdm.base import (
 if TYPE_CHECKING:
     from ..vocabulary import Concept
     from .episode import Episode
+
+@cache
+def _modifier_target_classes_by_field_concept_id() -> dict[int, Type[Any]]:
+    """
+    Default field-concept -> ORM target class map, CDM classes only.
+
+    Scans every registered mapper, so iteration order is otherwise at the
+    mercy of import order. Sorting makes the result deterministic, and
+    restricting to ``cdm.model`` (the same ``MODEL_MODULE_PREFIX`` that
+    ``@cdm_table`` itself classifies tables by) excludes toolkit/domain
+    subclasses (e.g. oncology-aware views) that also implement
+    ``ModifierTargetMixin`` -- those are reached only through an explicit
+    override such as ``OncologyEpisodeEvent.resolved_event_target_classes``,
+    never by accident here.
+    """
+    classes: dict[int, Type[Any]] = {}
+    mappers = sorted(
+        Base.registry.mappers,
+        key=lambda mapper: f"{mapper.class_.__module__}.{mapper.class_.__qualname__}",
+    )
+    for mapper in mappers:
+        cls = mapper.class_
+        if not issubclass(cls, ModifierTargetMixin):
+            continue
+        if not cls.__module__.startswith(MODEL_MODULE_PREFIX):
+            continue
+        try:
+            field_concept_id = cls.modifier_field_concept_id()
+        except NotImplementedError:
+            continue
+        if field_concept_id not in classes:
+            classes[field_concept_id] = cls
+    return classes
+
+@event.listens_for(Mapper, "after_mapper_constructed")
+def _invalidate_target_class_cache(
+    mapper: Mapper[Any],
+    class_: type[Any],
+) -> None:
+    _modifier_target_classes_by_field_concept_id.cache_clear()
+
+
+def clear_episode_event_target_class_cache() -> None:
+    """
+    Clear cached episode_event field-concept target mappings.
+
+    Invalidation is automatic: ``after_mapper_constructed`` clears the cache
+    whenever a new mapper is configured, so a ``ModifierTargetMixin`` subclass
+    imported late is picked up without intervention. This remains as an escape
+    hatch for callers that build target classes outside the mapper lifecycle.
+    """
+    _modifier_target_classes_by_field_concept_id.cache_clear()
+
 
 @cdm_table
 class Episode_Event(CDMTableBase, Base):
@@ -51,6 +108,12 @@ class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMix
         "episode_event_field_concept_id": ExpectedDomain("Metadata"),
     }
 
+    @classmethod
+    def resolved_event_target_classes(cls) -> dict[int, Type[Any]]:
+        """
+        Map episode_event field concepts to ORM classes that can receive them.
+        """
+        return _modifier_target_classes_by_field_concept_id()
 
     @property
     def event_table(self) -> str | None:
@@ -58,21 +121,24 @@ class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMix
             return self.event_field.concept_name.split(".", 1)[0]
         return None
 
+    @property
+    def resolved_event_class(self) -> Type[Any] | None:
+        return self.resolved_event_target_classes().get(
+            self.episode_event_field_concept_id
+        )
+
     @cached_property
     def resolved_event(self) -> Any | None:
         """
         Resolve EVENT_ID to concrete OMOP row.
         Cached per-instance.
         """
-        table_name = self.event_table
         session = so.object_session(self)
-        if session is None or table_name is None:
+        cls = self.resolved_event_class
+        if session is None or cls is None:
             return None
 
-        cls = cast(Type[Any] | None, get_model_by_tablename(table_name))
-        if cls is not None:
-            return session.get(cls, self.event_id)
-        return None
+        return session.get(cls, self.event_id)
 
     def __repr__(self):
         target = self.resolved_event

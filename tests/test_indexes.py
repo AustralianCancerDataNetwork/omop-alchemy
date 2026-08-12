@@ -1,7 +1,7 @@
 import pytest
 import sqlalchemy as sa
 from typer.testing import CliRunner
-from oa_configurator import StackConfig, DatabaseConfig, ResourceConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
 
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY, omop_index_name
@@ -338,8 +338,8 @@ def test_disable_indexes_cli_invokes_management(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        databases={"db": DatabaseConfig(dialect="sqlite", database_name=":memory:")},
-        resources={"cdm_db": ResourceConfig(database="db", cdm_schema="main")},
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -402,8 +402,8 @@ def test_enable_indexes_cli_no_cluster_flag_passes_through(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        databases={"db": DatabaseConfig(dialect="sqlite", database_name=":memory:")},
-        resources={"cdm_db": ResourceConfig(database="db", cdm_schema="main")},
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",

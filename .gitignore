@@ -73,3 +73,5 @@ temp/
 notebooks/
 .dockerignore
 docker/
+tests/test_meds*
+site/

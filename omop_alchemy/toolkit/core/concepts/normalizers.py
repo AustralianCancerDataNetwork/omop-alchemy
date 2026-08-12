@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .vocab_handlers import Normaliser
+    from .lookup import Normaliser
 
 def compose_normalizers(*fns: "Normaliser") -> "Normaliser":
     def _inner(s: str) -> str:

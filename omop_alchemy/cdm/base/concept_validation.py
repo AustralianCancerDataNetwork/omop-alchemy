@@ -1,30 +1,5 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from ...model.vocabulary.concept import Concept
-
-
-class OMOPConceptResolver:
-    def __init__(self, session):
-        self.session = session
-
-    def are_standard(self, concept_ids):
-        if not concept_ids:
-            return {}
-
-        rows = (
-            self.session.query(
-                Concept.concept_id,
-                Concept.standard_concept,
-            )
-            .filter(Concept.concept_id.in_(set(concept_ids)))
-            .all()
-        )
-
-        return {
-            cid: (std == "S")
-            for cid, std in rows
-        }
-
 
 
 class ConceptValidationMixin:
@@ -37,7 +12,7 @@ class ConceptValidationMixin:
 
     Works for:
       - ORM mapped tables
-      - materialized views
+      - materialised views
       - Core selectables
     """
 
@@ -58,7 +33,7 @@ class ConceptValidationMixin:
         return {
             c.key: c
             for c in cols
-            if c.key and c.key.endswith("_concept_id") and 'source' not in c.key 
+            if c.key and c.key.endswith("_concept_id") and 'source' not in c.key
         }
 
 
@@ -118,6 +93,8 @@ class ConceptValidationMixin:
         sqlalchemy.Select
             A SELECT returning a single column: the violating concept_id.
         """
+        # imported here rather than at module scope to avoid a circular import
+        from omop_alchemy.cdm.model.vocabulary.concept import Concept
 
         # Base join condition: concept_id match
         join_cond = Concept.concept_id == col
@@ -135,7 +112,7 @@ class ConceptValidationMixin:
                 join_cond,
                 Concept.vocabulary_id == vocabulary_id,
             )
-        
+
         from_clause = sa.outerjoin(
             table,
             Concept,
@@ -149,8 +126,13 @@ class ConceptValidationMixin:
             .where(
                 col.is_not(None),
                 sa.or_(
-                    Concept.concept_id.is_(None),        # missing concept
-                    Concept.standard_concept.is_(None),  # non-standard concept
+                    # outer join left no concept row at all
+                    Concept.concept_id.is_(None),
+                    # Concept owns the definition of standard-ness, including
+                    # tolerance for blank and whitespace-only flag values.
+                    # is_not(True) rather than not_(): the expression is NULL
+                    # for a NULL or blank flag, and NOT NULL would not match.
+                    Concept.is_standard_expr().is_not(True),
                 ),
             )
         )

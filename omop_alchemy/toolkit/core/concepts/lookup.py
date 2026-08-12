@@ -1,11 +1,12 @@
 from typing import Iterable, Callable
 from dataclasses import dataclass
+from functools import cached_property
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
-from .concept_normalisers import normalize_default
-from ...model import ConceptRow
-from ...model.vocabulary import Concept, Concept_Synonym, Concept_Ancestor
+from .normalizers import normalize_default
+from omop_alchemy.cdm.model import ConceptRow
+from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Synonym, Concept_Ancestor
 
 """
 Class definitions for vocabulary handling and mapping.
@@ -375,15 +376,30 @@ class ConceptResolver:
 
     def __contains__(self, item: str | int) -> bool:
         if isinstance(item, int):
-            return item in self.index.mapping.values()
+            return item in self.all_concepts
         if isinstance(item, str):
             return self.lookup(item) != self.index.unknown
         return False
 
-    @property
+    @cached_property
     def all_concepts(self) -> set[int]:
+        """Every concept ID reachable through this resolver's index.
+
+        Cached: the index is fixed at construction, and callers legitimately
+        union several resolvers' sets, which previously rebuilt each one per
+        access.  Returned by reference, so treat it as read-only.
+        """
         return set(self.index.mapping.values())
-    
+
+    def estimated_bytes(self) -> int:
+        """Approximate retained size, for cache accounting.
+
+        A name/code/synonym index costs several times more per concept than a
+        bare ID set, which is why the cache bound is measured in bytes rather
+        than entry counts.  Measured at ~350 bytes per concept for OMOP-length
+        names and codes with one synonym each.
+        """
+        return 350 * len(self.index.mapping)
 
     def __repr__(self) -> str:
         return (

@@ -10,7 +10,7 @@ import shutil
 import sqlalchemy as sa
 from sqlalchemy.exc import ArgumentError, SQLAlchemyError
 
-from oa_configurator import Resolver, load_stack_config
+from oa_configurator import ResolvedCDMDatabase, Resolver, load_stack_config
 from oa_configurator.loader import DEFAULT_CONFIG_PATH
 from omop_alchemy.backends.resolve import SupportedDialect
 from omop_alchemy.config import OmopAlchemyConfig
@@ -337,15 +337,19 @@ def collect_maintenance_info(
     existing_table_count: int | None = None
     missing_table_count: int | None = None
 
-    resource_name = OmopAlchemyConfig.required_resources[0]
+    db_name = OmopAlchemyConfig.model_fields["cdm_db"].default
     try:
         stack = load_stack_config()
-        tool = stack.tools.get(OmopAlchemyConfig.tool_name)
-        resource_name = (tool.default_resource if tool else None) or resource_name
         resolver = Resolver(stack)
-        resolved = resolver.resolve_resource(resource_name)
-        db_schema = resolved.cdm_schema
-        raw_url = sa.engine.make_url(resolved.database.url)
+        db_name = resolver.resolve_package_config(OmopAlchemyConfig).cdm_db
+        resolved = resolver.resolve_database(db_name)
+        if not isinstance(resolved, ResolvedCDMDatabase):
+            raise ValueError(
+                f"OmopAlchemyConfig.cdm_db must resolve to a CDM database, got "
+                f"{type(resolved).__name__}"
+            )
+        db_schema = resolved.schema_name
+        raw_url = sa.engine.make_url(resolved.connection.url)
         engine_url = raw_url.render_as_string(hide_password=True)
         backend = raw_url.get_backend_name()
     except (FileNotFoundError, ValueError, ArgumentError, KeyError) as exc:
@@ -401,7 +405,7 @@ def collect_maintenance_info(
         psql_path=psql_path,
         config_file=str(config_file),
         config_exists=config_file.exists(),
-        resource_name=resource_name,
+        resource_name=db_name,
         db_schema=db_schema,
         engine_url=engine_url,
         backend=backend,

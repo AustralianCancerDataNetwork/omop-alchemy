@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 import pytest
 from typer.testing import CliRunner
-from oa_configurator import StackConfig, DatabaseConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
 
 from omop_alchemy.backends import (
     CONCEPT_NAME_TSVECTOR_COLUMN,
@@ -204,8 +204,8 @@ def test_fulltext_install_cli_passes_options(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        databases={"db": DatabaseConfig(dialect="sqlite", database_name=":memory:")},
-        resources={"cdm_db": {"database": "db", "cdm_schema": "public"}},
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="public")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",

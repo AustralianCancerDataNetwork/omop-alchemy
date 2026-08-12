@@ -15,7 +15,7 @@ production query pipelines where raw SQLAlchemy queries are more appropriate.
 A canonical temporal representation. Every clinical event has a start datetime; an end
 datetime is optional. The `kind` property returns `"point"` or `"interval"`.
 
-::: omop_alchemy.cdm.handlers.timeline.event_timeline.EventTime
+::: omop_alchemy.toolkit.core.timeline.event_timeline.EventTime
 
 ---
 
@@ -23,7 +23,7 @@ datetime is optional. The `kind` property returns `"point"` or `"interval"`.
 
 The value associated with a clinical event — numeric, concept, string, or none.
 
-::: omop_alchemy.cdm.handlers.timeline.event_timeline.EventValue
+::: omop_alchemy.toolkit.core.timeline.event_timeline.EventValue
 
 ---
 
@@ -33,7 +33,7 @@ Declares which ORM fields supply the concept, start/end datetimes, and value for
 particular CDM table. Subclasses of `ClinicalEvent` set `_mapping` to an `EventMapping`
 instance at class level.
 
-::: omop_alchemy.cdm.handlers.timeline.event_timeline.EventMapping
+::: omop_alchemy.toolkit.core.timeline.event_timeline.EventMapping
 
 ---
 
@@ -43,7 +43,7 @@ instance at class level.
 `_mapping` to implement `event_time`, `event_value`, `event_metadata`, `to_dict`, and
 `to_json`.
 
-::: omop_alchemy.cdm.handlers.timeline.event_timeline.ClinicalEvent
+::: omop_alchemy.toolkit.core.timeline.event_timeline.ClinicalEvent
 
 ---
 
@@ -57,11 +57,11 @@ Three CDM tables are pre-wired with `EventMapping`s:
 | `Measurement_Event` | `measurement` | `measurement_concept_id` | `value_as_number`, `value_as_concept_id`, `value_as_string` |
 | `Drug_Exposure_Event` | `drug_exposure` | `drug_concept_id` | `quantity` |
 
-::: omop_alchemy.cdm.handlers.timeline.event_timeline.Condition_Event
+::: omop_alchemy.toolkit.core.timeline.event_timeline.Condition_Event
 
-::: omop_alchemy.cdm.handlers.timeline.event_timeline.Measurement_Event
+::: omop_alchemy.toolkit.core.timeline.event_timeline.Measurement_Event
 
-::: omop_alchemy.cdm.handlers.timeline.event_timeline.Drug_Exposure_Event
+::: omop_alchemy.toolkit.core.timeline.event_timeline.Drug_Exposure_Event
 
 ---
 
@@ -71,7 +71,7 @@ Extends the `Person` ORM class with `.events` and `.timeline` properties. Requir
 active SQLAlchemy session (i.e. the object must have been loaded from a session, not
 constructed in memory).
 
-::: omop_alchemy.cdm.handlers.timeline.event_timeline.Person_Timeline
+::: omop_alchemy.toolkit.core.timeline.event_timeline.Person_Timeline
 
 ---
 
@@ -79,7 +79,7 @@ constructed in memory).
 
 ```python
 from sqlalchemy.orm import Session
-from omop_alchemy.cdm.handlers.timeline import Person_Timeline
+from omop_alchemy.toolkit.core.timeline import Person_Timeline
 
 with Session(engine) as session:
     person = session.get(Person_Timeline, 42)
@@ -96,7 +96,7 @@ To add a new CDM table to the timeline, subclass both `ClinicalEvent` and the ta
 class and set `_mapping`:
 
 ```python
-from omop_alchemy.cdm.handlers.timeline.event_timeline import ClinicalEvent, EventMapping
+from omop_alchemy.toolkit.core.timeline.event_timeline import ClinicalEvent, EventMapping
 from omop_alchemy.cdm.model.clinical import Procedure_Occurrence
 
 class Procedure_Event(Procedure_Occurrence, ClinicalEvent):

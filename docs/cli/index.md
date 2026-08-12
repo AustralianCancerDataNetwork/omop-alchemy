@@ -59,29 +59,26 @@ No connection flags are injected; all configuration comes from oa_configurator.
 
 When a decorated command is invoked:
 
-1. Loads `~/.config/omop/config.toml` via `load_stack_config()`.
-2. Calls `OmopAlchemyConfig.from_stack(config)` to read package-specific settings and validate that the required `cdm_db` resource (or the `[tools.omop_alchemy] default_resource` override) is present. Raises `ConfigurationError` with a helpful message if it is missing.
-3. Resolves the resource: `Resolver(config).resolve_resource("cdm_db")`.
-4. Calls `.create_engine()` to build a SQLAlchemy engine with `schema_translate_map` applied.
-5. Prints a command header showing the resource name, CDM schema, and run mode.
-6. Calls the original function body with `(conn, engine, ...)`.
-7. Catches `RuntimeError`, `SQLAlchemyError`, and `BackendNotSupportedError`; renders them as formatted errors and exits with code 1.
+1. Calls `get_cdm_context()`, which loads `~/.config/omop/config.toml` (via `load_stack_config()`) and resolves whatever `OmopAlchemyConfig.cdm_db` currently names, returning `(pkg_config, resolved)`. Raises `RuntimeError` with a helpful message if no config file exists yet.
+2. Calls `create_cdm_engine(resolved)` to build a SQLAlchemy engine (`resolved.create_engine()`, with `schema_translate_map` applied) and register its vocabulary cache identity.
+3. Builds `conn` (`db_schema=resolved.schema_name`, `athena_source=pkg_config.athena_source_path`).
+4. Prints a command header showing the connection, CDM schema, and run mode.
+5. Calls the original function body with `(conn, engine, ...)`.
+6. Catches `RuntimeError`, `SQLAlchemyError`, and `BackendNotSupportedError`; renders them as formatted errors and exits with code 1.
 
 ### Before and after
 
 Without the decorator, every command would need this boilerplate:
 
 ```python
-from omop_alchemy.config import TOOL_NAME
+from omop_alchemy.config import create_cdm_engine, get_cdm_context
+
 def my_command() -> None:
-    stack = load_stack_config()
-    tool = stack.tools.get(TOOL_NAME)
-    resource_name = (tool.default_resource if tool else None) or "cdm_db"
-    resolved = Resolver(stack).resolve_resource(resource_name)
-    engine = resolved.create_engine()
+    pkg_config, resolved = get_cdm_context()
+    engine = create_cdm_engine(resolved)
     try:
         # actual work here
-        results = do_work(engine, db_schema=resolved.cdm_schema)
+        results = do_work(engine, db_schema=resolved.schema_name)
         console.print(render_results(results))
     except Exception as exc:
         handle_error(exc)
@@ -105,5 +102,5 @@ def my_command(conn, engine) -> None:
 
 | Attribute | Description |
 |---|---|
-| `conn.db_schema` | CDM schema name from the resolved resource (e.g. `"omop"`) |
-| `conn.athena_source` | Athena vocabulary CSV directory from `[tools.omop_alchemy.extra]`; `None` if not configured |
+| `conn.db_schema` | CDM schema name from the resolved database (e.g. `"omop"`) |
+| `conn.athena_source` | Athena vocabulary CSV directory from `[tools.omop_alchemy]`'s `athena_source_path` field; `None` if not configured |

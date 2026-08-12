@@ -12,7 +12,7 @@ from omop_alchemy.maintenance.cli_foreign_keys import (
     collect_foreign_key_trigger_status,
     manage_foreign_key_triggers,
 )
-from oa_configurator import StackConfig, DatabaseConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
 
 runner = CliRunner()
 
@@ -76,8 +76,8 @@ def test_disable_foreign_keys_cli_fails_gracefully_for_sqlite(monkeypatch):
     """Test disable foreign keys cli fails gracefully for sqlite."""
 
     cfg = StackConfig.for_session(
-        databases={"db": DatabaseConfig(dialect="sqlite", database_name=":memory:")},
-        resources={"cdm_db": {"database": "db", "cdm_schema": "main"}},
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -250,8 +250,8 @@ def test_enable_foreign_keys_strict_cli_invokes_strict_management(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        databases={"db": DatabaseConfig(dialect="sqlite", database_name=":memory:")},
-        resources={"cdm_db": {"database": "db", "cdm_schema": "main"}},
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -362,8 +362,8 @@ def test_foreign_keys_validate_cli_invokes_validation(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        databases={"db": DatabaseConfig(dialect="sqlite", database_name=":memory:")},
-        resources={"cdm_db": {"database": "db", "cdm_schema": "main"}},
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",

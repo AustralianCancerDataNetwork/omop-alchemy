@@ -330,26 +330,13 @@ def pg_engine():
     Resolves via OA_Configurator resource 'test_cdm_db' in ~/.config/omop/config.toml.
     Run: omop-config configure omop_alchemy (answer Y when asked to configure test database).
     """
-    from oa_configurator import load_stack_config
-    from oa_configurator.pytest_plugin import ensure_test_db_exists, ensure_test_user_exists, resolve_test_resource
+    from oa_configurator.pytest_plugin import (
+        ensure_test_db_exists,
+        ensure_test_user_exists,
+        resolve_test_database,
+    )
     from omop_alchemy.config import OmopAlchemyConfig
-
-    url = resolve_test_resource(OmopAlchemyConfig.TEST_DB)
-
-    # Safety guard: pg_session does DROP SCHEMA public CASCADE — refuse if the
-    # backing connection is not explicitly marked test_only in the config.
-    try:
-        stack = load_stack_config()
-        db_name = stack.resources[OmopAlchemyConfig.TEST_DB.semantic_name].database
-        if not stack.databases[db_name].test_only:
-            pytest.fail(
-                f"SAFETY ABORT: the database connection {db_name!r} backing"
-                f" {OmopAlchemyConfig.TEST_DB.semantic_name!r} is not marked"
-                f" test_only=true. Tests would DROP SCHEMA public CASCADE on"
-                f" a non-test database."
-            )
-    except KeyError:
-        pass  # resource or db not in config — resolve_test_resource will skip
+    url = resolve_test_database(OmopAlchemyConfig, "test_cdm_db")
 
     ensure_test_user_exists(url)
     ensure_test_db_exists(url)

@@ -1,112 +1,155 @@
-"""
-Tests for driver-selection logic in omop_alchemy.config.
-
-These tests do not require a database; they exercise the driver-mapping
-constants, _missing_driver_message(), and create_cdm_engine()
-using mock exceptions to simulate missing packages.
-"""
-import pytest
-
-from omop_alchemy.config import (
-    _POSTGRES_DRIVER_MODULES as POSTGRES_DRIVER_MODULES,
-    _missing_driver_message,
-    create_cdm_engine,
+"""Tests for typed CDM resolution, engine creation, and cache registration."""
+import sqlalchemy.orm as so
+from oa_configurator import (
+    CDMDatabaseConfig,
+    ConnectionConfig,
+    ResolvedCDMDatabase,
+    StackConfig,
 )
 
-
-def _make_module_not_found(module_name: str) -> ModuleNotFoundError:
-    exc = ModuleNotFoundError(f"No module named '{module_name}'")
-    exc.name = module_name
-    return exc
-
-
-# ---------------------------------------------------------------------------
-# Driver-mapping constants
-# ---------------------------------------------------------------------------
-
-def test_bare_postgresql_url_aliases_to_psycopg():
-    """Bare postgresql:// now resolves to psycopg, not psycopg2."""
-    assert POSTGRES_DRIVER_MODULES["postgresql"] == "psycopg"
+from omop_alchemy.config import (
+    create_cdm_engine,
+    get_cdm_context,
+    vocabulary_identity,
+)
+from omop_alchemy.toolkit.core.concepts import clear_vocabulary_identity
+from omop_alchemy.toolkit.core.concepts.identity import cache_scope
 
 
-def test_psycopg_driver_mapping():
-    assert POSTGRES_DRIVER_MODULES["postgresql+psycopg"] == "psycopg"
+def _resolved_cdm_database(
+    *,
+    primary_database: str,
+    vocab_database: str | None = None,
+    vocab_schema: str = "main",  # default co-located: matches schema_name below
+) -> ResolvedCDMDatabase:
+    primary = ConnectionConfig(
+        dialect="sqlite",
+        database_name=primary_database,
+    ).resolve("primary")
+    vocab = ConnectionConfig(
+        dialect="sqlite",
+        database_name=vocab_database or primary_database,
+    ).resolve("vocab")
+    return ResolvedCDMDatabase(
+        name="cdm_db",
+        connection=primary,
+        schema_name="main",
+        vocab_connection=vocab,
+        vocab_schema=vocab_schema,
+        results_schema=None,
+    )
 
 
-def test_psycopg2_driver_mapping_retained_for_error_quality():
-    """psycopg2 entry is kept so users get a clear error message."""
-    assert POSTGRES_DRIVER_MODULES["postgresql+psycopg2"] == "psycopg2"
-
-
-# ---------------------------------------------------------------------------
-# _missing_driver_message()
-# ---------------------------------------------------------------------------
-
-def test_missing_driver_message_for_psycopg():
-    exc = _make_module_not_found("psycopg")
-    msg = _missing_driver_message("postgresql+psycopg://host/db", exc)
-
-    assert msg is not None
-    assert "psycopg" in msg
-    assert "postgres" in msg.lower()
-
-
-def test_missing_driver_message_for_bare_postgresql_url():
-    """Bare postgresql:// is now aliased to psycopg; missing psycopg gives a helpful error."""
-    exc = _make_module_not_found("psycopg")
-    msg = _missing_driver_message("postgresql://host/db", exc)
-
-    assert msg is not None
-    assert "psycopg" in msg
-
-
-def test_missing_driver_message_for_psycopg2():
-    exc = _make_module_not_found("psycopg2")
-    msg = _missing_driver_message("postgresql+psycopg2://host/db", exc)
-
-    assert msg is not None
-    assert "psycopg2" in msg
-
-
-def test_missing_driver_message_returns_none_for_unrelated_module():
-    """A ModuleNotFoundError for an unrelated package should not be intercepted."""
-    exc = _make_module_not_found("pandas")
-    msg = _missing_driver_message("postgresql+psycopg://host/db", exc)
-
-    assert msg is None
-
-
-def test_missing_driver_message_returns_none_for_sqlite_url():
-    exc = _make_module_not_found("psycopg")
-    msg = _missing_driver_message("sqlite:///test.db", exc)
-
-    assert msg is None
-
-
-# ---------------------------------------------------------------------------
-# create_engine_with_dependencies()
-# ---------------------------------------------------------------------------
-
-def test_sqlite_url_not_intercepted():
-    """create_cdm_engine should work for sqlite without wrapping errors."""
-    from oa_configurator.resolver import ResolvedDatabaseTarget
-    target = ResolvedDatabaseTarget(name="test", url="sqlite:///:memory:", safe_url="sqlite:///:memory:")
-    from unittest.mock import MagicMock
-    resolved = MagicMock()
-    resolved.create_engine.return_value = target.create_engine()
-    resolved.database.url = "sqlite:///:memory:"
+def test_create_cdm_engine_supports_sqlite():
+    resolved = _resolved_cdm_database(primary_database=":memory:")
     engine = create_cdm_engine(resolved)
     engine.dispose()
 
 
-def test_create_engine_raises_runtime_for_missing_postgres_driver(monkeypatch):
-    """When psycopg is missing, create_cdm_engine raises RuntimeError with install hint."""
-    from unittest.mock import MagicMock
-    exc = _make_module_not_found("psycopg")
+def test_get_cdm_context_resolves_the_typed_database_field(monkeypatch) -> None:
+    stack = StackConfig.for_session(
+        connections={
+            "cdm": ConnectionConfig(dialect="sqlite", database_name=":memory:")
+        },
+        databases={
+            "cdm_db": CDMDatabaseConfig(connection="cdm", schema_name="main")
+        },
+    )
+    monkeypatch.setattr("omop_alchemy.config.load_stack_config", lambda: stack)
 
-    resolved = MagicMock()
-    resolved.create_engine.side_effect = exc
-    resolved.database.url = "postgresql+psycopg://host/db"
+    package_config, resolved = get_cdm_context()
 
-    with pytest.raises(RuntimeError, match="psycopg"):
-        create_cdm_engine(resolved)
+    assert package_config.cdm_db == "cdm_db"
+    assert isinstance(resolved, ResolvedCDMDatabase)
+    assert resolved.schema_name == "main"
+
+
+def test_vocabulary_identity_for_colocated_vocabulary() -> None:
+    """The normal case: vocabulary lives with the CDM, so expansions are shareable."""
+    resolved = _resolved_cdm_database(primary_database="primary.db")
+
+    assert vocabulary_identity(resolved) == (
+        f"{resolved.vocab_connection.safe_url}|main"
+    )
+
+
+def test_vocabulary_identity_is_none_for_a_split_vocab_connection() -> None:
+    """A declared vocabulary connection the engine cannot reach is not an identity.
+
+    One engine cannot route tables to a second physical connection, so the
+    primary is what actually gets read.
+    """
+    resolved = _resolved_cdm_database(
+        primary_database="primary.db",
+        vocab_database="vocab.db",
+    )
+
+    assert vocabulary_identity(resolved) is None
+
+
+def test_vocabulary_identity_is_none_for_a_split_vocab_schema() -> None:
+    """Same for a vocabulary schema the models do not use."""
+    resolved = _resolved_cdm_database(
+        primary_database="primary.db",
+        vocab_schema="omop_vocab",
+    )
+
+    assert vocabulary_identity(resolved) is None
+
+
+def test_distinct_primaries_naming_one_vocabulary_do_not_collide() -> None:
+    """Two CDM databases citing the same external vocabulary must not share a cache.
+
+    Both would compose the same vocab-role identity, so if the safety condition
+    lived only in create_cdm_engine, any other registrar would let one database's
+    concept sets be served for the other.
+    """
+    alpha = _resolved_cdm_database(
+        primary_database="cdm_alpha.db", vocab_database="shared_vocab.db"
+    )
+    beta = _resolved_cdm_database(
+        primary_database="cdm_beta.db", vocab_database="shared_vocab.db"
+    )
+
+    assert alpha.connection.safe_url != beta.connection.safe_url
+    assert vocabulary_identity(alpha) is None
+    assert vocabulary_identity(beta) is None
+
+
+def test_vocabulary_identity_skips_in_memory_sqlite() -> None:
+    resolved = _resolved_cdm_database(primary_database=":memory:")
+
+    assert vocabulary_identity(resolved) is None
+
+
+def test_create_cdm_engine_registers_the_returned_engine(tmp_path) -> None:
+    database = str(tmp_path / "cdm.db")
+    resolved = _resolved_cdm_database(
+        primary_database=database,
+        vocab_database=database,
+        vocab_schema="main",
+    )
+    expected_identity = vocabulary_identity(resolved)
+    engine = create_cdm_engine(resolved)
+
+    try:
+        with so.Session(engine) as session:
+            assert cache_scope(session) == expected_identity
+    finally:
+        clear_vocabulary_identity(engine)
+        engine.dispose()
+
+
+def test_create_cdm_engine_does_not_register_a_split_vocabulary(tmp_path) -> None:
+    resolved = _resolved_cdm_database(
+        primary_database=str(tmp_path / "cdm.db"),
+        vocab_database=str(tmp_path / "vocab.db"),
+        vocab_schema="omop_vocab",
+    )
+    engine = create_cdm_engine(resolved)
+
+    try:
+        with so.Session(engine) as session:
+            assert cache_scope(session) is engine
+    finally:
+        engine.dispose()

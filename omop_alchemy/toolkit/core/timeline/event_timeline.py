@@ -1,5 +1,5 @@
 
-from ...model.clinical import Measurement, Person, Condition_Occurrence, Drug_Exposure
+from omop_alchemy.cdm.model.clinical import Measurement, Person, Condition_Occurrence, Drug_Exposure
 from sqlalchemy.orm import object_session
 from sqlalchemy import select
 from datetime import datetime, time, date

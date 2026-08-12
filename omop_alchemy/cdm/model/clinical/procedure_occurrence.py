@@ -15,6 +15,8 @@ from omop_alchemy.cdm.base import (
     ReferenceContext,
     DomainValidationMixin,
     ExpectedDomain,
+    ModifierTargetMixin,
+    ModifierFieldConcepts,
     merge_table_args,
     omop_index,
 )
@@ -111,9 +113,16 @@ class Procedure_OccurrenceView(
     Procedure_Occurrence,
     Procedure_OccurrenceContext,
     DomainValidationMixin,
+    ModifierTargetMixin,
 ):
     __tablename__ = "procedure_occurrence"
     __mapper_args__ = {"concrete": False}
+
+    __event_id_col__ = "procedure_occurrence_id"
+    __concept_id_col__ = "procedure_concept_id"
+    __start_date_col__ = "procedure_date"
+    __end_date_col__ = "procedure_end_date"
+    __type_concept_id_col__ = "procedure_type_concept_id"
 
     __expected_domains__ = {
         "procedure_concept_id": ExpectedDomain("Procedure"),
@@ -124,6 +133,10 @@ class Procedure_OccurrenceView(
     def start(self):
         """Best-effort start datetime."""
         return self.procedure_datetime or self.procedure_date
+
+    @classmethod
+    def modifier_field_concept_id(cls) -> int:
+        return ModifierFieldConcepts.PROCEDURE_OCCURRENCE
 
     @property
     def end(self):

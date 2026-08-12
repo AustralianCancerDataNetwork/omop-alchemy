@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from sqlalchemy.ext.declarative import declared_attr
-from typing import Optional, TYPE_CHECKING, List
+from typing import ClassVar, Optional, TYPE_CHECKING, List
 from datetime import date
 from orm_loader.helpers import Base 
 from omop_alchemy.cdm.base import (
@@ -56,6 +56,8 @@ class Episode(CDMTableBase, Base, PersonScoped):
         return f"<Episode {self.episode_id}>"
     
 class EpisodeContext(ReferenceContext):
+    __table__: ClassVar[sa.Table]
+
     person: so.Mapped["Person"] = ReferenceContext._reference_relationship(target="Person",local_fk="person_id",remote_pk="person_id")  # type: ignore[assignment]
     episode_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_concept_id",remote_pk="concept_id")  # type: ignore[assignment]
     episode_object_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_object_concept_id",remote_pk="concept_id")  # type: ignore[assignment]
@@ -80,6 +82,21 @@ class EpisodeContext(ReferenceContext):
             viewonly=True,
             lazy="selectin",
             uselist=False,
+        )
+
+    @declared_attr
+    @classmethod
+    def children(cls) -> so.Mapped[List["Episode"]]:
+        episode_id = cls.__table__.c.episode_id
+        episode_parent_id = cls.__table__.c.episode_parent_id
+        return so.relationship(
+            cls.__name__,
+            primaryjoin=lambda: so.remote(episode_parent_id) == episode_id,
+            foreign_keys=lambda: [episode_parent_id],
+            remote_side=lambda: [episode_parent_id],
+            viewonly=True,
+            lazy="selectin",
+            uselist=True,
         )
 
 class EpisodeView(Episode, EpisodeContext, DomainValidationMixin):

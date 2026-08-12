@@ -7,13 +7,14 @@ These tests require a running PostgreSQL container. Start one with:
 Then run:
     pytest -m postgres
 """
+
 from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
 
+from omop_alchemy.backends.postgres import PostgresBackend
 from omop_alchemy.cdm.model.vocabulary import Concept
-from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance.cli_vocab import (
     _load_vocab_model_csv,
     load_vocab_source,
@@ -49,8 +50,23 @@ def _make_concept_source(
             _write_fixture_csv(source_path, table_name, data)
 
     concept_cols = list(_ATHENA_FIXTURE_DATA["concept"].keys())
-    concept_row = [concept_id, concept_name, "Gender", "Gender", "Gender", "S", "TEST", "19700101", "20991231", None]
-    _write_fixture_csv(source_path, "concept", {col: (val,) for col, val in zip(concept_cols, concept_row)})
+    concept_row = [
+        concept_id,
+        concept_name,
+        "Gender",
+        "Gender",
+        "Gender",
+        "S",
+        "TEST",
+        "19700101",
+        "20991231",
+        None,
+    ]
+    _write_fixture_csv(
+        source_path,
+        "concept",
+        {col: (val,) for col, val in zip(concept_cols, concept_row)},
+    )
     return source_path
 
 
@@ -59,7 +75,7 @@ def _make_concept_source(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
+@pytest.mark.requires_database("test_cdm_db")
 def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
     """load_vocab_source() completes end-to-end on real Postgres via orm-loader>=0.4.0."""
     source_path = _copy_fixture_source(tmp_path)
@@ -73,47 +89,91 @@ def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
     assert count == 7
 
 
-
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
-def test_quote_mode_auto_regression_on_postgres(pg_session, pg_engine, tmp_path):
+@pytest.mark.requires_database("test_cdm_db")
+def test_default_quote_mode_preserves_literal_quotes_on_postgres(
+    pg_session, pg_engine, tmp_path
+):
     """
-    quote_mode='auto' strips RFC-4180 double-quotes via PostgreSQL COPY.
-
-    Under the old quote_mode='literal' a concept_name of exactly 255 chars
-    wrapped in double-quotes would be stored as 257 chars and violate the
-    VARCHAR(255) constraint. This test would fail under literal mode.
+    The default by_delimiter mode preserves quotes in tab-delimited Athena data.
     """
     source_path = tmp_path / "athena_source"
     source_path.mkdir()
 
-    long_name = "A" * 255  # exactly at VARCHAR(255) limit when unquoted
+    quoted_name = '"BRCA1 positive"'
 
     # All tables except concept get the standard fixture data.
     for table_name, data in _ATHENA_FIXTURE_DATA.items():
         if table_name != "concept":
             _write_fixture_csv(source_path, table_name, data)
 
-    # Concept gets a single row whose name is wrapped in RFC-4180 double-quotes
-    # so the raw file value is 257 chars. quote_mode='auto' must strip them.
     concept_cols = list(_ATHENA_FIXTURE_DATA["concept"].keys())
-    concept_row = [1, f'"{long_name}"', "Gender", "Gender", "Gender", "S", "TEST", "19700101", "20991231", None]
-    _write_fixture_csv(source_path, "concept", {col: (val,) for col, val in zip(concept_cols, concept_row)})
+    concept_row = [
+        1,
+        quoted_name,
+        "Gender",
+        "Gender",
+        "Gender",
+        "S",
+        "TEST",
+        "19700101",
+        "20991231",
+        None,
+    ]
+    _write_fixture_csv(
+        source_path,
+        "concept",
+        {col: (val,) for col, val in zip(concept_cols, concept_row)},
+    )
 
-    # Should not raise: literal mode would produce a 257-char value and fail.
     load_vocab_source(pg_engine, source_path=source_path)
 
     concept_name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
     ).scalar()
-    assert concept_name is not None
-    assert len(concept_name) == 255, (
-        f"Expected 255-char name; got {len(concept_name)}: {concept_name!r}"
+    assert concept_name == quoted_name
+
+
+@pytest.mark.requires_database("test_cdm_db")
+def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
+    pg_session, pg_engine, tmp_path
+):
+    """Explicit csv mode keeps support for genuinely RFC-4180-wrapped fields."""
+    source_path = tmp_path / "athena_source"
+    source_path.mkdir()
+
+    long_name = "A" * 255
+    for table_name, data in _ATHENA_FIXTURE_DATA.items():
+        if table_name != "concept":
+            _write_fixture_csv(source_path, table_name, data)
+
+    concept_cols = list(_ATHENA_FIXTURE_DATA["concept"].keys())
+    concept_row = [
+        1,
+        f'"{long_name}"',
+        "Gender",
+        "Gender",
+        "Gender",
+        "S",
+        "TEST",
+        "19700101",
+        "20991231",
+        None,
+    ]
+    _write_fixture_csv(
+        source_path,
+        "concept",
+        {col: (val,) for col, val in zip(concept_cols, concept_row)},
     )
-    assert not concept_name.startswith('"'), "Surrounding quotes were not stripped"
+
+    load_vocab_source(pg_engine, source_path=source_path, quote_mode="csv")
+
+    concept_name = pg_session.execute(
+        sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
+    ).scalar()
+    assert concept_name == long_name
 
 
-
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
+@pytest.mark.requires_database("test_cdm_db")
 def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
     """
     _load_vocab_model_csv loads data correctly on a real PostgreSQL session.
@@ -137,11 +197,20 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
     assert count == 7
 
 
-
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
-def test_replace_strategy_overwrites_existing_rows(pg_session, pg_engine, tmp_path):
-    """merge_strategy='replace' fully replaces rows with the same PKs on second load."""
+@pytest.mark.requires_database("test_cdm_db")
+def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
+    pg_session,
+    pg_engine,
+    tmp_path,
+):
+    """replace updates matching PKs without deleting rows absent from the next source."""
     concept_id = 99999
+    source_absent_id = 99997
+    source_absent = _make_concept_source(
+        tmp_path / "absent",
+        concept_id=source_absent_id,
+        concept_name="preserved",
+    )
     source_v1 = _make_concept_source(
         tmp_path / "v1", concept_id=concept_id, concept_name="name_v1"
     )
@@ -149,18 +218,24 @@ def test_replace_strategy_overwrites_existing_rows(pg_session, pg_engine, tmp_pa
         tmp_path / "v2", concept_id=concept_id, concept_name="name_v2"
     )
 
+    load_vocab_source(pg_engine, source_path=source_absent, merge_strategy="replace")
     load_vocab_source(pg_engine, source_path=source_v1, merge_strategy="replace")
     load_vocab_source(pg_engine, source_path=source_v2, merge_strategy="replace")
 
-    name = pg_session.execute(
-        sa.text("SELECT concept_name FROM concept WHERE concept_id = :cid"),
-        {"cid": concept_id},
-    ).scalar()
-    assert name == "name_v2", f"Expected 'name_v2' after replace, got {name!r}"
+    names = dict(
+        pg_session.execute(
+            sa.text(
+                "SELECT concept_id, concept_name FROM concept "
+                "WHERE concept_id IN (:matching_id, :absent_id)"
+            ),
+            {"matching_id": concept_id, "absent_id": source_absent_id},
+        ).all()
+    )
+    assert names[concept_id] == "name_v2"
+    assert names[source_absent_id] == "preserved"
 
 
-
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
+@pytest.mark.requires_database("test_cdm_db")
 def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
     """merge_strategy='upsert' preserves existing rows on second load with same PKs."""
     concept_id = 99998
@@ -183,14 +258,13 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
     )
 
 
-
-@pytest.mark.requires_resource(OmopAlchemyConfig.TEST_DB)
+@pytest.mark.requires_database("test_cdm_db")
 def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
     """
     load_vocab_source with db_schema creates vocabulary tables in the requested
     PostgreSQL schema and loads data into them correctly.
     """
-    schema = 'VocabTest'
+    schema = "VocabTest"
     source_path = _copy_fixture_source(tmp_path)
     quoted_schema = '"' + schema.replace('"', '""') + '"'
 
@@ -222,3 +296,25 @@ def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
         with pg_engine.connect() as conn:
             conn.execute(sa.text(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE"))
             conn.commit()
+
+
+@pytest.mark.requires_database("test_cdm_db")
+def test_postgres_catalog_queries_accept_explicit_schema(pg_engine):
+    """Schema-qualified catalog checks must bind cleanly with psycopg/PostgreSQL."""
+    backend = PostgresBackend()
+
+    with pg_engine.connect() as connection:
+        disabled, enabled = backend.get_fk_trigger_counts(
+            connection,
+            "concept",
+            "public",
+        )
+        clustered_index = backend.get_clustered_index_name(
+            connection,
+            "concept",
+            "public",
+        )
+
+    assert disabled >= 0
+    assert enabled >= 0
+    assert clustered_index is None or isinstance(clustered_index, str)
