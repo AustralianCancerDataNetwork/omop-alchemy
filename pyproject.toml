@@ -33,10 +33,10 @@ dependencies = [
   "sqlalchemy>=2.0.45",
   "pandas>=2.0",
   "pyyaml>=6.0",
-  "oa-configurator==0.1.2",
+  "oa-configurator>=1.0.0,<2.0.0",
   "typer>=0.12",
   "rich>=13.0",
-  "orm-loader==0.5.3",
+  "orm-loader>=1.0.0,<2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -49,7 +49,7 @@ semantics = [
 ]
 
 dev = [
-  "oa-configurator[dev,postgres]==0.1.2",
+  "oa-configurator[dev,postgres]>=1.0.0,<2.0.0",
   "ipython>=8.0",
   "requests>=2.33.0",
   "pytest>=9.0.3",
@@ -88,12 +88,6 @@ raw-options = { tag_regex = '^v?(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$' }
 packages = ["omop_alchemy"]
 
 [tool.uv]
-# TEMPORARY (local dev only): config.py targets the oa-configurator 1.0 API, which is
-# unreleased -- PyPI has 0.1.2. Replace with a published version pin before merge.
-sources = { oa-configurator = { path = "../oa-configurator", editable = true } }
-# orm-loader 0.5.3 also pins oa-configurator==0.1.2 exactly, so the local source
-# needs an override to be resolvable. Both lines go when 1.0 is published.
-override-dependencies = ["oa-configurator"]
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 [tool.pytest.ini_options]

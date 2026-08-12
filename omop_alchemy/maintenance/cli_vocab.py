@@ -209,7 +209,7 @@ def _load_vocab_model_csv(
             raise
 
         session.rollback()
-        model.create_staging_table(session)
+        model.create_staging_table(session, staging_schema=staging_schema)
         return int(model.load_csv(session, csv_path, **load_kwargs))  # ty: ignore[invalid-argument-type]
 
 

@@ -251,10 +251,6 @@ def test_load_vocab_model_csv_passes_quote_mode(monkeypatch, tmp_path):
         __tablename__ = "concept"
 
         @staticmethod
-        def staging_tablename() -> str:
-            return "_staging_concept"
-
-        @staticmethod
         def load_csv(
             session, path, *, merge_strategy, quote_mode, index_strategy="auto"
         ):
@@ -437,10 +433,6 @@ def test_load_vocab_model_csv_retries_missing_staging_table(monkeypatch, tmp_pat
         __tablename__ = "drug_strength"
 
         @staticmethod
-        def staging_tablename() -> str:
-            return "_staging_drug_strength"
-
-        @staticmethod
         def load_csv(
             session, path, *, merge_strategy, quote_mode, index_strategy="auto"
         ):
@@ -451,6 +443,7 @@ def test_load_vocab_model_csv_retries_missing_staging_table(monkeypatch, tmp_pat
             raise NotImplementedError
 
     calls = {"load_csv": 0, "create_staging_table": 0}
+    created_staging_schemas: list[str | None] = []
 
     def fake_load_csv(
         session,
@@ -473,6 +466,7 @@ def test_load_vocab_model_csv_retries_missing_staging_table(monkeypatch, tmp_pat
 
     def fake_create_staging_table(session, *, staging_schema=None):
         calls["create_staging_table"] += 1
+        created_staging_schemas.append(staging_schema)
 
     monkeypatch.setattr(FakeModel, "load_csv", fake_load_csv)
     monkeypatch.setattr(FakeModel, "create_staging_table", fake_create_staging_table)
@@ -484,11 +478,13 @@ def test_load_vocab_model_csv_retries_missing_staging_table(monkeypatch, tmp_pat
             model=FakeModel,  # type: ignore[arg-type]
             csv_path=_athena_source_path() / "DRUG_STRENGTH.csv",
             merge_strategy="upsert",
+            staging_schema="staging",
         )
 
     assert row_count == 123
     assert calls["load_csv"] == 2
     assert calls["create_staging_table"] == 1
+    assert created_staging_schemas == ["staging"]
 
 
 def test_load_vocab_source_cli_surfaces_database_error_detail(monkeypatch):
