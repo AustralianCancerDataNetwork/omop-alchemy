@@ -7,7 +7,14 @@ from .health_economic import Cost, Payer_Plan_Period
 from .structural import Episode, Episode_Event, Fact_Relationship
 from .unstructured import Note, Note_NLP
 from .metadata import CDM_Source, Metadata
-
+from .flags import (
+    InvalidReasonMixin,
+    InvalidReasonFlag,
+    StandardConceptFlag,
+    normalised_flag_expr,
+    normalised_flag,
+    BooleanFlag
+)
 from .typing import ConceptRow
 
 __all__ = [
@@ -47,4 +54,10 @@ __all__ = [
     "CDM_Source",
     "Metadata",
     "ConceptRow",
+    "InvalidReasonFlag",
+    "InvalidReasonMixin",
+    "BooleanFlag",
+    "normalised_flag",
+    "StandardConceptFlag",
+    "normalised_flag_expr",
 ]

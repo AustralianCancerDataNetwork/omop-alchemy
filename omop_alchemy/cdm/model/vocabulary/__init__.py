@@ -3,10 +3,7 @@ from .concept_class import Concept_Class
 from .concept import (
     Concept,
     ConceptContext,
-    ConceptView,
-    InvalidReasonFlag,
-    StandardConceptFlag,
-    normalised_flag_expr,
+    ConceptView
 )
 from .concept_relationship import Concept_Relationship
 from .domain import Domain
@@ -22,9 +19,6 @@ __all__ = [
     "Concept",
     "ConceptContext",
     "ConceptView",
-    "InvalidReasonFlag",
-    "StandardConceptFlag",
-    "normalised_flag_expr",
     "Concept_Relationship",
     "Domain",
     "Relationship",

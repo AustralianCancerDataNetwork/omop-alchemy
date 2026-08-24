@@ -7,11 +7,12 @@ import sqlalchemy.orm as so
 from .normalizers import normalize_default
 from omop_alchemy.cdm.model import ConceptRow
 from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Synonym, Concept_Ancestor
+from omop_alchemy.cdm.query import ConceptFilter
 
 """
 Class definitions for vocabulary handling and mapping.
 
-This is somewhat redunant with some of omop-graph but 
+This is somewhat redundant with some of omop-graph but 
 mutual dependency is awkward and this is a thin layer so 
 it's not worth over-engineering separation at this stage.
 """
@@ -101,8 +102,19 @@ class LookupSpec:
         Optional list of OMOP concept_class_id values to restrict the lookup
     vocabulary_id:
         Optional list of OMOP vocabulary_id values to restrict the lookup
-    standard_only:
-        If True, restricts the lookup to standard concepts only.
+    require_standard:
+        If True, restricts the lookup to concepts carrying a standardness flag.
+        Named to match ``ConceptFilter.require_standard``, which it delegates to.
+    include_classification:
+        Widens ``require_standard`` to admit classification ('C') concepts.
+        Defaults to True: a lookup exists to *recognise* vocabulary terms, and a
+        classification concept is a legitimate thing to recognise even though it
+        is not a valid mapping target. Set False for selection-shaped lookups.
+    require_active:
+        If True, excludes concepts with an ``invalid_reason``. Defaults to False
+        so recognition stays permissive — a deprecated concept that matches the
+        text can still be resolved forward through "Maps to" / "Concept replaced
+        by", whereas filtering it out here discards the term entirely.
     code_filter:
         Optional substring filter applied to concept_code (ILIKE-based).
         Useful for coarse scoping (e.g. AJCC-only codes).
@@ -137,7 +149,9 @@ class LookupSpec:
     domain_id: str | None = None
     concept_class_id: list[str] | None = None
     vocabulary_id: list[str] | None = None
-    standard_only: bool = True
+    require_standard: bool = True
+    include_classification: bool = True
+    require_active: bool = False
     code_filter: str | None = None
     parents: list[int] | None = None
     include_non_standard_descendants: bool = False
@@ -160,19 +174,29 @@ class OMOPConceptSource:
     """
 
     @staticmethod
-    def fetch_synonyms(session: so.Session) -> list[tuple[int, str]]:
+    def fetch_synonyms(
+        session: so.Session,
+        *,
+        concept_ids: Iterable[int] | None = None,
+    ) -> list[tuple[int, str]]:
         """
-        Return (concept_id, synonym) pairs for all concept synonyms.
+        Return (concept_id, synonym) pairs for concept synonyms.
 
-        Filtering (standard / domain / etc.) is intentionally left
-        to higher layers.
+        The join to ``concept`` scopes the result to synonyms whose concept
+        actually exists, and *concept_ids* narrows it further to a caller-supplied
+        set. Both are applied in SQL: without them this streams every synonym row
+        in the vocabulary back to Python to be discarded, which on a full Athena
+        load is millions of rows for a lookup covering a handful of domains.
         """
-        rows = session.execute(
-            sa.select(
-                Concept_Synonym.concept_id,
-                Concept_Synonym.concept_synonym_name,
-            )
-        ).all()
+        query = sa.select(
+            Concept_Synonym.concept_id,
+            Concept_Synonym.concept_synonym_name,
+        ).join(Concept, Concept.concept_id == Concept_Synonym.concept_id)
+
+        if concept_ids is not None:
+            query = query.where(Concept_Synonym.concept_id.in_(list(concept_ids)))
+
+        rows = session.execute(query).all()
 
         return [
             (int(r.concept_id), r.concept_synonym_name)
@@ -187,7 +211,9 @@ class OMOPConceptSource:
         domain_id: str | None = None,
         concept_class_id: Iterable[str] | None = None,
         vocabulary_id: Iterable[str] | None = None,
-        standard_only: bool = True,
+        require_standard: bool = True,
+        include_classification: bool = True,
+        require_active: bool = False,
         code_filter: str | None = None,
         parents: Iterable[int] | None = None,
         include_non_standard_descendants: bool = False,
@@ -199,31 +225,59 @@ class OMOPConceptSource:
         1. Flat filtering by domain / class / vocabulary
         2. Hierarchical expansion from parent concept(s)
 
+        Domain, vocabulary, standardness and validity are delegated to
+        :class:`~omop_alchemy.cdm.query.ConceptFilter` so this layer shares one
+        implementation of the OMOP flag rules with the rest of the package. In
+        particular the flag comparisons are normalised, so a blank or
+        whitespace-padded ``standard_concept`` is classified the same way here as
+        it is by ``Concept.is_standard``.
+
+        Recognition is permissive by default, because this layer resolves *text
+        to a concept*, not a concept to a mapping target. Both defaults follow
+        from that:
+
+        - *include_classification* is ``True`` — classification concepts are
+          legitimate things to recognise, even though they are not valid mapping
+          targets.
+        - *require_active* is ``False`` — a deprecated concept that matches the
+          text is a useful hit, because the caller can follow ``Maps to`` /
+          ``Concept replaced by`` to a valid successor. Filtering it out at
+          recognition time discards the term entirely, with nothing to resolve
+          forward from.
+
+        Pass ``include_classification=False`` / ``require_active=True`` when the
+        index feeds concept *selection* rather than recognition, where the strict
+        OMOP mapping-target rules apply.
         """
 
-        q = session.query(Concept)
+        parents = list(parents) if parents else None
+        # Standardness is dropped only for an explicitly non-standard descendant
+        # expansion; every other combination keeps it.
+        apply_standard = require_standard and not (
+            parents and include_non_standard_descendants
+        )
+
+        query = sa.select(Concept)
         if parents:
-            parents = list(parents)
-            q = (
-                q.join(
-                    Concept_Ancestor,
-                    Concept_Ancestor.descendant_concept_id == Concept.concept_id,
-                )
-                .filter(Concept_Ancestor.ancestor_concept_id.in_(parents))
-            )
-            if standard_only and not include_non_standard_descendants:
-                q = q.filter(Concept.standard_concept == "S")
-        if domain_id:
-            q = q.filter(Concept.domain_id == domain_id)
+            query = query.join(
+                Concept_Ancestor,
+                Concept_Ancestor.descendant_concept_id == Concept.concept_id,
+            ).where(Concept_Ancestor.ancestor_concept_id.in_(parents))
+
+        query = ConceptFilter(
+            domains=(domain_id,) if domain_id else None,
+            vocabularies=tuple(vocabulary_id) if vocabulary_id else None,
+            require_standard=apply_standard,
+            include_classification=include_classification,
+            require_active=require_active,
+        ).apply(query)
+
         if concept_class_id:
-            q = q.filter(Concept.concept_class_id.in_(list(concept_class_id)))
-        if vocabulary_id:
-            q = q.filter(Concept.vocabulary_id.in_(list(vocabulary_id)))
-        if standard_only and not parents:
-            q = q.filter(Concept.standard_concept == "S")
+            query = query.where(Concept.concept_class_id.in_(list(concept_class_id)))
         if code_filter:
-            q = q.filter(Concept.concept_code.ilike(f"%{code_filter}%"))
-        rows = q.all()
+            query = query.where(Concept.concept_code.ilike(f"%{code_filter}%"))
+
+        rows = session.execute(query).scalars().all()
         return [
             ConceptRow(
                 concept_id=int(r.concept_id),
@@ -248,7 +302,7 @@ class OMOPConceptSource:
             session,
             parents=parents,
             include_non_standard_descendants=include_non_standard,
-            standard_only=not include_non_standard,
+            require_standard=not include_non_standard,
         )
         return list({r.concept_id for r in rows})
     
@@ -263,7 +317,9 @@ class OMOPConceptSource:
             domain_id=spec.domain_id,
             concept_class_id=spec.concept_class_id,
             vocabulary_id=spec.vocabulary_id,
-            standard_only=spec.standard_only,
+            require_standard=spec.require_standard,
+            include_classification=spec.include_classification,
+            require_active=spec.require_active,
             code_filter=spec.code_filter,
             parents=spec.parents,
             include_non_standard_descendants=spec.include_non_standard_descendants,
@@ -279,8 +335,10 @@ class OMOPConceptSource:
                 m[spec.normalizer(r.concept_code)] = r.concept_id
 
         if spec.include_synonyms:
-            for cid, syn in OMOPConceptSource.fetch_synonyms(session):
-                if cid in ids and syn:
+            for cid, syn in OMOPConceptSource.fetch_synonyms(
+                session, concept_ids=ids
+            ):
+                if syn:
                     m[spec.normalizer(syn)] = cid
 
         return LookupIndex(name=spec.name, unknown=spec.unknown, mapping=m)
@@ -417,7 +475,9 @@ def make_concept_resolver(
     domain_id: str | None = None,
     concept_class_id: list[str] | None = None,
     vocabulary_id: list[str] | None = None,
-    standard_only: bool = True,
+    require_standard: bool = True,
+    include_classification: bool = True,
+    require_active: bool = False,
     code_filter: str | None = None,
     parents: list[int] | None = None,
     include_non_standard_descendants: bool = False,
@@ -450,8 +510,19 @@ def make_concept_resolver(
         Optional list of OMOP concept_class_id values to restrict the lookup.
     vocabulary_id:
         Optional list of OMOP vocabulary_id values to restrict the lookup.
-    standard_only:
-        If True, restricts the lookup to standard concepts only.
+    require_standard:
+        If True, restricts the lookup to concepts carrying a standardness flag.
+        Named to match ``ConceptFilter.require_standard``, which it delegates to.
+    include_classification:
+        Widens ``require_standard`` to admit classification ('C') concepts.
+        Defaults to True: a lookup exists to *recognise* vocabulary terms, and a
+        classification concept is a legitimate thing to recognise even though it
+        is not a valid mapping target. Set False for selection-shaped lookups.
+    require_active:
+        If True, excludes concepts with an ``invalid_reason``. Defaults to False
+        so recognition stays permissive — a deprecated concept that matches the
+        text can still be resolved forward through "Maps to" / "Concept replaced
+        by", whereas filtering it out here discards the term entirely.
     code_filter:
         Optional substring filter applied to concept_code (ILIKE-based). 
         Useful for coarse scoping (e.g. AJCC-only codes).
@@ -485,7 +556,9 @@ def make_concept_resolver(
         domain_id=domain_id,
         concept_class_id=concept_class_id,
         vocabulary_id=vocabulary_id,
-        standard_only=standard_only,
+        require_standard=require_standard,
+        include_classification=include_classification,
+        require_active=require_active,
         code_filter=code_filter,
         parents=parents,
         include_non_standard_descendants=include_non_standard_descendants,
