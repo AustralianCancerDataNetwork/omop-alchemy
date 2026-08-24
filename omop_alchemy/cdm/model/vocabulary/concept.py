@@ -1,7 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from sqlalchemy.ext.declarative import declared_attr
-from enum import StrEnum, nonmember
 from typing import Optional, TYPE_CHECKING, List
 from datetime import date
 if TYPE_CHECKING:
@@ -22,48 +21,18 @@ from omop_alchemy.cdm.base import (
     omop_primary_key_index_name,
     omop_table_options,
 )
-
-
-class StandardConceptFlag(StrEnum):
-    """Allowed non-null values of ``concept.standard_concept`` (OMOP CDM v5.4)."""
-
-    STANDARD = "S"
-    CLASSIFICATION = "C"
-
-    # Precomputed membership set for the hot Python-side check (Concept.is_standard) --
-    # re-deriving this from the enum on every call is measurably expensive (~10x).
-    values = nonmember(frozenset({STANDARD, CLASSIFICATION}))
-
-
-class InvalidReasonFlag(StrEnum):
-    """Allowed non-null values of ``concept.invalid_reason`` (OMOP CDM v5.4)."""
-
-    DELETED = "D"
-    UPDATED = "U"
-
-
-def normalised_flag_expr(
-    column: sa.SQLColumnExpression[Optional[str]],
-) -> sa.SQLColumnExpression[Optional[str]]:
-    """Return a canonical OMOP flag expression.
-
-    OMOP CDM v5.4 allows only ``NULL``/``'S'``/``'C'`` for ``standard_concept``
-    and ``NULL``/``'D'``/``'U'`` for ``invalid_reason``. Some real-world loads
-    contain blank or whitespace-only strings instead of ``NULL``; those are
-    normalised here defensively so callers do not need to reimplement the same
-    tolerance logic.
-
-    Non-empty non-canonical values are left unchanged so downstream validation
-    can still detect them as bad data rather than silently treating them as a
-    valid state.
-    """
-    return sa.func.nullif(sa.func.trim(column), "")
-
+from omop_alchemy.cdm.model.flags import (
+    StandardConceptFlag,
+    InvalidReasonMixin,
+    normalised_flag_expr,
+    normalised_flag,
+)
 
 @cdm_table
 class Concept(
     ReferenceTable,
     CDMTableBase,
+    InvalidReasonMixin,
     Base
 ):
     __tablename__ = "concept"
@@ -90,27 +59,42 @@ class Concept(
     concept_code: so.Mapped[str] = so.mapped_column(sa.String(50), nullable=False)
     valid_start_date: so.Mapped[date] = so.mapped_column(sa.Date(), nullable=False)
     valid_end_date: so.Mapped[date] = so.mapped_column(sa.Date(), nullable=False)
-    invalid_reason: so.Mapped[Optional[str]] = so.mapped_column(sa.String(1), nullable=True)
 
     @property
     def is_standard(self) -> bool:
-        value = self.standard_concept.strip() if self.standard_concept is not None else ""
-        return bool(value) and value in StandardConceptFlag.values
+        """True only for normalised OMOP ``standard_concept == 'S'``."""
+        return normalised_flag(self.standard_concept) == StandardConceptFlag.STANDARD
 
     @classmethod
     def is_standard_expr(cls) -> sa.SQLColumnExpression[bool]:
-        """SQL-side counterpart to :attr:`is_standard`, for use in query filters."""
-        return normalised_flag_expr(cls.standard_concept).in_(StandardConceptFlag.values)
+        """SQL-side counterpart to :attr:`is_standard`. 
+        
+        Note that we use this somewhat goofy expression here and in similarly 
+        constructed flag-derived filters so that we can ensure that this never 
+        evaluates to NULL, which is important for filtering in queries, being 
+        able to robustly `or_` it with other expressions, query negation etc. 
+        
+        The `coalesce` ensures that if the `standard_concept` is NULL, it will 
+        return `False` instead of NULL.
+        """
+        return sa.func.coalesce(
+            normalised_flag_expr(cls.standard_concept) == StandardConceptFlag.STANDARD.value,
+            sa.false(),
+        )
 
     @property
-    def is_valid(self) -> bool:
-        value = self.invalid_reason.strip() if self.invalid_reason is not None else ""
-        return not value
+    def is_classification(self) -> bool:
+        """True only for normalised OMOP ``standard_concept == 'C'`` — a classification
+        node, valid for hierarchy navigation but not as a mapping target."""
+        return normalised_flag(self.standard_concept) == StandardConceptFlag.CLASSIFICATION
 
     @classmethod
-    def is_valid_expr(cls) -> sa.SQLColumnExpression[bool]:
-        """SQL-side counterpart to :attr:`is_valid`, for use in query filters."""
-        return normalised_flag_expr(cls.invalid_reason).is_(None)
+    def is_classification_expr(cls) -> sa.SQLColumnExpression[bool]:
+        """SQL-side counterpart to :attr:`is_classification`."""
+        return sa.func.coalesce(
+            normalised_flag_expr(cls.standard_concept) == StandardConceptFlag.CLASSIFICATION.value,
+            sa.false(),
+        )
 
 class ConceptContext(ReferenceContext):
     """

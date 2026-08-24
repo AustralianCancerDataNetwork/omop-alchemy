@@ -29,8 +29,12 @@ class ConceptFilter:
         Restrict results to concepts from these vocabularies.
     require_standard : bool
         When ``True``, only concepts where ``Concept.is_standard`` is
-        ``True`` are returned (``standard_concept`` in ``('S', 'C')``,
-        tolerating blank/whitespace-only values as unset). Default ``False``.
+        ``True`` are returned (``standard_concept == 'S'``, tolerating
+        surrounding whitespace). Classification concepts (``'C'``) are
+        excluded because they are not valid mapping targets. Default ``False``.
+    include_classification : bool
+        Only meaningful with ``require_standard``. When ``True``, classification
+        concepts (``'C'``) are admitted alongside standard ones. Default ``False``.
     require_active : bool
         When ``True``, only concepts where ``Concept.is_valid`` is ``True``
         are returned (``invalid_reason`` is ``NULL``/blank/whitespace, i.e.
@@ -44,6 +48,7 @@ class ConceptFilter:
     domains: Optional[tuple[str, ...]] = None
     vocabularies: Optional[tuple[str, ...]] = None
     require_standard: bool = False
+    include_classification: bool = False
     require_active: bool = False
     limit: Optional[int] = None
 
@@ -65,8 +70,14 @@ class ConceptFilter:
             query = query.where(Concept.vocabulary_id.in_(self.vocabularies))
 
         if self.require_standard:
-            query = query.where(Concept.is_standard_expr())
-
+            query = query.where(
+                sa.or_(
+                    Concept.is_standard_expr(),
+                    Concept.is_classification_expr(),
+                )
+                if self.include_classification
+                else Concept.is_standard_expr()
+            )
         if self.require_active:
             query = query.where(Concept.is_valid_expr())
 

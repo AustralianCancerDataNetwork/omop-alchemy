@@ -339,3 +339,57 @@ def test_radiotherapy_spec_matches_governed_group():
     assert set(RADIOTHERAPY_PROCEDURES.parent_ids()) == set(
         runtime.cancer_procedures.radiotherapy.parent_ids
     )
+
+
+# ── standardness flags ──────────────────────────────────────────────────────
+#
+# ConceptGroupSpec shares its standardness vocabulary with LookupSpec and
+# ConceptFilter: require_standard / include_classification. These pin that the
+# names mean the same thing here as everywhere else in the package.
+
+def _rendered(spec) -> str:
+    """Compile the group's membership predicate to inspectable SQL."""
+    column = sa.column("concept_id")
+    return str(
+        spec.expression_for(column).compile(
+            compile_kwargs={"literal_binds": True}
+        )
+    ).lower()
+
+
+def test_require_standard_defaults_off_and_adds_no_join():
+    """Historical oncology behaviour: read concept_ancestor unfiltered."""
+    spec = _spec()
+
+    assert spec.require_standard is False
+    assert "join" not in _rendered(spec)
+
+
+def test_require_standard_joins_concept_and_filters_on_the_flag():
+    spec = _spec(require_standard=True)
+    rendered = _rendered(spec)
+
+    assert "join" in rendered
+    assert "'s'" in rendered
+
+
+def test_include_classification_defaults_on_and_widens_the_predicate():
+    """A group anchored on a classification node must not silently lose it."""
+    spec = _spec(require_standard=True)
+
+    assert spec.include_classification is True
+    rendered = _rendered(spec)
+    assert "'s'" in rendered and "'c'" in rendered
+    assert " or " in rendered
+
+
+def test_include_classification_off_narrows_to_standard_only():
+    rendered = _rendered(_spec(require_standard=True, include_classification=False))
+
+    assert "'s'" in rendered
+    assert "'c'" not in rendered
+
+
+def test_include_classification_is_inert_without_require_standard():
+    """It widens require_standard; alone it constrains nothing."""
+    assert _rendered(_spec(include_classification=True)) == _rendered(_spec())

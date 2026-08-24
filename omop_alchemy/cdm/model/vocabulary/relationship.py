@@ -9,6 +9,7 @@ from omop_alchemy.cdm.base import (
     omop_primary_key_index_name,
     omop_table_options,
 )
+from omop_alchemy.cdm.model.flags import BooleanFlag, normalised_flag_expr, normalised_flag
 
 @cdm_table
 class Relationship(Base, ReferenceTable, CDMTableBase):
@@ -25,3 +26,26 @@ class Relationship(Base, ReferenceTable, CDMTableBase):
 
     def __repr__(self):
         return f"<Relationship {self.relationship_id}>"
+
+    @property
+    def is_hierarchical_relationship(self) -> bool:
+        """True only for normalised OMOP ``is_hierarchical == '1'``."""
+        return normalised_flag(self.is_hierarchical) == BooleanFlag.TRUE
+
+    @classmethod
+    def is_hierarchical_relationship_expr(cls) -> sa.SQLColumnExpression[bool]:
+        return sa.func.coalesce(
+            normalised_flag_expr(cls.is_hierarchical) == BooleanFlag.TRUE.value,
+            sa.false(),
+        )
+
+    @property
+    def is_ancestry_defining(self) -> bool:
+        return normalised_flag(self.defines_ancestry) == BooleanFlag.TRUE
+
+    @classmethod
+    def is_ancestry_defining_expr(cls) -> sa.SQLColumnExpression[bool]:
+        return sa.func.coalesce(
+            normalised_flag_expr(cls.defines_ancestry) == BooleanFlag.TRUE.value,
+            sa.false(),
+        )

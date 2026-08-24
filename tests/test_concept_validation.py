@@ -1,11 +1,11 @@
 """Tests for ConceptValidationMixin._non_standard_concepts_for_column, the
 referenced-concept standard-concept check.
 
-Regression coverage for the §3.1 behaviour change: ConceptValidationMixin now
+Regression coverage for the standard-concept predicate change: ConceptValidationMixin now
 delegates to Concept.is_standard_expr() instead of its own hand-rolled check,
-closing two bugs (blank/whitespace flags and non-canonical values such as 'X'
-previously passed as valid) without reopening the NULL three-valued-logic trap
-that motivated is_not(True) over sa.not_(...).
+so classification concepts are rejected as mapping targets alongside blank,
+whitespace, and non-canonical values such as 'X', without reopening the NULL
+three-valued-logic trap that motivated is_not(True) over sa.not_(...).
 
 _non_standard_concepts_for_column takes its table/column as plain parameters
 and does not use ``cls``, so it is exercised directly on
@@ -73,7 +73,7 @@ def _violations_for(session, condition_occurrence_id) -> set[int]:
     "case_id, standard_concept, expect_flagged",
     [
         (1, "S", False),
-        (2, "C", False),
+        (2, "C", True),
         (3, None, True),
         (4, "", True),
         (5, "   ", True),
@@ -83,11 +83,12 @@ def _violations_for(session, condition_occurrence_id) -> set[int]:
 def test_non_standard_concepts_for_column_matches_is_standard_expr(
     session, case_id, standard_concept, expect_flagged
 ):
-    """Pins the §3.1 behaviour change: blank, whitespace, and 'X' are now
-    correctly flagged as non-standard (previously bugs let them through),
-    while 'S'/'C' remain accepted. A NULL standard_concept must still be
-    flagged — the sa.not_(...) form this replaced would have silently missed
-    it, since NOT (x IN (...)) is NULL, not TRUE, when x is NULL."""
+    """Python and SQL predicates agree, and only ``S`` is a mapping target.
+
+    The explicit negation assertion protects the complement semantics for
+    NULL and blank values, where a bare SQL ``NOT`` can otherwise produce
+    NULL instead of ``TRUE``.
+    """
     concept_id = 900000 + case_id
     condition_occurrence_id = 800000 + case_id
     _seed_dirty_concept(session, concept_id, standard_concept)
@@ -97,6 +98,26 @@ def test_non_standard_concepts_for_column_matches_is_standard_expr(
         condition_concept_id=concept_id,
         type_concept_id=_type_concept_id(session),
     )
+
+    concept = session.get(Concept, concept_id)
+    assert concept is not None
+    expected_standard = standard_concept is not None and standard_concept.strip() == "S"
+    expected_classification = (
+        standard_concept is not None and standard_concept.strip() == "C"
+    )
+    assert concept.is_standard is expected_standard
+    assert concept.is_classification is expected_classification
+
+    sql_standard, sql_classification, sql_not_standard = session.execute(
+        sa.select(
+            Concept.is_standard_expr(),
+            Concept.is_classification_expr(),
+            ~Concept.is_standard_expr(),
+        ).where(Concept.concept_id == concept_id)
+    ).one()
+    assert bool(sql_standard) is expected_standard
+    assert bool(sql_classification) is expected_classification
+    assert bool(sql_not_standard) is not expected_standard
 
     violations = _violations_for(session, condition_occurrence_id)
     assert (concept_id in violations) is expect_flagged

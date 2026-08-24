@@ -13,12 +13,14 @@ from omop_alchemy.cdm.base import (
     merge_table_args,
     omop_index,
 )
+from omop_alchemy.cdm.model.flags import InvalidReasonMixin
 
 @cdm_table
 class Source_To_Concept_Map(
     DatedEvent,
     CDMTableBase,
     ReferenceTable,
+    InvalidReasonMixin,
     Base,
 ):
     """
@@ -44,7 +46,6 @@ class Source_To_Concept_Map(
     target_vocabulary_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey("vocabulary.vocabulary_id"),nullable=False)
     valid_start_date: so.Mapped[date] = so.mapped_column(nullable=False)
     valid_end_date: so.Mapped[date] = so.mapped_column(nullable=False)
-    invalid_reason: so.Mapped[Optional[str]] = so.mapped_column(sa.String(1), nullable=True)
 
     @classmethod
     def extra_validate(cls) -> list[ValidationIssue]:

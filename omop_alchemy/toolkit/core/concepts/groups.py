@@ -54,18 +54,24 @@ class ConceptGroupSpec:
     include_descendants
         Expand ``parent_ids`` through ``concept_ancestor``.  When False only
         the anchors themselves are members.
-    standard_only
-        Restrict expansion to standard concepts.  Defaults to False, matching
-        the historical oncology behaviour of reading ``concept_ancestor``
-        without a standard filter.  Note this is the *opposite* default to
-        ``OMOPConceptSource.descendants``; the difference is deliberate and
-        declared here rather than left implicit.
+    require_standard
+        Restrict expansion to concepts carrying a standardness flag.  Defaults to
+        False, matching the historical oncology behaviour of reading
+        ``concept_ancestor`` without a standard filter.  Note this is the
+        *opposite* default to ``OMOPConceptSource.descendants``; the difference is
+        deliberate and declared here rather than left implicit.
+    include_classification
+        Widens ``require_standard`` to admit classification ('C') concepts.
+        Defaults to True so a governed group can be anchored on a classification
+        node (ATC, for example) without silently losing it.  Has no effect unless
+        ``require_standard`` is set.
     """
 
     name: str
     unit: Any
     include_descendants: bool = True
-    standard_only: bool = False
+    require_standard: bool = False
+    include_classification: bool = True
 
     def parent_ids(self) -> tuple[int, ...]:
         """Governed descendant-expanding anchors."""
@@ -101,12 +107,20 @@ class ConceptGroupSpec:
 
         if parents and self.include_descendants:
             expr = column.in_(
-                _descendant_select(parents, standard_only=self.standard_only)
+                _descendant_select(
+                    parents,
+                    require_standard=self.require_standard,
+                    include_classification=self.include_classification,
+                )
             )
             excluded = self.excluded_parent_ids()
             if excluded:
                 expr = expr & column.not_in(
-                    _descendant_select(excluded, standard_only=self.standard_only)
+                    _descendant_select(
+                        excluded,
+                        require_standard=self.require_standard,
+                        include_classification=self.include_classification,
+                    )
                 )
             clauses.append(expr)
         elif parents:
@@ -123,18 +137,24 @@ class ConceptGroupSpec:
 def _descendant_select(
     parents: Iterable[int],
     *,
-    standard_only: bool,
+    require_standard: bool,
+    include_classification: bool = True,
 ) -> sa.Select:
     stmt = sa.select(Concept_Ancestor.descendant_concept_id).where(
         Concept_Ancestor.ancestor_concept_id.in_(tuple(parents))
     )
-    if standard_only:
+    if require_standard:
         from omop_alchemy.cdm.model.vocabulary import Concept
 
+        standardness = (
+            sa.or_(Concept.is_standard_expr(), Concept.is_classification_expr())
+            if include_classification
+            else Concept.is_standard_expr()
+        )
         stmt = stmt.join(
             Concept,
             Concept.concept_id == Concept_Ancestor.descendant_concept_id,
-        ).where(Concept.is_standard_expr())
+        ).where(standardness)
     return stmt
 
 
@@ -197,11 +217,19 @@ def build_concept_group(
 
     if parents:
         if spec.include_descendants:
-            stmt = _descendant_select(parents, standard_only=spec.standard_only)
+            stmt = _descendant_select(
+                parents,
+                require_standard=spec.require_standard,
+                include_classification=spec.include_classification,
+            )
             ids |= set(session.execute(stmt).scalars().all())
             excluded = spec.excluded_parent_ids()
             if excluded:
-                stmt = _descendant_select(excluded, standard_only=spec.standard_only)
+                stmt = _descendant_select(
+                    excluded,
+                    require_standard=spec.require_standard,
+                    include_classification=spec.include_classification,
+                )
                 ids -= set(session.execute(stmt).scalars().all())
         else:
             ids |= set(parents)

@@ -10,11 +10,13 @@ from omop_alchemy.cdm.base import (
     merge_table_args,
     omop_index,
 )
+from omop_alchemy.cdm.model.flags import InvalidReasonMixin
 
 @cdm_table
 class Drug_Strength(
     CDMTableBase,
     ReferenceTable,
+    InvalidReasonMixin,
     Base,
 ):
     """
@@ -40,4 +42,3 @@ class Drug_Strength(
     box_size: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, nullable=True)
     valid_start_date: so.Mapped[date] = so.mapped_column(nullable=False)
     valid_end_date: so.Mapped[date] = so.mapped_column(nullable=False)
-    invalid_reason: so.Mapped[Optional[str]] = so.mapped_column(sa.String(1), nullable=True)
