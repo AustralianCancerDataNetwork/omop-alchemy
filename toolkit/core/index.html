@@ -4204,7 +4204,8 @@ per engine.</p>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">unit</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="n">include_descendants</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">standard_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">require_standard</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">include_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 
@@ -4286,22 +4287,41 @@ the anchors themselves are members.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>standard_only</code>
+                <code>require_standard</code>
             </td>
             <td>
                   <code><span title="bool">bool</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Restrict expansion to standard concepts.  Defaults to False, matching
-the historical oncology behaviour of reading <code>concept_ancestor</code>
-without a standard filter.  Note this is the <em>opposite</em> default to
-<code>OMOPConceptSource.descendants</code>; the difference is deliberate and
-declared here rather than left implicit.</p>
+                <p>Restrict expansion to concepts carrying a standardness flag.  Defaults to
+False, matching the historical oncology behaviour of reading
+<code>concept_ancestor</code> without a standard filter.  Note this is the
+<em>opposite</em> default to <code>OMOPConceptSource.descendants</code>; the difference is
+deliberate and declared here rather than left implicit.</p>
               </div>
             </td>
             <td>
                   <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_classification</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Widens <code>require_standard</code> to admit classification ('C') concepts.
+Defaults to True so a governed group can be anchored on a classification
+node (ATC, for example) without silently losing it.  Has no effect unless
+<code>require_standard</code> is set.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
             </td>
           </tr>
       </tbody>
@@ -4825,7 +4845,9 @@ same concept ID (e.g. name + code + synonym).</p>
     <span class="n">domain_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">concept_class_id</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">vocabulary_id</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">standard_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">require_standard</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">require_active</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">code_filter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">parents</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">include_non_standard_descendants</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -4919,13 +4941,42 @@ nulls, or to a sentinel concept ID to force closed-world behaviour.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.standard_only">standard_only</span></code></td>
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.require_standard">require_standard</span></code></td>
             <td>
                   <code><span title="bool">bool</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If True, restricts the lookup to standard concepts only.</p>
+                <p>If True, restricts the lookup to concepts carrying a standardness flag.
+Named to match <code>ConceptFilter.require_standard</code>, which it delegates to.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.include_classification">include_classification</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Widens <code>require_standard</code> to admit classification ('C') concepts.
+Defaults to True: a lookup exists to <em>recognise</em> vocabulary terms, and a
+classification concept is a legitimate thing to recognise even though it
+is not a valid mapping target. Set False for selection-shaped lookups.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.toolkit.core.concepts.LookupSpec.require_active">require_active</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, excludes concepts with an <code>invalid_reason</code>. Defaults to False
+so recognition stays permissive — a deprecated concept that matches the
+text can still be resolved forward through "Maps to" / "Concept replaced
+by", whereas filtering it out here discards the term entirely.</p>
               </div>
             </td>
           </tr>
@@ -5107,7 +5158,9 @@ if parents are specified).</p>
     <span class="n">domain_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">concept_class_id</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">vocabulary_id</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">standard_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">require_standard</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">require_active</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">code_filter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">parents</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">include_non_standard_descendants</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -5120,6 +5173,28 @@ if parents are specified).</p>
 <p>This method supports two primary modes:
 1. Flat filtering by domain / class / vocabulary
 2. Hierarchical expansion from parent concept(s)</p>
+<p>Domain, vocabulary, standardness and validity are delegated to
+:class:<code>~omop_alchemy.cdm.query.ConceptFilter</code> so this layer shares one
+implementation of the OMOP flag rules with the rest of the package. In
+particular the flag comparisons are normalised, so a blank or
+whitespace-padded <code>standard_concept</code> is classified the same way here as
+it is by <code>Concept.is_standard</code>.</p>
+<p>Recognition is permissive by default, because this layer resolves <em>text
+to a concept</em>, not a concept to a mapping target. Both defaults follow
+from that:</p>
+<ul>
+<li><em>include_classification</em> is <code>True</code> — classification concepts are
+  legitimate things to recognise, even though they are not valid mapping
+  targets.</li>
+<li><em>require_active</em> is <code>False</code> — a deprecated concept that matches the
+  text is a useful hit, because the caller can follow <code>Maps to</code> /
+  <code>Concept replaced by</code> to a valid successor. Filtering it out at
+  recognition time discards the term entirely, with nothing to resolve
+  forward from.</li>
+</ul>
+<p>Pass <code>include_classification=False</code> / <code>require_active=True</code> when the
+index feeds concept <em>selection</em> rather than recognition, where the strict
+OMOP mapping-target rules apply.</p>
 
 
     </div>
@@ -5138,14 +5213,21 @@ if parents are specified).</p>
   </span>
 
 <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fetch_synonyms</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fetch_synonyms</span><span class="p">(</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">concept_ids</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Return (concept_id, synonym) pairs for all concept synonyms.</p>
-<p>Filtering (standard / domain / etc.) is intentionally left
-to higher layers.</p>
+        <p>Return (concept_id, synonym) pairs for concept synonyms.</p>
+<p>The join to <code>concept</code> scopes the result to synonyms whose concept
+actually exists, and <em>concept_ids</em> narrows it further to a caller-supplied
+set. Both are applied in SQL: without them this streams every synonym row
+in the vocabulary back to Python to be discarded, which on a full Athena
+load is millions of rows for a lookup covering a handful of domains.</p>
 
 
     </div>
@@ -5404,7 +5486,9 @@ sharing would serve one database's concept sets for another.</p>
     <span class="n">domain_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">concept_class_id</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">vocabulary_id</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">standard_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">require_standard</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">require_active</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">code_filter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">parents</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">include_non_standard_descendants</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -5538,18 +5622,57 @@ a sentinel concept ID to force closed-world behaviour.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>standard_only</code>
+                <code>require_standard</code>
             </td>
             <td>
                   <code><span title="bool">bool</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If True, restricts the lookup to standard concepts only.</p>
+                <p>If True, restricts the lookup to concepts carrying a standardness flag.
+Named to match <code>ConceptFilter.require_standard</code>, which it delegates to.</p>
               </div>
             </td>
             <td>
                   <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_classification</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Widens <code>require_standard</code> to admit classification ('C') concepts.
+Defaults to True: a lookup exists to <em>recognise</em> vocabulary terms, and a
+classification concept is a legitimate thing to recognise even though it
+is not a valid mapping target. Set False for selection-shaped lookups.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>require_active</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, excludes concepts with an <code>invalid_reason</code>. Defaults to False
+so recognition stays permissive — a deprecated concept that matches the
+text can still be resolved forward through "Maps to" / "Concept replaced
+by", whereas filtering it out here discards the term entirely.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
             </td>
           </tr>
           <tr class="doc-section-item">

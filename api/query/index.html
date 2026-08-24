@@ -3266,8 +3266,21 @@ an opaquely-imported table.</p>
             <td>
               <div class="doc-md-description">
                 <p>When <code>True</code>, only concepts where <code>Concept.is_standard</code> is
-<code>True</code> are returned (<code>standard_concept</code> in <code>('S', 'C')</code>,
-tolerating blank/whitespace-only values as unset). Default <code>False</code>.</p>
+<code>True</code> are returned (<code>standard_concept == 'S'</code>, tolerating
+surrounding whitespace). Classification concepts (<code>'C'</code>) are
+excluded because they are not valid mapping targets. Default <code>False</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="omop_alchemy.cdm.query.ConceptFilter.include_classification">include_classification</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Only meaningful with <code>require_standard</code>. When <code>True</code>, classification
+concepts (<code>'C'</code>) are admitted alongside standard ones. Default <code>False</code>.</p>
               </div>
             </td>
           </tr>
