@@ -99,7 +99,11 @@ from .registry import (
     concept_group_registry,
     resolve_concept_group,
 )
-from .runtime import RuntimeConceptSetSpec
+from .runtime import (
+    RuntimeConceptSetSpec,
+    descendant_concept_select,
+    runtime_concept_predicate,
+)
 
 __all__ = [
     "DEFAULT_MAX_CACHE_BYTES",
@@ -124,6 +128,8 @@ __all__ = [
     "normalize_default",
     "register_vocabulary_identity",
     "resolve_concept_group",
+    "descendant_concept_select",
+    "runtime_concept_predicate",
     "site_to_NOS",
     "strip_uicc",
 ]

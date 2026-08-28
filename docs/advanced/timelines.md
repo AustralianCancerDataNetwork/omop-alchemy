@@ -42,7 +42,7 @@ instance at class level.
 `ClinicalEvent` is a mixin that adds timeline behaviour to any CDM ORM class. It implements
 the shared `toolkit.core.events.ClinicalEventRow` identity and projection fields, then reads
 `_mapping` to add `event_time`, `event_value`, `event_metadata`, `to_dict`, and `to_json`.
-The shared core contract keeps timeline events and future SQL event projections aligned
+The shared core contract keeps timeline events and SQL event projections aligned
 without making `core.timeline` import the higher-level episode package.
 
 ::: omop_alchemy.toolkit.core.timeline.event_timeline.ClinicalEvent

@@ -41,7 +41,27 @@ assert measurement != procedure
 
 `ClinicalEventColumn` defines the common labels used when heterogeneous event tables are projected into one result. The required shape includes the person, table-scoped event identity, event date and datetime, clinical concept, and OMOP Field concept that identifies the source ID column. Optional labels cover numeric values, value concepts, and units.
 
-These contracts describe result shape and identity; they do not execute a query. The [query contracts](query-contracts.md) explain how this shape participates in episode attachment.
+`canonical_event_union()` turns supported event models into that shared shape. Measurement and Observation retain their value and unit columns; sources without those fields receive typed nulls so every branch of the union remains compatible:
+
+```python
+from omop_alchemy.cdm.model import (
+    Measurement,
+    Observation,
+    Procedure_Occurrence,
+)
+from omop_alchemy.toolkit.core.events import canonical_event_union
+
+events = canonical_event_union(
+    Measurement,
+    Observation,
+    Procedure_Occurrence,
+)
+
+for event in session.execute(events).mappings():
+    print(event["event_source_table"], event["event_id"], event["event_date"])
+```
+
+The projection derives its ID, clinical concept, date, source table, and Field concept from `ModifierTargetMixin` metadata. `UnsupportedClinicalEventModelError` is raised before SQL execution when that metadata is incomplete. The [query contracts](query-contracts.md) explain how the projected shape participates in episode attachment.
 
 ## Work with a patient timeline
 

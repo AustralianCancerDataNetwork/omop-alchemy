@@ -8,6 +8,8 @@ from datetime import date, datetime
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     CDMTableBase,
+    ModifierFieldConcepts,
+    ModifierTargetMixin,
     cdm_table,
     ValueMixin,
     merge_table_args,
@@ -15,8 +17,13 @@ from omop_alchemy.cdm.base import (
 )
 
 @cdm_table
-class Observation(Base, CDMTableBase, ValueMixin):
+class Observation(Base, CDMTableBase, ValueMixin, ModifierTargetMixin):
     __tablename__ = "observation"
+    __event_id_col__ = "observation_id"
+    __concept_id_col__ = "observation_concept_id"
+    __start_date_col__ = "observation_date"
+    __end_date_col__ = "observation_date"
+    __type_concept_id_col__ = "observation_type_concept_id"
     __table_args__ = merge_table_args(
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "observation_concept_id"),
@@ -53,3 +60,7 @@ class Observation(Base, CDMTableBase, ValueMixin):
     @hybrid_property
     def modifier_of_field_concept_id(self) -> Optional[int]:
         return self.obs_event_field_concept_id
+
+    @classmethod
+    def modifier_field_concept_id(cls) -> int:
+        return ModifierFieldConcepts.OBSERVATION

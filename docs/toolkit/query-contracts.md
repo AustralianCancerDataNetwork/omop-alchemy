@@ -2,10 +2,10 @@
 
 Consider a procedure recorded on the same day as two overlapping treatment episodes. The procedure may already have a valid `Episode_Event` link, or it may need to be assigned from dates alone. A reliable query has to answer several questions explicitly: what identifies the procedure, whether an explicit link takes precedence, whether fallback may attach it to one or both episodes, and how equally plausible candidates are ordered.
 
-The contracts on this page provide a common vocabulary for those decisions. They are small, immutable values that can be shared by query-building code, configuration, and tests without opening a database connection.
+The contracts on this page provide a common vocabulary for those decisions. They are small, immutable values that can be shared by query-building code, configuration, and tests. Projection and predicate helpers translate the contracts into SQLAlchemy statements without opening a database connection.
 
-!!! note "Declarative API"
-    These contracts describe result shape and selection policy. They do not currently construct or execute SQL. Code that consumes them remains responsible for applying the declared policy to a query.
+!!! note "Construction and execution"
+    Creating a contract, statement, CTE, or predicate is side-effect free. Database access begins only when the resulting statement is executed through a connection or session. The toolkit supplies projection, hierarchy, temporal, concept-set, and observation builders; complete explicit-first event attachment remains the caller's query until a dedicated attachment builder is available.
 
 ## Start with event identity
 
@@ -44,6 +44,21 @@ A cross-table projection needs more than an identity. `CANONICAL_EVENT_REQUIRED_
 Numeric value, value concept, and unit labels are available through `CANONICAL_EVENT_OPTIONAL_COLUMNS` when a source table supports them.
 
 The Field concept is not interchangeable with the event's clinical concept. For example, a Procedure Occurrence projection uses the Field concept for `procedure_occurrence.procedure_occurrence_id` as its discriminator and the row's `procedure_concept_id` as its clinical concept.
+
+Build one shared event stream by passing the source models to `canonical_event_union()`:
+
+```python
+from omop_alchemy.cdm.model import Measurement, Observation, Procedure_Occurrence
+from omop_alchemy.toolkit.core.events import canonical_event_union
+
+events = canonical_event_union(
+    Measurement,
+    Observation,
+    Procedure_Occurrence,
+).subquery("clinical_events")
+```
+
+All branches expose the same labels. The source table and Field concept are literals derived from model metadata, so they remain available after the tables are combined.
 
 ## Attach an event to an episode
 
@@ -113,6 +128,22 @@ already_started_first = TemporalRankingSpec(
 
 This policy selects episode 1001. Absolute distance still orders episodes within the preferred side; it simply does not allow a closer future episode to outrank every episode that had already started. `on_or_after_anchor` expresses the corresponding future-first rule.
 
+Apply the policy to SQLAlchemy columns with `temporal_order_expressions()`:
+
+```python
+from omop_alchemy.cdm.model.structural import Episode
+from omop_alchemy.toolkit.episodes.derivation import temporal_order_expressions
+
+ordering = temporal_order_expressions(
+    Episode.episode_start_date,
+    events.c.event_date,
+    Episode.episode_id,
+    already_started_first,
+)
+
+candidate_episodes = candidate_episodes.order_by(*ordering)
+```
+
 `earliest` and `latest` are available when chronological position, rather than distance from the anchor, defines the result. Every policy ends with the named stable ID column in ascending order. If episodes 1001 and 1002 are otherwise tied, 1001 wins consistently rather than relying on database return order.
 
 ### Date boundaries
@@ -120,6 +151,19 @@ This policy selects episode 1001. Absolute distance still orders episodes within
 Lower and upper bounds are inclusive by default and can be changed independently through `include_lower_bound` and `include_upper_bound`. For an episode starting 15 January 2026 with a 90-day prior window, 17 October 2025 lies exactly on the lower boundary and is included under the default. If the episode ends on 5 February, that date is included while 6 February is not.
 
 Boundary choices belong in the ranking specification rather than being hidden in a comparison operator. This is especially important when two systems use similar-looking windows but disagree at exactly 90 or 180 days.
+
+`episode_window_predicate()` uses the same finite defaults as the in-memory episode window. It honours a recorded episode end and substitutes a bounded post-start end only when the end is missing:
+
+```python
+from omop_alchemy.toolkit.episodes.derivation import episode_window_predicate
+
+inside_episode_window = episode_window_predicate(
+    events.c.event_date,
+    Episode.episode_start_date,
+    Episode.episode_end_date,
+    ranking=already_started_first,
+)
+```
 
 ## Select one repeated observation
 
@@ -146,6 +190,25 @@ selection = ObservationSelectionSpec(
     stable_id_column="observation_id",
     include_anchor_date=True,
 )
+```
+
+Use `ranked_observation_select()` to apply the anchor filter before calculating row numbers:
+
+```python
+from datetime import date
+
+from sqlalchemy import literal, select
+
+from omop_alchemy.cdm.model import Observation
+from omop_alchemy.toolkit.episodes.derivation import ranked_observation_select
+
+ranked = ranked_observation_select(
+    Observation.__table__,
+    selection,
+    anchor_date=literal(date(2026, 1, 20)),
+).subquery("ranked_observations")
+
+selected = select(ranked).where(ranked.c.observation_rank == 1)
 ```
 
 Observation 24 is after the anchor and is therefore excluded. Observations 22 and 23 tie on date, so the stable ID selects 22. That tie-break creates reproducible output; it does not claim that one same-day clinical value is more correct. If every same-day value is meaningful, retain them by choosing a result grain that includes the observation ID instead of reducing the group to one row.
@@ -178,9 +241,42 @@ AND NOT (descendants of 400 OR exact concept 901)
 
 Exclusion wins when a concept is reached from both sides. With no inclusion, the set matches nothing. IDs are sorted and deduplicated when the specification is created.
 
-`require_standard` and `include_classification` use the same vocabulary as `ConceptFilter` and `ConceptGroupSpec`; consuming SQL should delegate to the existing normalised OMOP standardness expressions. The specification does not decide whether a numeric ID is valid in a particular vocabulary. Validate configuration and local-concept policy at the boundary where those rules are known.
+`require_standard` and `include_classification` use the same vocabulary as `ConceptFilter` and `ConceptGroupSpec`; predicate rendering delegates to the existing normalised OMOP standardness expressions. The specification does not decide whether a numeric ID is valid in a particular vocabulary. Validate configuration and local-concept policy at the boundary where those rules are known.
 
-Constructing the specification performs no hierarchy expansion and no database access. A consumer must translate it into predicates over `concept_ancestor` and, when standardness filtering is requested, `concept`.
+`runtime_concept_predicate()` translates the specification into database-side `concept_ancestor` and `concept` predicates:
+
+```python
+from sqlalchemy import select
+
+from omop_alchemy.cdm.model import Procedure_Occurrence
+from omop_alchemy.toolkit.core.concepts import runtime_concept_predicate
+
+matching_procedures = select(Procedure_Occurrence).where(
+    runtime_concept_predicate(
+        Procedure_Occurrence.procedure_concept_id,
+        concepts,
+    )
+)
+```
+
+Constructing the specification or predicate performs no hierarchy expansion and no database access. Descendants are resolved by the database when the surrounding statement is executed.
+
+Some applications compose positive and negative rules independently rather than collecting them into one runtime set. `descendant_concept_select()` provides the lower-level hierarchy operation for that case and returns each matching descendant once:
+
+```python
+from omop_alchemy.toolkit.core.concepts import descendant_concept_select
+
+matching_procedures = select(Procedure_Occurrence).where(
+    Procedure_Occurrence.procedure_concept_id.in_(
+        descendant_concept_select((100, 200))
+    ),
+    Procedure_Occurrence.procedure_concept_id.not_in(
+        descendant_concept_select((400,))
+    ),
+)
+```
+
+Use `RuntimeConceptSetSpec` when the inclusions and exclusions form one configured set with exclusion precedence. Use `descendant_concept_select()` when the surrounding query or rule model owns how separate predicates are combined.
 
 ## API reference
 

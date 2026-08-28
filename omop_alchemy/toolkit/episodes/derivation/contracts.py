@@ -13,6 +13,25 @@ from enum import StrEnum
 from omop_alchemy.toolkit.core.events import ClinicalEventIdentity
 
 
+class EpisodeColumn(StrEnum):
+    """Canonical labels emitted by an episode projection."""
+
+    episode_id = "episode_id"
+    person_id = "person_id"
+    episode_parent_id = "episode_parent_id"
+    episode_start_date = "episode_start_date"
+    episode_start_datetime = "episode_start_datetime"
+    episode_end_date = "episode_end_date"
+    episode_end_datetime = "episode_end_datetime"
+    episode_concept_id = "episode_concept_id"
+    episode_object_concept_id = "episode_object_concept_id"
+    episode_type_concept_id = "episode_type_concept_id"
+
+
+CANONICAL_EPISODE_COLUMNS: tuple[EpisodeColumn, ...] = tuple(EpisodeColumn)
+"""Columns exposed by the canonical episode projection."""
+
+
 @dataclass(frozen=True, order=True, slots=True)
 class EpisodeAttachmentIdentity:
     """Unique identity of one event attached to one episode."""
@@ -117,7 +136,7 @@ class TemporalSidePreference(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class TemporalRankingSpec:
-    """Temporal ranking and boundary contract for future SQL builders.
+    """Temporal ranking and boundary contract for SQL builders.
 
     A side preference, when present, is applied before the selection policy.
     ``nearest`` then means the smallest absolute distance within that tier.

@@ -263,7 +263,7 @@ def test_runtime_concept_set_is_normalised_without_database_access():
     assert spec.include_ancestor_ids == (100, 300)
     assert spec.exclude_exact_ids == (901,)
     assert spec.has_inclusions
-    assert spec.requires_concept_join
+    assert spec.require_standard
 
 
 def test_runtime_concept_set_does_not_invent_concept_id_validity_policy():

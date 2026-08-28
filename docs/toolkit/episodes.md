@@ -79,6 +79,29 @@ Use `ResolvedEpisodeEventMixin` on an episode view when diagnostics should be av
 
 ::: omop_alchemy.toolkit.episodes.handling
 
+## Traverse an episode hierarchy
+
+For a parent episode, `episode_descendants()` returns a recursive CTE containing the root at depth zero and each descendant at its distance from that root:
+
+```python
+from sqlalchemy import select
+
+from omop_alchemy.toolkit.episodes.derivation import episode_descendants
+
+hierarchy = episode_descendants(root_episode_id=episode_id)
+statement = select(
+    hierarchy.c.episode_id,
+    hierarchy.c.episode_parent_id,
+    hierarchy.c.depth,
+).order_by(hierarchy.c.depth, hierarchy.c.episode_id)
+
+rows = session.execute(statement).mappings().all()
+```
+
+Traversal follows parent IDs only within the same person and stops at a configurable maximum depth, which bounds malformed cyclic data. Set `include_root=False` when only descendants are needed. `direct_episode_relationship_projection()` provides a non-recursive parent-child result for callers that need one level only.
+
+`episode_event_hierarchy_projection()` joins the hierarchy to `Episode_Event` and retains the root episode, the episode that owns the link, and its depth. This lets a caller include child-linked evidence without encoding a specialty-specific number of child levels.
+
 ## Describe episode attachment policy
 
 The derivation package provides declarative types for code that assigns events to episodes. The types keep four choices visible: whether explicit links take precedence, whether fallback may return one or several episodes, which side of an anchor date is preferred, and how candidates within that preference are ranked.
@@ -101,6 +124,6 @@ ranking = TemporalRankingSpec(
 )
 ```
 
-These objects state query semantics but do not build or execute SQL. See [Query contracts](query-contracts.md) for the complete event shape, attachment examples, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.
+The policy objects do not perform attachment themselves. `episode_window_predicate()`, `temporal_order_expressions()`, and `temporal_row_number()` build the portable SQL pieces needed by an attachment query on PostgreSQL or SQLite. A caller still owns the joins that validate explicit links and apply the chosen fallback cardinality. See [Query contracts](query-contracts.md) for the complete event shape, attachment examples, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.
 
 ::: omop_alchemy.toolkit.episodes.derivation
