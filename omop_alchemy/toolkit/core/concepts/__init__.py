@@ -99,6 +99,13 @@ from .registry import (
     concept_group_registry,
     resolve_concept_group,
 )
+from .relationships import (
+    STANDARD_CONCEPT_MAPPING_COLUMNS,
+    STANDARD_CONCEPT_MAPPING_UNIQUENESS,
+    StandardConceptMappingColumn,
+    StandardConceptMappingSpec,
+    standard_concept_mapping_select,
+)
 from .runtime import (
     RuntimeConceptSetSpec,
     descendant_concept_select,
@@ -108,8 +115,12 @@ from .runtime import (
 __all__ = [
     "DEFAULT_MAX_CACHE_BYTES",
     "CacheStats",
+    "STANDARD_CONCEPT_MAPPING_COLUMNS",
+    "STANDARD_CONCEPT_MAPPING_UNIQUENESS",
     "ConceptGroupRegistry",
     "ConceptGroupSpec",
+    "StandardConceptMappingColumn",
+    "StandardConceptMappingSpec",
     "ConceptResolver",
     "ConceptResolverRegistry",
     "LookupIndex",
@@ -123,6 +134,7 @@ __all__ = [
     "compose_normalizers",
     "concept_group_cache_stats",
     "concept_group_registry",
+    "standard_concept_mapping_select",
     "make_concept_resolver",
     "make_stage",
     "normalize_default",

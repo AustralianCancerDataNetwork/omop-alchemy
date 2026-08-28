@@ -24,6 +24,32 @@ Concept groups answer the complementary question: whether a known concept belong
 
 Configuration-driven concept sets use `RuntimeConceptSetSpec`. It records exact and ancestral inclusions and exclusions without touching the database; see [Runtime concept sets](query-contracts.md#runtime-concept-sets) for the set semantics and current execution boundary.
 
+## Resolve concepts to standard concepts
+
+Most source concepts resolve to one standard concept. Some source concepts represent several clinical meanings, however, and OMOP maps those to several standard concepts. `standard_concept_mapping_select()` therefore returns one row per valid `Maps to` relationship rather than choosing one target:
+
+```python
+from datetime import date
+
+from omop_alchemy.toolkit.core.concepts import (
+    StandardConceptMappingSpec,
+    standard_concept_mapping_select,
+)
+
+mapping_query = standard_concept_mapping_select(
+    StandardConceptMappingSpec(
+        source_concept_ids=(source_concept_id,),
+        valid_on=date(2026, 1, 1),
+    )
+)
+
+mapping_rows = session.execute(mapping_query).mappings().all()
+```
+
+Each row carries the source and standard concept identifiers, vocabularies, codes, and names alongside the relationship validity dates. Invalid relationships, invalid targets, non-standard targets, and other relationship types are excluded. A standard concept's `Maps to` self-map is returned normally.
+
+Supplying `valid_on` makes the relationship and target date ranges part of the query, which is useful when a result must be reproducible against a dated vocabulary release. The query does not follow replacement relationships or `Maps to value`: those relationships answer different questions and should be handled by purpose-specific queries when a toolkit consumer needs them.
+
 ::: omop_alchemy.toolkit.core.concepts
 
 ## Identify events across CDM tables

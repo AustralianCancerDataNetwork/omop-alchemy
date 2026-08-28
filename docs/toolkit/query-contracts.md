@@ -5,7 +5,7 @@ Consider a procedure recorded on the same day as two overlapping treatment episo
 The contracts on this page provide a common vocabulary for those decisions. They are small, immutable values that can be shared by query-building code, configuration, and tests. Projection and predicate helpers translate the contracts into SQLAlchemy statements without opening a database connection.
 
 !!! note "Construction and execution"
-    Creating a contract, statement, CTE, or predicate is side-effect free. Database access begins only when the resulting statement is executed through a connection or session. The toolkit supplies projection, hierarchy, temporal, concept-set, and observation builders; complete explicit-first event attachment remains the caller's query until a dedicated attachment builder is available.
+    Creating a contract, statement, CTE, or predicate is side-effect free. Database access begins only when the resulting statement is executed through a connection or session. The toolkit supplies projection, attachment, hierarchy, temporal, concept-set, mapping, and observation builders.
 
 ## Start with event identity
 
@@ -75,7 +75,7 @@ attachment = EpisodeAttachmentIdentity.from_event(
 assert attachment.event == procedure
 ```
 
-Before accepting an explicit link, the query must confirm that the Field concept names the event's actual source table and that the event and episode belong to the same person. A source mismatch is a `discriminator_mismatch`; a person mismatch is a `person_mismatch`. A link to a missing source row is a `dangling_event`.
+Before accepting an explicit link, the query must confirm that the Field concept names the event's actual source table and that the event and episode belong to the same person. A source mismatch is a `discriminator_mismatch`; a person mismatch is a `person_mismatch`. A link to a missing source row is a `dangling_event`, but absence from an arbitrary event projection is not enough to establish that condition because the projection may intentionally be filtered. Diagnose dangling links from an unfiltered source table through the episode-event resolution APIs.
 
 Once valid, an explicit link takes precedence under either explicit-first policy. Suppose Procedure Occurrence 7 is linked to episode 1002, while its date also falls inside the windows of episodes 1001 and 1002. The result is only `(procedure_occurrence, 7, 1002)`: fallback must not add episode 1001 or duplicate episode 1002.
 
@@ -88,6 +88,35 @@ Once valid, an explicit link takes precedence under either explicit-first policy
 | `explicit_first_all_in_window` | Retain every date-eligible episode |
 
 Choosing between ranked and all-in-window fallback is a statement about result grain. Ranked fallback produces at most one episode per event. All-in-window fallback intentionally allows one event to appear against several overlapping episodes.
+
+`episode_attachment_queries()` applies the complete precedence rule. It accepts a canonical event statement or one supported event model, validates explicit links against `Episode_Event`, and applies fallback only to events that have no valid explicit link:
+
+```python
+from omop_alchemy.toolkit.episodes.derivation import (
+    EpisodeAttachmentPolicy,
+    TemporalRankingSpec,
+    TemporalSelectionPolicy,
+    episode_attachment_queries,
+)
+
+attachment_queries = episode_attachment_queries(
+    events,
+    policy=EpisodeAttachmentPolicy.explicit_first_ranked,
+    ranking=TemporalRankingSpec(
+        policy=TemporalSelectionPolicy.nearest,
+        stable_id_column="episode_id",
+    ),
+    include_diagnostics=True,
+)
+
+attachments = session.execute(attachment_queries.attachments).mappings().all()
+assert attachment_queries.diagnostics is not None
+diagnostics = session.execute(attachment_queries.diagnostics).mappings().all()
+```
+
+The attachment result preserves the event projection and adds `episode_id` and `attachment_method`. Its uniqueness key is `(event_source_table, event_id, episode_id)`. A valid explicit link may legitimately connect an event to more than one episode; each relationship remains a separate attachment under that key.
+
+Diagnostics are advisory rows and do not change the attachments. They identify discriminator and person mismatches, fallback ambiguity, and events for which no valid explicit link or fallback candidate exists. A discriminator mismatch is reported relative to a particular projected event: an `Episode_Event` row with event ID 7 and the Measurement Field concept is a valid link for Measurement 7 but a rejected candidate for Procedure Occurrence 7.
 
 ## Rank fallback candidates
 

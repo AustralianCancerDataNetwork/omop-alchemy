@@ -124,6 +124,6 @@ ranking = TemporalRankingSpec(
 )
 ```
 
-The policy objects do not perform attachment themselves. `episode_window_predicate()`, `temporal_order_expressions()`, and `temporal_row_number()` build the portable SQL pieces needed by an attachment query on PostgreSQL or SQLite. A caller still owns the joins that validate explicit links and apply the chosen fallback cardinality. See [Query contracts](query-contracts.md) for the complete event shape, attachment examples, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.
+Pass those choices to `episode_attachment_queries()` with a canonical event projection. The builder validates explicit links by event ID, Field-concept discriminator, episode ID, and person; suppresses fallback only after a valid link; and returns deterministic attachments plus optional diagnostics. `episode_window_predicate()`, `temporal_order_expressions()`, and `temporal_row_number()` remain available when a query needs the individual portable SQL pieces. See [Query contracts](query-contracts.md) for the complete result shape, attachment example, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.
 
 ::: omop_alchemy.toolkit.episodes.derivation

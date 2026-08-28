@@ -93,6 +93,13 @@ class EpisodeAttachmentPolicy(StrEnum):
         return self is EpisodeAttachmentPolicy.explicit_first_ranked
 
 
+class EpisodeAttachmentMethod(StrEnum):
+    """How an event-to-episode attachment was established."""
+
+    explicit = "explicit"
+    fallback = "fallback"
+
+
 class AttachmentDiagnosticCode(StrEnum):
     """Stable categories for explaining rejected or ambiguous attachment rows."""
 
@@ -101,6 +108,25 @@ class AttachmentDiagnosticCode(StrEnum):
     dangling_event = "dangling_event"
     no_candidate_episode = "no_candidate_episode"
     ambiguous_fallback = "ambiguous_fallback"
+
+
+class AttachmentDiagnosticColumn(StrEnum):
+    """Stable labels emitted by an attachment diagnostics query."""
+
+    diagnostic_code = "diagnostic_code"
+    event_source_table = "event_source_table"
+    event_id = "event_id"
+    event_field_concept_id = "event_field_concept_id"
+    linked_event_field_concept_id = "linked_event_field_concept_id"
+    episode_id = "episode_id"
+    candidate_count = "candidate_count"
+    message = "message"
+
+
+CANONICAL_ATTACHMENT_DIAGNOSTIC_COLUMNS: tuple[AttachmentDiagnosticColumn, ...] = tuple(
+    AttachmentDiagnosticColumn
+)
+"""Columns exposed by an attachment diagnostics query."""
 
 
 @dataclass(frozen=True, slots=True)
