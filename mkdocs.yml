@@ -134,10 +134,11 @@ nav:
 
   - Toolkit:
       - Overview: toolkit/index.md
-      - core: toolkit/core.md
-      - episodes: toolkit/episodes.md
-      - analytics: toolkit/analytics.md
-      - integrations: toolkit/integrations.md
+      - Core services: toolkit/core.md
+      - Episodes: toolkit/episodes.md
+      - Query contracts: toolkit/query-contracts.md
+      - Clinical analytics: toolkit/analytics.md
+      - Integrations: toolkit/integrations.md
 
   - OMOP-Specific Validation:
       - Overview: validation/index.md

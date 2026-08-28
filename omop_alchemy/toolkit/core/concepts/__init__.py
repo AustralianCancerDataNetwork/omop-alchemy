@@ -99,6 +99,7 @@ from .registry import (
     concept_group_registry,
     resolve_concept_group,
 )
+from .runtime import RuntimeConceptSetSpec
 
 __all__ = [
     "DEFAULT_MAX_CACHE_BYTES",
@@ -111,6 +112,7 @@ __all__ = [
     "LookupSpec",
     "OMOPConceptSource",
     "ResolvedConceptGroup",
+    "RuntimeConceptSetSpec",
     "build_concept_group",
     "clear_concept_group_cache",
     "clear_vocabulary_identity",

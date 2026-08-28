@@ -9,7 +9,33 @@ single result so a hierarchy can be read in one pass, and establish the
 date windows relating one episode to another, written against the raw
 ``Episode``/``Episode_Event`` tables rather than any materialised view.
 
-Not yet populated in this package. The equivalent built against
-materialised-view subclasses lives in ``omop-constructs``; nothing has
-moved into ``toolkit`` yet.
+The public contracts in this area define episode-attachment identities and
+policies used by query builders. Shared clinical-event row names and identities
+live in ``toolkit.core.events``. All are declarative and perform no database
+work, so downstream packages can agree on semantics before changing clinical
+queries.
 """
+
+from .contracts import (
+    AttachmentDiagnosticCode,
+    EpisodeAttachmentDiagnostic,
+    EpisodeAttachmentIdentity,
+    EpisodeAttachmentPolicy,
+    ObservationSelectionPolicy,
+    ObservationSelectionSpec,
+    TemporalRankingSpec,
+    TemporalSelectionPolicy,
+    TemporalSidePreference,
+)
+
+__all__ = [
+    "AttachmentDiagnosticCode",
+    "EpisodeAttachmentDiagnostic",
+    "EpisodeAttachmentIdentity",
+    "EpisodeAttachmentPolicy",
+    "ObservationSelectionPolicy",
+    "ObservationSelectionSpec",
+    "TemporalRankingSpec",
+    "TemporalSelectionPolicy",
+    "TemporalSidePreference",
+]

@@ -1,72 +1,106 @@
-# episodes
+# Episodes
 
-Domain-neutral machinery for building episodes and retrieving what belongs to them. A
-drug episode behaves the same whether the drug is a cytotoxic agent or an antibiotic, so
-everything here takes concept filters and grouping keys as parameters rather than
-assuming a clinical specialty. Domain-specific episode classes — for example
-`OncologyEpisode` — compose these pieces with their own concept sets and live in
-[`analytics`](analytics.md).
+Episode APIs answer two related questions: how episodes relate to one another, and which clinical facts belong to an episode. They do not assume a specialty. Oncology-specific episode types compose these APIs with governed oncology concepts in the [analytics package](analytics.md#oncology).
 
-## derivation
+## Retrieve facts from an episode
 
-How episodes are constructed and related to one another — building episode queries and
-resolving parent/child hierarchy, written against the raw `Episode`/`Episode_Event`
-tables rather than any materialised view.
-
-Not yet populated. The equivalent built against materialised-view subclasses lives in
-`omop-constructs`.
-
-## handling
-
-What is inside an episode once it exists.
-
-**Linked drug exposures.** `DrugEpisodeMixin` adds retrieval and grouped summaries to
-any episode view:
+For a treatment episode, a common first task is to retrieve its linked drug exposures and group them by drug concept:
 
 ```python
+from omop_alchemy.cdm.model.structural import EpisodeView
 from omop_alchemy.toolkit.episodes.handling import DrugEpisodeMixin
 
-class MyEpisode(DrugEpisodeMixin, EpisodeView):
-    _drug_concept_ids = my_concept_ids
 
-episode.drug_exposures                # resolved Drug_Exposure rows
-episode.drug_exposure_summaries_by()  # grouped by drug concept by default
+class TreatmentEpisode(DrugEpisodeMixin, EpisodeView):
+    _drug_concept_ids = treatment_drug_concept_ids
+
+
+episode = session.get(TreatmentEpisode, episode_id)
+if episode is None:
+    raise LookupError(f"Unknown episode: {episode_id}")
+
+exposures = episode.drug_exposures
+summaries = episode.drug_exposure_summaries_by()
 ```
 
-Construct a summary for an already selected set of rows through the summary
-type itself:
+`drug_exposures` uses explicit `Episode_Event` links by default. `_drug_concept_ids` limits the rows to the concepts meaningful for this episode type, and `drug_exposure_summaries_by()` groups the selected rows by `drug_concept_id`. Pass a key function when another grouping, such as ingredient or regimen member, is more useful.
+
+If rows have already been selected elsewhere, construct or group summaries directly:
 
 ```python
-from omop_alchemy.toolkit.episodes.handling import DrugExposureSummary
+from omop_alchemy.toolkit.episodes.handling import (
+    DrugExposureSummary,
+    summarize_drug_exposures_by,
+)
 
-summary = DrugExposureSummary.from_exposures(exposures, group_key="regimen-a")
+regimen_summary = DrugExposureSummary.from_exposures(
+    regimen_exposures,
+    group_key="regimen-a",
+)
+
+by_drug = summarize_drug_exposures_by(
+    regimen_exposures,
+    key=lambda exposure: exposure.drug_concept_id,
+)
 ```
 
-Dose quantities are frequently not comparable across agents, because source units and
-quantities arrive unnormalised. `DoseEvaluability` carries that judgement alongside the
-number, so a summary that cannot be interpreted as a dose says so rather than presenting
-a misleading total.
+The generic summary reports counts, dates, source units, concepts, and a raw quantity total. A total is only clinically comparable when the source quantities have compatible meaning and units. Domain-specific summaries can attach `DoseEvaluability` to make that judgement explicit, as the oncology SACT and radiotherapy summaries do.
 
-**Explicit links versus admitted-by-window.** Facts linked through `Episode_Event` are
-always honoured. `episode_attachment_window` computes the bounded, date-based fallback
-window used when a caller opts in to admitting same-person facts that weren't explicitly
-linked.
+## Explicit links and date windows
 
-**Resolution diagnostics.** `Episode_EventView.resolved_event` already resolves an
-`Episode_Event` link best-effort, returning `None` on failure. `ResolvedEpisodeEvent`
-extends it to explain *why* — a miscoded field concept, a target class not yet
-registered, or a genuinely dangling reference:
+An `Episode_Event` row is the strongest statement that a fact belongs to an episode, so linked facts are always retained. Some datasets do not populate these links consistently. A caller can opt into bounded date-window retrieval for drug exposures by setting `_include_window_drug_exposures = True` on its mixin class.
+
+Window retrieval must be paired with a meaningful concept filter. Without one, every same-person drug exposure inside the dates is eligible. The generic helper deliberately defaults to explicit links only.
+
+`episode_attachment_window()` provides a related bounded window for episode-attributable facts. Its lower bound is a configurable number of days before the episode start. Its upper bound is the recorded episode end, or a finite fallback after the start when the episode is open-ended. The finite fallback prevents an incomplete episode from absorbing the rest of a person's record.
+
+## Understand unresolved episode links
+
+`Episode_EventView.resolved_event` returns the linked ORM row when the field concept and target row can be resolved, otherwise `None`. `ResolvedEpisodeEvent` preserves that behaviour and adds a diagnostic that distinguishes three cases:
+
+- the field concept is not a recognised `ModifierFieldConcepts` value;
+- the field concept is recognised but no ORM target class is registered for it; or
+- the target row does not exist.
 
 ```python
 from omop_alchemy.toolkit.episodes.handling import ResolvedEpisodeEvent
 
-ee = session.get(ResolvedEpisodeEvent, (episode_id, event_id, field_concept_id))
-ee.resolved_event               # the resolved row, or None
-ee.event_resolution_diagnostics # [] if resolved cleanly, otherwise why not
+link = session.get(
+    ResolvedEpisodeEvent,
+    (episode_id, event_id, field_concept_id),
+)
+
+if link is not None and link.resolved_event is None:
+    for diagnostic in link.event_resolution_diagnostics:
+        logger.warning("%s: %s", diagnostic.kind, diagnostic.message)
 ```
 
-Mix `ResolvedEpisodeEventMixin` into an episode view to reach diagnostics through
-ordinary `episode.episode_events` traversal instead of a direct query — this is how
-`OncologyEpisode` gets diagnostics on oncology-aware event resolution for free.
+Use `ResolvedEpisodeEventMixin` on an episode view when diagnostics should be available through `episode.episode_events` rather than through a separate query.
 
 ::: omop_alchemy.toolkit.episodes.handling
+
+## Describe episode attachment policy
+
+The derivation package provides declarative types for code that assigns events to episodes. The types keep four choices visible: whether explicit links take precedence, whether fallback may return one or several episodes, which side of an anchor date is preferred, and how candidates within that preference are ranked.
+
+For example, the following policy honours a valid explicit link and otherwise chooses one episode. Episodes that had started by the event date are considered before future episodes, and the nearest start date wins within that group:
+
+```python
+from omop_alchemy.toolkit.episodes.derivation import (
+    EpisodeAttachmentPolicy,
+    TemporalRankingSpec,
+    TemporalSelectionPolicy,
+    TemporalSidePreference,
+)
+
+attachment = EpisodeAttachmentPolicy.explicit_first_ranked
+ranking = TemporalRankingSpec(
+    policy=TemporalSelectionPolicy.nearest,
+    stable_id_column="episode_id",
+    side_preference=TemporalSidePreference.on_or_before_anchor,
+)
+```
+
+These objects state query semantics but do not build or execute SQL. See [Query contracts](query-contracts.md) for the complete event shape, attachment examples, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.
+
+::: omop_alchemy.toolkit.episodes.derivation

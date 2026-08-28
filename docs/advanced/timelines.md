@@ -39,9 +39,11 @@ instance at class level.
 
 ## The `ClinicalEvent` mixin
 
-`ClinicalEvent` is a mixin that adds timeline behaviour to any CDM ORM class. It reads
-`_mapping` to implement `event_time`, `event_value`, `event_metadata`, `to_dict`, and
-`to_json`.
+`ClinicalEvent` is a mixin that adds timeline behaviour to any CDM ORM class. It implements
+the shared `toolkit.core.events.ClinicalEventRow` identity and projection fields, then reads
+`_mapping` to add `event_time`, `event_value`, `event_metadata`, `to_dict`, and `to_json`.
+The shared core contract keeps timeline events and future SQL event projections aligned
+without making `core.timeline` import the higher-level episode package.
 
 ::: omop_alchemy.toolkit.core.timeline.event_timeline.ClinicalEvent
 
@@ -97,10 +99,14 @@ class and set `_mapping`:
 
 ```python
 from omop_alchemy.toolkit.core.timeline.event_timeline import ClinicalEvent, EventMapping
+from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.clinical import Procedure_Occurrence
 
 class Procedure_Event(Procedure_Occurrence, ClinicalEvent):
     _mapping = EventMapping(
+        event_id_field="procedure_occurrence_id",
+        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
+        event_source_table="procedure_occurrence",
         concept_field="procedure_concept_id",
         start_date_field="procedure_date",
         start_datetime_field="procedure_datetime",

@@ -6,9 +6,10 @@ to this patient, in order" means reconciling them.  ``Person_Timeline``
 does that reconciliation and presents the result as a single list of
 events sorted by time.
 
-Each event exposes a canonical time and value regardless of which table it
-came from, so callers can iterate a patient's history without special-
-casing per table::
+Each event implements the canonical row identity from ``toolkit.core.events``
+and adds timeline-specific interval, value, metadata, and serialisation
+behaviour, so callers can iterate a patient's history without special-casing
+per table::
 
     from omop_alchemy.toolkit.core.timeline import Person_Timeline
 

@@ -1,14 +1,10 @@
-# core
+# Core services
 
-Foundational services with no clinical-domain assumptions. A concept resolver behaves
-the same whether it is mapping tumour morphology or procedures; a patient timeline is
-the same object whatever populates it. Domain-specific concept sets, thresholds, and
-grading rules belong in [`analytics`](analytics.md), not here.
+The core package handles problems that have the same meaning in every clinical domain: resolving a source term to an OMOP concept, identifying an event across CDM tables, arranging events on a timeline, and converting measurements to comparable units.
 
-## Concept resolution
+## Resolve source data to concepts
 
-Turns a declarative description of *which* concepts belong in a lookup into a runtime
-resolver that maps free text and source codes to OMOP concept IDs.
+Suppose an intake system supplies the text `Adenocarcinoma of lung` rather than an OMOP concept ID. A resolver limits the eligible vocabulary rows and applies the same text normalisation when it builds its lookup and when it handles an incoming value:
 
 ```python
 from omop_alchemy.toolkit.core.concepts import make_concept_resolver
@@ -18,23 +14,55 @@ resolver = make_concept_resolver(
     name="condition lookup",
     domain_id="Condition",
 )
+
 concept_id = resolver.lookup("Adenocarcinoma of lung")
 ```
 
+Creating the resolver reads the vocabulary tables, so create it once for a mapping workflow and reuse it. `LookupSpec`, `LookupIndex`, and `ConceptResolver` expose the individual stages when you need to control indexed fields, normalisation, or resolver lifetime. `ConceptResolverRegistry` provides lazy construction and caching when an application maintains several lookups.
+
+Concept groups answer the complementary question: whether a known concept belongs to a governed set. A resolved group supports both in-memory membership and a SQLAlchemy expression derived from the same specification, so filtering loaded objects and filtering in SQL do not require separate definitions.
+
+Configuration-driven concept sets use `RuntimeConceptSetSpec`. It records exact and ancestral inclusions and exclusions without touching the database; see [Runtime concept sets](query-contracts.md#runtime-concept-sets) for the set semantics and current execution boundary.
+
 ::: omop_alchemy.toolkit.core.concepts
 
-## Patient timelines
+## Identify events across CDM tables
 
-Projects a person's clinical rows — conditions, measurements, drug exposures — into a
-single time-ordered event stream. This has its own dedicated page, since it predates the
-rest of the toolkit reorg: see [Patient Timelines](../advanced/timelines.md).
+A Measurement and a Procedure Occurrence may have the same numeric primary key. Code that combines tables must therefore carry the source table as part of event identity:
 
-## Unit conversion
+```python
+from omop_alchemy.toolkit.core.events import ClinicalEventIdentity
 
-Converts measurement values to canonical units. Kilograms, pounds, centimetres, and
-inches mean the same thing in every clinical domain, so the conversion rules live here
-rather than with any one domain's measurement logic — see
-[`analytics.body_metrics`](analytics.md#body_metrics) for where those domain-specific
-measurements are resolved and normalised using these rules.
+measurement = ClinicalEventIdentity("measurement", 7)
+procedure = ClinicalEventIdentity("procedure_occurrence", 7)
+
+assert measurement != procedure
+```
+
+`ClinicalEventColumn` defines the common labels used when heterogeneous event tables are projected into one result. The required shape includes the person, table-scoped event identity, event date and datetime, clinical concept, and OMOP Field concept that identifies the source ID column. Optional labels cover numeric values, value concepts, and units.
+
+These contracts describe result shape and identity; they do not execute a query. The [query contracts](query-contracts.md) explain how this shape participates in episode attachment.
+
+## Work with a patient timeline
+
+The timeline adapter presents conditions, measurements, and drug exposures as a single ordered sequence while retaining each row's source identity and value semantics. Use it when an application needs to display or serialise a patient's chronology rather than build a set-based analytical query.
+
+The timeline has a dedicated guide with session requirements, event mappings, and extension points: [Patient timelines](../advanced/timelines.md).
+
+## Convert body measurements
+
+Body-size calculations require weights and heights to use consistent units. The default conversion rules use the unit concept recorded on each measurement:
+
+```python
+from omop_alchemy.toolkit.core.units import default_body_unit_conversion_rules
+
+rules = default_body_unit_conversion_rules()
+weight_kg = rules.normalize_weight_kg(180.0, rules.units.lb)
+height_cm = rules.normalize_height_cm(70.0, rules.units.inch)
+```
+
+An unknown unit, a missing unit, or a missing value produces `None`; values are never passed through as though they were already normalised. Deployments with local unit concepts can construct `BodyUnitConversionRules` with their own `BodySizeUnitConcepts` mapping.
+
+Clinical choices built on those conversions, including which measurements constitute baseline weight and how change is graded, belong to [`analytics.body_metrics`](analytics.md#body-metrics) and [`analytics.adverse_events`](analytics.md#adverse-events).
 
 ::: omop_alchemy.toolkit.core.units

@@ -1,5 +1,6 @@
 
 from omop_alchemy.cdm.model.clinical import Measurement, Person, Condition_Occurrence, Drug_Exposure
+from omop_alchemy.cdm.base import ModifierFieldConcepts
 from sqlalchemy.orm import object_session
 from sqlalchemy import select
 from datetime import datetime, time, date
@@ -7,6 +8,8 @@ from typing import Optional, Mapping, Any,  List
 import json
 from dataclasses import dataclass
 from typing import Protocol, Union, Literal
+
+from omop_alchemy.toolkit.core.events import ClinicalEventRow
 
 
 TemporalKind = Literal["point", "interval"]
@@ -40,13 +43,10 @@ class EventTime:
         return "interval" if self.end is not None else "point"
     
 
-class ClinicalEventProtocol(Protocol):
+class ClinicalEventProtocol(ClinicalEventRow, Protocol):
     """
     Interface for ORM rows that can be projected into a patient timeline.
     """
-
-    @property
-    def person_id(self) -> int: ...
 
     """Primary clinical concept driving the event"""
     @property
@@ -77,6 +77,9 @@ class ClinicalEventProtocol(Protocol):
 
 @dataclass
 class EventMapping:
+    event_id_field: str
+    event_field_concept_id: int
+    event_source_table: str
     concept_field: str
     start_date_field: str
     start_datetime_field: Optional[str] = None
@@ -96,8 +99,40 @@ class ClinicalEvent:
     _mapping: EventMapping
 
     @property
+    def event_id(self) -> int:
+        """Primary key value within the mapped source table."""
+        return getattr(self, self._mapping.event_id_field)
+
+    @property
     def concept_id(self) -> int:
         return getattr(self, self._mapping.concept_field)
+
+    @property
+    def event_concept_id(self) -> int:
+        """Canonical projection name for the timeline event's clinical concept."""
+        return self.concept_id
+
+    @property
+    def event_source_table(self) -> str:
+        """OMOP source table that scopes ``event_id``."""
+        return self._mapping.event_source_table
+
+    @property
+    def event_field_concept_id(self) -> int:
+        """OMOP Field concept identifying the source event ID column."""
+        return self._mapping.event_field_concept_id
+
+    @property
+    def event_date(self) -> date:
+        """Date component used by canonical event projections."""
+        value = getattr(self, self._mapping.start_date_field)
+        return value.date() if isinstance(value, datetime) else value
+
+    @property
+    def event_datetime(self) -> datetime | None:
+        """Source datetime when the event table carries one, otherwise ``None``."""
+        field = self._mapping.start_datetime_field
+        return getattr(self, field) if field else None
     
     def event_value(self) -> EventValue:
 
@@ -176,6 +211,9 @@ class ClinicalEvent:
 
         return {
             "person_id": self.person_id,
+            "event_id": self.event_id,
+            "event_source_table": self.event_source_table,
+            "event_field_concept_id": self.event_field_concept_id,
             "concept_id": self.concept_id,
             "event_start": et.start.isoformat(),
             "event_end": et.end.isoformat() if et.end else None,
@@ -193,6 +231,9 @@ class ClinicalEvent:
 
 class Condition_Event(Condition_Occurrence, ClinicalEvent):
     _mapping = EventMapping(
+        event_id_field="condition_occurrence_id",
+        event_field_concept_id=ModifierFieldConcepts.CONDITION_OCCURRENCE,
+        event_source_table="condition_occurrence",
         concept_field="condition_concept_id",
         start_date_field="condition_start_date",
         start_datetime_field="condition_start_datetime",
@@ -204,6 +245,9 @@ class Condition_Event(Condition_Occurrence, ClinicalEvent):
 class Measurement_Event(ClinicalEvent, Measurement):
 
     _mapping = EventMapping(
+        event_id_field="measurement_id",
+        event_field_concept_id=ModifierFieldConcepts.MEASUREMENT,
+        event_source_table="measurement",
         concept_field="measurement_concept_id",
         start_date_field="measurement_date",
         start_datetime_field="measurement_datetime",
@@ -224,6 +268,9 @@ class Measurement_Event(ClinicalEvent, Measurement):
 class Drug_Exposure_Event(Drug_Exposure, ClinicalEvent):
 
     _mapping = EventMapping(
+        event_id_field="drug_exposure_id",
+        event_field_concept_id=ModifierFieldConcepts.DRUG_EXPOSURE,
+        event_source_table="drug_exposure",
         concept_field="drug_concept_id",
         start_date_field="drug_exposure_start_date",
         start_datetime_field="drug_exposure_start_datetime",
