@@ -13,6 +13,9 @@ patient timeline is the same object whatever populates it.
     Canonical cross-table event identities and projection row shapes shared by
     timelines and episode builders.
 
+``materialization``
+    Qualified PostgreSQL materialized-view definitions and lifecycle helpers.
+
 ``timeline``
     Project heterogeneous clinical rows into a single ordered sequence of
     events for one person.

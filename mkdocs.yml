@@ -135,6 +135,7 @@ nav:
   - Toolkit:
       - Overview: toolkit/index.md
       - Core services: toolkit/core.md
+      - Materialized views: toolkit/materialized-views.md
       - Episodes: toolkit/episodes.md
       - Query contracts: toolkit/query-contracts.md
       - Clinical analytics: toolkit/analytics.md
