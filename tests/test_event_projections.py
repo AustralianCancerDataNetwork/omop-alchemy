@@ -179,6 +179,7 @@ def test_analytics_import_preserves_all_core_metadata_and_compiled_projections()
             canonical_event_projection,
             clinical_event_model_spec,
         )
+        from omop_alchemy.cdm.model.structural import Episode_EventView
 
         models = (
             Condition_Occurrence,
@@ -190,14 +191,22 @@ def test_analytics_import_preserves_all_core_metadata_and_compiled_projections()
         )
 
         def snapshot():
-            return tuple(
-                (
-                    model.__name__,
-                    clinical_event_model_spec(model),
-                    str(canonical_event_projection(model).compile(dialect=sqlite.dialect())),
-                    str(canonical_event_projection(model).compile(dialect=postgresql.dialect())),
+            return (
+                tuple(
+                    (
+                        model.__name__,
+                        clinical_event_model_spec(model),
+                        str(canonical_event_projection(model).compile(dialect=sqlite.dialect())),
+                        str(canonical_event_projection(model).compile(dialect=postgresql.dialect())),
+                    )
+                    for model in models
+                ),
+                tuple(
+                    sorted(
+                        (field, target.__name__)
+                        for field, target in Episode_EventView.resolved_event_target_classes().items()
+                    )
                 )
-                for model in models
             )
 
         before = snapshot()

@@ -56,7 +56,7 @@ Window retrieval must be paired with a meaningful concept filter. Without one, e
 
 ## Understand unresolved episode links
 
-`Episode_EventView.resolved_event` returns the linked analytical ORM row when the field concept and target row can be resolved, otherwise `None`. Measurement and Observation links resolve to `MeasurementView` and `ObservationView`; their bare table mappings remain available for lightweight ETL. `ResolvedEpisodeEvent` preserves the resolution behaviour and adds a diagnostic that distinguishes three cases:
+`Episode_EventView.resolved_event` returns the linked analytical ORM row when the field concept and target row can be resolved, otherwise `None`. Measurement, Observation, and Device Exposure links resolve to `MeasurementView`, `ObservationView`, and `Device_ExposureView`; their bare table mappings remain available for lightweight ETL. The target map uses the same stable CDM metadata as canonical event projections, so importing domain-specific analytics cannot change the default target. `ResolvedEpisodeEvent` preserves the resolution behaviour and adds a diagnostic that distinguishes three cases:
 
 - the field concept is not a recognised `ModifierFieldConcepts` value;
 - the field concept is recognised but no ORM target class is registered for it; or

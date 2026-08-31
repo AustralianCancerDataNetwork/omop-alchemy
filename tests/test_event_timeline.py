@@ -58,6 +58,21 @@ def test_observation_event_is_part_of_person_timeline_and_compiles():
     assert "person_id" in compiled
 
 
+def test_drug_exposure_quantity_is_a_numeric_timeline_value():
+    event = Drug_Exposure_Event(
+        drug_exposure_id=8,
+        person_id=101,
+        drug_concept_id=900_002,
+        drug_exposure_start_date=date(2026, 1, 21),
+        drug_type_concept_id=32817,
+        quantity=12.5,
+    )
+
+    assert event.event_value().type == "numeric"
+    assert event.event_value().value == 12.5
+    assert event.to_dict()["value"] == {"type": "numeric", "value": 12.5}
+
+
 def test_all_timeline_events_use_clinical_event_behaviour():
     assert Condition_Event.to_json is ClinicalEvent.to_json
     assert Drug_Exposure_Event.to_json is ClinicalEvent.to_json

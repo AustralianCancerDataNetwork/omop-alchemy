@@ -3,7 +3,6 @@ from omop_alchemy.cdm.model.structural import (
     EpisodeView,
     Episode_Event,
     Episode_EventView,
-    clear_episode_event_target_class_cache,
 )
 from omop_alchemy.toolkit.episodes.handling import (
     DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
@@ -30,7 +29,9 @@ def test_episode_view_expected_domains():
     assert "episode_object_concept_id" in cls.__expected_domains__
     assert "episode_type_concept_id" in cls.__expected_domains__
 
-    assert cls.__expected_domains__["episode_concept_id"].domains == frozenset({"Episode"})
+    assert cls.__expected_domains__["episode_concept_id"].domains == frozenset(
+        {"Episode"}
+    )
 
 
 def test_episode_reference_context(session):
@@ -46,11 +47,7 @@ def test_episode_reference_context(session):
 
 def test_episode_has_episode_events(session):
     """Test episode has episode events."""
-    ep = (
-        session.query(EpisodeView)
-        .filter(EpisodeView.episode_events.any())
-        .first()
-    )
+    ep = session.query(EpisodeView).filter(EpisodeView.episode_events.any()).first()
 
     assert ep is not None
     assert len(ep.episode_events) > 0
@@ -73,11 +70,7 @@ def test_resolved_episode_event_mixin_targets_diagnostic_rows(session):
 
 def test_episode_event_resolves_target(session):
     """Test episode event resolves target."""
-    ep = (
-        session.query(EpisodeView)
-        .filter(EpisodeView.episode_events.any())
-        .first()
-    )
+    ep = session.query(EpisodeView).filter(EpisodeView.episode_events.any()).first()
 
     ee = ep.episode_events[0]
     target = ee.resolved_event
@@ -185,28 +178,21 @@ def test_episode_event_resolution_reports_dangling_target(session):
     assert diagnostics[0].kind == "dangling_event"
 
 
-def test_episode_event_target_class_cache_can_be_cleared():
-    """The resolver map is memoized but explicitly invalidatable."""
-    clear_episode_event_target_class_cache()
+def test_episode_event_target_classes_are_isolated_from_caller_mutation():
+    """Resolver overrides cannot mutate the stable Core target registry."""
     first = Episode_EventView.resolved_event_target_classes()
     second = Episode_EventView.resolved_event_target_classes()
 
-    assert first is second
-
-    clear_episode_event_target_class_cache()
+    assert first is not second
+    first.clear()
     third = Episode_EventView.resolved_event_target_classes()
 
-    assert third is not first
-    assert third == first
+    assert third == second
 
 
 def test_episode_view_events_property(session):
     """Test episode view events property."""
-    ep = (
-        session.query(EpisodeView)
-        .filter(EpisodeView.episode_events.any())
-        .first()
-    )
+    ep = session.query(EpisodeView).filter(EpisodeView.episode_events.any()).first()
 
     events = ep.events
 
@@ -219,7 +205,6 @@ def test_episode_view_events_property(session):
         assert not isinstance(target, Episode_Event)
         assert hasattr(target, "__table__")
         assert hasattr(target, "person_id")
-
 
 
 def test_episode_parent_relationship(session):

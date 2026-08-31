@@ -184,7 +184,12 @@ class ClinicalEvent:
             ):
                 return EventValue(type="concept", value=value)
 
-            if "number" in field.lower() and isinstance(value, (int, float)):
+            # OMOP quantity fields are numeric even though their names do not
+            # contain ``number``. Keep the mapping semantic here so callers do
+            # not need table-specific special cases when serialising timelines.
+            if (
+                "number" in field.lower() or field.lower() == "quantity"
+            ) and isinstance(value, (int, float)):
                 return EventValue(type="numeric", value=value)
 
             if "string" in field.lower() and isinstance(value, str) and value.strip():

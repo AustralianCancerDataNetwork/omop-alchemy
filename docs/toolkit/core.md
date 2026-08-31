@@ -87,7 +87,7 @@ for event in session.execute(events).mappings():
     print(event["event_source_table"], event["event_id"], event["event_date"])
 ```
 
-The projection resolves its ID, clinical concept, date, source table, and Field concept through stable CDM event metadata. Bare `Measurement` and `Observation` classes remain lightweight mappings for ETL, while `MeasurementView` and `ObservationView` provide analytical reference context, domain validation, and episode-event resolution. Importing analytics modules cannot change the metadata used for a Core projection. `UnsupportedClinicalEventModelError` is raised before SQL execution when no supported CDM definition exists.
+The projection resolves its ID, clinical concept, date, source table, and Field concept through stable CDM event metadata shared with episode-event resolution. Bare `Measurement`, `Observation`, and `Device_Exposure` classes remain lightweight mappings for ETL, while their analytical views provide reference context, domain validation, and episode-event resolution. Importing analytics modules cannot change either the Core projection metadata or the default resolution target. `UnsupportedClinicalEventModelError` is raised before SQL execution when no supported CDM definition exists.
 
 ```mermaid
 flowchart LR
@@ -103,7 +103,7 @@ The [query contracts](query-contracts.md) explain how the canonical shape partic
 
 ## Work with a patient timeline
 
-The timeline adapter presents conditions, measurements, and drug exposures as a single ordered sequence while retaining each row's source identity and value semantics. Use it when an application needs to display or serialise a patient's chronology rather than build a set-based analytical query.
+The timeline adapter presents conditions, measurements, observations, and drug exposures as a single ordered sequence while retaining each row's source identity and value semantics. Use it when an application needs to display or serialise a patient's chronology rather than build a set-based analytical query.
 
 The timeline has a dedicated guide with session requirements, event mappings, and extension points: [Patient timelines](../advanced/timelines.md).
 

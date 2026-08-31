@@ -8,19 +8,8 @@ from typing import Any
 import sqlalchemy as sa
 
 from omop_alchemy.cdm.base import ModifierTargetMixin
-from omop_alchemy.cdm.model.clinical import (
-    Condition_Occurrence,
-    Condition_OccurrenceView,
-    Device_Exposure,
-    Device_ExposureView,
-    Drug_Exposure,
-    Drug_ExposureView,
-    Measurement,
-    MeasurementView,
-    Observation,
-    ObservationView,
-    Procedure_Occurrence,
-    Procedure_OccurrenceView,
+from omop_alchemy.cdm.model.clinical.event_metadata import (
+    clinical_event_target_for_table,
 )
 
 from .contracts import ClinicalEventColumn
@@ -46,20 +35,6 @@ class ClinicalEventModelSpec:
     event_datetime_column: str | None
     event_field_concept_id: int
     event_source_table: str
-
-
-_EVENT_METADATA_BY_TABLE: dict[str, type[ModifierTargetMixin]] = {
-    Condition_Occurrence.__tablename__: Condition_OccurrenceView,
-    Device_Exposure.__tablename__: Device_ExposureView,
-    Drug_Exposure.__tablename__: Drug_ExposureView,
-    Measurement.__tablename__: MeasurementView,
-    Observation.__tablename__: ObservationView,
-    Procedure_Occurrence.__tablename__: Procedure_OccurrenceView,
-}
-# This registry is intentionally explicit. Projection behavior must not depend
-# on which analytical subclasses happen to have been imported or registered by
-# SQLAlchemy in the current process.
-"""Stable CDM event metadata, independent of imported analytical subclasses."""
 
 
 def _has_complete_event_metadata(model: type[Any]) -> bool:
@@ -90,7 +65,7 @@ def _metadata_candidate(model: type[Any]) -> type[ModifierTargetMixin] | None:
     # their table through the configured analytical view without changing the
     # class used to read scalar event rows.
     table_name = getattr(model, "__tablename__", None)
-    return _EVENT_METADATA_BY_TABLE.get(str(table_name))
+    return clinical_event_target_for_table(str(table_name))
 
 
 def _datetime_column_name(model: type[Any], date_column_name: str) -> str | None:
