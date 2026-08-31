@@ -21,6 +21,10 @@ if TYPE_CHECKING:
     from .episode import Episode
 
 
+def clear_episode_event_target_class_cache() -> None:
+    """Retain the former cache hook; stable event metadata needs no invalidation."""
+
+
 @cdm_table
 class Episode_Event(CDMTableBase, Base):
     __tablename__ = "episode_event"

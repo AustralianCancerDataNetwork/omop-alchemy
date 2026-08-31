@@ -3,6 +3,7 @@ from omop_alchemy.cdm.model.structural import (
     EpisodeView,
     Episode_Event,
     Episode_EventView,
+    clear_episode_event_target_class_cache,
 )
 from omop_alchemy.toolkit.episodes.handling import (
     DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
@@ -185,6 +186,7 @@ def test_episode_event_target_classes_are_isolated_from_caller_mutation():
 
     assert first is not second
     first.clear()
+    clear_episode_event_target_class_cache()
     third = Episode_EventView.resolved_event_target_classes()
 
     assert third == second
