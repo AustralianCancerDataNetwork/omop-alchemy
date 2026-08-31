@@ -1406,7 +1406,7 @@ wheels = [
 
 [[package]]
 name = "oa-configurator"
-version = "1.0.0"
+version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1416,9 +1416,9 @@ dependencies = [
     { name = "tomli-w" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0d/bf/8934b30a7ffb24b17dd05fe39a85cf30d47123e3cbe093ce964797a33a43/oa_configurator-1.0.0.tar.gz", hash = "sha256:5ab2a0ba7d2b723312e02422a937047a792c3cba1c4ae59fbd4df53ec0955209", size = 156038, upload-time = "2026-08-11T12:58:39.487Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/6f/126bb395080255cca45cd173aec1903aa13f8fc6b153ba5fce760371e1dd/oa_configurator-1.2.1.tar.gz", hash = "sha256:50828dc2490e533ac535d2bf5f008c61a5962095283d2f98d9041f4e40b769e2", size = 182917, upload-time = "2026-08-19T00:12:36.746Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/84/30fd96eb7a83e9e6ef0d911e402002c3ece45541a8d7892be2799152b114/oa_configurator-1.0.0-py3-none-any.whl", hash = "sha256:9e3ae9e904bdf92201c22df851b8bcc47ad66f206a8fafcd79875b7b27670beb", size = 52209, upload-time = "2026-08-11T12:58:37.91Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/c0/9246c3948f1f8e62e6e6865d050a961111fb0720f53daceaf77a9a9bb80e/oa_configurator-1.2.1-py3-none-any.whl", hash = "sha256:707a1c321245e2eb6d62e5a9acf81c1145291edb5ace83489d0d726e05291ad0", size = 64178, upload-time = "2026-08-19T00:12:35.357Z" },
 ]
 
 [package.optional-dependencies]
