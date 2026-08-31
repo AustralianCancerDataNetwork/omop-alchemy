@@ -87,7 +87,9 @@ for event in session.execute(events).mappings():
     print(event["event_source_table"], event["event_id"], event["event_date"])
 ```
 
-The projection derives its ID, clinical concept, date, source table, and Field concept from `ModifierTargetMixin` metadata. `UnsupportedClinicalEventModelError` is raised before SQL execution when that metadata is incomplete. The [query contracts](query-contracts.md) explain how the projected shape participates in episode attachment.
+The projection resolves its ID, clinical concept, date, source table, and Field concept through stable CDM event metadata. Bare `Measurement` and `Observation` classes remain lightweight mappings for ETL, while `MeasurementView` and `ObservationView` provide analytical reference context, domain validation, and episode-event resolution. Importing analytics modules cannot change the metadata used for a Core projection. `UnsupportedClinicalEventModelError` is raised before SQL execution when no supported CDM definition exists.
+
+The [query contracts](query-contracts.md) explain how the canonical shape participates in episode attachment.
 
 ## Work with a patient timeline
 

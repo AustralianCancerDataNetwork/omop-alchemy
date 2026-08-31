@@ -10,12 +10,9 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import FunctionElement
 
-from omop_alchemy.toolkit.episodes.handling.event_windowing import (
-    DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
-    DEFAULT_EPISODE_WINDOW_DAYS_PRIOR,
-)
-
+from ._ranking import deterministic_row_number
 from .contracts import (
+    EpisodeWindowSpec,
     TemporalRankingSpec,
     TemporalSelectionPolicy,
     TemporalSidePreference,
@@ -27,7 +24,6 @@ class _SignedDayDelta(FunctionElement[int]):
     inherit_cache = True
 
 
-@compiles(_SignedDayDelta)
 @compiles(_SignedDayDelta, "postgresql")
 def _compile_signed_day_delta(
     element: _SignedDayDelta,
@@ -60,7 +56,6 @@ class _ShiftDate(FunctionElement[Any]):
     inherit_cache = True
 
 
-@compiles(_ShiftDate)
 @compiles(_ShiftDate, "postgresql")
 def _compile_shift_date(
     element: _ShiftDate,
@@ -130,18 +125,13 @@ def episode_window_bounds(
     episode_start_date: sa.ColumnElement[Any],
     episode_end_date: sa.ColumnElement[Any],
     *,
-    days_prior: int = DEFAULT_EPISODE_WINDOW_DAYS_PRIOR,
-    open_end_fallback_days: int = DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
+    window: EpisodeWindowSpec = EpisodeWindowSpec(),
 ) -> tuple[sa.ColumnElement[Any], sa.ColumnElement[Any]]:
     """Build the bounded SQL interval used for date-admitted episode facts."""
-    if days_prior < 0:
-        raise ValueError("days_prior must be non-negative")
-    if open_end_fallback_days < 0:
-        raise ValueError("open_end_fallback_days must be non-negative")
-    lower = shift_date(episode_start_date, days=-days_prior)
+    lower = shift_date(episode_start_date, days=-window.days_prior)
     upper = sa.func.coalesce(
         episode_end_date,
-        shift_date(episode_start_date, days=open_end_fallback_days),
+        shift_date(episode_start_date, days=window.open_end_fallback_days),
     )
     return lower, upper
 
@@ -151,23 +141,20 @@ def episode_window_predicate(
     episode_start_date: sa.ColumnElement[Any],
     episode_end_date: sa.ColumnElement[Any],
     *,
-    ranking: TemporalRankingSpec | None = None,
-    days_prior: int = DEFAULT_EPISODE_WINDOW_DAYS_PRIOR,
-    open_end_fallback_days: int = DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
+    window: EpisodeWindowSpec = EpisodeWindowSpec(),
 ) -> sa.ColumnElement[bool]:
     """Test whether an event lies inside a bounded episode-relative window."""
     lower, upper = episode_window_bounds(
         episode_start_date,
         episode_end_date,
-        days_prior=days_prior,
-        open_end_fallback_days=open_end_fallback_days,
+        window=window,
     )
     return bounded_temporal_predicate(
         event_date,
         lower,
         upper,
-        include_lower_bound=ranking.include_lower_bound if ranking else True,
-        include_upper_bound=ranking.include_upper_bound if ranking else True,
+        include_lower_bound=window.include_lower_bound,
+        include_upper_bound=window.include_upper_bound,
     )
 
 
@@ -206,7 +193,7 @@ def temporal_row_number(
     label: str = "temporal_rank",
 ) -> sa.ColumnElement[int]:
     """Return a deterministic row number for temporal candidates."""
-    return sa.func.row_number().over(
+    return deterministic_row_number(
         partition_by=tuple(partition_by),
         order_by=temporal_order_expressions(
             candidate_date,
@@ -214,4 +201,5 @@ def temporal_row_number(
             stable_id,
             ranking,
         ),
-    ).label(label)
+        label=label,
+    )

@@ -14,11 +14,6 @@ from omop_alchemy.toolkit.core.events import (
     ClinicalEventColumn,
     canonical_event_projection,
 )
-from omop_alchemy.toolkit.episodes.handling.event_windowing import (
-    DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
-    DEFAULT_EPISODE_WINDOW_DAYS_PRIOR,
-)
-
 from .contracts import (
     CANONICAL_ATTACHMENT_DIAGNOSTIC_COLUMNS,
     AttachmentDiagnosticCode,
@@ -26,6 +21,7 @@ from .contracts import (
     EpisodeAttachmentMethod,
     EpisodeAttachmentPolicy,
     EpisodeColumn,
+    EpisodeWindowSpec,
     TemporalRankingSpec,
 )
 from .structure import canonical_episode_projection
@@ -166,28 +162,9 @@ def _attachment_diagnostics(
         )
 
     null_integer = sa.cast(sa.null(), sa.Integer())
-    discriminator_mismatches = (
-        sa.select(
-            *diagnostic_literals(
-                AttachmentDiagnosticCode.discriminator_mismatch,
-                linked_field=episode_events.c[link_field],
-                linked_episode_id=episode_events.c[episode_id],
-                candidate_count=null_integer,
-                message="explicit link discriminator does not identify this event source",
-            )
-        )
-        .select_from(
-            events.join(
-                episode_events,
-                events.c[event_id] == episode_events.c[event_id],
-            ).join(
-                episodes,
-                episodes.c[episode_id] == episode_events.c[episode_id],
-            )
-        )
-        .where(events.c[event_field] != episode_events.c[link_field])
-    )
-
+    # A discriminator-correct link is still rejected when it crosses people;
+    # this protects downstream episode grains from attaching another person's
+    # otherwise valid event row.
     person_mismatches = (
         sa.select(
             *diagnostic_literals(
@@ -213,6 +190,8 @@ def _attachment_diagnostics(
         .where(events.c[person_id] != episodes.c[person_id])
     )
 
+    # These keys distinguish events that already have authoritative links from
+    # those whose absence or fallback outcome still needs explanation.
     valid_keys = (
         sa.select(
             valid_explicit.c[source_table],
@@ -221,12 +200,12 @@ def _attachment_diagnostics(
         .distinct()
         .cte("valid_explicit_event_keys")
     )
-    diagnostic_branches: list[sa.Select[Any]] = [
-        discriminator_mismatches,
-        person_mismatches,
-    ]
+    diagnostic_branches: list[sa.Select[Any]] = [person_mismatches]
 
     if fallback_candidates is not None:
+        # Candidate counts are calculated before ranked fallback reduces the
+        # result. A selected row can therefore still explain that another
+        # eligible episode existed and was resolved by policy.
         candidate_keys = (
             sa.select(
                 fallback_candidates.c[source_table],
@@ -257,6 +236,8 @@ def _attachment_diagnostics(
     else:
         candidate_keys = None
 
+    # The final diagnostic is event-relative: no valid explicit relationship
+    # and, where fallback is enabled, no episode admitted by the window.
     no_candidate_conditions = [_not_exists_for_event(events, valid_keys)]
     if candidate_keys is not None:
         no_candidate_conditions.append(_not_exists_for_event(events, candidate_keys))
@@ -289,8 +270,7 @@ def episode_attachment_queries(
     episodes: type[Episode] | FromClause | SelectBase = Episode,
     episode_events: type[Episode_Event] | FromClause | SelectBase = Episode_Event,
     ranking: TemporalRankingSpec | None = None,
-    days_prior: int = DEFAULT_EPISODE_WINDOW_DAYS_PRIOR,
-    open_end_fallback_days: int = DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
+    window: EpisodeWindowSpec = EpisodeWindowSpec(),
     include_diagnostics: bool = False,
 ) -> EpisodeAttachmentQueries:
     """Build explicit-first attachments from canonical event and episode inputs.
@@ -302,6 +282,8 @@ def episode_attachment_queries(
     """
     if policy.requires_fallback_ranking and ranking is None:
         raise ValueError("explicit_first_ranked requires a temporal ranking")
+    if not policy.requires_fallback_ranking and ranking is not None:
+        raise ValueError(f"{policy} does not use a temporal ranking")
 
     event_source = _event_source(events)
     episode_source = _episode_source(episodes)
@@ -344,6 +326,9 @@ def episode_attachment_queries(
     episode_start = str(EpisodeColumn.episode_start_date)
     episode_end = str(EpisodeColumn.episode_end_date)
 
+    # stage 1 of episode resolution accepts an explicit link only when ID, Field 
+    # discriminator, episode, and person agree. This is the sole point where an 
+    # explicit link becomes authoritative enough to suppress date-based fallback.
     valid_explicit = (
         sa.select(
             *(event_source.c[name] for name in event_names),
@@ -376,6 +361,9 @@ def episode_attachment_queries(
     attachment_branches: list[sa.Select[Any]] = [explicit_select]
 
     if policy.uses_fallback:
+        # episode resolution stage 2 records the complete table-scoped identity 
+        # of every valid explicit event. The anti-existence check below must use 
+        # both columns: event_id alone is never a cross-table identity in OMOP.
         valid_keys = (
             sa.select(
                 valid_explicit.c[source_table],
@@ -399,6 +387,9 @@ def episode_attachment_queries(
                     "episodes is missing temporal stable ID column: "
                     f"{ranking.stable_id_column}"
                 )
+            # episode resolution stage 3 ranks only after window admission. A side 
+            # preference is a deliberate clinical policy tier; the stable episode 
+            # ID prevents tied dates from depending on database row order.
             fallback_columns.append(
                 temporal_row_number(
                     episode_source.c[episode_start],
@@ -413,6 +404,9 @@ def episode_attachment_queries(
                 )
             )
 
+        # All fallback policies share the same finite episode-relative window.
+        # The policy decides whether every admitted episode survives or exactly
+        # one ranked candidate is retained.
         fallback_candidates = (
             sa.select(*fallback_columns)
             .select_from(
@@ -425,9 +419,7 @@ def episode_attachment_queries(
                             event_source.c[event_date],
                             episode_source.c[episode_start],
                             episode_source.c[episode_end],
-                            ranking=ranking,
-                            days_prior=days_prior,
-                            open_end_fallback_days=open_end_fallback_days,
+                            window=window,
                         ),
                     ),
                 )
@@ -444,6 +436,10 @@ def episode_attachment_queries(
             )
         attachment_branches.append(selected_fallback)
 
+    # The builder accepts arbitrary selectables as inputs, so their source keys
+    # are not necessarily database constraints. Enforce the documented output
+    # identity here and prefer explicit provenance if a custom input manages to
+    # present the same attachment through more than one branch.
     combined = sa.union_all(*attachment_branches).cte("combined_episode_attachments")
     ranked_attachments = sa.select(
         *(combined.c[name] for name in attachment_names),
@@ -471,6 +467,11 @@ def episode_attachment_queries(
 
     diagnostics = None
     if include_diagnostics:
+        # Diagnostics explain rejected links and fallback outcomes without
+        # changing attachment rows. Non-matching discriminators and missing
+        # source rows are intentionally out of scope: this builder may receive
+        # a filtered projection and cannot infer absence from an OMOP table.
+        # ResolvedEpisodeEvent owns complete target-table resolution.
         diagnostics = _attachment_diagnostics(
             event_source,
             episode_source,

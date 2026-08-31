@@ -23,6 +23,7 @@ from omop_alchemy.toolkit.core.timeline import Measurement_Event
 from omop_alchemy.toolkit.episodes.derivation import (
     EpisodeAttachmentIdentity,
     EpisodeAttachmentPolicy,
+    EpisodeWindowSpec,
     ObservationSelectionPolicy,
     ObservationSelectionSpec,
     TemporalRankingSpec,
@@ -40,7 +41,8 @@ from tests.fixtures.query_contract_cases import (
     OVERLAPPING_EPISODES,
     REPEATED_OBSERVATIONS,
     VALID_EXPLICIT_LINK,
-    WRONG_DISCRIMINATOR_LINK,
+    COLLIDING_VALID_LINK,
+    OUT_OF_SCOPE_LINK,
 )
 
 
@@ -97,7 +99,9 @@ def test_attachment_identity_keeps_the_event_source_and_episode():
     assert first != second
 
 
-@pytest.mark.parametrize("identity_type", [ClinicalEventIdentity, EpisodeAttachmentIdentity])
+@pytest.mark.parametrize(
+    "identity_type", [ClinicalEventIdentity, EpisodeAttachmentIdentity]
+)
 def test_event_source_table_cannot_be_empty(identity_type):
     args = ("", 7) if identity_type is ClinicalEventIdentity else ("", 7, 1001)
     with pytest.raises(ValueError, match="event_source_table"):
@@ -124,22 +128,34 @@ def test_attachment_policies_state_precedence_and_cardinality(
     )
 
 
-def test_counterexample_links_cover_valid_discriminator_and_person_failures():
+def test_counterexample_links_cover_valid_out_of_scope_and_person_cases():
     event_by_identity = {case.identity: case for case in COLLIDING_EVENTS}
     episode_by_id = {case.episode_id: case for case in OVERLAPPING_EPISODES}
 
     valid_event = event_by_identity[VALID_EXPLICIT_LINK.event]
-    assert valid_event.event_field_concept_id == VALID_EXPLICIT_LINK.episode_event_field_concept_id
-    assert valid_event.person_id == episode_by_id[VALID_EXPLICIT_LINK.episode_id].person_id
-
-    wrong_event = event_by_identity[WRONG_DISCRIMINATOR_LINK.event]
     assert (
-        wrong_event.event_field_concept_id
-        != WRONG_DISCRIMINATOR_LINK.episode_event_field_concept_id
+        valid_event.event_field_concept_id
+        == VALID_EXPLICIT_LINK.episode_event_field_concept_id
+    )
+    assert (
+        valid_event.person_id == episode_by_id[VALID_EXPLICIT_LINK.episode_id].person_id
+    )
+
+    colliding_event = event_by_identity[COLLIDING_VALID_LINK.event]
+    assert (
+        colliding_event.event_field_concept_id
+        == COLLIDING_VALID_LINK.episode_event_field_concept_id
+    )
+    assert all(
+        event.event_field_concept_id != OUT_OF_SCOPE_LINK.episode_event_field_concept_id
+        for event in COLLIDING_EVENTS
     )
 
     cross_person_event = event_by_identity[CROSS_PERSON_LINK.event]
-    assert cross_person_event.person_id != episode_by_id[CROSS_PERSON_LINK.episode_id].person_id
+    assert (
+        cross_person_event.person_id
+        != episode_by_id[CROSS_PERSON_LINK.episode_id].person_id
+    )
 
 
 def test_nearest_temporal_contract_uses_absolute_distance_and_stable_id():
@@ -174,7 +190,10 @@ def test_started_episode_preference_can_override_absolute_nearest():
 
     absolute = sorted(
         DIRECTIONAL_PREFERENCE_EPISODES,
-        key=lambda episode: (abs((episode.start_date - anchor).days), episode.episode_id),
+        key=lambda episode: (
+            abs((episode.start_date - anchor).days),
+            episode.episode_id,
+        ),
     )
     directional = sorted(
         DIRECTIONAL_PREFERENCE_EPISODES,
@@ -215,10 +234,7 @@ def test_constructs_visit_fixture_records_strict_180_day_boundary():
 
 
 def test_boundary_fixture_makes_closed_window_expectations_visible():
-    spec = TemporalRankingSpec(
-        policy=TemporalSelectionPolicy.nearest,
-        stable_id_column="event_id",
-    )
+    spec = EpisodeWindowSpec()
     episode = OVERLAPPING_EPISODES[0]
     lower = episode.start_date - timedelta(days=90)
     upper = episode.end_date
@@ -239,7 +255,9 @@ def test_observation_as_of_contract_excludes_future_and_breaks_ties_by_id():
         policy=ObservationSelectionPolicy.latest_on_or_before_anchor
     )
     candidates = [
-        row for row in REPEATED_OBSERVATIONS if row.observation_date <= OBSERVATION_ANCHOR_DATE
+        row
+        for row in REPEATED_OBSERVATIONS
+        if row.observation_date <= OBSERVATION_ANCHOR_DATE
     ]
     selected = sorted(
         candidates,
@@ -297,7 +315,9 @@ def _projection_contract_select() -> sa.Select:
 @pytest.mark.parametrize("dialect", [sqlite.dialect(), postgresql.dialect()])
 def test_required_projection_contract_compiles_without_execution(dialect):
     statement = _projection_contract_select()
-    compiled = str(statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True}))
+    compiled = str(
+        statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+    )
 
     assert tuple(statement.selected_columns.keys()) == tuple(
         str(column) for column in CANONICAL_EVENT_REQUIRED_COLUMNS

@@ -265,12 +265,15 @@ def refresh_materialized_view(
     concurrently: bool = False,
 ) -> MaterializationOutcome:
     """Refresh a materialized view after any concurrent-refresh preflight."""
-    _require_postgresql(
-        connection,
-        operation=MaterializationOperation.refresh,
-        target=materialized.target,
-    )
     if concurrently:
+        # Concurrent refresh performs catalog inspection before execution, so it
+        # needs the dialect guard before preflight. Ordinary refresh reaches the
+        # same guard once through _execute().
+        _require_postgresql(
+            connection,
+            operation=MaterializationOperation.refresh,
+            target=materialized.target,
+        )
         _require_concurrent_refresh_eligibility(connection, materialized)
     return _execute(
         connection,

@@ -6,11 +6,13 @@ from datetime import date
 
 import pytest
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.dialects import mysql, postgresql, sqlite
+from sqlalchemy.exc import UnsupportedCompilationError
 
 from omop_alchemy.toolkit.episodes.derivation import (
     ObservationSelectionPolicy,
     ObservationSelectionSpec,
+    EpisodeWindowSpec,
     TemporalRankingSpec,
     TemporalSelectionPolicy,
     TemporalSidePreference,
@@ -47,7 +49,29 @@ def test_day_delta_compiles_for_supported_dialects(dialect):
     )
 
     compiled = str(statement.compile(dialect=dialect))
-    assert "julianday" in compiled if dialect.name == "sqlite" else "CAST" in compiled
+    if dialect.name == "sqlite":
+        assert "julianday" in compiled
+    else:
+        assert "CAST" in compiled
+
+
+def test_day_delta_rejects_an_unsupported_dialect():
+    statement = sa.select(
+        signed_day_delta(sa.literal(date(2026, 1, 21)), sa.literal(date(2026, 1, 20)))
+    )
+
+    with pytest.raises(UnsupportedCompilationError):
+        statement.compile(dialect=mysql.dialect())
+
+
+def test_episode_window_rejects_an_unsupported_dialect():
+    lower, upper = episode_window_bounds(
+        sa.literal(date(2026, 1, 15)),
+        sa.literal(None, type_=sa.Date()),
+    )
+
+    with pytest.raises(UnsupportedCompilationError):
+        sa.select(lower, upper).compile(dialect=mysql.dialect())
 
 
 def test_day_delta_executes_as_signed_calendar_days(session):
@@ -103,8 +127,7 @@ def test_episode_window_bounds_are_finite_and_boundary_policy_is_explicit(sessio
     lower, upper = episode_window_bounds(
         start,
         end,
-        days_prior=90,
-        open_end_fallback_days=30,
+        window=EpisodeWindowSpec(days_prior=90, open_end_fallback_days=30),
     )
     values = session.execute(sa.select(lower, upper)).one()
 
@@ -173,9 +196,12 @@ def test_as_of_observation_selection_can_exclude_the_anchor_date(session):
         anchor_date=sa.literal(date(2026, 1, 20)),
     ).subquery()
 
-    assert session.scalar(
-        sa.select(ranked.c.observation_id).where(ranked.c.observation_rank == 1)
-    ) == 21
+    assert (
+        session.scalar(
+            sa.select(ranked.c.observation_id).where(ranked.c.observation_rank == 1)
+        )
+        == 21
+    )
 
 
 def test_as_of_observation_selection_requires_an_anchor():
@@ -186,3 +212,36 @@ def test_as_of_observation_selection_requires_an_anchor():
                 policy=ObservationSelectionPolicy.latest_on_or_before_anchor
             ),
         )
+
+
+@pytest.mark.requires_database("test_cdm_db")
+def test_postgresql_executes_boundary_and_side_preference_contracts(pg_session):
+    start = sa.literal(date(2026, 1, 15))
+    end = sa.literal(date(2026, 2, 5))
+    lower, upper = episode_window_bounds(start, end)
+    boundary = bounded_temporal_predicate(
+        sa.literal(date(2025, 10, 17)),
+        lower,
+        upper,
+    )
+    assert pg_session.scalar(sa.select(boundary)) is True
+
+    candidates = _temporal_candidates()
+    ranking = TemporalRankingSpec(
+        policy=TemporalSelectionPolicy.nearest,
+        stable_id_column="episode_id",
+        side_preference=TemporalSidePreference.on_or_before_anchor,
+    )
+    selected = pg_session.scalar(
+        sa.select(candidates.c.episode_id)
+        .order_by(
+            *temporal_order_expressions(
+                candidates.c.start_date,
+                sa.literal(date(2026, 1, 20)),
+                candidates.c.episode_id,
+                ranking,
+            )
+        )
+        .limit(1)
+    )
+    assert selected == 1001

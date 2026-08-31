@@ -85,6 +85,8 @@ The default is `DROP MATERIALIZED VIEW IF EXISTS` without `CASCADE`. Set `if_exi
 
 Database failures are raised as `MaterializationError`. Its `failure` attribute records the operation, qualified target, optional index name, reason, and original exception. The original database exception is also retained as the exception cause. Lifecycle helpers never print an error and continue within an aborted transaction.
 
+The `engine.begin()` context used in these examples rolls the transaction back automatically when an exception leaves the block. If an application manages a `Connection` transaction manually, it must roll back after a database error before attempting another statement on that connection. Catching `MaterializationError` does not make an aborted PostgreSQL transaction usable again.
+
 ## Identity, indexes, and dependencies
 
 `logical_identity` describes the complete output columns that distinguish rows in the materialized view. Construction fails if an identity or index refers to a column that the selectable does not expose. The identity is descriptive until a unique index or another database constraint enforces it, so applications should test its uniqueness against representative data before deployment.

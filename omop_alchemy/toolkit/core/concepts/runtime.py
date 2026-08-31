@@ -36,9 +36,11 @@ class RuntimeConceptSetSpec:
     side-effect free and preserves no session-bound vocabulary objects.
 
     ``require_standard`` and ``include_classification`` deliberately match
-    ``ConceptFilter`` and ``ConceptGroupSpec``. Predicate rendering delegates to
-    the existing normalised ``Concept`` flag expressions rather than defining
-    another interpretation of OMOP's single-character standardness flags.
+    ``ConceptFilter`` and ``ConceptGroupSpec`` for descendant expansion.
+    Exact IDs remain explicit inclusions even when the deployed vocabulary has
+    de-standardised one of them; configuration validation may report that drift
+    without silently changing set membership. Descendant rendering delegates to
+    the existing normalised ``Concept`` flag expressions.
 
     IDs are sorted and deduplicated only. Validity rules for configuration or a
     local vocabulary belong at those boundaries, not in this generic spec.
@@ -100,10 +102,20 @@ def _concept_set_side(
     *,
     ancestor_ids: tuple[int, ...],
     exact_ids: tuple[int, ...],
+    require_standard: bool,
+    include_classification: bool,
 ) -> sa.ColumnElement[bool]:
     clauses: list[sa.ColumnElement[bool]] = []
     if ancestor_ids:
-        clauses.append(column.in_(descendant_concept_select(ancestor_ids)))
+        clauses.append(
+            column.in_(
+                descendant_concept_select(
+                    ancestor_ids,
+                    require_standard=require_standard,
+                    include_classification=include_classification,
+                )
+            )
+        )
     if exact_ids:
         clauses.append(column.in_(exact_ids))
     return sa.or_(*clauses) if clauses else sa.false()
@@ -114,28 +126,22 @@ def runtime_concept_predicate(
     spec: RuntimeConceptSetSpec,
 ) -> sa.ColumnElement[bool]:
     """Render runtime concept membership entirely as database predicates."""
+    if not spec.has_inclusions:
+        return sa.false()
+
     included = _concept_set_side(
         column,
         ancestor_ids=spec.include_ancestor_ids,
         exact_ids=spec.include_exact_ids,
+        require_standard=spec.require_standard,
+        include_classification=spec.include_classification,
     )
-    if not spec.has_inclusions:
-        return sa.false()
 
     excluded = _concept_set_side(
         column,
         ancestor_ids=spec.exclude_ancestor_ids,
         exact_ids=spec.exclude_exact_ids,
+        require_standard=spec.require_standard,
+        include_classification=spec.include_classification,
     )
-    predicate = sa.and_(included, sa.not_(excluded))
-
-    if spec.require_standard:
-        standard_concept_ids = ConceptFilter(
-            require_standard=True,
-            include_classification=spec.include_classification,
-        ).apply(sa.select(Concept.concept_id))
-        predicate = sa.and_(
-            predicate,
-            column.in_(standard_concept_ids),
-        )
-    return predicate
+    return sa.and_(included, sa.not_(excluded))

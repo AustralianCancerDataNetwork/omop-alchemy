@@ -174,7 +174,7 @@ def test_exclusion_wins_over_an_exact_inclusion(session):
     assert session.scalars(statement).all() == []
 
 
-def test_standardness_applies_to_exact_inclusions(session):
+def test_exact_inclusions_are_not_removed_by_descendant_standardness_policy(session):
     _add_runtime_hierarchy(session)
     standard_only = RuntimeConceptSetSpec(
         include_exact_ids=(990_002,),
@@ -194,5 +194,5 @@ def test_standardness_applies_to_exact_inclusions(session):
         runtime_concept_predicate(Concept.concept_id, with_classification)
     )
 
-    assert session.scalars(standard_only_statement).all() == []
+    assert session.scalars(standard_only_statement).all() == [990_002]
     assert session.scalars(with_classification_statement).all() == [990_002]

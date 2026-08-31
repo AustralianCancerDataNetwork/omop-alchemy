@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+import textwrap
+
 import pytest
 from sqlalchemy.dialects import postgresql, sqlite
 
@@ -14,6 +18,14 @@ from omop_alchemy.cdm.model import (
     Observation,
     Procedure_Occurrence,
 )
+from omop_alchemy.cdm.model.clinical import (
+    Condition_OccurrenceView,
+    Drug_ExposureView,
+    MeasurementView,
+    ObservationView,
+    Procedure_OccurrenceView,
+)
+from omop_alchemy.cdm.base import ModifierTargetMixin
 from omop_alchemy.cdm.model.structural import Episode_EventView
 from omop_alchemy.toolkit.core.events import (
     CANONICAL_EVENT_OPTIONAL_COLUMNS,
@@ -104,8 +116,74 @@ def test_incomplete_modifier_target_has_a_typed_error():
         canonical_event_projection(Device_Exposure)
 
 
-def test_measurement_and_observation_are_registered_episode_event_targets():
+def test_all_core_event_views_are_registered_episode_event_targets():
     targets = Episode_EventView.resolved_event_target_classes()
 
-    assert targets[ModifierFieldConcepts.MEASUREMENT] is Measurement
-    assert targets[ModifierFieldConcepts.OBSERVATION] is Observation
+    expected = {
+        ModifierFieldConcepts.CONDITION_OCCURRENCE: Condition_OccurrenceView,
+        ModifierFieldConcepts.DRUG_EXPOSURE: Drug_ExposureView,
+        ModifierFieldConcepts.MEASUREMENT: MeasurementView,
+        ModifierFieldConcepts.OBSERVATION: ObservationView,
+        ModifierFieldConcepts.PROCEDURE_OCCURRENCE: Procedure_OccurrenceView,
+    }
+
+    assert {field: targets[field] for field in expected} == expected
+    assert not issubclass(Measurement, ModifierTargetMixin)
+    assert not issubclass(Observation, ModifierTargetMixin)
+
+
+def test_registered_event_views_have_distinct_field_concepts():
+    views = (
+        Condition_OccurrenceView,
+        Drug_ExposureView,
+        MeasurementView,
+        ObservationView,
+        Procedure_OccurrenceView,
+    )
+    field_concepts = tuple(view.modifier_field_concept_id() for view in views)
+
+    assert len(field_concepts) == len(set(field_concepts)) == 5
+
+
+def test_analytics_import_preserves_all_core_metadata_and_compiled_projections():
+    code = textwrap.dedent(
+        """
+        from sqlalchemy.dialects import postgresql, sqlite
+        from omop_alchemy.cdm.model import (
+            Condition_Occurrence,
+            Drug_Exposure,
+            Measurement,
+            Observation,
+            Procedure_Occurrence,
+        )
+        from omop_alchemy.toolkit.core.events import (
+            canonical_event_projection,
+            clinical_event_model_spec,
+        )
+
+        models = (
+            Condition_Occurrence,
+            Drug_Exposure,
+            Measurement,
+            Observation,
+            Procedure_Occurrence,
+        )
+
+        def snapshot():
+            return tuple(
+                (
+                    model.__name__,
+                    clinical_event_model_spec(model),
+                    str(canonical_event_projection(model).compile(dialect=sqlite.dialect())),
+                    str(canonical_event_projection(model).compile(dialect=postgresql.dialect())),
+                )
+                for model in models
+            )
+
+        before = snapshot()
+        import omop_alchemy.toolkit.analytics.oncology
+        assert snapshot() == before
+        """
+    )
+
+    subprocess.run([sys.executable, "-c", code], check=True)

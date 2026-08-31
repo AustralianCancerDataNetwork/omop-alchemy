@@ -56,7 +56,7 @@ Window retrieval must be paired with a meaningful concept filter. Without one, e
 
 ## Understand unresolved episode links
 
-`Episode_EventView.resolved_event` returns the linked ORM row when the field concept and target row can be resolved, otherwise `None`. `ResolvedEpisodeEvent` preserves that behaviour and adds a diagnostic that distinguishes three cases:
+`Episode_EventView.resolved_event` returns the linked analytical ORM row when the field concept and target row can be resolved, otherwise `None`. Measurement and Observation links resolve to `MeasurementView` and `ObservationView`; their bare table mappings remain available for lightweight ETL. `ResolvedEpisodeEvent` preserves the resolution behaviour and adds a diagnostic that distinguishes three cases:
 
 - the field concept is not a recognised `ModifierFieldConcepts` value;
 - the field concept is recognised but no ORM target class is registered for it; or
@@ -80,6 +80,14 @@ Use `ResolvedEpisodeEventMixin` on an episode view when diagnostics should be av
 ::: omop_alchemy.toolkit.episodes.handling
 
 ## Traverse an episode hierarchy
+
+`canonical_episode_projection()` selects the stable structural fields without joining vocabulary tables. Pass `include_concept_label=True` when a result intended for inspection or presentation also needs `episode_concept_name`. The vocabulary lookup is optional: an episode remains in the result with a null label when its concept is zero, absent, or unavailable in a subset vocabulary.
+
+```python
+from omop_alchemy.toolkit.episodes.derivation import canonical_episode_projection
+
+episodes = canonical_episode_projection(include_concept_label=True)
+```
 
 For a parent episode, `episode_descendants()` returns a recursive CTE containing the root at depth zero and each descendant at its distance from that root:
 
@@ -111,12 +119,17 @@ For example, the following policy honours a valid explicit link and otherwise ch
 ```python
 from omop_alchemy.toolkit.episodes.derivation import (
     EpisodeAttachmentPolicy,
+    EpisodeWindowSpec,
     TemporalRankingSpec,
     TemporalSelectionPolicy,
     TemporalSidePreference,
 )
 
 attachment = EpisodeAttachmentPolicy.explicit_first_ranked
+window = EpisodeWindowSpec(
+    days_prior=90,
+    open_end_fallback_days=365,
+)
 ranking = TemporalRankingSpec(
     policy=TemporalSelectionPolicy.nearest,
     stable_id_column="episode_id",
@@ -124,6 +137,8 @@ ranking = TemporalRankingSpec(
 )
 ```
 
-Pass those choices to `episode_attachment_queries()` with a canonical event projection. The builder validates explicit links by event ID, Field-concept discriminator, episode ID, and person; suppresses fallback only after a valid link; and returns deterministic attachments plus optional diagnostics. `episode_window_predicate()`, `temporal_order_expressions()`, and `temporal_row_number()` remain available when a query needs the individual portable SQL pieces. See [Query contracts](query-contracts.md) for the complete result shape, attachment example, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.
+Pass the policy, window, and—only for ranked fallback—ranking to `episode_attachment_queries()` with a canonical event projection. The builder validates explicit links by event ID, Field-concept discriminator, episode ID, and person; suppresses fallback only after a valid link; and returns deterministic attachments plus optional diagnostics. All-in-window fallback accepts the window but rejects a ranking because it deliberately retains every admitted episode. `episode_window_predicate()`, `temporal_order_expressions()`, and `temporal_row_number()` remain available when a query needs the individual portable SQL pieces. Date arithmetic is implemented for PostgreSQL and SQLite; compiling it for another dialect fails rather than assuming PostgreSQL syntax.
+
+See [Query contracts](query-contracts.md) for the complete result shape, attachment example, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.
 
 ::: omop_alchemy.toolkit.episodes.derivation

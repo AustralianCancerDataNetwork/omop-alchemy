@@ -75,7 +75,9 @@ attachment = EpisodeAttachmentIdentity.from_event(
 assert attachment.event == procedure
 ```
 
-Before accepting an explicit link, the query must confirm that the Field concept names the event's actual source table and that the event and episode belong to the same person. A source mismatch is a `discriminator_mismatch`; a person mismatch is a `person_mismatch`. A link to a missing source row is a `dangling_event`, but absence from an arbitrary event projection is not enough to establish that condition because the projection may intentionally be filtered. Diagnose dangling links from an unfiltered source table through the episode-event resolution APIs.
+Before accepting an explicit link, the query confirms that the event ID and Field concept identify a row in the supplied projection and that the event and episode belong to the same person. A link carrying another table's Field concept is outside that projection's scope. This is important because event IDs are unique only within their OMOP table: a Procedure Occurrence 7 link says nothing about Measurement 7, even when both numbers happen to be present.
+
+Attachment diagnostics therefore do not infer a discriminator error or missing target from non-matching rows. An arbitrary event projection may intentionally be filtered, so absence from it does not prove anything about the underlying OMOP table. `ResolvedEpisodeEvent.event_resolution_diagnostics` checks the target table named by the Field concept and reports unsupported fields or `dangling_event` when the row truly does not exist. A link that names an existing row but is clinically incorrect cannot be identified from the linkage columns alone.
 
 Once valid, an explicit link takes precedence under either explicit-first policy. Suppose Procedure Occurrence 7 is linked to episode 1002, while its date also falls inside the windows of episodes 1001 and 1002. The result is only `(procedure_occurrence, 7, 1002)`: fallback must not add episode 1001 or duplicate episode 1002.
 
@@ -94,6 +96,7 @@ Choosing between ranked and all-in-window fallback is a statement about result g
 ```python
 from omop_alchemy.toolkit.episodes.derivation import (
     EpisodeAttachmentPolicy,
+    EpisodeAttachmentDiagnostic,
     TemporalRankingSpec,
     TemporalSelectionPolicy,
     episode_attachment_queries,
@@ -112,11 +115,15 @@ attachment_queries = episode_attachment_queries(
 attachments = session.execute(attachment_queries.attachments).mappings().all()
 assert attachment_queries.diagnostics is not None
 diagnostics = session.execute(attachment_queries.diagnostics).mappings().all()
+typed_diagnostics = [
+    EpisodeAttachmentDiagnostic.from_mapping(row)
+    for row in diagnostics
+]
 ```
 
 The attachment result preserves the event projection and adds `episode_id` and `attachment_method`. Its uniqueness key is `(event_source_table, event_id, episode_id)`. A valid explicit link may legitimately connect an event to more than one episode; each relationship remains a separate attachment under that key.
 
-Diagnostics are advisory rows and do not change the attachments. They identify discriminator and person mismatches, fallback ambiguity, and events for which no valid explicit link or fallback candidate exists. A discriminator mismatch is reported relative to a particular projected event: an `Episode_Event` row with event ID 7 and the Measurement Field concept is a valid link for Measurement 7 but a rejected candidate for Procedure Occurrence 7.
+Diagnostics are advisory rows and do not change the attachments. They identify cross-person links, fallback ambiguity, and events for which no valid explicit link or fallback candidate exists. `EpisodeAttachmentDiagnostic.from_mapping()` converts a raw SQLAlchemy mapping into a typed value carrying the event identity, projected and linked Field concepts, episode, candidate count, and message.
 
 ## Rank fallback candidates
 
@@ -177,20 +184,30 @@ candidate_episodes = candidate_episodes.order_by(*ordering)
 
 ### Date boundaries
 
-Lower and upper bounds are inclusive by default and can be changed independently through `include_lower_bound` and `include_upper_bound`. For an episode starting 15 January 2026 with a 90-day prior window, 17 October 2025 lies exactly on the lower boundary and is included under the default. If the episode ends on 5 February, that date is included while 6 February is not.
+Lower and upper bounds are inclusive by default and can be changed independently through `EpisodeWindowSpec`. For an episode starting 15 January 2026 with a 90-day prior window, 17 October 2025 lies exactly on the lower boundary and is included under the default. If the episode ends on 5 February, that date is included while 6 February is not.
 
-Boundary choices belong in the ranking specification rather than being hidden in a comparison operator. This is especially important when two systems use similar-looking windows but disagree at exactly 90 or 180 days.
+Window admission and candidate ranking are separate decisions. `EpisodeWindowSpec` owns the finite interval and its open or closed boundaries. `TemporalRankingSpec` is accepted only by ranked fallback and describes how already-admitted candidates are ordered.
 
 `episode_window_predicate()` uses the same finite defaults as the in-memory episode window. It honours a recorded episode end and substitutes a bounded post-start end only when the end is missing:
 
 ```python
-from omop_alchemy.toolkit.episodes.derivation import episode_window_predicate
+from omop_alchemy.toolkit.episodes.derivation import (
+    EpisodeWindowSpec,
+    episode_window_predicate,
+)
+
+window = EpisodeWindowSpec(
+    days_prior=90,
+    open_end_fallback_days=365,
+    include_lower_bound=True,
+    include_upper_bound=True,
+)
 
 inside_episode_window = episode_window_predicate(
     events.c.event_date,
     Episode.episode_start_date,
     Episode.episode_end_date,
-    ranking=already_started_first,
+    window=window,
 )
 ```
 
@@ -270,7 +287,7 @@ AND NOT (descendants of 400 OR exact concept 901)
 
 Exclusion wins when a concept is reached from both sides. With no inclusion, the set matches nothing. IDs are sorted and deduplicated when the specification is created.
 
-`require_standard` and `include_classification` use the same vocabulary as `ConceptFilter` and `ConceptGroupSpec`; predicate rendering delegates to the existing normalised OMOP standardness expressions. The specification does not decide whether a numeric ID is valid in a particular vocabulary. Validate configuration and local-concept policy at the boundary where those rules are known.
+`require_standard` and `include_classification` apply while expanding ancestor descendants. Exact IDs are explicit configuration and are not removed if the deployed vocabulary is temporarily out of step with the configuration source, including after a concept has been de-standardised. The specification does not decide whether an exact numeric ID is present, active, standard, or classification in a particular vocabulary; validate and report those expectations at the configuration boundary without changing membership silently.
 
 `runtime_concept_predicate()` translates the specification into database-side `concept_ancestor` and `concept` predicates:
 
@@ -288,7 +305,7 @@ matching_procedures = select(Procedure_Occurrence).where(
 )
 ```
 
-Constructing the specification or predicate performs no hierarchy expansion and no database access. Descendants are resolved by the database when the surrounding statement is executed.
+Constructing the specification or predicate performs no hierarchy expansion and no database access. Descendants are resolved by the database when the surrounding statement is executed. Exact IDs are rendered as parameters, so very large externally supplied lists should be staged as rows and joined rather than pushed through a single `IN` predicate.
 
 Some applications compose positive and negative rules independently rather than collecting them into one runtime set. `descendant_concept_select()` provides the lower-level hierarchy operation for that case and returns each matching descendant once:
 

@@ -12,7 +12,9 @@ from omop_alchemy.cdm.model import Procedure_Occurrence
 from omop_alchemy.toolkit.core.events import ClinicalEventIdentity
 from omop_alchemy.toolkit.episodes.derivation import (
     AttachmentDiagnosticCode,
+    EpisodeAttachmentDiagnostic,
     EpisodeAttachmentPolicy,
+    EpisodeWindowSpec,
     TemporalRankingSpec,
     TemporalSelectionPolicy,
     TemporalSidePreference,
@@ -23,8 +25,9 @@ from tests.fixtures.query_contract_cases import (
     CROSS_PERSON_LINK,
     DIRECTIONAL_PREFERENCE_EPISODES,
     OVERLAPPING_EPISODES,
+    OUT_OF_SCOPE_LINK,
     VALID_EXPLICIT_LINK,
-    WRONG_DISCRIMINATOR_LINK,
+    COLLIDING_VALID_LINK,
     EpisodeCase,
     EventCase,
     ExplicitLinkCase,
@@ -118,7 +121,7 @@ def test_valid_explicit_links_suppress_ranked_fallback_with_colliding_ids(sessio
         episodes=_episode_source(*OVERLAPPING_EPISODES),
         episode_events=_link_source(
             VALID_EXPLICIT_LINK,
-            WRONG_DISCRIMINATOR_LINK,
+            COLLIDING_VALID_LINK,
             CROSS_PERSON_LINK,
         ),
         policy=EpisodeAttachmentPolicy.explicit_first_ranked,
@@ -151,13 +154,27 @@ def test_invalid_explicit_link_does_not_suppress_fallback(session):
     assert session.execute(sources.attachments).mappings().one()["episode_id"] == 2001
 
 
+def test_foreign_discriminator_link_is_out_of_scope_for_a_single_model(session):
+    queries = episode_attachment_queries(
+        _event_source(COLLIDING_EVENTS[0]),
+        episodes=_episode_source(*OVERLAPPING_EPISODES[:2]),
+        episode_events=_link_source(COLLIDING_VALID_LINK, VALID_EXPLICIT_LINK),
+        policy=EpisodeAttachmentPolicy.explicit_only,
+        include_diagnostics=True,
+    )
+
+    assert session.execute(queries.attachments).mappings().one()["episode_id"] == 1001
+    assert queries.diagnostics is not None
+    assert session.execute(queries.diagnostics).all() == []
+
+
 def test_explicit_only_returns_valid_links_without_fallback(session):
     queries = episode_attachment_queries(
         _event_source(*COLLIDING_EVENTS),
         episodes=_episode_source(*OVERLAPPING_EPISODES),
         episode_events=_link_source(
             VALID_EXPLICIT_LINK,
-            WRONG_DISCRIMINATOR_LINK,
+            COLLIDING_VALID_LINK,
             CROSS_PERSON_LINK,
         ),
         policy=EpisodeAttachmentPolicy.explicit_only,
@@ -220,7 +237,43 @@ def test_all_in_window_fallback_retains_each_eligible_episode(session):
     }
 
 
-def test_diagnostics_explain_rejected_and_ambiguous_rows(session):
+def test_all_in_window_uses_a_window_contract_without_ranking(session):
+    boundary_event = EventCase(
+        identity=ClinicalEventIdentity("procedure_occurrence", 8),
+        person_id=101,
+        event_date=date(2025, 10, 17),
+        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+    )
+    queries = episode_attachment_queries(
+        _event_source(boundary_event),
+        episodes=_episode_source(OVERLAPPING_EPISODES[0]),
+        episode_events=_empty_link_source(),
+        policy=EpisodeAttachmentPolicy.explicit_first_all_in_window,
+        window=EpisodeWindowSpec(include_lower_bound=False),
+    )
+
+    assert session.execute(queries.attachments).all() == []
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        EpisodeAttachmentPolicy.explicit_only,
+        EpisodeAttachmentPolicy.explicit_first_all_in_window,
+    ],
+)
+def test_non_ranked_attachment_policies_reject_ranking(policy):
+    with pytest.raises(ValueError, match="does not use a temporal ranking"):
+        episode_attachment_queries(
+            _event_source(COLLIDING_EVENTS[0]),
+            episodes=_episode_source(OVERLAPPING_EPISODES[0]),
+            episode_events=_empty_link_source(),
+            policy=policy,
+            ranking=_nearest(),
+        )
+
+
+def test_diagnostics_explain_person_mismatches_and_fallback_outcomes(session):
     ambiguous = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
         person_id=101,
@@ -238,7 +291,8 @@ def test_diagnostics_explain_rejected_and_ambiguous_rows(session):
         episodes=_episode_source(*OVERLAPPING_EPISODES),
         episode_events=_link_source(
             VALID_EXPLICIT_LINK,
-            WRONG_DISCRIMINATOR_LINK,
+            COLLIDING_VALID_LINK,
+            OUT_OF_SCOPE_LINK,
             CROSS_PERSON_LINK,
         ),
         policy=EpisodeAttachmentPolicy.explicit_first_ranked,
@@ -256,11 +310,23 @@ def test_diagnostics_explain_rejected_and_ambiguous_rows(session):
         and row["event_id"] == 8
     ]
 
-    assert str(AttachmentDiagnosticCode.discriminator_mismatch) in codes
     assert str(AttachmentDiagnosticCode.person_mismatch) in codes
     assert str(AttachmentDiagnosticCode.no_candidate_episode) in codes
     assert len(ambiguous_rows) == 1
     assert ambiguous_rows[0]["candidate_count"] == 2
+    person_rows = [
+        row
+        for row in rows
+        if row["diagnostic_code"] == str(AttachmentDiagnosticCode.person_mismatch)
+    ]
+    typed = EpisodeAttachmentDiagnostic.from_mapping(person_rows[0])
+    assert typed.code is AttachmentDiagnosticCode.person_mismatch
+    assert typed.event.event_id == 7
+    assert (
+        typed.linked_event_field_concept_id
+        == CROSS_PERSON_LINK.episode_event_field_concept_id
+    )
+    assert typed.episode_id == CROSS_PERSON_LINK.episode_id
 
 
 def test_ranked_policy_requires_a_ranking_contract():
@@ -268,7 +334,7 @@ def test_ranked_policy_requires_a_ranking_contract():
         episode_attachment_queries(
             _event_source(COLLIDING_EVENTS[0]),
             episodes=_episode_source(OVERLAPPING_EPISODES[0]),
-            episode_events=_link_source(WRONG_DISCRIMINATOR_LINK),
+            episode_events=_link_source(OUT_OF_SCOPE_LINK),
             policy=EpisodeAttachmentPolicy.explicit_first_ranked,
         )
 
@@ -280,7 +346,7 @@ def test_attachment_and_diagnostics_compile_on_supported_dialects(dialect):
         episodes=_episode_source(*OVERLAPPING_EPISODES),
         episode_events=_link_source(
             VALID_EXPLICIT_LINK,
-            WRONG_DISCRIMINATOR_LINK,
+            COLLIDING_VALID_LINK,
             CROSS_PERSON_LINK,
         ),
         policy=EpisodeAttachmentPolicy.explicit_first_ranked,
@@ -302,3 +368,44 @@ def test_attachment_builder_accepts_a_supported_event_model():
     assert "procedure_occurrence" in str(
         queries.attachments.compile(dialect=postgresql.dialect())
     )
+
+
+@pytest.mark.requires_database("test_cdm_db")
+def test_postgresql_executes_collision_and_stable_tie_contracts(pg_session):
+    unlinked = EventCase(
+        identity=ClinicalEventIdentity("procedure_occurrence", 8),
+        person_id=101,
+        event_date=date(2026, 1, 20),
+        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+    )
+    queries = episode_attachment_queries(
+        _event_source(*COLLIDING_EVENTS[:2], unlinked),
+        episodes=_episode_source(*OVERLAPPING_EPISODES[:2]),
+        episode_events=_link_source(VALID_EXPLICIT_LINK, COLLIDING_VALID_LINK),
+        policy=EpisodeAttachmentPolicy.explicit_first_ranked,
+        ranking=_nearest(),
+        include_diagnostics=True,
+    )
+
+    rows = pg_session.execute(queries.attachments).mappings().all()
+    assert {
+        (row["event_source_table"], row["event_id"], row["episode_id"]) for row in rows
+    } == {
+        ("measurement", 7, 1001),
+        ("procedure_occurrence", 7, 1002),
+        ("procedure_occurrence", 8, 1001),
+    }
+
+    single_model = episode_attachment_queries(
+        _event_source(COLLIDING_EVENTS[0]),
+        episodes=_episode_source(*OVERLAPPING_EPISODES[:2]),
+        episode_events=_link_source(COLLIDING_VALID_LINK, VALID_EXPLICIT_LINK),
+        policy=EpisodeAttachmentPolicy.explicit_only,
+        include_diagnostics=True,
+    )
+    assert (
+        pg_session.execute(single_model.attachments).mappings().one()["episode_id"]
+        == 1001
+    )
+    assert single_model.diagnostics is not None
+    assert pg_session.execute(single_model.diagnostics).all() == []

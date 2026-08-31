@@ -1,20 +1,24 @@
-
-from omop_alchemy.cdm.model.clinical import Measurement, Person, Condition_Occurrence, Drug_Exposure
-from omop_alchemy.cdm.base import ModifierFieldConcepts
+from omop_alchemy.cdm.model.clinical import (
+    Measurement,
+    Person,
+    Condition_Occurrence,
+    Drug_Exposure,
+)
 from sqlalchemy.orm import object_session
 from sqlalchemy import select
 from datetime import datetime, time, date
-from typing import Optional, Mapping, Any,  List
+from typing import Optional, Mapping, Any, List
 import json
 from dataclasses import dataclass
 from typing import Protocol, Union, Literal
 
-from omop_alchemy.toolkit.core.events import ClinicalEventRow
+from omop_alchemy.toolkit.core.events import ClinicalEventRow, clinical_event_model_spec
 
 
 TemporalKind = Literal["point", "interval"]
 
 EventValueType = Literal["numeric", "concept", "string", "none"]
+
 
 @dataclass(frozen=True)
 class EventValue:
@@ -35,13 +39,14 @@ class EventTime:
     """
     Canonical temporal representation for an event.
     """
+
     start: datetime
     end: Optional[datetime] = None
 
     @property
     def kind(self) -> TemporalKind:
         return "interval" if self.end is not None else "point"
-    
+
 
 class ClinicalEventProtocol(ClinicalEventRow, Protocol):
     """
@@ -49,6 +54,7 @@ class ClinicalEventProtocol(ClinicalEventRow, Protocol):
     """
 
     """Primary clinical concept driving the event"""
+
     @property
     def concept_id(self) -> int: ...
 
@@ -56,19 +62,21 @@ class ClinicalEventProtocol(ClinicalEventRow, Protocol):
     Canonical event time.
     Handles date vs datetime, start-only vs start+end.
     """
+
     @property
-    def event_time(self) -> EventTime:...
+    def event_time(self) -> EventTime: ...
 
     """
     Numeric or categorical values associated with the event.
     Used for feature construction (e.g. value_as_number).
     """
-    def event_value(self) -> EventValue: ...
 
+    def event_value(self) -> EventValue: ...
 
     """
     Non-feature metadata (units, source value, modifiers).
     """
+
     def event_metadata(self) -> Mapping[str, Any]: ...
 
     def to_dict(self) -> dict[str, Any]: ...
@@ -87,6 +95,30 @@ class EventMapping:
     end_datetime_field: Optional[str] = None
     value_fields: Optional[List[str]] = None
 
+    @classmethod
+    def from_model(
+        cls,
+        model: type[Any],
+        *,
+        end_date_field: str | None = None,
+        end_datetime_field: str | None = None,
+        value_fields: list[str] | None = None,
+    ) -> "EventMapping":
+        """Build shared event fields from the canonical Core metadata definition."""
+        spec = clinical_event_model_spec(model)
+        return cls(
+            event_id_field=spec.event_id_column,
+            event_field_concept_id=spec.event_field_concept_id,
+            event_source_table=spec.event_source_table,
+            concept_field=spec.event_concept_id_column,
+            start_date_field=spec.event_date_column,
+            start_datetime_field=spec.event_datetime_column,
+            end_date_field=end_date_field,
+            end_datetime_field=end_datetime_field,
+            value_fields=value_fields,
+        )
+
+
 def _as_datetime(d: date | datetime | None, *, end: bool = False) -> datetime | None:
     if d is None:
         return None
@@ -94,8 +126,8 @@ def _as_datetime(d: date | datetime | None, *, end: bool = False) -> datetime | 
         return d
     return datetime.combine(d, time.max if end else time.min)
 
+
 class ClinicalEvent:
-    
     _mapping: EventMapping
 
     @property
@@ -133,7 +165,7 @@ class ClinicalEvent:
         """Source datetime when the event table carries one, otherwise ``None``."""
         field = self._mapping.start_datetime_field
         return getattr(self, field) if field else None
-    
+
     def event_value(self) -> EventValue:
 
         fields = self._mapping.value_fields or []
@@ -143,17 +175,22 @@ class ClinicalEvent:
             if value is None:
                 continue
 
-            if 'concept' in field.lower() and 'number' not in field.lower() and isinstance(value, int) and value != 0:
+            if (
+                "concept" in field.lower()
+                and "number" not in field.lower()
+                and isinstance(value, int)
+                and value != 0
+            ):
                 return EventValue(type="concept", value=value)
-            
-            if 'number' in field.lower() and isinstance(value, (int, float)):
+
+            if "number" in field.lower() and isinstance(value, (int, float)):
                 return EventValue(type="numeric", value=value)
 
-            if 'string' in field.lower() and isinstance(value, str) and value.strip():
+            if "string" in field.lower() and isinstance(value, str) and value.strip():
                 return EventValue(type="string", value=value)
 
         return EventValue(type="none", value=None)
-    
+
     @property
     def event_time(self) -> EventTime:
         m = self._mapping
@@ -163,7 +200,9 @@ class ClinicalEvent:
         if start is None:
             start = _as_datetime(getattr(self, m.start_date_field), end=False)
         if start is None:
-            raise ValueError(f"{self.__class__.__name__}: could not resolve event start time")
+            raise ValueError(
+                f"{self.__class__.__name__}: could not resolve event start time"
+            )
         end = None
         if m.end_datetime_field:
             end = getattr(self, m.end_datetime_field)
@@ -172,10 +211,9 @@ class ClinicalEvent:
         if end is not None and end <= start:
             end = None
         return EventTime(start=start, end=end)
-    
+
     def event_metadata(self) -> Mapping[str, Any]:
         return {}
-    
 
     def __repr__(self: ClinicalEventProtocol) -> str:  # ty: ignore[invalid-method-override]
         et = self.event_time
@@ -204,7 +242,7 @@ class ClinicalEvent:
             f"time={time_str} "
             f"value={value_str}>"
         )
-    
+
     def to_dict(self: ClinicalEventProtocol) -> dict[str, Any]:
         et = self.event_time
         ev = self.event_value()
@@ -228,29 +266,17 @@ class ClinicalEvent:
         return json.dumps(self.to_dict(), ensure_ascii=False)
 
 
-
 class Condition_Event(Condition_Occurrence, ClinicalEvent):
-    _mapping = EventMapping(
-        event_id_field="condition_occurrence_id",
-        event_field_concept_id=ModifierFieldConcepts.CONDITION_OCCURRENCE,
-        event_source_table="condition_occurrence",
-        concept_field="condition_concept_id",
-        start_date_field="condition_start_date",
-        start_datetime_field="condition_start_datetime",
+    _mapping = EventMapping.from_model(
+        Condition_Occurrence,
         end_date_field="condition_end_date",
         end_datetime_field="condition_end_datetime",
     )
 
 
 class Measurement_Event(ClinicalEvent, Measurement):
-
-    _mapping = EventMapping(
-        event_id_field="measurement_id",
-        event_field_concept_id=ModifierFieldConcepts.MEASUREMENT,
-        event_source_table="measurement",
-        concept_field="measurement_concept_id",
-        start_date_field="measurement_date",
-        start_datetime_field="measurement_datetime",
+    _mapping = EventMapping.from_model(
+        Measurement,
         value_fields=[
             "value_as_concept_id",
             "value_as_number",
@@ -259,26 +285,18 @@ class Measurement_Event(ClinicalEvent, Measurement):
     )
 
     def event_metadata(self) -> dict[str, Optional[int]]:
-        metadata = {
-            "unit_concept_id": self.unit_concept_id
-        }
+        metadata = {"unit_concept_id": self.unit_concept_id}
         return metadata
 
 
 class Drug_Exposure_Event(Drug_Exposure, ClinicalEvent):
-
-    _mapping = EventMapping(
-        event_id_field="drug_exposure_id",
-        event_field_concept_id=ModifierFieldConcepts.DRUG_EXPOSURE,
-        event_source_table="drug_exposure",
-        concept_field="drug_concept_id",
-        start_date_field="drug_exposure_start_date",
-        start_datetime_field="drug_exposure_start_datetime",
+    _mapping = EventMapping.from_model(
+        Drug_Exposure,
         end_date_field="drug_exposure_end_date",
         end_datetime_field="drug_exposure_end_datetime",
         value_fields=["quantity"],
     )
-    
+
     def event_metadata(self) -> Mapping[str, Any]:
         metadata = {
             "route_source_value": self.route_source_value,
@@ -288,9 +306,7 @@ class Drug_Exposure_Event(Drug_Exposure, ClinicalEvent):
 
 
 class Person_Timeline(Person):
-
     EVENT_TABLES = (Measurement_Event, Condition_Event, Drug_Exposure_Event)
-
 
     @property
     def events(self) -> list[ClinicalEvent]:
@@ -301,20 +317,17 @@ class Person_Timeline(Person):
         events: list[ClinicalEvent] = []
 
         for EventCls in self.EVENT_TABLES:
-            stmt = (
-                select(EventCls)
-                .where(EventCls.person_id == self.person_id)
-            )
+            stmt = select(EventCls).where(EventCls.person_id == self.person_id)
             events.extend(session.execute(stmt).scalars())
 
         return events
-    
+
     @property
     def timeline(self) -> list[ClinicalEvent]:
         return sorted(
             self.events,
             key=lambda e: e.event_time.start,
         )
-    
+
     def to_json(self) -> list[str]:  # ty: ignore[invalid-method-override]
         return [e.to_json() for e in self.timeline]  # ty: ignore[invalid-argument-type]

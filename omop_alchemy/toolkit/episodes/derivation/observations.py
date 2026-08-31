@@ -6,6 +6,7 @@ from typing import Any
 
 import sqlalchemy as sa
 
+from ._ranking import deterministic_row_number
 from .contracts import ObservationSelectionPolicy, ObservationSelectionSpec
 
 
@@ -58,11 +59,14 @@ def observation_row_number(
         stable_id = columns[spec.stable_id_column]
         partition_by = tuple(columns[name] for name in spec.partition_by)
     except KeyError as error:
-        raise ValueError(f"Observation selection column is missing: {error.args[0]}") from error
-    return sa.func.row_number().over(
+        raise ValueError(
+            f"Observation selection column is missing: {error.args[0]}"
+        ) from error
+    return deterministic_row_number(
         partition_by=partition_by,
         order_by=observation_order_expressions(observation_date, stable_id, spec),
-    ).label(label)
+        label=label,
+    )
 
 
 def ranked_observation_select(

@@ -9,8 +9,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any, Mapping
 
 from omop_alchemy.toolkit.core.events import ClinicalEventIdentity
+from omop_alchemy.toolkit.episodes.handling.event_windowing import (
+    DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS,
+    DEFAULT_EPISODE_WINDOW_DAYS_PRIOR,
+)
 
 
 class EpisodeColumn(StrEnum):
@@ -26,10 +31,20 @@ class EpisodeColumn(StrEnum):
     episode_concept_id = "episode_concept_id"
     episode_object_concept_id = "episode_object_concept_id"
     episode_type_concept_id = "episode_type_concept_id"
+    episode_concept_name = "episode_concept_name"
 
 
-CANONICAL_EPISODE_COLUMNS: tuple[EpisodeColumn, ...] = tuple(EpisodeColumn)
+CANONICAL_EPISODE_COLUMNS: tuple[EpisodeColumn, ...] = tuple(
+    column
+    for column in EpisodeColumn
+    if column is not EpisodeColumn.episode_concept_name
+)
 """Columns exposed by the canonical episode projection."""
+
+CANONICAL_EPISODE_OPTIONAL_COLUMNS: tuple[EpisodeColumn, ...] = (
+    EpisodeColumn.episode_concept_name,
+)
+"""Opt-in descriptive columns exposed by an enriched episode projection."""
 
 
 @dataclass(frozen=True, order=True, slots=True)
@@ -103,9 +118,7 @@ class EpisodeAttachmentMethod(StrEnum):
 class AttachmentDiagnosticCode(StrEnum):
     """Stable categories for explaining rejected or ambiguous attachment rows."""
 
-    discriminator_mismatch = "discriminator_mismatch"
     person_mismatch = "person_mismatch"
-    dangling_event = "dangling_event"
     no_candidate_episode = "no_candidate_episode"
     ambiguous_fallback = "ambiguous_fallback"
 
@@ -131,12 +144,47 @@ CANONICAL_ATTACHMENT_DIAGNOSTIC_COLUMNS: tuple[AttachmentDiagnosticColumn, ...] 
 
 @dataclass(frozen=True, slots=True)
 class EpisodeAttachmentDiagnostic:
-    """Advisory result explaining why an attachment needs review."""
+    """Typed advisory result returned by an attachment diagnostics query."""
 
     code: AttachmentDiagnosticCode
     event: ClinicalEventIdentity
+    event_field_concept_id: int
     message: str
+    linked_event_field_concept_id: int | None = None
     episode_id: int | None = None
+    candidate_count: int | None = None
+
+    @classmethod
+    def from_mapping(cls, row: Mapping[str, Any]) -> "EpisodeAttachmentDiagnostic":
+        """Convert one SQLAlchemy mapping result without leaking column-name handling."""
+        return cls(
+            code=AttachmentDiagnosticCode(row["diagnostic_code"]),
+            event=ClinicalEventIdentity(
+                event_source_table=row["event_source_table"],
+                event_id=row["event_id"],
+            ),
+            event_field_concept_id=row["event_field_concept_id"],
+            linked_event_field_concept_id=row["linked_event_field_concept_id"],
+            episode_id=row["episode_id"],
+            candidate_count=row["candidate_count"],
+            message=row["message"],
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class EpisodeWindowSpec:
+    """Finite episode-relative window used to admit fallback event candidates."""
+
+    days_prior: int = DEFAULT_EPISODE_WINDOW_DAYS_PRIOR
+    open_end_fallback_days: int = DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS
+    include_lower_bound: bool = True
+    include_upper_bound: bool = True
+
+    def __post_init__(self) -> None:
+        if self.days_prior < 0:
+            raise ValueError("days_prior must be non-negative")
+        if self.open_end_fallback_days < 0:
+            raise ValueError("open_end_fallback_days must be non-negative")
 
 
 class TemporalSelectionPolicy(StrEnum):
@@ -162,7 +210,7 @@ class TemporalSidePreference(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class TemporalRankingSpec:
-    """Temporal ranking and boundary contract for SQL builders.
+    """Temporal ranking contract for SQL builders.
 
     A side preference, when present, is applied before the selection policy.
     ``nearest`` then means the smallest absolute distance within that tier.
@@ -173,8 +221,6 @@ class TemporalRankingSpec:
     policy: TemporalSelectionPolicy
     stable_id_column: str
     side_preference: TemporalSidePreference = TemporalSidePreference.none
-    include_lower_bound: bool = True
-    include_upper_bound: bool = True
 
     def __post_init__(self) -> None:
         if not self.stable_id_column.strip():

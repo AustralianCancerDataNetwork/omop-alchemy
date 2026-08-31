@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 
 import sqlalchemy as sa
 
 from omop_alchemy.cdm.base import ModifierTargetMixin
+from omop_alchemy.cdm.model.clinical import (
+    Condition_Occurrence,
+    Condition_OccurrenceView,
+    Drug_Exposure,
+    Drug_ExposureView,
+    Measurement,
+    MeasurementView,
+    Observation,
+    ObservationView,
+    Procedure_Occurrence,
+    Procedure_OccurrenceView,
+)
 
 from .contracts import ClinicalEventColumn
 
@@ -35,41 +46,39 @@ class ClinicalEventModelSpec:
     event_source_table: str
 
 
-def _subclasses(model: type[Any]) -> Iterator[type[Any]]:
-    for subclass in model.__subclasses__():
-        yield subclass
-        yield from _subclasses(subclass)
+_EVENT_METADATA_BY_TABLE: dict[str, type[ModifierTargetMixin]] = {
+    Condition_Occurrence.__tablename__: Condition_OccurrenceView,
+    Drug_Exposure.__tablename__: Drug_ExposureView,
+    Measurement.__tablename__: MeasurementView,
+    Observation.__tablename__: ObservationView,
+    Procedure_Occurrence.__tablename__: Procedure_OccurrenceView,
+}
+"""Stable CDM event metadata, independent of imported analytical subclasses."""
+
+
+def _has_complete_event_metadata(model: type[Any]) -> bool:
+    if not issubclass(model, ModifierTargetMixin):
+        return False
+    if any(
+        not getattr(model, name, None)
+        for name in ("__event_id_col__", "__concept_id_col__", "__start_date_col__")
+    ):
+        return False
+    try:
+        model.modifier_field_concept_id()
+    except NotImplementedError:
+        return False
+    return True
 
 
 def _metadata_candidate(model: type[Any]) -> type[ModifierTargetMixin] | None:
-    candidates = [model, *_subclasses(model)]
-    supported: list[type[ModifierTargetMixin]] = []
-    for candidate in candidates:
-        if not issubclass(candidate, ModifierTargetMixin):
-            continue
-        required_names = (
-            "__event_id_col__",
-            "__concept_id_col__",
-            "__start_date_col__",
-        )
-        if any(not getattr(candidate, name, None) for name in required_names):
-            continue
-        try:
-            candidate.modifier_field_concept_id()
-        except NotImplementedError:
-            continue
-        supported.append(candidate)
-
-    if not supported:
-        return None
-    supported.sort(
-        key=lambda candidate: (
-            candidate is not model,
-            -len(candidate.mro()),
-            f"{candidate.__module__}.{candidate.__qualname__}",
-        )
-    )
-    return supported[0]
+    # An explicitly supplied event view owns its metadata. Bare CDM tables use the
+    # registered CDM view for that table; unrelated subclasses are never discovered
+    # by walking Python's import-dependent subclass graph.
+    if _has_complete_event_metadata(model):
+        return model
+    table_name = getattr(model, "__tablename__", None)
+    return _EVENT_METADATA_BY_TABLE.get(table_name)
 
 
 def _datetime_column_name(model: type[Any], date_column_name: str) -> str | None:
@@ -83,7 +92,9 @@ def _datetime_column_name(model: type[Any], date_column_name: str) -> str | None
 def clinical_event_model_spec(model: type[Any]) -> ClinicalEventModelSpec:
     """Resolve the event metadata for an ORM model without accessing a database."""
     if not isinstance(model, type) or not hasattr(model, "__table__"):
-        raise UnsupportedClinicalEventModelError(model, "expected a mapped ORM model class")
+        raise UnsupportedClinicalEventModelError(
+            model, "expected a mapped ORM model class"
+        )
 
     metadata_model = _metadata_candidate(model)
     if metadata_model is None:
@@ -152,7 +163,9 @@ def canonical_event_projection(
     columns: list[sa.ColumnElement[Any]] = [
         model.person_id.label(str(ClinicalEventColumn.person_id)),
         getattr(model, spec.event_id_column).label(str(ClinicalEventColumn.event_id)),
-        getattr(model, spec.event_date_column).label(str(ClinicalEventColumn.event_date)),
+        getattr(model, spec.event_date_column).label(
+            str(ClinicalEventColumn.event_date)
+        ),
         event_datetime.label(str(ClinicalEventColumn.event_datetime)),
         getattr(model, spec.event_concept_id_column).label(
             str(ClinicalEventColumn.event_concept_id)
@@ -167,13 +180,17 @@ def canonical_event_projection(
     if include_values:
         columns.extend(
             (
-                _nullable_column(model, ClinicalEventColumn.value_as_number, sa.Float()),
+                _nullable_column(
+                    model, ClinicalEventColumn.value_as_number, sa.Float()
+                ),
                 _nullable_column(
                     model,
                     ClinicalEventColumn.value_as_concept_id,
                     sa.Integer(),
                 ),
-                _nullable_column(model, ClinicalEventColumn.unit_concept_id, sa.Integer()),
+                _nullable_column(
+                    model, ClinicalEventColumn.unit_concept_id, sa.Integer()
+                ),
             )
         )
     return sa.select(*columns)

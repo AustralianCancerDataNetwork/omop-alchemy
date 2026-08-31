@@ -29,9 +29,7 @@ The value associated with a clinical event — numeric, concept, string, or none
 
 ### `EventMapping`
 
-Declares which ORM fields supply the concept, start/end datetimes, and value for a
-particular CDM table. Subclasses of `ClinicalEvent` set `_mapping` to an `EventMapping`
-instance at class level.
+Declares which ORM fields supply the concept, start/end datetimes, and value for a particular CDM table. `EventMapping.from_model()` derives event identity, source, concept, and start fields from the same stable metadata used by canonical SQL projections. Timeline classes add only their end, value, and display-specific fields.
 
 ::: omop_alchemy.toolkit.core.timeline.event_timeline.EventMapping
 
@@ -94,21 +92,12 @@ with Session(engine) as session:
 
 ## Extending to new tables
 
-To add a new CDM table to the timeline, subclass both `ClinicalEvent` and the target ORM
-class and set `_mapping`:
+To add a supported CDM table to the timeline, subclass both `ClinicalEvent` and the target ORM class and build `_mapping` from its Core metadata:
 
 ```python
 from omop_alchemy.toolkit.core.timeline.event_timeline import ClinicalEvent, EventMapping
-from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.clinical import Procedure_Occurrence
 
 class Procedure_Event(Procedure_Occurrence, ClinicalEvent):
-    _mapping = EventMapping(
-        event_id_field="procedure_occurrence_id",
-        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
-        event_source_table="procedure_occurrence",
-        concept_field="procedure_concept_id",
-        start_date_field="procedure_date",
-        start_datetime_field="procedure_datetime",
-    )
+    _mapping = EventMapping.from_model(Procedure_Occurrence)
 ```

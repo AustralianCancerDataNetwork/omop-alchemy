@@ -5,21 +5,37 @@ from __future__ import annotations
 from typing import Any
 
 import sqlalchemy as sa
+import sqlalchemy.orm as so
 
 from omop_alchemy.cdm.model.structural import Episode, Episode_Event
+from omop_alchemy.cdm.model.vocabulary import Concept
 
-from .contracts import CANONICAL_EPISODE_COLUMNS
+from .contracts import CANONICAL_EPISODE_COLUMNS, EpisodeColumn
 
 
 def canonical_episode_projection(
     episode_model: type[Episode] = Episode,
+    *,
+    include_concept_label: bool = False,
 ) -> sa.Select[Any]:
-    """Project the stable fields needed to identify and interpret an episode."""
-    return sa.select(
+    """Project stable episode fields, optionally including its concept name."""
+    columns = [
         *(
             getattr(episode_model, str(column)).label(str(column))
             for column in CANONICAL_EPISODE_COLUMNS
         )
+    ]
+    if not include_concept_label:
+        return sa.select(*columns)
+
+    episode_concept = so.aliased(Concept, name="episode_projection_concept")
+    columns.append(
+        episode_concept.concept_name.label(str(EpisodeColumn.episode_concept_name))
+    )
+    return sa.select(*columns).join(
+        episode_concept,
+        episode_concept.concept_id == episode_model.episode_concept_id,
+        isouter=True,
     )
 
 
@@ -120,6 +136,4 @@ def episode_event_hierarchy_projection(
         hierarchy.c.depth.label("episode_depth"),
         event.c.event_id,
         event.c.episode_event_field_concept_id.label("event_field_concept_id"),
-    ).select_from(
-        hierarchy.join(event, event.c.episode_id == hierarchy.c.episode_id)
-    )
+    ).select_from(hierarchy.join(event, event.c.episode_id == hierarchy.c.episode_id))
