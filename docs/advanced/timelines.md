@@ -49,19 +49,22 @@ without making `core.timeline` import the higher-level episode package.
 
 ## Concrete event classes
 
-Three CDM tables are pre-wired with `EventMapping`s:
+Four CDM tables are pre-wired with `EventMapping`s:
 
 | Class | CDM table | Concept field | Value fields |
 |-------|-----------|---------------|--------------|
 | `Condition_Event` | `condition_occurrence` | `condition_concept_id` | — |
 | `Measurement_Event` | `measurement` | `measurement_concept_id` | `value_as_number`, `value_as_concept_id`, `value_as_string` |
 | `Drug_Exposure_Event` | `drug_exposure` | `drug_concept_id` | `quantity` |
+| `Observation_Event` | `observation` | `observation_concept_id` | `value_as_concept_id`, `value_as_number`, `value_as_string` |
 
 ::: omop_alchemy.toolkit.core.timeline.event_timeline.Condition_Event
 
 ::: omop_alchemy.toolkit.core.timeline.event_timeline.Measurement_Event
 
 ::: omop_alchemy.toolkit.core.timeline.event_timeline.Drug_Exposure_Event
+
+::: omop_alchemy.toolkit.core.timeline.event_timeline.Observation_Event
 
 ---
 
@@ -98,6 +101,6 @@ To add a supported CDM table to the timeline, subclass both `ClinicalEvent` and 
 from omop_alchemy.toolkit.core.timeline.event_timeline import ClinicalEvent, EventMapping
 from omop_alchemy.cdm.model.clinical import Procedure_Occurrence
 
-class Procedure_Event(Procedure_Occurrence, ClinicalEvent):
+class Procedure_Event(ClinicalEvent, Procedure_Occurrence):
     _mapping = EventMapping.from_model(Procedure_Occurrence)
 ```

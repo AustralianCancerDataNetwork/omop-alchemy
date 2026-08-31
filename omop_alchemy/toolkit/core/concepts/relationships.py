@@ -78,6 +78,8 @@ def standard_concept_mapping_select(
         name="standard_mapping_relationship",
     )
 
+    # Separate aliases preserve both sides of the mapping in the result and
+    # prevent source predicates from accidentally being applied to the target.
     statement = (
         sa.select(
             source.concept_id.label(
@@ -125,6 +127,8 @@ def standard_concept_mapping_select(
     if spec.source_concept_ids:
         statement = statement.where(source.concept_id.in_(spec.source_concept_ids))
     if spec.valid_on is not None:
+        # A historical mapping is valid only when both the relationship and
+        # the target concept existed at the requested date.
         valid_on = sa.literal(spec.valid_on)
         statement = statement.where(
             relationship.valid_start_date <= valid_on,

@@ -11,6 +11,8 @@ from omop_alchemy.cdm.base import ModifierTargetMixin
 from omop_alchemy.cdm.model.clinical import (
     Condition_Occurrence,
     Condition_OccurrenceView,
+    Device_Exposure,
+    Device_ExposureView,
     Drug_Exposure,
     Drug_ExposureView,
     Measurement,
@@ -48,15 +50,22 @@ class ClinicalEventModelSpec:
 
 _EVENT_METADATA_BY_TABLE: dict[str, type[ModifierTargetMixin]] = {
     Condition_Occurrence.__tablename__: Condition_OccurrenceView,
+    Device_Exposure.__tablename__: Device_ExposureView,
     Drug_Exposure.__tablename__: Drug_ExposureView,
     Measurement.__tablename__: MeasurementView,
     Observation.__tablename__: ObservationView,
     Procedure_Occurrence.__tablename__: Procedure_OccurrenceView,
 }
+# This registry is intentionally explicit. Projection behavior must not depend
+# on which analytical subclasses happen to have been imported or registered by
+# SQLAlchemy in the current process.
 """Stable CDM event metadata, independent of imported analytical subclasses."""
 
 
 def _has_complete_event_metadata(model: type[Any]) -> bool:
+    # A model is eligible to own metadata only when the complete modifier
+    # contract is present. Partial class attributes would produce a projection
+    # whose labels look valid while pointing at the wrong source columns.
     if not issubclass(model, ModifierTargetMixin):
         return False
     if any(
@@ -77,11 +86,16 @@ def _metadata_candidate(model: type[Any]) -> type[ModifierTargetMixin] | None:
     # by walking Python's import-dependent subclass graph.
     if _has_complete_event_metadata(model):
         return model
+    # Lean CDM models intentionally do not carry modifier metadata. Resolve
+    # their table through the configured analytical view without changing the
+    # class used to read scalar event rows.
     table_name = getattr(model, "__tablename__", None)
-    return _EVENT_METADATA_BY_TABLE.get(table_name)
+    return _EVENT_METADATA_BY_TABLE.get(str(table_name))
 
 
 def _datetime_column_name(model: type[Any], date_column_name: str) -> str | None:
+    # Datetime is optional in OMOP event tables. Derive the conventional name
+    # only when the mapped model actually exposes that column.
     if date_column_name.endswith("_date"):
         candidate = f"{date_column_name[:-5]}_datetime"
         if hasattr(model, candidate):
@@ -91,6 +105,8 @@ def _datetime_column_name(model: type[Any], date_column_name: str) -> str | None
 
 def clinical_event_model_spec(model: type[Any]) -> ClinicalEventModelSpec:
     """Resolve the event metadata for an ORM model without accessing a database."""
+    # Resolve metadata before building SQL so unsupported models fail at query
+    # construction, rather than producing a partially shaped union at runtime.
     if not isinstance(model, type) or not hasattr(model, "__table__"):
         raise UnsupportedClinicalEventModelError(
             model, "expected a mapped ORM model class"
@@ -112,6 +128,8 @@ def clinical_event_model_spec(model: type[Any]) -> ClinicalEventModelSpec:
         event_date_column,
         "person_id",
     )
+    # Metadata may come from a sibling view, so validate the physical source
+    # model separately before using the view's canonical field-concept marker.
     missing = tuple(name for name in required_columns if not hasattr(model, name))
     if missing:
         raise UnsupportedClinicalEventModelError(
@@ -144,6 +162,8 @@ def _nullable_column(
 ) -> sa.ColumnElement[Any]:
     column = getattr(model, str(name), None)
     if column is None:
+        # Unions need the same column positions across event tables. A typed
+        # NULL preserves that shape when a source has no corresponding value.
         return sa.cast(sa.null(), sql_type).label(str(name))
     return column.label(str(name))
 
@@ -155,6 +175,9 @@ def canonical_event_projection(
 ) -> sa.Select[Any]:
     """Project one supported OMOP event model to canonical event columns."""
     spec = clinical_event_model_spec(model)
+    # The output deliberately uses canonical labels rather than source names;
+    # downstream attachment, timeline, and union code should not branch on the
+    # particular OMOP event table being projected.
     event_datetime = (
         getattr(model, spec.event_datetime_column)
         if spec.event_datetime_column is not None
@@ -178,6 +201,8 @@ def canonical_event_projection(
         ),
     ]
     if include_values:
+        # Value fields are optional but occupy fixed positions when requested,
+        # allowing heterogeneous event projections to be combined with UNION ALL.
         columns.extend(
             (
                 _nullable_column(
@@ -207,6 +232,9 @@ def canonical_event_union(
         canonical_event_projection(model, include_values=include_values)
         for model in models
     ]
+    # Keep one-model calls as Select objects while combining multiple models
+    # with UNION ALL; callers can therefore use the same canonical columns in
+    # either case without deduplicating clinically distinct rows.
     if len(projections) == 1:
         return projections[0]
     return sa.union_all(*projections)

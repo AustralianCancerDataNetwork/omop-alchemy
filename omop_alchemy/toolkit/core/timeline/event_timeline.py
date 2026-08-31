@@ -3,11 +3,12 @@ from omop_alchemy.cdm.model.clinical import (
     Person,
     Condition_Occurrence,
     Drug_Exposure,
+    Observation,
 )
 from sqlalchemy.orm import object_session
 from sqlalchemy import select
 from datetime import datetime, time, date
-from typing import Optional, Mapping, Any, List
+from typing import Optional, Mapping, Any, List, cast
 import json
 from dataclasses import dataclass
 from typing import Protocol, Union, Literal
@@ -215,9 +216,13 @@ class ClinicalEvent:
     def event_metadata(self) -> Mapping[str, Any]:
         return {}
 
-    def __repr__(self: ClinicalEventProtocol) -> str:  # ty: ignore[invalid-method-override]
-        et = self.event_time
-        ev = self.event_value()
+    def __repr__(self) -> str:
+        # The ORM event subclasses provide the row fields described by the
+        # protocol; the base class keeps that relationship structural so it
+        # does not need to inherit from a mapped row class.
+        event = cast(ClinicalEventProtocol, self)
+        et = event.event_time
+        ev = event.event_value()
 
         # time string
         if et.end is None:
@@ -236,37 +241,38 @@ class ClinicalEvent:
             value_str = "∅"
 
         return (
-            f"<{self.__class__.__name__} "
-            f"person={self.person_id} "
-            f"concept={self.concept_id} "
+            f"<{event.__class__.__name__} "
+            f"person={event.person_id} "
+            f"concept={event.concept_id} "
             f"time={time_str} "
             f"value={value_str}>"
         )
 
-    def to_dict(self: ClinicalEventProtocol) -> dict[str, Any]:
-        et = self.event_time
-        ev = self.event_value()
+    def to_dict(self) -> dict[str, Any]:
+        event = cast(ClinicalEventProtocol, self)
+        et = event.event_time
+        ev = event.event_value()
 
         return {
-            "person_id": self.person_id,
-            "event_id": self.event_id,
-            "event_source_table": self.event_source_table,
-            "event_field_concept_id": self.event_field_concept_id,
-            "concept_id": self.concept_id,
+            "person_id": event.person_id,
+            "event_id": event.event_id,
+            "event_source_table": event.event_source_table,
+            "event_field_concept_id": event.event_field_concept_id,
+            "event_concept_id": event.concept_id,
             "event_start": et.start.isoformat(),
             "event_end": et.end.isoformat() if et.end else None,
             "value": {
                 "type": ev.type,
                 "value": ev.value,
             },
-            "metadata": dict(self.event_metadata() or {}),
+            "metadata": dict(event.event_metadata() or {}),
         }
 
-    def to_json(self: ClinicalEventProtocol) -> str:
+    def to_json(self) -> str:
         return json.dumps(self.to_dict(), ensure_ascii=False)
 
 
-class Condition_Event(Condition_Occurrence, ClinicalEvent):
+class Condition_Event(ClinicalEvent, Condition_Occurrence):
     _mapping = EventMapping.from_model(
         Condition_Occurrence,
         end_date_field="condition_end_date",
@@ -289,7 +295,7 @@ class Measurement_Event(ClinicalEvent, Measurement):
         return metadata
 
 
-class Drug_Exposure_Event(Drug_Exposure, ClinicalEvent):
+class Drug_Exposure_Event(ClinicalEvent, Drug_Exposure):
     _mapping = EventMapping.from_model(
         Drug_Exposure,
         end_date_field="drug_exposure_end_date",
@@ -305,8 +311,20 @@ class Drug_Exposure_Event(Drug_Exposure, ClinicalEvent):
         return metadata
 
 
+class Observation_Event(ClinicalEvent, Observation):
+    _mapping = EventMapping.from_model(
+        Observation,
+        value_fields=["value_as_concept_id", "value_as_number", "value_as_string"],
+    )
+
+
 class Person_Timeline(Person):
-    EVENT_TABLES = (Measurement_Event, Condition_Event, Drug_Exposure_Event)
+    EVENT_TABLES = (
+        Measurement_Event,
+        Condition_Event,
+        Drug_Exposure_Event,
+        Observation_Event,
+    )
 
     @property
     def events(self) -> list[ClinicalEvent]:
@@ -330,4 +348,4 @@ class Person_Timeline(Person):
         )
 
     def to_json(self) -> list[str]:  # ty: ignore[invalid-method-override]
-        return [e.to_json() for e in self.timeline]  # ty: ignore[invalid-argument-type]
+        return [e.to_json() for e in self.timeline]

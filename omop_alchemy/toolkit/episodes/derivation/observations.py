@@ -18,8 +18,13 @@ def observation_eligibility_predicate(
 ) -> sa.ColumnElement[bool]:
     """Return the date predicate required by an observation selection policy."""
     if not spec.requires_anchor:
+        # Unanchored policies intentionally keep every source row eligible;
+        # callers can reuse the same ranking builder for episode and person
+        # level observations without inventing a sentinel anchor date.
         return sa.true()
     if anchor_date is None:
+        # Missing anchor input is a configuration error, not an instruction to
+        # widen the selection and risk returning an unrelated observation.
         raise ValueError(f"{spec.policy} requires anchor_date")
     return (
         observation_date <= anchor_date
@@ -53,7 +58,11 @@ def observation_row_number(
     spec: ObservationSelectionSpec,
     label: str = "observation_rank",
 ) -> sa.ColumnElement[int]:
-    """Return a deterministic row number using the declared observation grain."""
+    """Return a deterministic row number using the declared observation grain.
+
+    The caller supplies column names rather than mapped attributes so this
+    helper works against raw OMOP sources and projected/aliased selects alike.
+    """
     try:
         observation_date = columns[observation_date_column]
         stable_id = columns[spec.stable_id_column]
@@ -77,7 +86,13 @@ def ranked_observation_select(
     anchor_date: sa.ColumnElement[Any] | None = None,
     rank_label: str = "observation_rank",
 ) -> sa.Select[Any]:
-    """Select source columns with deterministic observation rank and eligibility."""
+    """Select source columns with deterministic rank and eligibility.
+
+    Eligibility is applied in the same select that computes the window rank,
+    keeping out-of-window rows from competing for rank one. The source's
+    existing columns are preserved and the rank is appended for downstream
+    projection or filtering.
+    """
     columns = source.c
     try:
         observation_date = columns[observation_date_column]

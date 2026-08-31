@@ -85,6 +85,8 @@ def descendant_concept_select(
         .distinct()
     )
     if not require_standard:
+        # Exact descendant expansion can remain a cheap ancestor-table query;
+        # join the concept table only when OMOP standardness is requested.
         return statement
 
     statement = statement.join(
@@ -117,6 +119,8 @@ def _concept_set_side(
             )
         )
     if exact_ids:
+        # Exact IDs are explicit configuration and intentionally bypass the
+        # descendant standardness filter; validation belongs at the config edge.
         clauses.append(column.in_(exact_ids))
     return sa.or_(*clauses) if clauses else sa.false()
 
@@ -144,4 +148,6 @@ def runtime_concept_predicate(
         require_standard=spec.require_standard,
         include_classification=spec.include_classification,
     )
+    # Exclusion is evaluated after inclusion so an explicit exclusion always
+    # wins over a descendant or exact inclusion.
     return sa.and_(included, sa.not_(excluded))

@@ -20,6 +20,8 @@ from .contracts import (
 
 
 class _SignedDayDelta(FunctionElement[int]):
+    """Dialect-specific whole-calendar-day difference used by ranking rules."""
+
     type = sa.Integer()
     inherit_cache = True
 
@@ -30,6 +32,9 @@ def _compile_signed_day_delta(
     compiler: SQLCompiler,
     **kwargs: Any,
 ) -> str:
+    # PostgreSQL dates subtract to an integer; casting first makes timestamp
+    # inputs obey the toolkit's calendar-day contract instead of elapsed-time
+    # semantics.
     candidate, anchor = list(element.clauses)
     return (
         f"(CAST({compiler.process(candidate, **kwargs)} AS DATE) - "
@@ -43,6 +48,8 @@ def _compile_sqlite_signed_day_delta(
     compiler: SQLCompiler,
     **kwargs: Any,
 ) -> str:
+    # SQLite has no date subtraction operator. Truncate both operands before
+    # julianday arithmetic so this stays equivalent to PostgreSQL for dates.
     candidate, anchor = list(element.clauses)
     return (
         "CAST((julianday(date("
@@ -52,6 +59,8 @@ def _compile_sqlite_signed_day_delta(
 
 
 class _ShiftDate(FunctionElement[Any]):
+    """Dialect-specific date shift used to construct episode window bounds."""
+
     type = sa.Date()
     inherit_cache = True
 
@@ -62,6 +71,8 @@ def _compile_shift_date(
     compiler: SQLCompiler,
     **kwargs: Any,
 ) -> str:
+    # Keep the date cast on the value and integer cast on the offset explicit;
+    # this avoids PostgreSQL choosing timestamp/interval semantics implicitly.
     value, days = list(element.clauses)
     return (
         f"(CAST({compiler.process(value, **kwargs)} AS DATE) + "
@@ -75,6 +86,9 @@ def _compile_sqlite_shift_date(
     compiler: SQLCompiler,
     **kwargs: Any,
 ) -> str:
+    # SQLite's portable equivalent is its date modifier syntax. The printf
+    # form keeps the offset bound as a SQL expression rather than interpolating
+    # it into generated SQL.
     value, days = list(element.clauses)
     return (
         f"date({compiler.process(value, **kwargs)}, "
@@ -127,7 +141,12 @@ def episode_window_bounds(
     *,
     window: EpisodeWindowSpec = EpisodeWindowSpec(),
 ) -> tuple[sa.ColumnElement[Any], sa.ColumnElement[Any]]:
-    """Build the bounded SQL interval used for date-admitted episode facts."""
+    """Build the bounded SQL interval used for date-admitted episode facts.
+
+    Closed episodes use their recorded end date. Open episodes use the
+    configured fallback horizon so an absent end date cannot silently produce
+    an unbounded join.
+    """
     lower = shift_date(episode_start_date, days=-window.days_prior)
     upper = sa.func.coalesce(
         episode_end_date,
@@ -166,6 +185,8 @@ def temporal_order_expressions(
 ) -> tuple[sa.ColumnElement[Any], ...]:
     """Build deterministic ordering for a temporal ranking contract."""
     order: list[sa.ColumnElement[Any]] = []
+    # Side preference is a priority tier, not an additional date filter: the
+    # ranking contract may still select the nearest row on the other side.
     if ranking.side_preference is TemporalSidePreference.on_or_before_anchor:
         order.append(sa.case((candidate_date <= anchor_date, 0), else_=1).asc())
     elif ranking.side_preference is TemporalSidePreference.on_or_after_anchor:
@@ -179,6 +200,7 @@ def temporal_order_expressions(
         order.append(candidate_date.desc())
     else:  # pragma: no cover - StrEnum construction prevents unknown policies
         raise ValueError(f"Unsupported temporal selection policy: {ranking.policy}")
+    # A stable source ID makes equal-date/equal-distance candidates reproducible.
     order.append(stable_id.asc())
     return tuple(order)
 

@@ -14,6 +14,7 @@ from .contracts import MaterializedViewIndex, MaterializedViewTarget
 
 
 def _quote_identifier(preparer: IdentifierPreparer, value: str) -> str:
+    """Quote one user-declared identifier with the active dialect rules."""
     return preparer.quote_identifier(value)
 
 
@@ -21,6 +22,7 @@ def _qualified_target(
     preparer: IdentifierPreparer,
     target: MaterializedViewTarget,
 ) -> str:
+    """Render schema and object name without allowing identifier ambiguity."""
     return ".".join(
         (
             _quote_identifier(preparer, target.schema),
@@ -112,6 +114,8 @@ def _compile_create_materialized_view(
     **_: Any,
 ) -> str:
     target = _qualified_target(compiler.preparer, element.view_target)
+    # DDL must be executable as one standalone statement, so selectable
+    # literals are rendered into the CREATE text rather than bound parameters.
     selectable = compiler.sql_compiler.process(
         element.selectable,
         literal_binds=True,
@@ -151,6 +155,9 @@ def _compile_create_materialized_view_index(
     **_: Any,
 ) -> str:
     target = _qualified_target(compiler.preparer, element.view_target)
+    # MaterializedViewIndex intentionally accepts simple column names only;
+    # quoting each declared name keeps reserved or mixed-case columns safe and
+    # avoids treating arbitrary SQL fragments as index expressions.
     index_name = _quote_identifier(compiler.preparer, element.index.name)
     columns = ", ".join(
         _quote_identifier(compiler.preparer, column) for column in element.index.columns

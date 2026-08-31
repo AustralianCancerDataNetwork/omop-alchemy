@@ -71,6 +71,9 @@ class ConcurrentRefreshNotEligibleError(MaterializationError):
 
 
 _ELIGIBLE_UNIQUE_INDEX_SQL = sa.text(
+    # Concurrent refresh requires a valid, ready, unconditional unique index.
+    # The catalog query deliberately excludes partial and expression indexes;
+    # the declaration model supports the simple-column contract we can verify.
     """
     SELECT EXISTS (
         SELECT 1
@@ -101,6 +104,9 @@ def _require_postgresql(
     operation: MaterializationOperation,
     target: MaterializedViewTarget,
 ) -> None:
+    # These lifecycle statements are PostgreSQL-specific. Failing before
+    # execution keeps SQLite test connections from appearing to support a
+    # weaker, semantically different implementation.
     if connection.dialect.name == "postgresql":
         return
     failure = MaterializationFailure(
@@ -122,6 +128,9 @@ def _execute(
     target: MaterializedViewTarget,
     index_name: str | None = None,
 ) -> MaterializationOutcome:
+    # Centralizing execution preserves the original DB exception in
+    # MaterializationFailure.cause while exposing stable operation/target
+    # context to callers.
     _require_postgresql(connection, operation=operation, target=target)
     try:
         connection.execute(statement)
@@ -211,6 +220,8 @@ def materialized_view_has_eligible_unique_index(
     _require_postgresql(connection, operation=operation, target=target)
     index_names = tuple(index.name for index in materialized.indexes if index.unique)
     if not index_names:
+        # Avoid a catalog query when the declaration already proves that
+        # concurrent refresh cannot be eligible.
         return False
     try:
         return bool(
@@ -238,6 +249,8 @@ def _require_concurrent_refresh_eligibility(
     materialized: MaterializedSelectable,
 ) -> None:
     if not any(index.unique for index in materialized.indexes):
+        # This fast path gives a declaration-level error and avoids asking the
+        # database to inspect a target that cannot satisfy the contract.
         raise ConcurrentRefreshNotEligibleError(
             MaterializationFailure(
                 operation=MaterializationOperation.refresh,

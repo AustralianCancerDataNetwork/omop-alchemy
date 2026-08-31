@@ -7,7 +7,7 @@ from datetime import date
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
 
-from omop_alchemy.cdm.model.structural import Episode
+from omop_alchemy.cdm.model.structural import Episode, Episode_Event
 from omop_alchemy.toolkit.episodes.derivation import (
     CANONICAL_EPISODE_COLUMNS,
     CANONICAL_EPISODE_OPTIONAL_COLUMNS,
@@ -61,6 +61,67 @@ def test_canonical_episode_projection_can_include_the_episode_concept_name(sessi
     )
     labels = {row["episode_id"]: row["episode_concept_name"] for row in labelled_rows}
     assert labels == {100: "Disease Episode", 102: None}
+
+
+def test_hierarchy_projections_accept_a_filtered_projected_episode_source(session):
+    source = canonical_episode_projection().where(Episode.person_id == 1)
+
+    direct_rows = (
+        session.execute(direct_episode_relationship_projection(episode_model=source))
+        .mappings()
+        .all()
+    )
+    assert direct_rows == [
+        {
+            "root_episode_id": 100,
+            "episode_id": 101,
+            "episode_parent_id": 100,
+            "person_id": 1,
+            "depth": 1,
+        }
+    ]
+
+    hierarchy = episode_descendants(
+        root_episode_id=100,
+        episode_model=source,
+    )
+    rows = session.execute(
+        sa.select(hierarchy.c.episode_id, hierarchy.c.depth).order_by(
+            hierarchy.c.depth,
+            hierarchy.c.episode_id,
+        )
+    ).all()
+    assert rows == [(100, 0), (101, 1)]
+
+
+def test_episode_event_projection_accepts_projected_episode_and_event_sources(
+    session,
+):
+    episode_source = canonical_episode_projection().where(Episode.person_id == 1)
+    event_source = sa.select(Episode_Event.__table__).subquery("episode_events")
+
+    rows = (
+        session.execute(
+            episode_event_hierarchy_projection(
+                root_episode_id=100,
+                episode_model=episode_source,
+                episode_event_model=event_source,
+            )
+        )
+        .mappings()
+        .all()
+    )
+
+    assert rows == [
+        {
+            "root_episode_id": 100,
+            "linked_episode_id": 101,
+            "person_id": 1,
+            "episode_depth": 1,
+            "event_id": 1,
+            "event_field_concept_id": 1147127,
+        }
+    ]
 
 
 def test_episode_concept_label_projection_compiles_on_supported_dialects():

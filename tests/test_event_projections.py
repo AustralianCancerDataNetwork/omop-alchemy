@@ -16,10 +16,12 @@ from omop_alchemy.cdm.model import (
     Drug_Exposure,
     Measurement,
     Observation,
+    Person,
     Procedure_Occurrence,
 )
 from omop_alchemy.cdm.model.clinical import (
     Condition_OccurrenceView,
+    Device_ExposureView,
     Drug_ExposureView,
     MeasurementView,
     ObservationView,
@@ -44,6 +46,11 @@ from omop_alchemy.toolkit.core.events import (
             Condition_Occurrence,
             "condition_occurrence",
             ModifierFieldConcepts.CONDITION_OCCURRENCE,
+        ),
+        (
+            Device_Exposure,
+            "device_exposure",
+            ModifierFieldConcepts.DEVICE_EXPOSURE,
         ),
         (Drug_Exposure, "drug_exposure", ModifierFieldConcepts.DRUG_EXPOSURE),
         (Measurement, "measurement", ModifierFieldConcepts.MEASUREMENT),
@@ -113,7 +120,7 @@ def test_incomplete_modifier_target_has_a_typed_error():
         UnsupportedClinicalEventModelError,
         match="no complete ModifierTargetMixin metadata",
     ):
-        canonical_event_projection(Device_Exposure)
+        canonical_event_projection(Person)
 
 
 def test_all_core_event_views_are_registered_episode_event_targets():
@@ -121,6 +128,7 @@ def test_all_core_event_views_are_registered_episode_event_targets():
 
     expected = {
         ModifierFieldConcepts.CONDITION_OCCURRENCE: Condition_OccurrenceView,
+        ModifierFieldConcepts.DEVICE_EXPOSURE: Device_ExposureView,
         ModifierFieldConcepts.DRUG_EXPOSURE: Drug_ExposureView,
         ModifierFieldConcepts.MEASUREMENT: MeasurementView,
         ModifierFieldConcepts.OBSERVATION: ObservationView,
@@ -128,13 +136,23 @@ def test_all_core_event_views_are_registered_episode_event_targets():
     }
 
     assert {field: targets[field] for field in expected} == expected
-    assert not issubclass(Measurement, ModifierTargetMixin)
-    assert not issubclass(Observation, ModifierTargetMixin)
+    assert all(
+        not issubclass(model, ModifierTargetMixin)
+        for model in (
+            Condition_Occurrence,
+            Device_Exposure,
+            Drug_Exposure,
+            Measurement,
+            Observation,
+            Procedure_Occurrence,
+        )
+    )
 
 
 def test_registered_event_views_have_distinct_field_concepts():
     views = (
         Condition_OccurrenceView,
+        Device_ExposureView,
         Drug_ExposureView,
         MeasurementView,
         ObservationView,
@@ -142,7 +160,7 @@ def test_registered_event_views_have_distinct_field_concepts():
     )
     field_concepts = tuple(view.modifier_field_concept_id() for view in views)
 
-    assert len(field_concepts) == len(set(field_concepts)) == 5
+    assert len(field_concepts) == len(set(field_concepts)) == 6
 
 
 def test_analytics_import_preserves_all_core_metadata_and_compiled_projections():
@@ -151,6 +169,7 @@ def test_analytics_import_preserves_all_core_metadata_and_compiled_projections()
         from sqlalchemy.dialects import postgresql, sqlite
         from omop_alchemy.cdm.model import (
             Condition_Occurrence,
+            Device_Exposure,
             Drug_Exposure,
             Measurement,
             Observation,
@@ -163,6 +182,7 @@ def test_analytics_import_preserves_all_core_metadata_and_compiled_projections()
 
         models = (
             Condition_Occurrence,
+            Device_Exposure,
             Drug_Exposure,
             Measurement,
             Observation,

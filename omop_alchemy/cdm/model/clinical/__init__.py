@@ -12,7 +12,7 @@ from .procedure_occurrence import (
     Procedure_OccurrenceContext,
     Procedure_OccurrenceView,
 )
-from .device_exposure import Device_Exposure
+from .device_exposure import Device_Exposure, Device_ExposureContext, Device_ExposureView
 from .death import Death
 from .specimen import Specimen
 
@@ -34,6 +34,8 @@ __all__ = [
     "Procedure_OccurrenceContext",
     "Procedure_OccurrenceView",
     "Device_Exposure",
+    "Device_ExposureContext",
+    "Device_ExposureView",
     "Death",
     "Specimen",
     "PersonView",

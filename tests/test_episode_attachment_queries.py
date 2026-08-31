@@ -255,6 +255,25 @@ def test_all_in_window_uses_a_window_contract_without_ranking(session):
     assert session.execute(queries.attachments).all() == []
 
 
+def test_all_in_window_diagnostics_do_not_report_intended_fanout(session):
+    event = EventCase(
+        identity=ClinicalEventIdentity("procedure_occurrence", 8),
+        person_id=101,
+        event_date=date(2026, 1, 20),
+        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+    )
+    queries = episode_attachment_queries(
+        _event_source(event),
+        episodes=_episode_source(*OVERLAPPING_EPISODES[:2]),
+        episode_events=_empty_link_source(),
+        policy=EpisodeAttachmentPolicy.explicit_first_all_in_window,
+        include_diagnostics=True,
+    )
+
+    assert queries.diagnostics is not None
+    assert session.execute(queries.diagnostics).mappings().all() == []
+
+
 @pytest.mark.parametrize(
     "policy",
     [
@@ -327,6 +346,23 @@ def test_diagnostics_explain_person_mismatches_and_fallback_outcomes(session):
         == CROSS_PERSON_LINK.episode_event_field_concept_id
     )
     assert typed.episode_id == CROSS_PERSON_LINK.episode_id
+
+
+def test_diagnostics_and_fallback_share_the_explicit_event_key_cte():
+    queries = episode_attachment_queries(
+        _event_source(COLLIDING_EVENTS[0]),
+        episodes=_episode_source(*OVERLAPPING_EPISODES),
+        episode_events=_empty_link_source(),
+        policy=EpisodeAttachmentPolicy.explicit_first_ranked,
+        ranking=_nearest(),
+        include_diagnostics=True,
+    )
+
+    assert queries.diagnostics is not None
+    compiled = str(queries.diagnostics.compile(dialect=postgresql.dialect()))
+
+    assert "valid_explicit_event_keys_for_fallback" not in compiled
+    assert compiled.count("valid_explicit_event_keys AS") == 1
 
 
 def test_ranked_policy_requires_a_ranking_contract():

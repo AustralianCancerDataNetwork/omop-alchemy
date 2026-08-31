@@ -65,6 +65,7 @@ def normalize_weight_readings(
     readings: list[MeasurementReading],
     rules: BodyMetricRules,
 ) -> list[MeasurementReading]:
+    """Convert supported weight units to kilograms and drop invalid values."""
     normalized: list[MeasurementReading] = []
     for reading in readings:
         kg = rules.normalize_weight_kg(reading.value, reading.unit_concept_id)
@@ -78,6 +79,7 @@ def normalize_height_readings(
     readings: list[MeasurementReading],
     rules: BodyMetricRules,
 ) -> list[MeasurementReading]:
+    """Convert supported height units to centimetres and drop invalid values."""
     normalized: list[MeasurementReading] = []
     for reading in readings:
         cm = rules.normalize_height_cm(reading.value, reading.unit_concept_id)
@@ -125,15 +127,20 @@ class WeightTrajectoryMixin:
     @cached_property
     def weight_readings(self) -> list[MeasurementReading]:
         """Weight readings normalized to kg."""
-        return normalize_weight_readings(self._raw_weight_series, self.body_metric_rules())
+        return normalize_weight_readings(
+            self._raw_weight_series, self.body_metric_rules()
+        )
 
     @cached_property
     def height_readings_cm(self) -> list[MeasurementReading]:
         """Height readings normalized to cm and resolved without an episode date window."""
-        return normalize_height_readings(self._raw_height_series, self.body_metric_rules())
+        return normalize_height_readings(
+            self._raw_height_series, self.body_metric_rules()
+        )
 
     @property
     def height_m(self) -> Optional[float]:
+        """Return the first normalized height as metres, when available."""
         readings = self.height_readings_cm
         if not readings or readings[0].value is None:
             return None
@@ -141,14 +148,17 @@ class WeightTrajectoryMixin:
 
     @property
     def baseline_weight(self) -> Optional[MeasurementReading]:
+        """Return the earliest normalized weight reading in the series."""
         return self.weight_readings[0] if self.weight_readings else None
 
     @property
     def latest_weight(self) -> Optional[MeasurementReading]:
+        """Return the latest normalized weight reading in the series."""
         return self.weight_readings[-1] if self.weight_readings else None
 
     @property
     def baseline_bmi(self) -> Optional[float]:
+        """Calculate BMI from the baseline weight and first available height."""
         baseline = self.baseline_weight
         return self.body_metric_rules().bmi(
             baseline.value if baseline else None,
@@ -157,6 +167,7 @@ class WeightTrajectoryMixin:
 
     @property
     def baseline_bsa_mosteller_m2(self) -> Optional[float]:
+        """Calculate Mosteller BSA from baseline weight and first height."""
         baseline = self.baseline_weight
         height = self.height_readings_cm[0] if self.height_readings_cm else None
         return self.body_metric_rules().bsa_mosteller_m2(
@@ -168,6 +179,7 @@ class WeightTrajectoryMixin:
         self,
         as_of: Optional[MeasurementReading] = None,
     ) -> WeightChange:
+        """Compare a target reading with baseline, preserving non-evaluability."""
         baseline = self.baseline_weight
         target = as_of or self.latest_weight
         if (
@@ -183,6 +195,7 @@ class WeightTrajectoryMixin:
         return WeightChange(pct_change=pct, evaluable=True, reference=baseline)
 
     def pct_change_over(self, days: int) -> WeightChange:
+        """Compare latest weight with the earliest reading in the time window."""
         readings = self.weight_readings
         if len(readings) < 2:
             return WeightChange.not_evaluable()
@@ -197,10 +210,15 @@ class WeightTrajectoryMixin:
             or earliest_in_window.measurement_id == latest.measurement_id
         ):
             return WeightChange.not_evaluable()
-        pct = 100.0 * (latest.value - earliest_in_window.value) / earliest_in_window.value
-        return WeightChange(pct_change=pct, evaluable=True, reference=earliest_in_window)
+        pct = (
+            100.0 * (latest.value - earliest_in_window.value) / earliest_in_window.value
+        )
+        return WeightChange(
+            pct_change=pct, evaluable=True, reference=earliest_in_window
+        )
 
     def pct_change_trajectory(self) -> list[WeightTrajectoryPoint]:
+        """Return each valid reading's percentage change from baseline."""
         baseline = self.baseline_weight
         if baseline is None or baseline.value is None or baseline.value <= 0:
             return []
@@ -225,8 +243,10 @@ class WeightTrajectoryMixin:
         threshold_pct: float = 5.0,
         min_consecutive: int = 2,
     ) -> Optional[bool]:
+        """Test whether recent readings sustain the requested loss threshold."""
         baseline = self.baseline_weight
-        # the baseline is the first reading, so it cannot count towards a loss against itself
+        # Baseline is the first reading, so it cannot count toward a loss
+        # against itself; insufficient post-baseline data remains unknown.
         post_baseline = self.weight_readings[1:]
         if (
             baseline is None
@@ -245,6 +265,7 @@ class WeightTrajectoryMixin:
         )
 
     def weight_trajectory_summary(self) -> WeightTrajectorySummary:
+        """Return the stable summary contract used by analytics consumers."""
         baseline = self.baseline_weight
         latest = self.latest_weight
         change_from_baseline = self.pct_change_from_baseline()

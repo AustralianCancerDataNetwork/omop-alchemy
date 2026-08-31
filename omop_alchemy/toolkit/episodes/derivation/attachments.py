@@ -127,6 +127,7 @@ def _attachment_diagnostics(
     episodes: FromClause,
     episode_events: FromClause,
     valid_explicit: FromClause,
+    valid_explicit_event_keys: FromClause,
     fallback_candidates: FromClause | None,
     *,
     policy: EpisodeAttachmentPolicy,
@@ -190,16 +191,6 @@ def _attachment_diagnostics(
         .where(events.c[person_id] != episodes.c[person_id])
     )
 
-    # These keys distinguish events that already have authoritative links from
-    # those whose absence or fallback outcome still needs explanation.
-    valid_keys = (
-        sa.select(
-            valid_explicit.c[source_table],
-            valid_explicit.c[event_id],
-        )
-        .distinct()
-        .cte("valid_explicit_event_keys")
-    )
     diagnostic_branches: list[sa.Select[Any]] = [person_mismatches]
 
     if fallback_candidates is not None:
@@ -232,13 +223,14 @@ def _attachment_diagnostics(
             .where(fallback_candidates.c[_FALLBACK_CANDIDATE_COUNT] > 1)
             .distinct()
         )
-        diagnostic_branches.append(ambiguous)
+        if not policy.permits_fallback_fanout:
+            diagnostic_branches.append(ambiguous)
     else:
         candidate_keys = None
 
     # The final diagnostic is event-relative: no valid explicit relationship
     # and, where fallback is enabled, no episode admitted by the window.
-    no_candidate_conditions = [_not_exists_for_event(events, valid_keys)]
+    no_candidate_conditions = [_not_exists_for_event(events, valid_explicit_event_keys)]
     if candidate_keys is not None:
         no_candidate_conditions.append(_not_exists_for_event(events, candidate_keys))
     no_candidate_message = (
@@ -326,8 +318,8 @@ def episode_attachment_queries(
     episode_start = str(EpisodeColumn.episode_start_date)
     episode_end = str(EpisodeColumn.episode_end_date)
 
-    # stage 1 of episode resolution accepts an explicit link only when ID, Field 
-    # discriminator, episode, and person agree. This is the sole point where an 
+    # stage 1 of episode resolution accepts an explicit link only when ID, Field
+    # discriminator, episode, and person agree. This is the sole point where an
     # explicit link becomes authoritative enough to suppress date-based fallback.
     valid_explicit = (
         sa.select(
@@ -355,23 +347,28 @@ def episode_attachment_queries(
         .cte("valid_explicit_attachments")
     )
 
+    # These keys distinguish events that already have authoritative links from
+    # those whose absence or fallback outcome still needs explanation. Build the
+    # relation once so both fallback suppression and diagnostics reference the
+    # same CTE rather than constructing duplicate DISTINCT projections.
+    valid_explicit_event_keys = (
+        sa.select(
+            valid_explicit.c[source_table],
+            valid_explicit.c[event_id],
+        )
+        .distinct()
+        .cte("valid_explicit_event_keys")
+    )
+
     attachment_names = (*event_names, ATTACHMENT_EPISODE_ID, ATTACHMENT_METHOD)
     explicit_select = sa.select(*(valid_explicit.c[name] for name in attachment_names))
     fallback_candidates: FromClause | None = None
     attachment_branches: list[sa.Select[Any]] = [explicit_select]
 
     if policy.uses_fallback:
-        # episode resolution stage 2 records the complete table-scoped identity 
-        # of every valid explicit event. The anti-existence check below must use 
+        # episode resolution stage 2 records the complete table-scoped identity
+        # of every valid explicit event. The anti-existence check below must use
         # both columns: event_id alone is never a cross-table identity in OMOP.
-        valid_keys = (
-            sa.select(
-                valid_explicit.c[source_table],
-                valid_explicit.c[event_id],
-            )
-            .distinct()
-            .cte("valid_explicit_event_keys_for_fallback")
-        )
         fallback_columns: list[sa.ColumnElement[Any]] = [
             *(event_source.c[name] for name in event_names),
             episode_source.c[episode_id].label(ATTACHMENT_EPISODE_ID),
@@ -387,8 +384,8 @@ def episode_attachment_queries(
                     "episodes is missing temporal stable ID column: "
                     f"{ranking.stable_id_column}"
                 )
-            # episode resolution stage 3 ranks only after window admission. A side 
-            # preference is a deliberate clinical policy tier; the stable episode 
+            # episode resolution stage 3 ranks only after window admission. A side
+            # preference is a deliberate clinical policy tier; the stable episode
             # ID prevents tied dates from depending on database row order.
             fallback_columns.append(
                 temporal_row_number(
@@ -424,7 +421,7 @@ def episode_attachment_queries(
                     ),
                 )
             )
-            .where(_not_exists_for_event(event_source, valid_keys))
+            .where(_not_exists_for_event(event_source, valid_explicit_event_keys))
             .cte("fallback_attachment_candidates")
         )
         selected_fallback = sa.select(
@@ -477,6 +474,7 @@ def episode_attachment_queries(
             episode_source,
             link_source,
             valid_explicit,
+            valid_explicit_event_keys,
             fallback_candidates,
             policy=policy,
         )

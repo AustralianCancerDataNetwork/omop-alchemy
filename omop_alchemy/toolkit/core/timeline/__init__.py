@@ -1,6 +1,6 @@
 """Project a person's clinical records into one ordered event sequence.
 
-Conditions, measurements, and drug exposures live in separate CDM tables
+Conditions, measurements, drug exposures, and observations live in separate CDM tables
 with differently named date and value columns.  Answering "what happened
 to this patient, in order" means reconciling them.  ``Person_Timeline``
 does that reconciliation and presents the result as a single list of
@@ -30,6 +30,7 @@ from .event_timeline import (
     EventTime,
     EventValue,
     Measurement_Event,
+    Observation_Event,
     Person_Timeline,
 )
 
@@ -42,5 +43,6 @@ __all__ = [
     "EventTime",
     "EventValue",
     "Measurement_Event",
+    "Observation_Event",
     "Person_Timeline",
 ]
