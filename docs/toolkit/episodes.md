@@ -108,7 +108,18 @@ rows = session.execute(statement).mappings().all()
 
 Traversal follows parent IDs only within the same person and stops at a configurable maximum depth, which bounds malformed cyclic data. Set `include_root=False` when only descendants are needed. `direct_episode_relationship_projection()` provides a non-recursive parent-child result for callers that need one level only.
 
-`episode_event_hierarchy_projection()` joins the hierarchy to `Episode_Event` and retains the root episode, the episode that owns the link, and its depth. This lets a caller include child-linked evidence without encoding a specialty-specific number of child levels.
+`episode_event_hierarchy_projection()` joins the hierarchy to `Episode_Event` and retains the root episode, the episode that owns the link, and its depth. This lets a caller include child-linked evidence without encoding a specialty-specific number of child levels:
+
+```mermaid
+flowchart TD
+    Root["Episode 1000 (root)<br/>depth 0"] --> C1["Episode 1001<br/>depth 1"]
+    Root --> C2["Episode 1002<br/>depth 1"]
+    C1 --> GC1["Episode 1010<br/>depth 2"]
+    C2 --> GC2["Episode 1011<br/>depth 2"]
+    Ev(["Procedure_Occurrence 7<br/>Episode_Event link"]) -. "joined via<br/>episode_event_hierarchy_projection()" .-> GC1
+```
+
+The link at depth 2 is visible to code operating on the root at depth 0, without the caller having to know how many levels separate them.
 
 ## Describe episode attachment policy
 

@@ -89,6 +89,16 @@ Once valid, an explicit link takes precedence under either explicit-first policy
 | `explicit_first_ranked` | Select one date-eligible episode using a separate ranking specification |
 | `explicit_first_all_in_window` | Retain every date-eligible episode |
 
+```mermaid
+flowchart TD
+    Start["Event from canonical projection"] --> Valid{"Valid explicit<br/>Episode_Event link?"}
+    Valid -- "yes" --> Explicit["Attach via the explicit link<br/>(precedence; fallback is not applied)"]
+    Valid -- "no" --> Policy{"EpisodeAttachmentPolicy"}
+    Policy -- "explicit_only" --> Unattached["Leave unattached"]
+    Policy -- "explicit_first_ranked" --> Ranked["Rank date-eligible episodes<br/>(TemporalRankingSpec)"] --> One["Attach to one episode"]
+    Policy -- "explicit_first_all_in_window" --> Window["Every date-eligible episode<br/>in the window"] --> Many["Attach to each eligible episode"]
+```
+
 Choosing between ranked and all-in-window fallback is a statement about result grain. Ranked fallback produces at most one episode per event. All-in-window fallback intentionally allows one event to appear against several overlapping episodes.
 
 `episode_attachment_queries()` applies the complete precedence rule. It accepts a canonical event statement or one supported event model, validates explicit links against `Episode_Event`, and applies fallback only to events that have no valid explicit link:
@@ -160,6 +170,14 @@ already_started_first = TemporalRankingSpec(
     stable_id_column="episode_id",
     side_preference=TemporalSidePreference.on_or_before_anchor,
 )
+```
+
+```mermaid
+flowchart TD
+    A["Event on 20 January"] --> N{"policy = nearest"}
+    A --> S{"policy = nearest,<br/>side_preference =<br/>on_or_before_anchor"}
+    N -->|"closest by absolute distance"| E1003["Episode 1003<br/>starts 21 Jan · 1 day away"]
+    S -->|"already-started side considered first"| E1001["Episode 1001<br/>starts 15 Jan · 5 days away"]
 ```
 
 This policy selects episode 1001. Absolute distance still orders episodes within the preferred side; it simply does not allow a closer future episode to outrank every episode that had already started. `on_or_after_anchor` expresses the corresponding future-first rule.

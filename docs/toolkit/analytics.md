@@ -24,6 +24,15 @@ with Session(engine) as session:
 
 The episode includes events linked directly to it and events linked to its direct children. This supports a regimen whose drug exposures or procedures are recorded against cycle-level child episodes without flattening the episode hierarchy itself.
 
+```mermaid
+flowchart TD
+    OE["OncologyEpisode"] --> Direct["Events linked directly to this episode"]
+    OE --> Children["child_treatment_episodes"]
+    Children --> ChildEvents["Events linked to those children<br/>(e.g. cycle-level drug exposures)"]
+    Direct --> Pool["Evidence pool for<br/>modalities, dose summaries, weight loss"]
+    ChildEvents --> Pool
+```
+
 ### Modality evidence
 
 An episode can contain evidence for more than one treatment modality. `structural_modalities` and `concept_modalities` therefore return sets rather than forcing the record into a single label:
@@ -42,6 +51,13 @@ if structural != governed:
 ```
 
 When a caller needs one value, `structural_modality` and `concept_modality` apply a deterministic order: radiotherapy, surgery, diagnostic or staging, then SACT. This is a stable tie-break for mixed evidence, not a statement of clinical importance. Use the plural properties when mixed treatment matters to the analysis.
+
+```mermaid
+flowchart LR
+    RT["Radiotherapy"] --> SUR["Surgery"] --> DX["Diagnostic / Staging"] --> SACT["SACT"]
+```
+
+The single-value properties return the first modality in this order for which the episode has evidence.
 
 ### Treatment summaries
 

@@ -89,6 +89,16 @@ for event in session.execute(events).mappings():
 
 The projection resolves its ID, clinical concept, date, source table, and Field concept through stable CDM event metadata. Bare `Measurement` and `Observation` classes remain lightweight mappings for ETL, while `MeasurementView` and `ObservationView` provide analytical reference context, domain validation, and episode-event resolution. Importing analytics modules cannot change the metadata used for a Core projection. `UnsupportedClinicalEventModelError` is raised before SQL execution when no supported CDM definition exists.
 
+```mermaid
+flowchart LR
+    M["Measurement<br/>measurement_id"] --> U["canonical_event_union()"]
+    O["Observation<br/>observation_id"] --> U
+    P["Procedure_Occurrence<br/>procedure_occurrence_id"] --> U
+    U --> S["canonical shape<br/>person_id · event_id · event_source_table<br/>event_field_concept_id · event_date · event_concept_id<br/>(+ value / value_concept / unit where supported)"]
+```
+
+Each source model contributes its own ID column and Field concept; branches without a value or unit receive typed nulls so the union stays one consistent shape regardless of which models are combined.
+
 The [query contracts](query-contracts.md) explain how the canonical shape participates in episode attachment.
 
 ## Work with a patient timeline

@@ -70,6 +70,19 @@ with engine.begin() as connection:
 
 If either check fails, `ConcurrentRefreshNotEligibleError` is raised before the refresh statement is executed. The declaration does not substitute for creating the index, and an undeclared database index does not substitute for recording the operational requirement in the specification.
 
+```mermaid
+stateDiagram-v2
+    [*] --> Absent
+    Absent --> Populated: create_materialized_view()
+    Populated --> Populated: refresh_materialized_view()
+    Populated --> Absent: drop_materialized_view()
+
+    state eligibility <<choice>>
+    Populated --> eligibility: refresh(concurrently=True)
+    eligibility --> Populated: declared unique index<br/>confirmed in the database
+    eligibility --> [*]: ConcurrentRefreshNotEligibleError
+```
+
 ## Drop one qualified target
 
 Dropping uses the same `MaterializedViewTarget` as creation and refresh:
