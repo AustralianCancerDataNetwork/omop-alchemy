@@ -1,19 +1,29 @@
 # Materialized views
 
-Materialized views are useful when an analytical query is expensive but its results can be refreshed on a controlled schedule. The lifecycle helpers in OMOP Alchemy keep every operation tied to an explicit PostgreSQL schema and view name. This prevents a connection's search path from deciding which object is created, refreshed, indexed, or dropped.
+Materialized-view definitions and database lifecycle operations are provided by
+[`orm-loader`](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/).
+OMOP Alchemy supplies OMOP models and query-building primitives that applications
+can use in those definitions; it does not provide a second DDL or refresh API.
 
-The following view stores one row for each event selected by an application query:
+The supported deployment contract is PostgreSQL with unqualified materialized
+views resolving to the `public` schema. Omit the `schema` argument when calling
+the lifecycle methods. Qualified non-`public` schemas are not currently part of
+the supported contract.
+
+## Define a view over an OMOP query
+
+Use the public `orm_loader.materialized_views` module. A definition states the
+view name, its SQLAlchemy selectable, the complete logical row identity, any
+dependencies, and any indexes that should be created with the view:
 
 ```python
 import sqlalchemy as sa
 
-from omop_alchemy.toolkit.core.materialization import (
+from orm_loader.materialized_views import (
     MaterializedViewIndex,
-    MaterializedViewSpec,
-    MaterializedViewTarget,
-    create_materialized_view,
-    create_materialized_view_indexes,
+    MaterializedViewMixin,
 )
+
 
 event_query = sa.select(
     events.c.person_id,
@@ -21,93 +31,79 @@ event_query = sa.select(
     events.c.event_date,
 )
 
-event_view = MaterializedViewSpec(
-    target=MaterializedViewTarget(
-        schema="reporting",
-        name="clinical_events",
-    ),
-    selectable=event_query,
-    logical_identity=("person_id", "event_id"),
-    indexes=(
+
+class ClinicalEventsMV(MaterializedViewMixin):
+    __mv_name__ = "clinical_events"
+    __mv_select__ = event_query
+    __mv_logical_identity__ = ("person_id", "event_id")
+    __mv_dependencies__ = ("measurement", "observation")
+    __mv_indexes__ = (
         MaterializedViewIndex(
             name="clinical_events_identity_uq",
             columns=("person_id", "event_id"),
             unique=True,
         ),
-    ),
-)
-
-with engine.begin() as connection:
-    create_materialized_view(connection, event_view)
-    create_materialized_view_indexes(connection, event_view)
-```
-
-The schema and view name are separate identifiers and are quoted by the PostgreSQL dialect. Index columns and index names are quoted in the same way. Applications should pass identifiers as plain strings; they should not add SQL quoting themselves.
-
-Creation fails when the view or index name already exists. This makes a stale definition or incompatible existing index visible to the caller. A registry that has separately checked the existing object may opt into idempotent PostgreSQL DDL with `if_not_exists=True`.
-
-## Refresh a populated view
-
-A normal refresh replaces the contents while holding the PostgreSQL lock associated with `REFRESH MATERIALIZED VIEW`:
-
-```python
-from omop_alchemy.toolkit.core.materialization import refresh_materialized_view
-
-with engine.begin() as connection:
-    refresh_materialized_view(connection, event_view)
-```
-
-A concurrent refresh permits reads to continue, but PostgreSQL requires an eligible unique index on the populated view. Setting `concurrently=True` does not simply add SQL syntax. The helper first checks that the specification declares a simple unique index and then inspects PostgreSQL to confirm that an eligible unique index exists:
-
-```python
-with engine.begin() as connection:
-    refresh_materialized_view(
-        connection,
-        event_view,
-        concurrently=True,
     )
 ```
 
-If either check fails, `ConcurrentRefreshNotEligibleError` is raised before the refresh statement is executed. The declaration does not substitute for creating the index, and an undeclared database index does not substitute for recording the operational requirement in the specification.
+`__mv_logical_identity__` documents the complete grain and is validated against
+the selectable, but it is not itself a database constraint. Test that identity
+against representative data and declare a matching unique index when the view
+must support concurrent refresh.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Absent
-    Absent --> Populated: create_materialized_view()
-    Populated --> Populated: refresh_materialized_view()
-    Populated --> Absent: drop_materialized_view()
+`__mv_dependencies__` records tables or materialized views that the definition
+depends on. The registry owner decides which dependencies are managed views and
+uses that metadata to determine refresh order.
 
-    state eligibility <<choice>>
-    Populated --> eligibility: refresh(concurrently=True)
-    eligibility --> Populated: declared unique index<br/>confirmed in the database
-    eligibility --> [*]: ConcurrentRefreshNotEligibleError
-```
+## Create, refresh, and drop
 
-## Drop one qualified target
-
-Dropping uses the same `MaterializedViewTarget` as creation and refresh:
+The class methods accept either a SQLAlchemy `Engine` or `Connection`. Passing
+an engine lets `orm-loader` manage the transaction. Passing a connection keeps
+the operation inside the caller's transaction:
 
 ```python
-from omop_alchemy.toolkit.core.materialization import drop_materialized_view
+ClinicalEventsMV.create_mv(engine)
+ClinicalEventsMV.refresh_mv(engine)
+ClinicalEventsMV.drop_mv(engine)
 
 with engine.begin() as connection:
-    drop_materialized_view(connection, event_view)
+    ClinicalEventsMV.create_mv(connection)
 ```
 
-The default is `DROP MATERIALIZED VIEW IF EXISTS` without `CASCADE`. Set `if_exists=False` when absence should be an error, or `cascade=True` when the caller has deliberately accounted for dependent database objects.
+`create_mv()` creates the view and its declared indexes as one operation.
+Creation fails by default if the target already exists, keeping definition
+drift visible. Use `if_not_exists=True` only when an idempotent no-op is the
+application's deliberate deployment policy.
 
-Database failures are raised as `MaterializationError`. Its `failure` attribute records the operation, qualified target, optional index name, reason, and original exception. The original database exception is also retained as the exception cause. Lifecycle helpers never print an error and continue within an aborted transaction.
+PostgreSQL requires a suitable unique index for
+`refresh_mv(concurrently=True)`. `orm-loader` rejects a definition with no
+declared unique index before execution, then lets PostgreSQL decide whether the
+live database satisfies its concurrent-refresh prerequisites. A database
+rejection is translated to `ConcurrentRefreshNotEligibleError`, preserving the
+original exception as its cause.
 
-The `engine.begin()` context used in these examples rolls the transaction back automatically when an exception leaves the block. If an application manages a `Connection` transaction manually, it must roll back after a database error before attempting another statement on that connection. Catching `MaterializationError` does not make an aborted PostgreSQL transaction usable again.
+Lifecycle failures carry operation and target context through
+`MaterializationError`. A failed statement can leave a caller-managed
+PostgreSQL transaction aborted, so roll that transaction back before issuing
+more statements. An `engine.begin()` context rolls back automatically when the
+exception leaves the context.
 
-## Identity, indexes, and dependencies
+## Keep orchestration with the application
 
-`logical_identity` describes the complete output columns that distinguish rows in the materialized view. Construction fails if an identity or index refers to a column that the selectable does not expose. The identity is descriptive until a unique index or another database constraint enforces it, so applications should test its uniqueness against representative data before deployment.
+OMOP Alchemy can own a reusable OMOP query and document its logical grain. The
+application that deploys materialized views owns:
 
-`dependencies` records other qualified materialized views that must already exist. It is metadata for an application-owned registry or deployment planner; the single-view lifecycle helpers do not create, refresh, or drop dependencies automatically. This keeps orchestration policy, dependency order, and command-line behaviour in the system that owns the collection of views.
+* the registry of view classes;
+* uniqueness checks against representative data;
+* dependency and refresh order;
+* replacement and rebuild policy; and
+* command-line, migration, or scheduler integration.
 
-The DDL elements `CreateMaterializedView`, `CreateMaterializedViewIndex`, `RefreshMaterializedView`, and `DropMaterializedView` can be compiled with the PostgreSQL dialect when a deployment tool needs to inspect or record SQL without executing it.
+For the cohort delivery stack, those application concerns belong in
+`omop-constructs`. Use `resolve_mv_refresh_order()` and `refresh_all_mvs()` from
+`orm_loader.materialized_views` rather than implementing another dependency
+resolver or refresh loop.
 
-## API reference
-
-::: omop_alchemy.toolkit.core.materialization
+Refer to the
+[`orm-loader` materialized-view guide](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/)
+for the complete API and backend behaviour.

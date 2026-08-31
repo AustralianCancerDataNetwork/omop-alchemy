@@ -2,6 +2,14 @@
 
 The core package handles problems that have the same meaning in every clinical domain: resolving a source term to an OMOP concept, identifying an event across CDM tables, arranging events on a timeline, and converting measurements to comparable units.
 
+Generic database lifecycle operations do not belong in the clinical toolkit. Use
+[`orm-loader`](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/)
+to define, create, refresh, index, and drop materialized views. OMOP Alchemy owns
+the OMOP-specific query and row-grain decisions supplied to that infrastructure;
+an application such as `omop-constructs` owns its registry, dependency policy,
+and deployment orchestration. See [Materialized views](materialized-views.md) for
+the integration boundary.
+
 ## Resolve source data to concepts
 
 Suppose an intake system supplies the text `Adenocarcinoma of lung` rather than an OMOP concept ID. A resolver limits the eligible vocabulary rows and applies the same text normalisation when it builds its lookup and when it handles an incoming value:
