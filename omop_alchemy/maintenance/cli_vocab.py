@@ -10,11 +10,11 @@ from typing import Literal, TypeAlias, cast
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-import sqlalchemy.event as sae
 from sqlalchemy.exc import OperationalError
 import typer
-from sqlalchemy.pool import NullPool
-from orm_loader.backends import resolve_backend
+from oa_configurator import ensure_schema
+from orm_loader.backends import STAGING_SCHEMA, resolve_backend
+from orm_loader.helpers import Base
 from orm_loader.tables.typing import CSVTableProtocol
 from rich.progress import (
     BarColumn,
@@ -39,17 +39,11 @@ from omop_alchemy.cdm.model.vocabulary import (
     Vocabulary,
 )
 
-from ._cli_utils import (
-    ReservedSchema,
-    Status,
-    ensure_schema,
-    omop_command,
-    reject_reserved_schema,
-)
+from ._cli_utils import Status, omop_command
 from .cli_foreign_keys import manage_foreign_key_triggers
 from .cli_indexes import manage_indexes
 from .cli_tables import reset_model_sequences
-from .tables import TableCategory, schema_adjusted_metadata, select_maintenance_tables
+from .tables import TableCategory, select_maintenance_tables
 from .ui import (
     console,
     render_error,
@@ -261,13 +255,9 @@ def _create_missing_vocabulary_tables(
     if not missing_tables:
         return 0
 
-    metadata, adjusted_tables = schema_adjusted_metadata(
-        vocab_tables,
-        db_schema=db_schema,
-    )
-    metadata.create_all(
+    Base.metadata.create_all(
         bind=connection,
-        tables=[adjusted_tables[table.table_name] for table in missing_tables],
+        tables=[table.table for table in missing_tables],
         checkfirst=True,
     )
     return len(missing_tables)
@@ -276,6 +266,8 @@ def _create_missing_vocabulary_tables(
 def load_vocab_source(
     engine: sa.Engine,
     *,
+    vocab_engine: sa.Engine | None = None,
+    vocab_schema: str | None = None,
     source_path: str | Path,
     tables: list[str] | None = None,
     db_schema: str | None = None,
@@ -299,7 +291,21 @@ def load_vocab_source(
     With bulk_mode (default on PostgreSQL), secondary indexes and FK triggers
     are toggled globally around the load for speed. Pass --no-bulk-mode when
     loading a single table to avoid the index drop/rebuild overhead.
+
+    Parameters
+    ----------
+    vocab_engine : sqlalchemy.Engine, optional
+        Engine to create vocabulary tables on, when ``vocab_connection`` names
+        a physically different server than ``engine``. Defaults to ``engine``.
+        CSV loading itself still runs entirely against ``engine``; this only
+        affects where vocab-role tables get created.
+    vocab_schema : str, optional
+        Schema vocab-role tables live in, for the table-existence check
+        against ``vocab_engine``. Defaults to ``db_schema``.
     """
+    vocab_engine = vocab_engine if vocab_engine is not None else engine
+    vocab_schema = vocab_schema if vocab_schema is not None else db_schema
+
     resolved_source_path = Path(source_path).expanduser().resolve()
     if not resolved_source_path.exists() or not resolved_source_path.is_dir():
         raise RuntimeError(f"Athena source directory not found: {resolved_source_path}")
@@ -333,31 +339,10 @@ def load_vocab_source(
             + ", ".join(sorted(missing))
         )
 
-    reject_reserved_schema(db_schema)
-
     if not dry_run:
         ensure_schema(engine, db_schema)
-        ensure_schema(engine, ReservedSchema.STAGING)
-
-    # NullPool: each session/connection is opened fresh and closed immediately after
-    # use. No stale pooled connections survive between tables, which prevents
-    # "connection in recovery mode" failures on subsequent tables after a heavy load.
-    load_engine = sa.create_engine(engine.url, poolclass=NullPool)
-    if db_schema is not None:
-        # NullPool discards the DBAPI connection on every commit, so a one-time
-        # SET search_path on the first checkout doesn't survive into the next
-        # checkout (e.g. after create_staging_table's commit). Re-apply on every
-        # new connection via an engine-level connect event so COPY and raw-cursor
-        # operations always target the right schema. The staging schema no longer
-        # needs to be on the path because orm-loader now qualifies staging
-        # table identifiers explicitly.
-        _quoted_schema = '"' + db_schema.replace('"', '""') + '"'
-
-        @sae.listens_for(load_engine, "connect")
-        def _set_search_path(dbapi_conn, _record):
-            cur = dbapi_conn.cursor()
-            cur.execute(f"SET search_path TO {_quoted_schema}")
-            cur.close()
+        ensure_schema(engine, STAGING_SCHEMA)
+        ensure_schema(vocab_engine, vocab_schema)
 
     table_count = sum(
         1
@@ -423,9 +408,9 @@ def load_vocab_source(
             )
 
     if not dry_run:
-        with load_engine.connect() as pre_conn:
+        with vocab_engine.connect() as pre_conn:
             created_table_count = _create_missing_vocabulary_tables(
-                pre_conn, db_schema=db_schema
+                pre_conn, db_schema=vocab_schema
             )
             pre_conn.commit()
 
@@ -481,7 +466,7 @@ def load_vocab_source(
             _prev_attempt_was_crash = False
             for attempt in range(3):
                 try:
-                    with so.Session(load_engine) as session:
+                    with so.Session(engine) as session:
                         if (
                             _prev_attempt_was_crash
                             and merge_strategy == "insert_if_empty"
@@ -509,7 +494,7 @@ def load_vocab_source(
                             index_strategy="keep" if _use_bulk_mode else "auto",
                             chunksize=chunksize,
                             merge_batch_size=merge_batch_size,
-                            staging_schema=ReservedSchema.STAGING,
+                            staging_schema=STAGING_SCHEMA,
                         )
                         session.commit()
                     break
@@ -725,6 +710,8 @@ def load_vocab_source_command(
 
         report = load_vocab_source(
             engine,
+            vocab_engine=conn.vocab_engine,
+            vocab_schema=conn.vocab_schema,
             source_path=effective_athena_source,
             tables=tables or None,
             db_schema=conn.db_schema,

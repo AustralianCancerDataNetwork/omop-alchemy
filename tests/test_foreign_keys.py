@@ -1,4 +1,3 @@
-import sqlalchemy as sa
 import pytest
 from typer.testing import CliRunner
 
@@ -17,32 +16,26 @@ from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
 runner = CliRunner()
 
 
-def _engine(tmp_path):
-    return sa.create_engine(f"sqlite:///{tmp_path / 'foreign_keys.db'}", future=True)
-
-
-def test_collect_fk_info_finds_participating_tables(tmp_path):
+def test_collect_fk_info_finds_participating_tables(fresh_engine):
     """Test _collect_fk_info finds participating tables."""
-    engine = _engine(tmp_path)
-    create_missing_tables(engine)
+    create_missing_tables(fresh_engine)
 
     targets = {
         target.table_name: target
-        for target in _collect_fk_info(engine)
+        for target in _collect_fk_info(fresh_engine)
     }
 
     assert "person" in targets
     assert targets["person"].incoming_constraint_count > 0
 
 
-def test_manage_foreign_key_triggers_supports_dry_run(tmp_path):
+def test_manage_foreign_key_triggers_supports_dry_run(fresh_engine):
     """Test manage foreign key triggers supports dry run."""
-    engine = _engine(tmp_path)
-    create_missing_tables(engine)
+    create_missing_tables(fresh_engine)
 
     with pytest.raises(RuntimeError) as exc_info:
         manage_foreign_key_triggers(
-            engine,
+            fresh_engine,
             enable=False,
             dry_run=True,
         )
@@ -50,24 +43,22 @@ def test_manage_foreign_key_triggers_supports_dry_run(tmp_path):
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
-def test_collect_foreign_key_trigger_status_is_safe_on_sqlite(tmp_path):
+def test_collect_foreign_key_trigger_status_is_safe_on_sqlite(fresh_engine):
     """Test collect foreign key trigger status is safe on sqlite."""
-    engine = _engine(tmp_path)
-    create_missing_tables(engine)
+    create_missing_tables(fresh_engine)
 
     with pytest.raises(RuntimeError) as exc_info:
-        collect_foreign_key_trigger_status(engine)
+        collect_foreign_key_trigger_status(fresh_engine)
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
-def test_validate_foreign_key_constraints_is_safe_on_sqlite(tmp_path):
+def test_validate_foreign_key_constraints_is_safe_on_sqlite(fresh_engine):
     """Test validate foreign key constraints is safe on sqlite."""
-    engine = _engine(tmp_path)
-    create_missing_tables(engine)
+    create_missing_tables(fresh_engine)
 
     with pytest.raises(RuntimeError) as exc_info:
-        validate_foreign_key_constraints(engine)
+        validate_foreign_key_constraints(fresh_engine)
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
@@ -109,10 +100,10 @@ def _make_fake_backend():
         def dialect(self) -> str:
             return "postgresql"
 
-        def analyze_table(self, conn, table_name, db_schema, *, vacuum=False) -> None:
+        def analyze_table(self, conn, table_name, *, vacuum=False) -> None:
             pass
 
-        def toggle_fk_triggers(self, conn, table_name, db_schema, *, enable: bool) -> None:
+        def toggle_fk_triggers(self, conn, table_name, *, enable: bool) -> None:
             action = "ENABLE" if enable else "DISABLE"
             conn.exec_driver_sql(f"ALTER TABLE {table_name} {action} TRIGGER ALL")
 

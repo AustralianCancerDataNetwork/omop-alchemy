@@ -91,3 +91,5 @@ packages = ["omop_alchemy"]
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 [tool.pytest.ini_options]
+addopts = "-m 'not db_dialect'"
+

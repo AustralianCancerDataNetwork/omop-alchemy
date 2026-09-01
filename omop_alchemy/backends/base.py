@@ -83,7 +83,6 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
         *,
         enable: bool,
     ) -> None:
@@ -93,7 +92,6 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
     ) -> tuple[int, int]:
         """Return (disabled_count, enabled_count) for RI triggers on the table."""
         raise FeatureNotSupportedError("FK trigger status inspection", self)
@@ -105,7 +103,6 @@ class Backend(ABC):
         referred_table: str,
         constrained_cols: list[str],
         referred_cols: list[str],
-        db_schema: str | None,
     ) -> int:
         raise FeatureNotSupportedError("FK constraint violation counting", self)
 
@@ -116,7 +113,6 @@ class Backend(ABC):
         conn: sa.Connection,
         table_name: str,
         index_name: str,
-        db_schema: str | None,
     ) -> None:
         raise FeatureNotSupportedError("Table clustering", self)
 
@@ -124,7 +120,6 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
     ) -> str | None:
         raise FeatureNotSupportedError("Cluster index inspection", self)
 
@@ -135,7 +130,6 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
         *,
         vacuum: bool = False,
     ) -> None: ...
@@ -144,7 +138,6 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         index_name: str,
-        db_schema: str | None,
     ) -> bool:
         """Return True when the named index currently exists on the database.
 
@@ -157,7 +150,6 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         index_name: str,
-        db_schema: str | None,
     ) -> None:
         """Drop an index by name without relying on SQLAlchemy's reflection-based checkfirst.
 
@@ -171,7 +163,6 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_names: list[str],
-        db_schema: str | None,
         *,
         restart_identities: bool,
         cascade: bool,
@@ -185,7 +176,6 @@ class Backend(ABC):
         conn: sa.Connection,
         table_name: str,
         column_name: str,
-        db_schema: str | None,
     ) -> str | None:
         raise FeatureNotSupportedError("Owned sequence lookup", self)
 
@@ -196,22 +186,6 @@ class Backend(ABC):
         value: int,
     ) -> None:
         raise FeatureNotSupportedError("Sequence value reset", self)
-
-    # ── Schema context ───────────────────────────────────────────────────────
-
-    def configure_schema_context(
-        self,
-        conn: sa.Connection,
-        db_schema: str | None,
-    ) -> None:
-        pass  # no-op by default; PostgreSQL overrides with SET search_path
-
-    def ensure_schema(
-        self,
-        conn: sa.Connection,
-        schema: str | None,
-    ) -> None:
-        pass  # no-op by default; backends that support named schemas override this
 
     # ── Full-text search ─────────────────────────────────────────────────────
 
@@ -247,7 +221,6 @@ class Backend(ABC):
         table_name: str,
         vector_column_name: str,
         index_name: str,
-        db_schema: str | None,
         create_indexes: bool,
         fastupdate: bool,
     ) -> None:
@@ -260,7 +233,6 @@ class Backend(ABC):
         table_name: str,
         vector_column_name: str,
         source_column_name: str,
-        db_schema: str | None,
         regconfig: str,
     ) -> int | None:
         raise FeatureNotSupportedError("Full-text search", self)
@@ -272,7 +244,6 @@ class Backend(ABC):
         table_name: str,
         vector_column_name: str,
         index_name: str,
-        db_schema: str | None,
         drop_indexes: bool,
     ) -> None:
         raise FeatureNotSupportedError("Full-text search", self)
@@ -284,7 +255,6 @@ class Backend(ABC):
         engine: sa.Engine,
         output_path: str,
         backup_format: str,
-        db_schema: str | None,
     ) -> tuple[str, list[str], dict[str, str], str]:
         """Return (tool_path, command, env, database_name). subprocess.run stays in CLI."""
         raise FeatureNotSupportedError("Database backup", self)
@@ -294,7 +264,6 @@ class Backend(ABC):
         engine: sa.Engine,
         input_path: str,
         backup_format: str,
-        db_schema: str | None,
     ) -> tuple[str, list[str], dict[str, str], str]:
         """Return (tool_path, command, env, database_name). subprocess.run stays in CLI."""
         raise FeatureNotSupportedError("Database restore", self)

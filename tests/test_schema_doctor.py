@@ -5,9 +5,10 @@ from omop_alchemy.maintenance.cli_schema_doctor import collect_doctor_report
 
 
 def test_doctor_uses_borrowed_engine_without_resolving_config_or_disposing(
+    fresh_engine,
     monkeypatch,
 ) -> None:
-    engine = sa.create_engine("sqlite://")
+    engine = fresh_engine
     disposed_engines: list[sa.engine.Engine] = []
     inspected: dict[str, object] = {}
     original_dispose = sa.engine.Engine.dispose
@@ -43,7 +44,7 @@ def test_doctor_uses_borrowed_engine_without_resolving_config_or_disposing(
         vocabulary_included=False,
     )
 
-    assert report.info.engine_url == "sqlite://"
+    assert report.info.engine_url == str(engine.url)
     assert report.info.backend == "sqlite"
     assert report.info.db_schema == "analytics"
     assert report.info.resource_name == "manual_cdm"

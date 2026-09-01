@@ -19,7 +19,6 @@ class SQLiteBackend(Backend):
         self,
         conn: sa.Connection,
         index_name: str,
-        db_schema: str | None,
     ) -> bool:
         row = conn.exec_driver_sql(
             "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
@@ -31,7 +30,6 @@ class SQLiteBackend(Backend):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
         *,
         vacuum: bool = False,
     ) -> None:

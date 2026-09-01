@@ -6,7 +6,8 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 
-from .tables import TableCategory, qualified_table_name, select_omop_tables
+from oa_configurator import qualified
+from .tables import TableCategory, select_omop_tables
 
 
 @dataclass(frozen=True)
@@ -44,7 +45,7 @@ def collect_data_summary(
                 row_count = int(
                     connection.execute(
                         sa.text(
-                            f"SELECT COUNT(*) FROM {qualified_table_name(table.table_name, db_schema)}"
+                            f"SELECT COUNT(*) FROM {qualified(connection, table.table_name)}"
                         )
                     ).scalar_one()
                 )

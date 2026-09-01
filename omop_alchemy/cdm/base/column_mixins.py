@@ -4,6 +4,9 @@ from datetime import date, datetime
 from typing import Optional, Any
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
+
+from .column_helpers import role_fk
 
 
 """
@@ -60,7 +63,7 @@ class ValueMixin:
     This helps when building generic tooling that needs to handle values flexibly but then normalise for analysis.
     """
     value_as_number: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, nullable=True)
-    value_as_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("concept.concept_id"), nullable=True)
+    value_as_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=True)
 
 class DatedEvent:
     """
@@ -116,7 +119,7 @@ class SourceAttribution:
     Mixin for *_source_value and *_source_concept_id patterns.
     """
     source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String, nullable=True)
-    source_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("concept.concept_id"), nullable=True)     
+    source_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=True)
 
 class UnitConcept:
     """
@@ -124,4 +127,4 @@ class UnitConcept:
     
     Mixin for unit_concept_id.
     """
-    unit_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("concept.concept_id"), nullable=True)
+    unit_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=True)

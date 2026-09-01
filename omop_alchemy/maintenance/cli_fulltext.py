@@ -11,7 +11,7 @@ from sqlalchemy.engine import Engine
 from ..backends import backend_support_note as _backend_support_note
 from ..backends import resolve_backend, require_backend_support
 from ..backends.base import FullTextError
-from ._cli_utils import Status, dry_label, dry_status, omop_command, reject_reserved_schema
+from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .ui import (
     console,
     render_fulltext_results,
@@ -57,7 +57,6 @@ def install_fulltext_columns(
     dry_run: bool = False,
 ) -> tuple[FullTextResult, ...]:
     """Install tsvector sidecar columns (and optionally GIN indexes) on OMOP vocabulary tables."""
-    reject_reserved_schema(db_schema)
     backend = resolve_backend(engine)
     require_backend_support(backend, "install_fulltext_on_table", "Full-text search")
     targets = backend.fulltext_targets
@@ -71,7 +70,6 @@ def install_fulltext_columns(
                         table_name=cfg.table_name,
                         vector_column_name=cfg.vector_column_name,
                         index_name=cfg.index_name,
-                        db_schema=db_schema,
                         create_indexes=create_indexes,
                         fastupdate=fastupdate,
                     )
@@ -110,7 +108,6 @@ def populate_fulltext_columns(
     dry_run: bool = False,
 ) -> tuple[FullTextResult, ...]:
     """Populate tsvector sidecar columns with pre-computed search vectors."""
-    reject_reserved_schema(db_schema)
     backend = resolve_backend(engine)
     require_backend_support(backend, "populate_fulltext_on_table", "Full-text search")
     targets = backend.fulltext_targets
@@ -125,7 +122,6 @@ def populate_fulltext_columns(
                         table_name=cfg.table_name,
                         vector_column_name=cfg.vector_column_name,
                         source_column_name=cfg.source_column_name,
-                        db_schema=db_schema,
                         regconfig=regconfig,
                     )
             backend.register_fulltext_metadata()
@@ -160,7 +156,6 @@ def drop_fulltext_columns(
     dry_run: bool = False,
 ) -> tuple[FullTextResult, ...]:
     """Remove tsvector sidecar columns and their associated GIN indexes."""
-    reject_reserved_schema(db_schema)
     backend = resolve_backend(engine)
     require_backend_support(backend, "drop_fulltext_on_table", "Full-text search")
     targets = backend.fulltext_targets
@@ -174,7 +169,6 @@ def drop_fulltext_columns(
                         table_name=cfg.table_name,
                         vector_column_name=cfg.vector_column_name,
                         index_name=cfg.index_name,
-                        db_schema=db_schema,
                         drop_indexes=drop_indexes,
                     )
             backend.unregister_fulltext_metadata()

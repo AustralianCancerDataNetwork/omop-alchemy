@@ -1,6 +1,5 @@
 import pytest
 from orm_loader.helpers import bootstrap
-import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
 from omop_alchemy.cdm.model.vocabulary import (
@@ -14,21 +13,15 @@ from pathlib import Path
 from tests.conftest import ATHENA_LOAD_ORDER, _ATHENA_FIXTURE_DATA, _write_fixture_csv
 
 
-@pytest.fixture(scope="session")
-def connection():
+@pytest.fixture
+def connection(fresh_engine):
     """
     In-memory SQLite database for tests.
     """
-    engine = sa.create_engine(
-        "sqlite+pysqlite:///:memory:",
-        future=True,
-    )
-
-    connection = engine.connect()
+    connection = fresh_engine.connect()
     bootstrap(connection, create=True)  # type: ignore[arg-type]
     yield connection
     connection.close()
-    engine.dispose()
 
 
 @pytest.fixture
@@ -46,15 +39,15 @@ def db_session(connection):
         session.close()
 
 
-@pytest.fixture(scope="session")
-def athena_vocab(connection, tmp_path_factory):
+@pytest.fixture
+def athena_vocab(connection, tmp_path):
     """
     Load the minimal Athena vocabulary fixture using the real ORM CSV loader.
 
     Writes in-memory fixture data to a temp directory so no static CSV files
     on disk are required.
     """
-    base_path: Path = tmp_path_factory.mktemp("athena_vocab")
+    base_path: Path = tmp_path
     Session = sessionmaker(bind=connection, future=True)
     session = Session()
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
+from oa_configurator import supports_schemas
 from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, ReflectedIndex
 
 from ..backends import backend_supports, resolve_backend
@@ -147,6 +148,7 @@ def reconcile_schema(
         () if vocabulary_included else (TableCategory.VOCABULARY,)
     )
     _backend = resolve_backend(engine)
+    _cross_schema_fk_supported = supports_schemas(engine)
     selected_tables = select_maintenance_tables(exclude_categories=excluded_categories)
     inspector = sa.inspect(engine)
     all_issues: list[ReconciliationIssue] = []
@@ -276,6 +278,12 @@ def reconcile_schema(
 
             for signature, constraint in expected_fks.items():
                 if signature not in actual_fks:
+                    if (
+                        not _cross_schema_fk_supported
+                        and constraint.referred_table.schema != expected_table.schema
+                    ):
+                        # SQLite can never create an inline FK crossing a schema boundary 
+                        continue
                     constrained_columns, referred_table, referred_columns = signature
                     table_issues.append(
                         ReconciliationIssue(
@@ -384,7 +392,6 @@ def reconcile_schema(
                 actual_cluster = _backend.get_clustered_index_name(
                     connection,
                     maintenance_table.table_name,
-                    db_schema,
                 )
                 if expected_cluster != actual_cluster:
                     # May be a rename, not drift, so treat like a renamed index.

@@ -59,13 +59,12 @@ def _write_csv_with_size(source_path: Path, table_name: str, size_bytes: int) ->
 
 
 def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
+    fresh_engine,
     monkeypatch,
     tmp_path,
 ):
     """Test load vocab source on sqlite creates tables and reports loaded results."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'load_vocab_source.db'}", future=True
-    )
+    engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
     loaded_tables: list[tuple[str, str, str, Path]] = []
 
@@ -114,11 +113,9 @@ def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
     assert inspector.has_table("concept")
 
 
-def test_load_vocab_source_requires_full_required_athena_fixture(tmp_path):
+def test_load_vocab_source_requires_full_required_athena_fixture(fresh_engine, tmp_path):
     """Test load vocab source requires full required athena fixture."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'load_vocab_source_missing_required.db'}", future=True
-    )
+    engine = fresh_engine
 
     # Build a source with only a subset of required models to trigger the missing-files error.
     partial_source = tmp_path / "partial_athena"
@@ -146,11 +143,9 @@ def test_drug_strength_model_matches_athena_vocabulary_shape():
     assert "end_datetime" not in column_names
 
 
-def test_load_vocab_source_dry_run_does_not_create_tables(tmp_path):
+def test_load_vocab_source_dry_run_does_not_create_tables(fresh_engine, tmp_path):
     """Test load vocab source dry run does not create tables."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'load_vocab_source_dry_run.db'}", future=True
-    )
+    engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
 
     report = load_vocab_source(
@@ -194,6 +189,8 @@ def test_load_vocab_source_cli_uses_configured_athena_source(monkeypatch, tmp_pa
     def fake_load_vocab_source(
         engine: object,
         *,
+        vocab_engine: object = None,  # noqa: ARG001
+        vocab_schema: str | None = None,  # noqa: ARG001
         source_path: str | Path,
         tables: list[str] | None = None,  # noqa: ARG001
         db_schema: str | None = None,
@@ -241,11 +238,9 @@ def test_load_vocab_source_cli_uses_configured_athena_source(monkeypatch, tmp_pa
     assert "load-vocab-source" in result.stdout
 
 
-def test_load_vocab_model_csv_passes_quote_mode(monkeypatch, tmp_path):
+def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_path):
     """Test load vocab model csv passes quote mode."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'load_vocab_source_quote_mode.db'}", future=True
-    )
+    engine = fresh_engine
 
     class FakeModel:
         __tablename__ = "concept"
@@ -294,11 +289,9 @@ def test_load_vocab_model_csv_passes_quote_mode(monkeypatch, tmp_path):
     assert calls["quote_mode"] == "literal"
 
 
-def test_load_vocab_source_loads_in_fk_dependency_order(monkeypatch, tmp_path):
+def test_load_vocab_source_loads_in_fk_dependency_order(fresh_engine, monkeypatch, tmp_path):
     """Tables must be loaded in REQUIRED_VOCAB_MODELS order to respect FK dependencies."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'load_vocab_source_order.db'}", future=True
-    )
+    engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
 
     # Give domain a tiny file and concept_class a large one — if size-sorting were still in place
@@ -335,11 +328,9 @@ def test_load_vocab_source_loads_in_fk_dependency_order(monkeypatch, tmp_path):
     assert loaded_order[: len(expected_order)] == expected_order
 
 
-def test_load_vocab_source_reports_weighted_progress(monkeypatch, tmp_path):
+def test_load_vocab_source_reports_weighted_progress(fresh_engine, monkeypatch, tmp_path):
     """Test load vocab source reports weighted progress."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'load_vocab_source_progress.db'}", future=True
-    )
+    engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
 
     _write_csv_with_size(source_path, "domain", 10)
@@ -379,11 +370,9 @@ def test_load_vocab_source_reports_weighted_progress(monkeypatch, tmp_path):
     assert percents == sorted(percents)
 
 
-def test_load_vocab_source_wraps_failed_table_load(monkeypatch, tmp_path):
+def test_load_vocab_source_wraps_failed_table_load(fresh_engine, monkeypatch, tmp_path):
     """Test load vocab source wraps failed table load."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'load_vocab_source_error.db'}", future=True
-    )
+    engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
 
     def fake_load_vocab_model_csv(
@@ -423,11 +412,9 @@ def test_load_vocab_source_wraps_failed_table_load(monkeypatch, tmp_path):
     assert "value too long for type character varying(255)" in message
 
 
-def test_load_vocab_model_csv_retries_missing_staging_table(monkeypatch, tmp_path):
+def test_load_vocab_model_csv_retries_missing_staging_table(fresh_engine, monkeypatch, tmp_path):
     """Test load vocab model csv retries missing staging table."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'load_vocab_source_retry.db'}", future=True
-    )
+    engine = fresh_engine
 
     class FakeModel:
         __tablename__ = "drug_strength"
@@ -527,11 +514,9 @@ def test_load_vocab_source_cli_surfaces_database_error_detail(monkeypatch):
     assert "value too long for type character varying(255)" in result.stdout
 
 
-def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(monkeypatch, tmp_path):
+def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(fresh_engine, monkeypatch, tmp_path):
     """Tab-delimited Athena quotes are literal data unless explicitly overridden."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'quote_mode_default.db'}", future=True
-    )
+    engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
 
     received_quote_modes: list[str] = []
@@ -565,20 +550,18 @@ def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(monkeypatch, tmp_
     assert "csv" not in received_quote_modes
 
 
-def test_load_vocab_source_tables_unknown_name_raises_runtime_error(tmp_path):
+def test_load_vocab_source_tables_unknown_name_raises_runtime_error(fresh_engine, tmp_path):
     """Unknown table name in tables= is rejected before any DB connection."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'tables_unknown.db'}", future=True
-    )
+    engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
 
     with pytest.raises(RuntimeError, match="Unknown vocabulary table"):
         load_vocab_source(engine, source_path=source_path, tables=["not_a_table"])
 
 
-def test_load_vocab_source_tables_single_loads_only_that_table(monkeypatch, tmp_path):
+def test_load_vocab_source_tables_single_loads_only_that_table(fresh_engine, monkeypatch, tmp_path):
     """tables=['concept'] loads only concept and skips every other table."""
-    engine = sa.create_engine(f"sqlite:///{tmp_path / 'tables_single.db'}", future=True)
+    engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
     loaded_tables: list[str] = []
 
@@ -609,11 +592,9 @@ def test_load_vocab_source_tables_single_loads_only_that_table(monkeypatch, tmp_
     assert result_names == {"concept"}
 
 
-def test_load_vocab_source_tables_multiple_loads_exactly_those(monkeypatch, tmp_path):
+def test_load_vocab_source_tables_multiple_loads_exactly_those(fresh_engine, monkeypatch, tmp_path):
     """tables=['concept', 'vocabulary'] loads exactly those two tables."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'tables_multiple.db'}", future=True
-    )
+    engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
     loaded_tables: list[str] = []
 
@@ -642,11 +623,9 @@ def test_load_vocab_source_tables_multiple_loads_exactly_those(monkeypatch, tmp_
     assert set(loaded_tables) == {"concept", "vocabulary"}
 
 
-def test_load_vocab_source_tables_skips_required_files_preflight(tmp_path):
+def test_load_vocab_source_tables_skips_required_files_preflight(fresh_engine, tmp_path):
     """tables= skips the all-required-files gate even when most CSVs are absent."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'tables_preflight.db'}", future=True
-    )
+    engine = fresh_engine
 
     # Only concept.csv present — would fail the all-required-files check without tables=.
     source_path = tmp_path / "sparse"
@@ -663,11 +642,9 @@ def test_load_vocab_source_tables_skips_required_files_preflight(tmp_path):
     assert result_names == {"concept"}
 
 
-def test_load_vocab_source_tables_missing_csv_raises_runtime_error(tmp_path):
+def test_load_vocab_source_tables_missing_csv_raises_runtime_error(fresh_engine, tmp_path):
     """Explicitly named table whose CSV is absent raises RuntimeError, not a silent skip."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'tables_missing_csv.db'}", future=True
-    )
+    engine = fresh_engine
 
     source_path = tmp_path / "empty_source"
     source_path.mkdir()
@@ -677,13 +654,11 @@ def test_load_vocab_source_tables_missing_csv_raises_runtime_error(tmp_path):
         load_vocab_source(engine, source_path=source_path, tables=["concept"])
 
 
-def test_load_vocab_source_bulk_mode_surfaces_index_warnings(monkeypatch, tmp_path):
+def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, monkeypatch, tmp_path):
     """A foreign index that manage_indexes(enable=False) leaves in place (status=warning)
     during the bulk-mode disable step must be surfaced on the returned report, not
     silently discarded -- this is the only call site that inspects those results."""
-    engine = sa.create_engine(
-        f"sqlite:///{tmp_path / 'load_vocab_source_bulk.db'}", future=True
-    )
+    engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
 
     # Force the bulk-mode gate (which requires a PostgreSQL engine) without needing

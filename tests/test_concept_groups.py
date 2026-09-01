@@ -228,20 +228,16 @@ def test_registered_identity_is_shared_across_engines(session):
         clear_concept_group_cache()
 
 
-def test_unregistered_engines_do_not_share(session):
+def test_unregistered_engines_do_not_share(session, fresh_engine):
     """Without an identity, each engine is its own scope.
 
     In-memory SQLite lands here deliberately: identical configuration, separate
     databases, so sharing would serve one database's concept sets for another.
     """
-    other = sa.create_engine("sqlite://")
-    try:
-        with so.Session(other) as other_session:
-            assert concept_group_registry(session) is not concept_group_registry(
-                other_session
-            )
-    finally:
-        other.dispose()
+    with so.Session(fresh_engine) as other_session:
+        assert concept_group_registry(session) is not concept_group_registry(
+            other_session
+        )
 
 
 def test_connection_bound_sessions_share_their_engine_scope(session):

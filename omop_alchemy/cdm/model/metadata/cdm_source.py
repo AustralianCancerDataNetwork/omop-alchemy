@@ -2,6 +2,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from typing import Optional
 from datetime import date
+from oa_configurator import Role
 from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
@@ -9,6 +10,7 @@ from omop_alchemy.cdm.base import (
     CDMTableBase,
     merge_table_args,
     omop_index,
+    role_fk,
 )
 
 @cdm_table
@@ -30,7 +32,7 @@ class CDM_Source(CDMTableBase, Base):
     cdm_release_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
 
     cdm_version: so.Mapped[Optional[str]] = so.mapped_column(sa.String(10), nullable=True)
-    cdm_version_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("concept.concept_id"), nullable=False)
+    cdm_version_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
 
     vocabulary_version: so.Mapped[str] = so.mapped_column(sa.String(20), nullable=False)
 

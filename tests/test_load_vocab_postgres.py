@@ -4,8 +4,9 @@ PostgreSQL integration tests for OMOP_Alchemy vocabulary loading.
 These tests require a running PostgreSQL container. Start one with:
     docker compose -f tests/docker-compose.yaml up -d
 
-Then run:
-    pytest -m postgres
+Excluded from the default `pytest` invocation (addopts = "-m 'not
+db_dialect'", see oa_configurator.testing). Run explicitly:
+    pytest -m postgresql
 """
 
 from pathlib import Path
@@ -20,6 +21,8 @@ from omop_alchemy.maintenance.cli_vocab import (
     load_vocab_source,
 )
 from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
+
+pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
 
 def _copy_fixture_source(base_dir: Path) -> Path:
@@ -75,7 +78,6 @@ def _make_concept_source(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
     """load_vocab_source() completes end-to-end on real Postgres via orm-loader>=0.4.0."""
     source_path = _copy_fixture_source(tmp_path)
@@ -89,7 +91,6 @@ def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
     assert count == 7
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_default_quote_mode_preserves_literal_quotes_on_postgres(
     pg_session, pg_engine, tmp_path
 ):
@@ -133,7 +134,6 @@ def test_default_quote_mode_preserves_literal_quotes_on_postgres(
     assert concept_name == quoted_name
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
     pg_session, pg_engine, tmp_path
 ):
@@ -173,7 +173,6 @@ def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
     assert concept_name == long_name
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
     """
     _load_vocab_model_csv loads data correctly on a real PostgreSQL session.
@@ -197,7 +196,6 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
     assert count == 7
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
     pg_session,
     pg_engine,
@@ -235,7 +233,6 @@ def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
     assert names[source_absent_id] == "preserved"
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
     """merge_strategy='upsert' preserves existing rows on second load with same PKs."""
     concept_id = 99998
@@ -258,11 +255,16 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
     )
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
     """
     load_vocab_source with db_schema creates vocabulary tables in the requested
     PostgreSQL schema and loads data into them correctly.
+
+    schema_translate_map, not db_schema alone, is what actually routes
+    ORM-managed table creation: a real deployment sets it once, at engine
+    construction (ResolvedCDMDatabase.create_engine()), not per call. This
+    scopes it here the same way, matching orm-loader's own
+    test_schema_translate_map.py regression test.
     """
     schema = "VocabTest"
     source_path = _copy_fixture_source(tmp_path)
@@ -273,9 +275,16 @@ def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
         conn.execute(sa.text(f"CREATE SCHEMA {quoted_schema}"))
         conn.commit()
 
+    # A single-schema deployment: vocab/results fall back to the same
+    # schema as everything else, matching ResolvedCDMDatabase's own default
+    # fallback behaviour when vocab_schema/results_schema aren't configured.
+    scoped_engine = pg_engine.execution_options(
+        schema_translate_map={None: schema, "vocab": schema, "results": schema}
+    )
+
     try:
         report = load_vocab_source(
-            pg_engine,
+            scoped_engine,
             source_path=source_path,
             db_schema=schema,
         )
@@ -298,7 +307,6 @@ def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
             conn.commit()
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_postgres_catalog_queries_accept_explicit_schema(pg_engine):
     """Schema-qualified catalog checks must bind cleanly with psycopg/PostgreSQL."""
     backend = PostgresBackend()
@@ -307,12 +315,10 @@ def test_postgres_catalog_queries_accept_explicit_schema(pg_engine):
         disabled, enabled = backend.get_fk_trigger_counts(
             connection,
             "concept",
-            "public",
         )
         clustered_index = backend.get_clustered_index_name(
             connection,
             "concept",
-            "public",
         )
 
     assert disabled >= 0

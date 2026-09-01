@@ -1,5 +1,4 @@
 import importlib
-import sqlalchemy as sa
 import pytest
 from typer.testing import CliRunner
 from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
@@ -14,9 +13,9 @@ runner = CliRunner()
 truncate_tables_module = importlib.import_module("omop_alchemy.maintenance.cli_tables")
 
 
-def test_truncate_tables_requires_postgresql(tmp_path):
+def test_truncate_tables_requires_postgresql(fresh_engine):
     """Test truncate tables requires postgresql."""
-    engine = sa.create_engine(f"sqlite:///{tmp_path / 'truncate.db'}", future=True)
+    engine = fresh_engine
 
     with pytest.raises(RuntimeError) as exc_info:
         truncate_tables(engine, scope=TableCategory.CLINICAL, dry_run=True)
@@ -24,9 +23,9 @@ def test_truncate_tables_requires_postgresql(tmp_path):
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
-def test_truncate_tables_reports_blocking_foreign_key_references(monkeypatch, tmp_path):
+def test_truncate_tables_reports_blocking_foreign_key_references(monkeypatch, fresh_engine):
     """Test truncate tables reports blocking foreign key references."""
-    engine = sa.create_engine(f"sqlite:///{tmp_path / 'truncate_fk.db'}", future=True)
+    engine = fresh_engine
     create_missing_tables(engine, vocabulary_included=True)
 
     monkeypatch.setattr(truncate_tables_module, "require_backend_support", lambda *args, **kwargs: None)

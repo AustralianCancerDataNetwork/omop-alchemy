@@ -150,6 +150,7 @@ def create_missing_tables_command(
     with console.status("Creating missing tables..."):
         results = create_missing_tables(
             engine,
+            vocab_engine=conn.vocab_engine,
             db_schema=conn.db_schema,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,

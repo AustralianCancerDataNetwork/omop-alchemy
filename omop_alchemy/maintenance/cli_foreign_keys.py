@@ -8,7 +8,7 @@ import sqlalchemy as sa
 import typer
 
 from ..backends import Backend, resolve_backend, require_backend_support, backend_support_note
-from ._cli_utils import Status, dry_label, dry_status, omop_command, reject_reserved_schema
+from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .tables import (
     TableCategory,
     existing_maintenance_tables,
@@ -179,7 +179,6 @@ def _collect_strict_validation_failures(
                 str(referred_table),
                 list(constrained_columns),
                 list(referred_columns),
-                db_schema,
             )
 
             if violation_count == 0:
@@ -286,7 +285,6 @@ def manage_foreign_key_triggers(
     strict: bool = False,
 ) -> list[ForeignKeyManagementResult]:
     """Enable or disable RI trigger enforcement. With strict=True, aborts on any FK violation."""
-    reject_reserved_schema(db_schema)
     backend = resolve_backend(engine)
     require_backend_support(backend, "toggle_fk_triggers", "FK trigger management")
 
@@ -333,7 +331,7 @@ def manage_foreign_key_triggers(
         }
         for target in targets:
             if not dry_run:
-                backend.toggle_fk_triggers(connection, target.table_name, db_schema, enable=enable)
+                backend.toggle_fk_triggers(connection, target.table_name, enable=enable)
 
             results.append(
                 ForeignKeyManagementResult(
@@ -370,7 +368,7 @@ def collect_foreign_key_trigger_status(
     with engine.connect() as connection:
         for target in targets:
             disabled_count, enabled_count = backend.get_fk_trigger_counts(
-                connection, target.table_name, db_schema
+                connection, target.table_name
             )
             results.append(
                 ForeignKeyStatusResult(

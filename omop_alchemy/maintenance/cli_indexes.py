@@ -10,14 +10,15 @@ import sqlalchemy as sa
 from sqlalchemy.exc import DBAPIError, IntegrityError
 import typer
 
+from oa_configurator import ensure_schema, supports_schemas
+
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY
 
-from ..backends import Backend, resolve_backend, backend_supports
-from ._cli_utils import ReservedSchema, Status, dry_label, dry_status, omop_command, reject_reserved_schema
+from ..backends import resolve_backend, backend_supports
+from ._cli_utils import MAINTENANCE_SCHEMA, Status, dry_label, dry_status, omop_command
 from .tables import (
     MaintenanceTable,
     TableCategory,
-    schema_adjusted_metadata,
     select_omop_tables,
 )
 from .ui import (
@@ -219,23 +220,22 @@ def _schema_key(db_schema: str | None) -> str:
     return db_schema or ""
 
 
-def get_bookkeeping_schema(backend: Backend) -> str | None:
+def get_bookkeeping_schema(connection: sa.Connection) -> str | None:
     """Return the reserved schema name for the dropped-index bookkeeping table.
 
     Parameters
     ----------
-    backend : Backend
-        The resolved database backend.
+    connection : sqlalchemy.Connection
+        The connection the bookkeeping table would be created on.
 
     Returns
     -------
     str or None
-        ReservedSchema.MAINTENANCE.value on backends that override
-        Backend.ensure_schema() (i.e. support named schemas, like
-        PostgreSQL), or None on backends that don't (like SQLite).
+        MAINTENANCE_SCHEMA on a dialect with a genuine multi-schema concept
+        (like PostgreSQL), or None on one that doesn't (like SQLite).
     """
-    if backend_supports(backend, "ensure_schema"):
-        return ReservedSchema.MAINTENANCE.value
+    if supports_schemas(connection):
+        return MAINTENANCE_SCHEMA
     return None
 
 
@@ -284,7 +284,6 @@ def _dropped_indexes_table(bookkeeping_schema: str | None) -> sa.Table:
 
 def _record_captured_index(
     connection: sa.Connection,
-    backend: Backend,
     *,
     table_name: str,
     db_schema: str | None,
@@ -307,8 +306,6 @@ def _record_captured_index(
     ----------
     connection : sqlalchemy.Connection
         Open connection/transaction the capture is recorded on.
-    backend : Backend
-        The resolved database backend.
     table_name : str
         Name of the table the foreign index belongs to.
     db_schema : str or None
@@ -327,8 +324,8 @@ def _record_captured_index(
         True if the capture was recorded, False if a pending capture already
         existed for this table/schema/column-set/uniqueness.
     """
-    bookkeeping_schema = get_bookkeeping_schema(backend)
-    backend.ensure_schema(connection, bookkeeping_schema)
+    bookkeeping_schema = get_bookkeeping_schema(connection)
+    ensure_schema(connection, bookkeeping_schema)
     bookkeeping_table = _dropped_indexes_table(bookkeeping_schema)
     bookkeeping_table.create(bind=connection, checkfirst=True)
 
@@ -360,7 +357,6 @@ def _record_captured_index(
 
 def _peek_captured_index(
     connection: sa.Connection,
-    backend: Backend,
     *,
     table_name: str,
     db_schema: str | None,
@@ -377,8 +373,6 @@ def _peek_captured_index(
     ----------
     connection : sqlalchemy.Connection
         Open connection the lookup is performed on.
-    backend : Backend
-        The resolved database backend.
     table_name : str
         Name of the table the index belongs to.
     db_schema : str or None
@@ -400,7 +394,7 @@ def _peek_captured_index(
         The matched bookkeeping row, for use in a later delete by id. None if
         nothing is captured for this table/schema/column-set/uniqueness.
     """
-    bookkeeping_schema = get_bookkeeping_schema(backend)
+    bookkeeping_schema = get_bookkeeping_schema(connection)
     inspector = sa.inspect(connection)
     if not inspector.has_table(_DROPPED_INDEXES_TABLE_NAME, schema=bookkeeping_schema):
         return None, None, None
@@ -420,7 +414,6 @@ def _peek_captured_index(
 
 def _restore_captured_index(
     connection: sa.Connection,
-    backend: Backend,
     *,
     table_name: str,
     db_schema: str | None,
@@ -435,8 +428,6 @@ def _restore_captured_index(
     ----------
     connection : sqlalchemy.Connection
         Open connection/transaction the index is created on.
-    backend : Backend
-        The resolved database backend.
     table_name : str
         Name of the table to recreate the index on.
     db_schema : str or None
@@ -465,7 +456,6 @@ def _restore_captured_index(
     """
     restored_index_name, bookkeeping_table, row = _peek_captured_index(
         connection=connection,
-        backend=backend,
         table_name=table_name,
         db_schema=db_schema,
         column_names=column_names,
@@ -473,10 +463,10 @@ def _restore_captured_index(
     )
     if restored_index_name is None or bookkeeping_table is None or row is None:
         return None
-    
+
     # A lightweight, untyped Table (no autoload_with reflection) is sufficient:
     # CREATE INDEX DDL only needs column names, not real types, PKs, FKs, or
-    # constraints -- reflecting the whole table would cost several extra
+    # constraints. Reflecting the whole table would cost several extra
     # catalog round-trips to fetch metadata this function never uses.
     lightweight_table = sa.Table(
         table_name, sa.MetaData(),
@@ -501,22 +491,16 @@ def _restore_captured_index(
 
 def _schema_metadata_indexes(
     tables: list[MaintenanceTable],
-    db_schema: str | None,
 ) -> dict[tuple[str, str], sa.Index]:
-    """Return a (table_name, index_name) → Index mapping from ORM metadata, adjusted for db_schema if provided."""
+    """Return a (table_name, index_name) -> Index mapping from ORM metadata.
+
+    Index name/columns don't depend on which schema a table is tagged with,
+    so this reads straight off each table's own ORM metadata.
+    """
     indexes: dict[tuple[str, str], sa.Index] = {}
-
-    if db_schema is None:
-        for table in tables:
-            for index in table.table.indexes:
-                indexes[(table.table_name, str(index.name))] = index
-        return indexes
-
-    _, copied_tables = schema_adjusted_metadata(tables, db_schema=db_schema)
-    for table_name, table in copied_tables.items():
-        for index in table.indexes:
-            indexes[(table_name, str(index.name))] = index
-
+    for table in tables:
+        for index in table.table.indexes:
+            indexes[(table.table_name, str(index.name))] = index
     return indexes
 
 
@@ -674,11 +658,10 @@ def manage_indexes(
     cluster: bool = True,
 ) -> list[IndexManagementResult]:
     """Create or drop all ORM-defined indexes. CLUSTERs tables when enabling and cluster=True."""
-    reject_reserved_schema(db_schema)
     backend = resolve_backend(engine)
     inspector = sa.inspect(engine)
     selected_tables = select_omop_tables(vocabulary_included=vocabulary_included)
-    metadata_indexes = _schema_metadata_indexes(selected_tables, db_schema)
+    metadata_indexes = _schema_metadata_indexes(selected_tables)
     clustering_supported = backend_supports(backend, "cluster_table")
 
     results: list[IndexManagementResult] = []
@@ -731,7 +714,7 @@ def manage_indexes(
             with connection_factory() as connection:
                 if not enable:
                     if not dry_run:
-                        existed_before_drop = backend.index_exists(connection, index_name, db_schema)
+                        existed_before_drop = backend.index_exists(connection, index_name)
                     else:
                         existed_before_drop = exists
                     if not existed_before_drop:
@@ -740,21 +723,21 @@ def manage_indexes(
                         if equivalent_name is not None:
                             if not dry_run:
                                 captured = _record_captured_index(
-                                    connection, backend,
+                                    connection,
                                     table_name=table.table_name, db_schema=db_schema,
                                     index_name=equivalent_name,
                                     column_names=column_names, unique=unique,
                                 )
                             else:
                                 pending_capture, _, _ = _peek_captured_index(
-                                    connection, backend,
+                                    connection,
                                     table_name=table.table_name, db_schema=db_schema,
                                     column_names=column_names, unique=unique,
                                 )
                                 captured = pending_capture is None
                             if captured:
                                 if not dry_run:
-                                    backend.drop_index_if_exists(connection, equivalent_name, db_schema)
+                                    backend.drop_index_if_exists(connection, equivalent_name)
                                 outcome = _IndexOutcome(
                                     status=dry_status(dry_run, Status.CAPTURED),
                                     detail=dry_label(
@@ -806,19 +789,19 @@ def manage_indexes(
                                     physical_name=index_name,
                                 )
                     elif not dry_run:
-                        backend.drop_index_if_exists(connection, index_name, db_schema)
+                        backend.drop_index_if_exists(connection, index_name)
                         # outcome stays default: applied / "metadata-defined index dropped"
                     # dry-run, existed_before_drop True: outcome stays default ("would be dropped")
                 else:
                     if not dry_run:
                         restored_name = _restore_captured_index(
-                            connection, backend,
+                            connection,
                             table_name=table.table_name, db_schema=db_schema,
                             column_names=column_names, unique=unique,
                         )
                     else:
                         restored_name, _, _ = _peek_captured_index(
-                            connection, backend,
+                            connection,
                             table_name=table.table_name, db_schema=db_schema,
                             column_names=column_names, unique=unique,
                         )
@@ -925,7 +908,7 @@ def manage_indexes(
                 else:
                     if not dry_run:
                         with engine.begin() as connection:
-                            backend.cluster_table(connection, table.table_name, physical_cluster_name, db_schema)
+                            backend.cluster_table(connection, table.table_name, physical_cluster_name)
                         clustered_now = True
 
                     results.append(
@@ -945,7 +928,7 @@ def manage_indexes(
 
         if not dry_run and (created_any or clustered_now):
             with engine.connect() as connection:
-                backend.analyze_table(connection, table.table_name, db_schema)
+                backend.analyze_table(connection, table.table_name)
                 connection.commit()
 
     return results
@@ -1068,9 +1051,9 @@ def cluster_tables_command(
 
         if not dry_run:
             with engine.begin() as connection:
-                backend.cluster_table(connection, table.table_name, physical_cluster_name, conn.db_schema)
+                backend.cluster_table(connection, table.table_name, physical_cluster_name)
             with engine.connect() as connection:
-                backend.analyze_table(connection, table.table_name, conn.db_schema)
+                backend.analyze_table(connection, table.table_name)
                 connection.commit()
 
         results.append(

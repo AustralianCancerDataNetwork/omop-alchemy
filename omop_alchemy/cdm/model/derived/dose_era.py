@@ -1,6 +1,7 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from datetime import date
+from oa_configurator import Role
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     cdm_table,
@@ -17,6 +18,7 @@ class Dose_Era(CDMTableBase, Base):
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "drug_concept_id"),
         omop_index(__tablename__, "unit_concept_id"),
+        {"schema": Role.RESULTS.value},
     )
 
     dose_era_id: so.Mapped[int] = so.mapped_column(primary_key=True)

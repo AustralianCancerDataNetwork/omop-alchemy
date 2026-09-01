@@ -71,13 +71,6 @@ class MaintenanceTable:
         )
 
 
-def qualified_table_name(table_name: str, db_schema: str | None) -> str:
-    if db_schema:
-        quoted_schema = '"' + db_schema.replace('"', '""') + '"'
-        return f"{quoted_schema}.{table_name}"
-    return table_name
-
-
 def _mapped_cdm_table_classes() -> Iterable[type]:
     import omop_alchemy.cdm.model  # noqa: F401
     from orm_loader.helpers import Base
@@ -257,23 +250,3 @@ def missing_maintenance_tables(
         for table in select_omop_tables(vocabulary_included=vocabulary_included)
         if not inspector.has_table(table.table_name, schema=db_schema)
     ]
-
-
-def schema_adjusted_metadata(
-    tables: Iterable[MaintenanceTable],
-    *,
-    db_schema: str | None,
-) -> tuple[sa.MetaData, dict[str, sa.Table]]:
-    metadata = sa.MetaData()
-    adjusted_tables: dict[str, sa.Table] = {}
-
-    for maintenance_table in tables:
-        adjusted_tables[maintenance_table.table_name] = maintenance_table.table.to_metadata(
-            metadata,
-            schema=db_schema,  # ty: ignore[invalid-argument-type]
-            referred_schema_fn=(
-                lambda _table, to_schema, _constraint, _referred_schema: to_schema
-            ),
-        )
-
-    return metadata, adjusted_tables

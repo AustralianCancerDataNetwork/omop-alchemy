@@ -6,13 +6,13 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 
-from ._cli_utils import Status, dry_label, dry_status, ensure_schema, reject_reserved_schema
+from oa_configurator import Role, ensure_schema
+from orm_loader.helpers import Base
+from ._cli_utils import Status, dry_label, dry_status
 from .tables import (
     MaintenanceTable,
     TableCategory,
-    collect_maintenance_tables,
     missing_maintenance_tables,
-    schema_adjusted_metadata,
 )
 
 
@@ -57,12 +57,21 @@ def collect_missing_tables(
 def create_missing_tables(
     engine: sa.Engine,
     *,
+    vocab_engine: sa.Engine | None = None,
     db_schema: str | None = None,
     vocabulary_included: bool = True,
     dry_run: bool = False,
 ) -> list[TableCreationResult]:
-    """Create any ORM-managed tables missing from the target database. Skips tables with unresolved FK dependencies."""
-    reject_reserved_schema(db_schema)
+    """Create any ORM-managed tables missing from the target database. Skips tables with unresolved FK dependencies.
+
+    Parameters
+    ----------
+    vocab_engine : sqlalchemy.Engine, optional
+        Engine for vocab-role tables, when ``vocab_connection`` names a
+        physically different server than ``engine``. Defaults to ``engine``
+        (the common, same-connection case).
+    """
+    vocab_engine = vocab_engine if vocab_engine is not None else engine
     if not dry_run:
         ensure_schema(engine, db_schema)
     inspector = sa.inspect(engine)
@@ -92,36 +101,52 @@ def create_missing_tables(
     ]
 
     results: list[TableCreationResult] = []
-    with engine.begin() as connection:
-        if creatable_tables and not dry_run:
-            metadata, adjusted_tables = schema_adjusted_metadata(
-                collect_maintenance_tables(),
-                db_schema=db_schema,
-            )
-            metadata.create_all(
-                bind=connection,
-                tables=[adjusted_tables[table.table_name] for table in creatable_tables],
-                checkfirst=True,
-            )
-
-        for maintenance_table in missing_tables:
-            blocked = blocked_dependencies.get(maintenance_table.table_name)
-            results.append(
-                TableCreationResult(
-                    table_name=maintenance_table.table_name,
-                    category=maintenance_table.category,
-                    model_name=maintenance_table.model_name,
-                    status=(
-                        Status.BLOCKED
-                        if blocked is not None
-                        else dry_status(dry_run, applied=Status.CREATED)
-                    ),
-                    detail=(
-                        "table blocked by unresolved dependencies: " + ", ".join(blocked)
-                        if blocked is not None
-                        else dry_label(dry_run, "table would be created from ORM metadata", "table created from ORM metadata")
-                    ),
+    if creatable_tables and not dry_run:
+        all_tables = [table.table for table in creatable_tables]
+        if vocab_engine is engine:
+            # One call: create_all's dependency sort and FK-deferral must see every table together.
+            with engine.begin() as connection:
+                Base.metadata.create_all(
+                    bind=connection, tables=all_tables, checkfirst=True
                 )
+        else:
+            # Split physical connections: a cross-boundary FK can't be created here at all;
+            # that failure surfaces from create_all itself rather than being masked.
+            vocab_tables = [
+                table for table in all_tables if table.schema == Role.VOCAB.value
+            ]
+            other_tables = [
+                table for table in all_tables if table.schema != Role.VOCAB.value
+            ]
+            if other_tables:
+                with engine.begin() as connection:
+                    Base.metadata.create_all(
+                        bind=connection, tables=other_tables, checkfirst=True
+                    )
+            if vocab_tables:
+                with vocab_engine.begin() as vocab_connection:
+                    Base.metadata.create_all(
+                        bind=vocab_connection, tables=vocab_tables, checkfirst=True
+                    )
+
+    for maintenance_table in missing_tables:
+        blocked = blocked_dependencies.get(maintenance_table.table_name)
+        results.append(
+            TableCreationResult(
+                table_name=maintenance_table.table_name,
+                category=maintenance_table.category,
+                model_name=maintenance_table.model_name,
+                status=(
+                    Status.BLOCKED
+                    if blocked is not None
+                    else dry_status(dry_run, applied=Status.CREATED)
+                ),
+                detail=(
+                    "table blocked by unresolved dependencies: " + ", ".join(blocked)
+                    if blocked is not None
+                    else dry_label(dry_run, "table would be created from ORM metadata", "table created from ORM metadata")
+                ),
             )
+        )
 
     return results

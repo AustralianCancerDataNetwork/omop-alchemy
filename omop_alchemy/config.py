@@ -26,9 +26,18 @@ class OmopAlchemyConfig(PackageConfigBase):
     ----------
     cdm_db : str
         Name of the ``[databases.*]`` entry holding the CDM database.
-    test_cdm_db : str, optional
+    test_cdm_db_pg : str, optional
         Name of the ``[databases.*]`` entry holding the test CDM database,
-        marked ``RefTo(CDMDatabaseConfig, is_test=True)``.
+        marked ``RefTo(CDMDatabaseConfig, is_test=True)``. Must resolve to a
+        real PostgreSQL connection; used for real integration testing of
+        Postgres-only behavior (FK triggers, catalog queries, ALTER, etc.).
+    test_cdm_db_sqlite : str, optional
+        Same shape as ``test_cdm_db_pg``, for tests that must always run
+        against SQLite specifically (dialect-behavior tests), regardless of
+        what ``test_cdm_db_pg`` happens to be configured to. Left
+        unconfigured by design in every environment, since
+        ``isolated_test_database(..., dialect="sqlite")`` provisions a
+        disposable instance with no config needed at all.
 
     Notes
     -----
@@ -40,9 +49,21 @@ class OmopAlchemyConfig(PackageConfigBase):
     extra_logging_namespaces: ClassVar[tuple[str, ...]] = ("orm_loader",)
 
     cdm_db: Annotated[str, RefTo(CDMDatabaseConfig)] = "cdm_db"
-    test_cdm_db: Annotated[
+    test_cdm_db_pg: Annotated[
         str | None, RefTo(CDMDatabaseConfig, is_test=True)
-    ] = None
+    ] = Field(
+        default=None,
+        description="Real PostgreSQL test CDM database, for Postgres-only integration testing.",
+    )
+    test_cdm_db_sqlite: Annotated[
+        str | None, RefTo(CDMDatabaseConfig, is_test=True)
+    ] = Field(
+        default=None,
+        description=(
+            "Disposable SQLite test database; left unconfigured by design "
+            "(isolated_test_database(..., dialect='sqlite') provisions one automatically)."
+        ),
+    )
 
     athena_source_path: str | None = Field(
         default=None,

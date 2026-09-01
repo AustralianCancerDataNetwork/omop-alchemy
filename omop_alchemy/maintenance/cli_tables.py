@@ -7,11 +7,11 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 import typer
 
+from oa_configurator import autocommit_connection, qualified
 from ..backends import resolve_backend, require_backend_support, backend_support_note
-from ._cli_utils import Status, dry_label, dry_status, omop_command, reject_reserved_schema, resolve_selection
+from ._cli_utils import Status, dry_label, dry_status, omop_command, resolve_selection
 from .tables import (
     TableCategory,
-    qualified_table_name,
     resolve_maintenance_tables,
     select_omop_tables,
 )
@@ -57,7 +57,6 @@ def analyze_tables(
 
     Runs on every ORM-managed table if both scope and table_names are omitted.
     """
-    reject_reserved_schema(db_schema)
     if scope is not None and table_names is not None:
         raise RuntimeError("Use either `scope` or `table_names`, not both.")
 
@@ -67,11 +66,7 @@ def analyze_tables(
     operation = "VACUUM ANALYZE" if vacuum else "ANALYZE"
     results: list[AnalyzeTableResult] = []
 
-    connection_factory = (
-        engine.connect().execution_options(isolation_level="AUTOCOMMIT")
-        if vacuum
-        else engine.connect()
-    )
+    connection_factory = autocommit_connection(engine) if vacuum else engine.connect()
 
     with connection_factory as connection:
         for maintenance_table in selected_tables:
@@ -88,7 +83,7 @@ def analyze_tables(
                 continue
 
             if not dry_run:
-                backend.analyze_table(connection, maintenance_table.table_name, db_schema, vacuum=vacuum)
+                backend.analyze_table(connection, maintenance_table.table_name, vacuum=vacuum)
 
             results.append(
                 AnalyzeTableResult(
@@ -168,7 +163,6 @@ def truncate_tables(
     dry_run: bool = False,
 ) -> list[TruncateTableResult]:
     """Truncate selected ORM-managed tables. Raises if non-selected tables hold blocking FK references."""
-    reject_reserved_schema(db_schema)
     if scope is not None and table_names is not None:
         raise RuntimeError("Use either `scope` or `table_names`, not both.")
     if scope is None and table_names is None:
@@ -197,7 +191,7 @@ def truncate_tables(
 
             row_count = int(
                 connection.exec_driver_sql(
-                    f"SELECT COUNT(*) FROM {qualified_table_name(maintenance_table.table_name, db_schema)}"
+                    f"SELECT COUNT(*) FROM {qualified(connection, maintenance_table.table_name)}"
                 ).scalar_one()
             )
             existing_tables.append(maintenance_table.table_name)
@@ -224,7 +218,6 @@ def truncate_tables(
             backend.truncate_table_batch(
                 connection,
                 existing_tables,
-                db_schema,
                 restart_identities=restart_identities,
                 cascade=cascade,
             )
@@ -289,7 +282,6 @@ def reset_model_sequences(
     dry_run: bool = False,
 ) -> list[SequenceResetResult]:
     """Reset each owned sequence to MAX(pk_column) + 1 to prevent insert conflicts after bulk loads."""
-    reject_reserved_schema(db_schema)
     backend = resolve_backend(engine)
     require_backend_support(backend, "find_sequence_name", "Sequence reset")
     inspector = sa.inspect(engine)
@@ -302,7 +294,7 @@ def reset_model_sequences(
                 continue
 
             sequence_name = backend.find_sequence_name(
-                connection, target.table_name, target.pk_column_name, db_schema
+                connection, target.table_name, target.pk_column_name
             )
 
             if sequence_name is None:
@@ -319,7 +311,7 @@ def reset_model_sequences(
                 )
                 continue
 
-            fully_qualified = qualified_table_name(target.table_name, db_schema)
+            fully_qualified = qualified(connection, target.table_name)
             current_max = connection.execute(
                 sa.text(
                     f"SELECT COALESCE(MAX({target.pk_column_name}), 0) "

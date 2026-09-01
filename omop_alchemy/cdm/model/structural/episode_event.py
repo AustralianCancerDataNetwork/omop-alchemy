@@ -4,6 +4,7 @@ from sqlalchemy import event
 from sqlalchemy.orm import Mapper
 from typing import TYPE_CHECKING, Any, Type
 from functools import cached_property, cache
+from oa_configurator import Role
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     cdm_table,
@@ -15,6 +16,7 @@ from omop_alchemy.cdm.base import (
     ModifierTargetMixin,
     merge_table_args,
     omop_index,
+    role_fk,
 )
 
 if TYPE_CHECKING:
@@ -84,7 +86,7 @@ class Episode_Event(CDMTableBase, Base):
 
     episode_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("episode.episode_id"),nullable=False,primary_key=True)
     event_id: so.Mapped[int] = so.mapped_column(nullable=False,primary_key=True)
-    episode_event_field_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("concept.concept_id"),nullable=False,primary_key=True)
+    episode_event_field_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),nullable=False,primary_key=True)
 
     def __repr__(self) -> str:
         return f"<EpisodeEvent ep={self.episode_id} event={self.event_id}>"

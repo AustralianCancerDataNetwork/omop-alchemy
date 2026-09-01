@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     ReferenceTable,
@@ -7,6 +8,7 @@ from omop_alchemy.cdm.base import (
     CDMTableBase,
     merge_table_args,
     omop_index,
+    role_fk,
 )
 
 @cdm_table
@@ -21,7 +23,8 @@ class Concept_Synonym(Base, ReferenceTable, CDMTableBase):
             sa.func.lower(sa.column("concept_synonym_name")),
             name="ix_concept_synonym_concept_synonym_name_lower",
         ),
+        {"schema": Role.VOCAB.value},
     )
-    concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("concept.concept_id"),primary_key=True)
+    concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)
     concept_synonym_name: so.Mapped[str] = so.mapped_column(sa.String(1000),primary_key=True)
-    language_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("concept.concept_id"),primary_key=True)
+    language_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)
