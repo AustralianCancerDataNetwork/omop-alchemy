@@ -40,4 +40,4 @@ jobs:
           --connection pg_test \
           --schema-name public
         uv run omop-config configure omop_alchemy \
-          --test-cdm-db test_cdm_db
+          --test-cdm-db-pg test_cdm_db
