@@ -22,6 +22,7 @@ flowchart TD
         L0a["CSVLoadableTableInterface"]
         L0b["SerialisableTableInterface"]
         L0c["Bulk load & casting helpers"]
+        L0d["Materialized-view lifecycle"]
     end
 
     subgraph L1["cdm.base"]
@@ -68,6 +69,7 @@ This layer provides:
 * bulk inserts
 * type casting
 * serialization helpers
+* generic materialized-view definition and lifecycle operations
 
 It is deliberately domain-agnostic.
 
@@ -77,6 +79,12 @@ Examples:
 
 * [CSVLoadableTableInterface](https://australiancancerdatanetwork.github.io/orm-loader/loaders/)
 * [SerialisableTableInterface](https://australiancancerdatanetwork.github.io/orm-loader/tables/serialisable_table/)
+* [Materialized views](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/)
+
+OMOP Alchemy may supply an OMOP-specific selectable and its logical row
+identity to this layer, but it does not implement database DDL or refresh
+mechanics. Applications own collections of materialized views, dependency
+policy, and deployment commands.
 
 #### cdm.base (L1)
 

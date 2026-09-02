@@ -1,0 +1,227 @@
+"""Portable SQL expressions for bounded windows and deterministic date ranking."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import Any
+
+import sqlalchemy as sa
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.compiler import SQLCompiler
+from sqlalchemy.sql.functions import FunctionElement
+
+from ._ranking import deterministic_row_number
+from .contracts import (
+    EpisodeWindowSpec,
+    TemporalRankingSpec,
+    TemporalSelectionPolicy,
+    TemporalSidePreference,
+)
+
+
+class _SignedDayDelta(FunctionElement[int]):
+    """Dialect-specific whole-calendar-day difference used by ranking rules."""
+
+    type = sa.Integer()
+    inherit_cache = True
+
+
+@compiles(_SignedDayDelta, "postgresql")
+def _compile_signed_day_delta(
+    element: _SignedDayDelta,
+    compiler: SQLCompiler,
+    **kwargs: Any,
+) -> str:
+    # PostgreSQL dates subtract to an integer; casting first makes timestamp
+    # inputs obey the toolkit's calendar-day contract instead of elapsed-time
+    # semantics.
+    candidate, anchor = list(element.clauses)
+    return (
+        f"(CAST({compiler.process(candidate, **kwargs)} AS DATE) - "
+        f"CAST({compiler.process(anchor, **kwargs)} AS DATE))"
+    )
+
+
+@compiles(_SignedDayDelta, "sqlite")
+def _compile_sqlite_signed_day_delta(
+    element: _SignedDayDelta,
+    compiler: SQLCompiler,
+    **kwargs: Any,
+) -> str:
+    # SQLite has no date subtraction operator. Truncate both operands before
+    # julianday arithmetic so this stays equivalent to PostgreSQL for dates.
+    candidate, anchor = list(element.clauses)
+    return (
+        "CAST((julianday(date("
+        f"{compiler.process(candidate, **kwargs)})) - julianday(date("
+        f"{compiler.process(anchor, **kwargs)}))) AS INTEGER)"
+    )
+
+
+class _ShiftDate(FunctionElement[Any]):
+    """Dialect-specific date shift used to construct episode window bounds."""
+
+    type = sa.Date()
+    inherit_cache = True
+
+
+@compiles(_ShiftDate, "postgresql")
+def _compile_shift_date(
+    element: _ShiftDate,
+    compiler: SQLCompiler,
+    **kwargs: Any,
+) -> str:
+    # Keep the date cast on the value and integer cast on the offset explicit;
+    # this avoids PostgreSQL choosing timestamp/interval semantics implicitly.
+    value, days = list(element.clauses)
+    return (
+        f"(CAST({compiler.process(value, **kwargs)} AS DATE) + "
+        f"CAST({compiler.process(days, **kwargs)} AS INTEGER))"
+    )
+
+
+@compiles(_ShiftDate, "sqlite")
+def _compile_sqlite_shift_date(
+    element: _ShiftDate,
+    compiler: SQLCompiler,
+    **kwargs: Any,
+) -> str:
+    # SQLite's portable equivalent is its date modifier syntax. The printf
+    # form keeps the offset bound as a SQL expression rather than interpolating
+    # it into generated SQL.
+    value, days = list(element.clauses)
+    return (
+        f"date({compiler.process(value, **kwargs)}, "
+        f"printf('%+d days', {compiler.process(days, **kwargs)}))"
+    )
+
+
+def signed_day_delta(
+    candidate_date: sa.ColumnElement[Any],
+    anchor_date: sa.ColumnElement[Any],
+) -> sa.ColumnElement[int]:
+    """Return candidate minus anchor in whole calendar days."""
+    return _SignedDayDelta(candidate_date, anchor_date)
+
+
+def absolute_day_delta(
+    candidate_date: sa.ColumnElement[Any],
+    anchor_date: sa.ColumnElement[Any],
+) -> sa.ColumnElement[int]:
+    """Return absolute calendar-day distance between candidate and anchor."""
+    return sa.func.abs(signed_day_delta(candidate_date, anchor_date))
+
+
+def shift_date(
+    value: sa.ColumnElement[Any],
+    *,
+    days: int,
+) -> sa.ColumnElement[Any]:
+    """Shift a date by a fixed number of days on PostgreSQL or SQLite."""
+    return _ShiftDate(value, sa.literal(days))
+
+
+def bounded_temporal_predicate(
+    value: sa.ColumnElement[Any],
+    lower_bound: sa.ColumnElement[Any],
+    upper_bound: sa.ColumnElement[Any],
+    *,
+    include_lower_bound: bool = True,
+    include_upper_bound: bool = True,
+) -> sa.ColumnElement[bool]:
+    """Test a value against independently open or closed temporal bounds."""
+    lower = value >= lower_bound if include_lower_bound else value > lower_bound
+    upper = value <= upper_bound if include_upper_bound else value < upper_bound
+    return sa.and_(lower, upper)
+
+
+def episode_window_bounds(
+    episode_start_date: sa.ColumnElement[Any],
+    episode_end_date: sa.ColumnElement[Any],
+    *,
+    window: EpisodeWindowSpec = EpisodeWindowSpec(),
+) -> tuple[sa.ColumnElement[Any], sa.ColumnElement[Any]]:
+    """Build the bounded SQL interval used for date-admitted episode facts.
+
+    Closed episodes use their recorded end date. Open episodes use the
+    configured fallback horizon so an absent end date cannot silently produce
+    an unbounded join.
+    """
+    lower = shift_date(episode_start_date, days=-window.days_prior)
+    upper = sa.func.coalesce(
+        episode_end_date,
+        shift_date(episode_start_date, days=window.open_end_fallback_days),
+    )
+    return lower, upper
+
+
+def episode_window_predicate(
+    event_date: sa.ColumnElement[Any],
+    episode_start_date: sa.ColumnElement[Any],
+    episode_end_date: sa.ColumnElement[Any],
+    *,
+    window: EpisodeWindowSpec = EpisodeWindowSpec(),
+) -> sa.ColumnElement[bool]:
+    """Test whether an event lies inside a bounded episode-relative window."""
+    lower, upper = episode_window_bounds(
+        episode_start_date,
+        episode_end_date,
+        window=window,
+    )
+    return bounded_temporal_predicate(
+        event_date,
+        lower,
+        upper,
+        include_lower_bound=window.include_lower_bound,
+        include_upper_bound=window.include_upper_bound,
+    )
+
+
+def temporal_order_expressions(
+    candidate_date: sa.ColumnElement[Any],
+    anchor_date: sa.ColumnElement[Any],
+    stable_id: sa.ColumnElement[Any],
+    ranking: TemporalRankingSpec,
+) -> tuple[sa.ColumnElement[Any], ...]:
+    """Build deterministic ordering for a temporal ranking contract."""
+    order: list[sa.ColumnElement[Any]] = []
+    # Side preference is a priority tier, not an additional date filter: the
+    # ranking contract may still select the nearest row on the other side.
+    if ranking.side_preference is TemporalSidePreference.on_or_before_anchor:
+        order.append(sa.case((candidate_date <= anchor_date, 0), else_=1).asc())
+    elif ranking.side_preference is TemporalSidePreference.on_or_after_anchor:
+        order.append(sa.case((candidate_date >= anchor_date, 0), else_=1).asc())
+
+    if ranking.policy is TemporalSelectionPolicy.nearest:
+        order.append(absolute_day_delta(candidate_date, anchor_date).asc())
+    elif ranking.policy is TemporalSelectionPolicy.earliest:
+        order.append(candidate_date.asc())
+    elif ranking.policy is TemporalSelectionPolicy.latest:
+        order.append(candidate_date.desc())
+    else:  # pragma: no cover - StrEnum construction prevents unknown policies
+        raise ValueError(f"Unsupported temporal selection policy: {ranking.policy}")
+    # A stable source ID makes equal-date/equal-distance candidates reproducible.
+    order.append(stable_id.asc())
+    return tuple(order)
+
+
+def temporal_row_number(
+    candidate_date: sa.ColumnElement[Any],
+    anchor_date: sa.ColumnElement[Any],
+    stable_id: sa.ColumnElement[Any],
+    ranking: TemporalRankingSpec,
+    *,
+    partition_by: Iterable[sa.ColumnElement[Any]] = (),
+    label: str = "temporal_rank",
+) -> sa.ColumnElement[int]:
+    """Return a deterministic row number for temporal candidates."""
+    return deterministic_row_number(
+        partition_by=tuple(partition_by),
+        order_by=temporal_order_expressions(
+            candidate_date,
+            anchor_date,
+            stable_id,
+            ranking,
+        ),
+        label=label,
+    )

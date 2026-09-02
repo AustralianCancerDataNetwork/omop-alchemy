@@ -1,55 +1,48 @@
 # Toolkit
 
-`omop_alchemy.cdm` gives you the OMOP CDM schema as SQLAlchemy models. The toolkit is
-what you build with them: vocabulary resolution, patient timelines, episode traversal,
-domain analytics, and outbound export.
-
-!!! warning "Experimental"
-    The toolkit is newer and less battle-tested than the CDM models it sits on top of.
-    Module paths below an area (anything past `toolkit.<tier>.<area>`) may still move;
-    the area itself is the stable import surface. The CDM models themselves are not
-    affected by anything here.
-
-## Four tiers
-
-Each tier may depend only on the tiers before it in this list — `core` knows nothing of
-episodes or clinical domains, and nothing depends on `integrations`.
-
-| Tier | Answers | Assumes a clinical domain? |
-|---|---|---|
-| [`core`](core.md) | Resolve concepts, build a patient timeline, convert units | No |
-| [`episodes`](episodes.md) | Build episodes, retrieve what belongs to one | No |
-| [`analytics`](analytics.md) | What does this value mean clinically? | Yes, one subpackage per domain |
-| [`integrations`](integrations.md) | Export to an external data standard | No |
-
-## A worked example
-
-Querying an oncology episode pulls together all four tiers without you having to think
-about the seams between them: concept resolution and timelines from `core`, drug
-retrieval from `episodes`, oncology classification from `analytics`.
+The toolkit turns OMOP rows into objects that answer clinical questions. For example, given the ID of an oncology episode, you can inspect its treatment modality, linked drug exposures, radiotherapy dose, and weight-loss assessment while the episode remains attached to a SQLAlchemy session:
 
 ```python
 from sqlalchemy.orm import Session
+
 from omop_alchemy.toolkit.analytics.oncology import OncologyEpisode
 
 with Session(engine) as session:
     episode = session.get(OncologyEpisode, episode_id)
+    if episode is None:
+        raise LookupError(f"Unknown episode: {episode_id}")
 
-    episode.structural_modality        # OncologyModality.SACT, .RADIOTHERAPY, ...
-    episode.drug_exposures              # linked Drug_Exposure rows
-    episode.rt_dose_summary             # RTDoseSummary, if any RT was given
-    episode.critical_weight_loss_grade  # graded against Martin/CTCAE criteria
+    modalities = episode.structural_modalities
+    drug_exposures = episode.sact_exposures
+    radiotherapy = episode.rt_dose_summary
+    weight_loss = episode.critical_weight_loss_summary()
 ```
 
-## Import surface
+This is still ordinary SQLAlchemy. `OncologyEpisode` is mapped to the OMOP episode view, and properties may load related rows or resolve governed vocabulary sets through the active session. The toolkit adds interpretation and reusable retrieval rules; it does not replace the CDM models or hide when database access is required.
 
-Import from the area subpackage — `omop_alchemy.toolkit.<tier>.<area>` — not from a
-specific module beneath it:
+## Where to begin
+
+Choose the part of the toolkit that matches the question you are asking:
+
+| If you need to… | Start with |
+|---|---|
+| Resolve incoming text or source codes to OMOP concepts, compare measurements in common units, or represent events from several CDM tables consistently | [`core`](core.md) |
+| Traverse episode relationships, retrieve episode-linked facts, or state how an event should be attached to an episode | [`episodes`](episodes.md) |
+| Apply a clinical interpretation such as oncology modality, dose summarisation, body-metric analysis, or weight-loss grading | [`analytics`](analytics.md) |
+| Check the availability and expectations of outbound data-standard integrations | [`integrations`](integrations.md) |
+
+The dependency direction follows the same order. `episodes` can use `core`; `analytics` can use both; `integrations` can use the whole toolkit. Lower layers never import a clinical specialty or an export format. This keeps general concepts such as event identity and unit conversion independent of the analyses that use them.
+
+## Public imports
+
+Import from the documented area package rather than from a file beneath it:
 
 ```python
 from omop_alchemy.toolkit.core.concepts import make_concept_resolver
 from omop_alchemy.toolkit.analytics.oncology import OncologyEpisode
 ```
 
-Each area's `__init__.py` re-exports its public names, and that's the part of the path
-that stays stable. Files beneath it are free to move.
+The area packages re-export their public API. Module names below those packages are implementation details and may change without providing a compatibility import.
+
+!!! warning "Toolkit stability"
+    Toolkit area packages are less stable than `omop_alchemy.cdm`. Treat the documented area import paths as the compatibility boundary, pin the package version in deployed applications, and review release notes before upgrading. Changes in the toolkit do not alter the CDM model API.
