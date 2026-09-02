@@ -36,7 +36,7 @@ dependencies = [
   "oa-configurator>=1.0.0,<2.0.0",
   "typer>=0.12",
   "rich>=13.0",
-  "orm-loader>=1.0.0,<2.0.0",
+  "orm-loader>=1.2.0,<2.0.0",
 ]
 
 [project.optional-dependencies]
