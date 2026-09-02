@@ -12,7 +12,7 @@ uv run ruff check .
 
 Before adding general database or ORM infrastructure, check whether it belongs in a lower-level dependency. `orm-loader` owns domain-independent loading, serialization, and materialized-view lifecycle mechanics. OMOP Alchemy owns OMOP table models, clinical semantics, and the OMOP-specific selectables and row grains that consumers can pass to that infrastructure.
 
-Do not add materialized-view DDL, lifecycle helpers, or orchestration to `omop_alchemy`. A consuming application owns its view registry, dependency and rebuild policy, and command-line or deployment workflow. The ownership test in `tests/test_materialization_ownership.py` protects this boundary.
+Do not add materialized-view DDL, lifecycle helpers, or orchestration to `omop_alchemy`. A consuming application owns its view registry, dependency and rebuild policy, and command-line or deployment workflow. 
 
 ## Opening a pull request
 

@@ -1,109 +1,131 @@
 # Materialized views
 
-Materialized-view definitions and database lifecycle operations are provided by
-[`orm-loader`](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/).
-OMOP Alchemy supplies OMOP models and query-building primitives that applications
-can use in those definitions; it does not provide a second DDL or refresh API.
+A materialized view is a persisted read model: an expensive or carefully defined query is computed once and then read like a table. This is useful when the same analytical shape is consumed repeatedly, but it also introduces a deployment lifecycle that ordinary query construction does not have.
 
-The supported deployment contract is PostgreSQL with unqualified materialized
-views resolving to the `public` schema. Omit the `schema` argument when calling
-the lifecycle methods. Qualified non-`public` schemas are not currently part of
-the supported contract.
+OMOP Alchemy owns the OMOP models and the query-building vocabulary. [`orm-loader`](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/) owns the generic materialized-view definition and database lifecycle. Keeping that boundary means this package can describe an OMOP read model without growing a second implementation of DDL, refresh, index creation, or dependency ordering.
 
-## Define a view over an OMOP query
+## The deployment contract
 
-Use the public `orm_loader.materialized_views` module. A definition states the
-view name, its SQLAlchemy selectable, the complete logical row identity, any
-dependencies, and any indexes that should be created with the view:
+The supported deployment contract is PostgreSQL with unqualified materialized-view names resolving to the `public` schema through the connection's `search_path`. Leave `schema` at its default when calling the lifecycle methods. Qualified non-`public` schemas and schema translation are not part of this package's materialized-view contract.
+
+This page explains how an OMOP Alchemy query becomes a managed read model. The linked [`orm-loader` materialized-view guide](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/) is the authoritative reference for the complete API, supported options, backend behavior, and generated reference documentation.
+
+The important design decision is the shape of the result. Give the view a stable name, build its contents with the same SQLAlchemy expressions used elsewhere in the toolkit, and make the row grain explicit in the query. The example below creates one row per person and measurement concept, which makes the unique index meaningful as well as useful for concurrent refresh.
 
 ```python
 import sqlalchemy as sa
 
-from orm_loader.materialized_views import (
-    MaterializedViewIndex,
-    MaterializedViewMixin,
+from omop_alchemy.cdm.model import Measurement
+from orm_loader.mappers.materialised_view_contracts import MaterializedViewIndex
+from orm_loader.mappers.materialised_view_mixin import MaterializedViewMixin
+
+
+measurement_summary = (
+    sa.select(
+        Measurement.person_id,
+        Measurement.measurement_concept_id.label("concept_id"),
+        sa.func.max(Measurement.measurement_date).label("last_measurement_date"),
+        sa.func.count().label("measurement_count"),
+    )
+    .group_by(Measurement.person_id, Measurement.measurement_concept_id)
 )
 
 
-event_query = sa.select(
-    events.c.person_id,
-    events.c.event_id,
-    events.c.event_date,
-)
-
-
-class ClinicalEventsMV(MaterializedViewMixin):
-    __mv_name__ = "clinical_events"
-    __mv_select__ = event_query
-    __mv_logical_identity__ = ("person_id", "event_id")
-    __mv_dependencies__ = ("measurement", "observation")
+class MeasurementSummaryMV(MaterializedViewMixin):
+    __mv_name__ = "measurement_summary"
+    __mv_select__ = measurement_summary
     __mv_indexes__ = (
         MaterializedViewIndex(
-            name="clinical_events_identity_uq",
-            columns=("person_id", "event_id"),
+            name="measurement_summary_identity_uq",
+            columns=("person_id", "concept_id"),
             unique=True,
         ),
     )
 ```
 
-`__mv_logical_identity__` documents the complete grain and is validated against
-the selectable, but it is not itself a database constraint. Test that identity
-against representative data and declare a matching unique index when the view
-must support concurrent refresh.
+`orm-loader` does not infer or validate the logical grain of a selectable. Treat the query's grouping and joins as the source of truth, test that grain against representative data, and declare a matching unique index when the view needs concurrent refresh. The index is the database-level guarantee; a comment or a convention in the Python class is not.
 
-`__mv_dependencies__` records tables or materialized views that the definition
-depends on. The registry owner decides which dependencies are managed views and
-uses that metadata to determine refresh order.
-
-## Create, refresh, and drop
-
-The class methods accept either a SQLAlchemy `Engine` or `Connection`. Passing
-an engine lets `orm-loader` manage the transaction. Passing a connection keeps
-the operation inside the caller's transaction:
+`__mv_dependencies__` is for dependencies between managed materialized views. Its values are matched against the names of the view classes passed to the refresh-order resolver, so a base OMOP table such as `measurement` does not create a lifecycle dependency by itself. Add a dependency when one materialized view reads another:
 
 ```python
-ClinicalEventsMV.create_mv(engine)
-ClinicalEventsMV.refresh_mv(engine)
-ClinicalEventsMV.drop_mv(engine)
-
-with engine.begin() as connection:
-    ClinicalEventsMV.create_mv(connection)
+class PersonMeasurementSummaryMV(MaterializedViewMixin):
+    __mv_name__ = "person_measurement_summary"
+    __mv_select__ = sa.select(measurement_summary.subquery())
+    __mv_dependencies__ = {"measurement_summary"}
 ```
 
-`create_mv()` creates the view and its declared indexes as one operation.
-Creation fails by default if the target already exists, keeping definition
-drift visible. Use `if_not_exists=True` only when an idempotent no-op is the
-application's deliberate deployment policy.
+Use the class as a schema-level definition, not as a promise that OMOP Alchemy will map the resulting relation or schedule its deployment. If application code needs ORM-style reads, map the relation separately according to the application's identity and session requirements.
 
-PostgreSQL requires a suitable unique index for
-`refresh_mv(concurrently=True)`. `orm-loader` rejects a definition with no
-declared unique index before execution, then lets PostgreSQL decide whether the
-live database satisfies its concurrent-refresh prerequisites. A database
-rejection is translated to `ConcurrentRefreshNotEligibleError`, preserving the
-original exception as its cause.
+## Treat creation as deployment
 
-Lifecycle failures carry operation and target context through
-`MaterializationError`. A failed statement can leave a caller-managed
-PostgreSQL transaction aborted, so roll that transaction back before issuing
-more statements. An `engine.begin()` context rolls back automatically when the
-exception leaves the context.
+Creation is usually part of an application migration, bootstrap command, or release step. Keep it explicit and make the existing-target policy deliberate:
 
-## Keep orchestration with the application
+```python
+with engine.begin() as connection:
+    MeasurementSummaryMV.create_mv(connection)
+```
 
-OMOP Alchemy can own a reusable OMOP query and document its logical grain. The
-application that deploys materialized views owns:
+The default is idempotent: `create_mv()` emits `IF NOT EXISTS`, so an already-present view is left in place. That is convenient for repeatable bootstrap, but it does not detect definition drift. Pass `if_not_exists=False` when an existing target should fail the deployment and force an explicit replacement decision.
 
-* the registry of view classes;
-* uniqueness checks against representative data;
-* dependency and refresh order;
-* replacement and rebuild policy; and
-* command-line, migration, or scheduler integration.
+The view's declared indexes are created by `create_mv()` by default. Pass `create_indexes=False` only when index creation is intentionally managed elsewhere. With an `Engine`, `orm-loader` manages the transaction for each backend operation; with a `Connection`, the caller controls the transaction and can keep view and index creation inside a larger migration transaction. If index creation fails after the view has been created through an engine, treat the deployment as incomplete and reconcile it before retrying.
 
-For the cohort delivery stack, those application concerns belong in
-`omop-constructs`. Use `resolve_mv_refresh_order()` and `refresh_all_mvs()` from
-`orm_loader.materialized_views` rather than implementing another dependency
-resolver or refresh loop.
+`with_data=False` is useful when the relation must exist before its source data is ready, but the resulting view cannot be queried until it has been refreshed:
 
-Refer to the
-[`orm-loader` materialized-view guide](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/)
-for the complete API and backend behaviour.
+```python
+MeasurementSummaryMV.create_mv(engine, with_data=False, if_not_exists=False)
+# Load or migrate the source data, then make the read model available.
+MeasurementSummaryMV.refresh_mv(engine)
+```
+
+For replacement or teardown, use the lifecycle options documented by [`orm-loader`](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/) rather than issuing raw `CREATE`, `DROP`, or `REFRESH` statements in this package. In particular, `cascade=True` is an explicit decision to remove dependent database objects as part of a drop.
+
+## Choose a refresh policy
+
+An ordinary refresh is the simple operational default:
+
+```python
+MeasurementSummaryMV.refresh_mv(engine)
+```
+
+Concurrent refresh is a PostgreSQL feature for keeping the existing materialized view available while its contents are rebuilt. It requires an eligible unique index over the view, with no predicate or expression-based shortcut. `orm-loader` first fails closed when the class declares no unique index and then translates PostgreSQL's rejection when the live database still does not satisfy the requirement. Both paths raise `ConcurrentRefreshNotEligibleError`, with the database exception preserved as the cause when PostgreSQL produced one.
+
+```python
+from orm_loader.backends import ConcurrentRefreshNotEligibleError
+
+
+try:
+    MeasurementSummaryMV.refresh_mv(engine, concurrently=True)
+except ConcurrentRefreshNotEligibleError as error:
+    logger.warning("Concurrent refresh unavailable: %s", error)
+    MeasurementSummaryMV.refresh_mv(engine)
+```
+
+Use the fallback only if serving a briefly stale or synchronously refreshed read model is acceptable. A failed statement can leave a caller-managed PostgreSQL transaction aborted, so roll that transaction back before issuing more statements. An `engine.begin()` context rolls back automatically when an exception leaves the context.
+
+## Orchestrate a family of views
+
+The application owns the registry because it knows which views belong to a deployment and which policy should govern them. `orm-loader` supplies the small amount of generic machinery needed to order managed views and invoke their lifecycle methods.
+
+```python
+from orm_loader.mappers.materialised_view_mixin import (
+    refresh_all_mvs,
+    resolve_mv_refresh_order,
+)
+
+
+ALL_MVS = [
+    MeasurementSummaryMV,
+    PersonMeasurementSummaryMV,
+]
+
+# Ordinary refreshes in dependency order.
+refresh_all_mvs(engine, ALL_MVS)
+
+# For concurrent refreshes, retain the same order while choosing the policy.
+for view_cls in resolve_mv_refresh_order(ALL_MVS):
+    view_cls.refresh_mv(engine, concurrently=True)
+```
+
+This registry is also the right place for application-specific choices such as whether to rebuild a view after a definition change, whether a failed refresh should block a release, and how to report lifecycle failures to operators. Do not duplicate the generic dependency resolver or database lifecycle in an OMOP Alchemy toolkit module; the ownership boundary is protected by [`tests/test_materialization_ownership.py`](https://github.com/AustralianCancerDataNetwork/OMOP_Alchemy/blob/main/tests/test_materialization_ownership.py).
+
+For the cohort delivery stack, these deployment concerns belong in `omop-constructs` or the application that runs its migrations and schedulers. OMOP Alchemy's role is to provide reusable OMOP query components and a clear read-model contract.
