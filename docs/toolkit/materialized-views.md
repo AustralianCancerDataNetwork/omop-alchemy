@@ -16,8 +16,8 @@ The important design decision is the shape of the result. Give the view a stable
 import sqlalchemy as sa
 
 from omop_alchemy.cdm.model import Measurement
-from orm_loader.mappers.materialised_view_contracts import MaterializedViewIndex
-from orm_loader.mappers.materialised_view_mixin import MaterializedViewMixin
+from orm_loader.mappers import MaterializedViewIndex
+from orm_loader.mappers import MaterializedViewMixin
 
 
 measurement_summary = (
@@ -107,7 +107,7 @@ Use the fallback only if serving a briefly stale or synchronously refreshed read
 The application owns the registry because it knows which views belong to a deployment and which policy should govern them. `orm-loader` supplies the small amount of generic machinery needed to order managed views and invoke their lifecycle methods.
 
 ```python
-from orm_loader.mappers.materialised_view_mixin import (
+from orm_loader.mappers import (
     refresh_all_mvs,
     resolve_mv_refresh_order,
 )
