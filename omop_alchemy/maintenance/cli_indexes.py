@@ -957,7 +957,7 @@ def disable_indexes_command(
         results = manage_indexes(
             engine,
             enable=False,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
         )
@@ -993,7 +993,7 @@ def enable_indexes_command(
         results = manage_indexes(
             engine,
             enable=True,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
             cluster=cluster,
@@ -1018,7 +1018,7 @@ def cluster_tables_command(
     """CLUSTER tables using their ORM-designated cluster index.
 
     Physically rewrites table data sorted by the cluster index for improved sequential-scan
-    performance. Requires approximately 2× the table size in free disk space per table.
+    performance. Requires approximately 2x the table size in free disk space per table.
 
     Run this after 'indexes enable' once you have confirmed sufficient disk headroom.
     On Docker, check Docker Desktop → Resources → Virtual Disk Limit before running on
@@ -1034,7 +1034,7 @@ def cluster_tables_command(
     results: list[IndexManagementResult] = []
 
     for table in selected_tables:
-        if not inspector.has_table(table.table_name, schema=conn.db_schema):
+        if not inspector.has_table(table.table_name, schema=conn.resolved.schema_name):
             continue
 
         cluster_index_name = _cluster_target_name(table)
@@ -1042,7 +1042,7 @@ def cluster_tables_command(
             continue
 
         cluster_columns = _cluster_column_names(table, cluster_index_name)
-        existing_indexes = inspector.get_indexes(table.table_name, schema=conn.db_schema)
+        existing_indexes = inspector.get_indexes(table.table_name, schema=conn.resolved.schema_name)
         physical_cluster_name = _resolve_physical_cluster_name(
             existing_indexes,
             cluster_index_name,

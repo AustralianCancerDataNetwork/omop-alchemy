@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
-from oa_configurator import supports_schemas
+from oa_configurator import ResolvedDatabase, Role, find_table_in_other_schemas, supports_schemas
 from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, ReflectedIndex
 
 from ..backends import backend_supports, resolve_backend
@@ -67,19 +67,65 @@ class SchemaReconciliationReport:
     issues: tuple[ReconciliationIssue, ...]
 
 
-def _schema_table(table: sa.Table, db_schema: str | None) -> sa.Table:
-    """Return table unchanged when db_schema is None, or a schema-qualified copy when a schema is specified."""
-    if db_schema is None:
-        return table
+def _role_from_schema_tag(schema_tag: str | None) -> Role:
+    """Map a table's declared .schema tag (None/"vocab"/"results") to its Role."""
+    if schema_tag == Role.VOCAB.value:
+        return Role.VOCAB
+    if schema_tag == Role.RESULTS.value:
+        return Role.RESULTS
+    return Role.PRIMARY
 
+
+def _effective_schema(
+    resolved: ResolvedDatabase | None, role: Role, db_schema: str | None
+) -> str | None:
+    """resolved.schema_for_role(role) when resolved is given, else db_schema
+    applied the same regardless of role. The fallback for a caller with no
+    resolved object to hand (e.g. a test built directly against a bare engine).
+    """
+    return resolved.schema_for_role(role) if resolved is not None else db_schema
+
+
+def _schema_qualified_tables(
+    resolved: ResolvedDatabase | None, db_schema: str | None
+) -> dict[int, sa.Table]:
+    """Schema-qualified copy of every table in Base.metadata, keyed by id() of the original.
+
+    Notes
+    -----
+    Each table is qualified to its own role's schema via resolved, not one
+    blanket value: a vocab-role table can live in a different physical schema
+    than a clinical one.
+
+    Copied together into one MetaData() in a single pass: to_metadata() never
+    brings a referenced table along on its own, and resolving an FK's target
+    needs that table's copy already present in the same metadata. The whole
+    Base.metadata is copied, not just the selected/diffed subset, since a
+    selected table can reference one excluded from the diff itself (e.g. a
+    vocabulary FK target when vocabulary_included=False).
+
+    Returns the tables unchanged (keyed by their own id) when both resolved
+    and db_schema are None.
+    """
+    from orm_loader.helpers import Base
+
+    if resolved is None and db_schema is None:
+        return {id(table): table for table in Base.metadata.tables.values()}
     metadata = sa.MetaData()
-    return table.to_metadata(
-        metadata,
-        schema=db_schema,
-        referred_schema_fn=(
-            lambda _table, to_schema, _constraint, _referred_schema: to_schema
-        ),
-    )
+    return {
+        id(table): table.to_metadata(
+            metadata,
+            # SQLAlchemy's own stub omits None from schema's declared type,
+            # despite accepting and correctly handling it at runtime
+            schema=_effective_schema(resolved, _role_from_schema_tag(table.schema), db_schema),  # ty: ignore[invalid-argument-type]
+            referred_schema_fn=(
+                lambda _table, _to_schema, _constraint, referred_schema: _effective_schema(
+                    resolved, _role_from_schema_tag(referred_schema), db_schema
+                )
+            ),
+        )
+        for table in Base.metadata.tables.values()
+    }
 
 
 def _normalized_type(type_: sa.types.TypeEngine[object], dialect: sa.engine.Dialect) -> str:
@@ -140,16 +186,23 @@ def _actual_indexes(
 def reconcile_schema(
     engine: sa.Engine,
     *,
+    resolved: ResolvedDatabase | None = None,
     db_schema: str | None = None,
     vocabulary_included: bool = False,
 ) -> SchemaReconciliationReport:
-    """Compare ORM metadata against the live database schema. Reports missing columns, indexes, FKs, and cluster state."""
+    """Compare ORM metadata against the live database schema. Reports missing columns, indexes, FKs, and cluster state.
+
+    resolved, when given, qualifies each table to its own role's schema
+    (schema_name/vocab_schema/results_schema) rather than applying db_schema
+    to every table regardless of role.
+    """
     excluded_categories: tuple[TableCategory, ...] = (
         () if vocabulary_included else (TableCategory.VOCABULARY,)
     )
     _backend = resolve_backend(engine)
     _cross_schema_fk_supported = supports_schemas(engine)
     selected_tables = select_maintenance_tables(exclude_categories=excluded_categories)
+    schema_qualified_tables = _schema_qualified_tables(resolved, db_schema)
     inspector = sa.inspect(engine)
     all_issues: list[ReconciliationIssue] = []
     table_results: list[TableReconciliationResult] = []
@@ -157,8 +210,41 @@ def reconcile_schema(
     with engine.connect() as connection:
         for maintenance_table in selected_tables:
             table_issues: list[ReconciliationIssue] = []
-            exists = inspector.has_table(maintenance_table.table_name, schema=db_schema)
+            table_role = _role_from_schema_tag(maintenance_table.table.schema)
+            table_schema = _effective_schema(resolved, table_role, db_schema)
+            exists = inspector.has_table(maintenance_table.table_name, schema=table_schema)
             if not exists:
+                relocated_to = find_table_in_other_schemas(
+                    engine, maintenance_table.table_name, expected_schema=table_schema
+                )
+                if relocated_to:
+                    detail = (
+                        f"Table is absent from schema {table_schema!r} but found in "
+                        f"{', '.join(sorted(relocated_to))!r}."
+                    )
+                    table_issues.append(
+                        ReconciliationIssue(
+                            table_name=maintenance_table.table_name,
+                            category=maintenance_table.category,
+                            component="table",
+                            object_name=maintenance_table.table_name,
+                            status=Status.RELOCATED,
+                            expected=table_schema,
+                            actual=", ".join(sorted(relocated_to)),
+                            detail=detail,
+                        )
+                    )
+                    table_results.append(
+                        TableReconciliationResult(
+                            table_name=maintenance_table.table_name,
+                            category=maintenance_table.category,
+                            status=Status.RELOCATED,
+                            issue_count=1,
+                            detail=detail,
+                        )
+                    )
+                    all_issues.extend(table_issues)
+                    continue
                 table_issues.append(
                     ReconciliationIssue(
                         table_name=maintenance_table.table_name,
@@ -183,14 +269,14 @@ def reconcile_schema(
                 all_issues.extend(table_issues)
                 continue
 
-            expected_table = _schema_table(maintenance_table.table, db_schema)
+            expected_table = schema_qualified_tables[id(maintenance_table.table)]
             expected_columns = {column.name: column for column in expected_table.columns}
             actual_columns = {
                 str(column["name"]): column
-                for column in inspector.get_columns(maintenance_table.table_name, schema=db_schema)
+                for column in inspector.get_columns(maintenance_table.table_name, schema=table_schema)
             }
             actual_pk_names = tuple(
-                inspector.get_pk_constraint(maintenance_table.table_name, schema=db_schema).get("constrained_columns") or []
+                inspector.get_pk_constraint(maintenance_table.table_name, schema=table_schema).get("constrained_columns") or []
             )
             expected_pk_names = tuple(column.name for column in expected_table.primary_key.columns)
 
@@ -274,7 +360,7 @@ def reconcile_schema(
                 )
 
             expected_fks = _expected_foreign_keys(expected_table)
-            actual_fks = _actual_foreign_keys(inspector, maintenance_table.table_name, db_schema)
+            actual_fks = _actual_foreign_keys(inspector, maintenance_table.table_name, table_schema)
 
             for signature, constraint in expected_fks.items():
                 if signature not in actual_fks:
@@ -315,7 +401,7 @@ def reconcile_schema(
                     )
 
             expected_idxs = _expected_indexes(expected_table)
-            actual_idxs = _actual_indexes(inspector, maintenance_table.table_name, db_schema)
+            actual_idxs = _actual_indexes(inspector, maintenance_table.table_name, table_schema)
             actual_index_list = list(actual_idxs.values())
             renamed_actual_names: set[str] = set()
 

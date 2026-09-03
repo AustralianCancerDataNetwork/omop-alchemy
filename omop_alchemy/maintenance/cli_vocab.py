@@ -639,7 +639,7 @@ def load_vocab_source_command(
     staging_chunk_size: int | None = typer.Option(
         100_000,
         help=(
-            "[Phase 1] Rows per ORM transaction when loading CSV → staging table. "
+            "Staging load: rows per ORM transaction when loading CSV → staging table. "
             "Ignored when the PostgreSQL COPY fast-path is active (the default for "
             "Athena CSVs). Pass 0 to disable chunking entirely."
         ),
@@ -657,7 +657,7 @@ def load_vocab_source_command(
     merge_batch_size: int | None = typer.Option(
         None,
         help=(
-            "[Phase 2] Rows per transaction when merging staging → target table. "
+            "Merge: rows per transaction when merging staging → target table. "
             "Default: None (no pagination — single INSERT per table, fastest for high-RAM systems). "
             "Set to a positive integer to enable paginated commits for memory-constrained systems; "
             "note that pagination adds a COUNT query and an index build on the staging table "
@@ -678,54 +678,59 @@ def load_vocab_source_command(
         )
         raise typer.Exit(code=1)
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(bar_width=None),
-        TaskProgressColumn(),
-        TimeElapsedColumn(),
-        console=console,
-        transient=False,
-    ) as progress:
-        task_id = progress.add_task(
-            "Preparing Athena vocabulary load...", total=100.0, completed=0
-        )
-        completed_tables: list[str] = []
-
-        def _update_progress(event: VocabularyLoadProgress) -> None:
-            progress.update(
-                task_id, completed=event.percent, description=event.description
+    vocab_engine = conn.resolved.vocab_engine_for(engine)
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=None),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task_id = progress.add_task(
+                "Preparing Athena vocabulary load...", total=100.0, completed=0
             )
-            if event.table_done and event.table_name is not None:
-                completed_tables.append(event.table_name)
-                row_info = (
-                    f": [dim]{event.rows_this_table:,} rows[/dim]"
-                    if event.rows_this_table is not None
-                    else ""
-                )
-                progress.console.print(
-                    f"[green]loaded[/green] [bold]{event.table_name}[/bold]{row_info} "
-                    f"({len(completed_tables)}/{event.table_count})"
-                )
+            completed_tables: list[str] = []
 
-        report = load_vocab_source(
-            engine,
-            vocab_engine=conn.vocab_engine,
-            vocab_schema=conn.vocab_schema,
-            source_path=effective_athena_source,
-            tables=tables or None,
-            db_schema=conn.db_schema,
-            dry_run=dry_run,
-            merge_strategy=merge_strategy,
-            quote_mode=quote_mode,
-            chunksize=None if staging_chunk_size == 0 else staging_chunk_size,
-            bulk_mode=bulk_mode,
-            merge_batch_size=merge_batch_size,
-            progress_callback=_update_progress,
-        )
-        progress.update(
-            task_id, completed=100.0, description="Athena vocabulary load complete"
-        )
+            def _update_progress(event: VocabularyLoadProgress) -> None:
+                progress.update(
+                    task_id, completed=event.percent, description=event.description
+                )
+                if event.table_done and event.table_name is not None:
+                    completed_tables.append(event.table_name)
+                    row_info = (
+                        f": [dim]{event.rows_this_table:,} rows[/dim]"
+                        if event.rows_this_table is not None
+                        else ""
+                    )
+                    progress.console.print(
+                        f"[green]loaded[/green] [bold]{event.table_name}[/bold]{row_info} "
+                        f"({len(completed_tables)}/{event.table_count})"
+                    )
+
+            report = load_vocab_source(
+                engine,
+                vocab_engine=vocab_engine,
+                vocab_schema=conn.resolved.vocab_schema,
+                source_path=effective_athena_source,
+                tables=tables or None,
+                db_schema=conn.resolved.schema_name,
+                dry_run=dry_run,
+                merge_strategy=merge_strategy,
+                quote_mode=quote_mode,
+                chunksize=None if staging_chunk_size == 0 else staging_chunk_size,
+                bulk_mode=bulk_mode,
+                merge_batch_size=merge_batch_size,
+                progress_callback=_update_progress,
+            )
+            progress.update(
+                task_id, completed=100.0, description="Athena vocabulary load complete"
+            )
+    finally:
+        if vocab_engine is not engine:
+            vocab_engine.dispose()
 
     console.print(render_vocab_load_results(report.results))
     console.print(render_vocab_load_summary(report, dry_run=dry_run))

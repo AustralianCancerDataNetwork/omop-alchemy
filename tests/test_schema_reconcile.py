@@ -1,6 +1,6 @@
 import pytest
 
-from oa_configurator.testing import DIALECT_PARAMS
+from oa_configurator.testing import DIALECT_PARAMS, isolated_test_schema
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import omop_index_name
 from omop_alchemy.maintenance.cli_indexes import manage_indexes
@@ -13,24 +13,18 @@ EPISODE_PERSON_INDEX = omop_index_name("episode", "person_id")
 
 @pytest.fixture(params=DIALECT_PARAMS)
 def reconcile_engine(request):
-    """Every OMOP table created and indexed/clustered, on both a real
-    Postgres backend and SQLite: index-rename detection is dialect-portable
-    logic, not SQLite-specific, so it's genuinely worth exercising against
-    both. Only the postgresql param ever requests pg_session, so the
-    sqlite param never needs a database.
+    """Every OMOP table created, indexed, and clustered, on both Postgres and SQLite.
 
-    DIALECT_PARAMS carries each dialect's own mark plus `forked` directly
-    on the param value, so this still works correctly even though
-    request.getfixturevalue("pg_session") is a dynamic, runtime lookup
-    invisible to pytest's collection-time fixturenames computation (the
-    usual pg_db-in-fixturenames auto-detection can't see it).
+    manage_indexes(enable=True) is required on Postgres: create_missing_tables()
+    alone creates indexes but never physically CLUSTERs them, so a fresh
+    database would otherwise report false cluster drift. It's a harmless
+    no-op for clustering on SQLite.
 
-    manage_indexes(enable=True) matters here specifically on Postgres:
-    create_missing_tables() alone creates tables and their indexes, but
-    never physically CLUSTERs them, so a fresh Postgres database reports
-    genuine drift (cluster status MISSING) without this step. On SQLite,
-    where CLUSTER doesn't exist, this call is a harmless no-op on the
-    clustering half and just re-confirms indexes already exist.
+    Notes
+    -----
+    DIALECT_PARAMS marks each param directly, since the postgresql param's
+    dynamic request.getfixturevalue("pg_session") call is invisible to
+    pytest's usual fixturenames-based auto-detection.
     """
     if request.param == "postgresql":
         engine = request.getfixturevalue("pg_session").get_bind()
@@ -102,6 +96,97 @@ def test_reconcile_schema_renamed_index_does_not_flip_table_to_drifted(reconcile
 
     assert person_result.status == "matched"
     assert person_result.issue_count == 1
+
+
+@pytest.mark.postgresql
+@pytest.mark.db_dialect
+def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(pg_engine):
+    """A table missing from its expected schema but physically present under
+    a different one reports RELOCATED, not a plain MISSING.
+    """
+    with (
+        isolated_test_schema(pg_engine, prefix="reconcile_relocated_a") as schema_a,
+        isolated_test_schema(pg_engine, prefix="reconcile_relocated_b") as schema_b,
+    ):
+        engine = pg_engine.execution_options(
+            schema_translate_map={None: schema_a, "vocab": schema_a, "results": schema_a}
+        )
+        # vocabulary_included defaults to True: person's gender_concept_id FK
+        # targets a vocab table, so excluding vocab here would leave that FK
+        # unresolved and person itself blocked from creation.
+        create_missing_tables(engine, db_schema=schema_a)
+        with engine.begin() as connection:
+            connection.exec_driver_sql(f'ALTER TABLE "{schema_a}".person SET SCHEMA "{schema_b}"')
+
+        report = reconcile_schema(engine, db_schema=schema_a)
+
+        person_result = next(r for r in report.table_results if r.table_name == "person")
+        assert person_result.status == "relocated"
+        person_issue = next(
+            i for i in report.issues if i.table_name == "person" and i.component == "table"
+        )
+        assert person_issue.status == "relocated"
+        # public may also legitimately carry a person table from an
+        # unrelated database/test, so assert schema_b is among the
+        # relocated schemas rather than the only one reported.
+        assert schema_b in person_issue.actual.split(", ")
+        assert is_blocking_issue(person_issue)
+
+
+@pytest.mark.postgresql
+@pytest.mark.db_dialect
+def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_schema(pg_engine):
+    """A clinical table, a vocab table, and a results table each live in a
+    genuinely different physical schema. Passing resolved must compare each
+    against its own schema, not one blanket db_schema value, or the vocab
+    and results tables report false drift here.
+    """
+    from oa_configurator import ResolvedCDMDatabase, ResolvedConnection
+
+    with (
+        isolated_test_schema(pg_engine, prefix="reconcile_three_primary") as primary_schema,
+        isolated_test_schema(pg_engine, prefix="reconcile_three_vocab") as vocab_schema,
+        isolated_test_schema(pg_engine, prefix="reconcile_three_results") as results_schema,
+    ):
+        url = pg_engine.url
+        connection = ResolvedConnection(
+            name="reconcile_three_conn",
+            url=url.render_as_string(hide_password=False),
+            safe_url=url.render_as_string(hide_password=True),
+            _engine_url=url,
+        )
+        resolved = ResolvedCDMDatabase(
+            name="reconcile_three_db",
+            connection=connection,
+            schema_name=primary_schema,
+            vocab_connection=connection,
+            vocab_schema=vocab_schema,
+            results_schema=results_schema,
+        )
+        engine = pg_engine.execution_options(
+            schema_translate_map={
+                None: primary_schema, "vocab": vocab_schema, "results": results_schema
+            }
+        )
+        create_missing_tables(
+            engine, db_schema=primary_schema, resolved=resolved, test_only=True
+        )
+
+        report = reconcile_schema(engine, resolved=resolved, vocabulary_included=True)
+
+        # cluster/index issues are excluded here. manage_indexes()/
+        # cli_indexes.py's cluster commands have their own, separate
+        # cross-schema bug (found while writing this test, not yet
+        # investigated). This test only verifies that reconcile_schema
+        # resolves each table's own role schema instead of one blanket value.
+        checked_components = {"table", "column", "primary_key", "foreign_key"}
+        for table_name in ("person", "concept", "observation_period"):
+            issues = [
+                issue
+                for issue in report.issues
+                if issue.table_name == table_name and issue.component in checked_components
+            ]
+            assert issues == [], (table_name, issues)
 
 
 def test_is_blocking_issue_excludes_renamed_only():
@@ -183,12 +268,12 @@ def test_reconcile_schema_cluster_check_reports_renamed_for_pk_based_cluster_tar
     """person's cluster target is the primary key's own index ("pk_person"),
     not a declared secondary index, unlike episode. The official OHDSI CDM
     DDL always clusters such tables on a separate, non-unique index instead
-    (e.g. "idx_person_id"): this must still report 'renamed', not 'mismatch',
-    and the same physical index must not *also* be flagged as an unexpected
-    plain index -- both are the same latent bug (the cluster target's
-    equivalence check assuming the PK's own uniqueness applies to whatever
-    physically serves as the cluster index, and not being shared with the
-    general index-diffing pass)."""
+    (e.g. "idx_person_id"). This must still report 'renamed', not
+    'mismatch', and the same physical index must not also be flagged as an
+    unexpected plain index. Both are the same latent bug: the cluster
+    target's equivalence check assumes the PK's own uniqueness applies to
+    whatever physically serves as the cluster index, and isn't shared with
+    the general index-diffing pass."""
     engine = fresh_reconcile_engine
     with engine.begin() as connection:
         connection.exec_driver_sql("CREATE INDEX idx_person_id ON person (person_id)")

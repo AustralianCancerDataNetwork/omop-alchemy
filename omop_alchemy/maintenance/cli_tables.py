@@ -372,7 +372,7 @@ def analyze_tables_command(
     with console.status("Refreshing planner statistics for selected tables..."):
         results = analyze_tables(
             engine,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             scope=resolved_scope,
             table_names=resolved_tables,
             vacuum=vacuum,
@@ -402,7 +402,7 @@ def reset_sequences_command(
     with console.status("Resetting PostgreSQL sequences..."):
         results = reset_model_sequences(
             engine,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
         )
@@ -461,7 +461,7 @@ def truncate_tables_command(
     with console.status("Truncating selected tables..."):
         results = truncate_tables(
             engine,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             scope=resolved_scope,
             table_names=resolved_tables,
             restart_identities=restart_identities,

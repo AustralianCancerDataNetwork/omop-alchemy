@@ -8,9 +8,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Callable, TypeVar
 
-import sqlalchemy as sa
 import typer
-from oa_configurator import register_reserved_schema
+from oa_configurator import ResolvedCDMDatabase, register_reserved_schema
 from sqlalchemy.exc import SQLAlchemyError
 
 from .tables import TableCategory
@@ -74,14 +73,12 @@ class Status(StrEnum):
     def __init__(self, code: str, severity: Severity):
         self.severity = severity
 
-    # -- shared across every dry-run/apply-style domain --
+    # shared across every dry-run/apply-style domain 
     PLANNED = ("planned", Severity.INFO)
     APPLIED = ("applied", Severity.OK)
     SKIPPED = ("skipped", Severity.WARNING)
 
-    # -- domain-specific "applied" words (backup, index restore/capture,
-    #    sequence reset, vocab load) -- same OK severity as APPLIED, kept as
-    #    distinct words since the specific outcome is worth seeing at a glance --
+    # domain-specific "applied" words 
     CREATED = ("created", Severity.OK)
     LOADED = ("loaded", Severity.OK)
     RESET = ("reset", Severity.OK)
@@ -91,15 +88,16 @@ class Status(StrEnum):
     PASSED = ("passed", Severity.OK)
     MATCHED = ("matched", Severity.OK)
 
-    # -- warnings: something worth a look, but not blocking --
+    # warnings: something worth a look, but not blocking
     WARNING = ("warning", Severity.WARNING)
     LIMITED = ("limited", Severity.WARNING)
     DRIFTED = ("drifted", Severity.WARNING)
 
-    # -- informational: an intentionally supported state --
+    # informational: an intentionally supported state
     RENAMED = ("renamed", Severity.INFO)
 
-    # -- errors/failures --
+    # errors/failures
+    RELOCATED = ("relocated", Severity.ERROR)
     MISSING = ("missing", Severity.ERROR)
     UNEXPECTED = ("unexpected", Severity.ERROR)
     MISMATCH = ("mismatch", Severity.ERROR)
@@ -110,18 +108,16 @@ class Status(StrEnum):
 
 @dataclass(frozen=True)
 class _ConnContext:
-    """Connection context derived from the oa_configurator resolved resource.
+    """Connection context assembled once per CLI command.
 
-    ``vocab_engine`` is the same object as ``engine`` unless ``vocab_connection``
-    names a physically different server; only DDL creating vocab-role tables
-    needs it instead of the primary engine.
+    resource_name and athena_source come from OmopAlchemyConfig, not from
+    resolved. Everything else a command needs (schema, vocab/results
+    schema, test_only, a vocab engine) is available via resolved directly,
+    or via resolved.vocab_engine_for(engine), rather than duplicated here.
     """
-    db_schema: str | None
-    engine_url: str = ""
+    resolved: ResolvedCDMDatabase
     resource_name: str = ""
-    athena_source: str | None = None  # from OmopAlchemyConfig.athena_source_path
-    vocab_engine: sa.Engine | None = None
-    vocab_schema: str | None = None
+    athena_source: str | None = None
 
 
 # ── Decorator ─────────────────────────────────────────────────────────────────
@@ -151,20 +147,16 @@ def omop_command(
                 from ..config import create_cdm_engine, get_cdm_context
                 pkg_config, resolved = get_cdm_context()
                 engine = create_cdm_engine(resolved)
-                vocab_engine = resolved.vocab_engine_for(engine)
                 conn = _ConnContext(
-                    db_schema=resolved.schema_name,
-                    engine_url=engine.url.render_as_string(hide_password=True),
+                    resolved=resolved,
                     resource_name=pkg_config.cdm_db,
-                    vocab_engine=vocab_engine,
-                    vocab_schema=resolved.vocab_schema,
                     athena_source=pkg_config.athena_source_path,
                 )
                 console.print(
                     render_command_header(
                         command_name=command_name,
-                        engine_url=conn.engine_url,
-                        db_schema=conn.db_schema,
+                        engine_url=engine.url.render_as_string(hide_password=True),
+                        db_schema=resolved.schema_name,
                         vocabulary_included=_vocab,
                         mode_label=_mode,
                     )

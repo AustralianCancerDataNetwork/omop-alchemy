@@ -221,7 +221,7 @@ def install_fulltext_command(
     with console.status("Managing PostgreSQL full-text sidecar columns..."):
         results = install_fulltext_columns(
             engine,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             create_indexes=create_indexes,
             fastupdate=fastupdate,
             dry_run=dry_run,
@@ -245,7 +245,7 @@ def populate_fulltext_command(
     with console.status("Managing PostgreSQL full-text sidecar columns..."):
         results = populate_fulltext_columns(
             engine,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             regconfig=regconfig,
             dry_run=dry_run,
         )
@@ -269,7 +269,7 @@ def drop_fulltext_command(
     with console.status("Managing PostgreSQL full-text sidecar columns..."):
         results = drop_fulltext_columns(
             engine,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             drop_indexes=drop_indexes,
             dry_run=dry_run,
         )

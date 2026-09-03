@@ -415,7 +415,7 @@ def disable_foreign_keys_command(
         results = manage_foreign_key_triggers(
             engine,
             enable=False,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
             strict=strict,
@@ -452,7 +452,7 @@ def enable_foreign_keys_command(
         results = manage_foreign_key_triggers(
             engine,
             enable=True,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
             strict=strict,
@@ -477,7 +477,7 @@ def foreign_key_status_command(
     with console.status("Inspecting foreign key trigger status..."):
         results = collect_foreign_key_trigger_status(
             engine,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             vocabulary_included=vocabulary_included,
         )
     console.print(render_foreign_key_status_results(results))
@@ -499,7 +499,7 @@ def foreign_key_validate_command(
     with console.status("Validating selected foreign key relationships..."):
         report = validate_foreign_key_constraints(
             engine,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             vocabulary_included=vocabulary_included,
         )
     console.print(render_foreign_key_validation_results(report.results))

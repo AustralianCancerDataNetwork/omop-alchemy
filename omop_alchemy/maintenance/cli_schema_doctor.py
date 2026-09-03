@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
+from oa_configurator import ResolvedDatabase
 
 from omop_alchemy.backends.resolve import SupportedDialect
 
@@ -101,6 +102,18 @@ def _build_recommendations(
                     action="Review `omop-alchemy reconcile-schema` output before continuing with ETL or maintenance work.",
                 )
             )
+        if any(issue.status == Status.RELOCATED for issue in reconciliation.issues):
+            recommendations.append(
+                DoctorRecommendation(
+                    status=Status.WARNING,
+                    summary="Some tables were found under a different schema than expected.",
+                    action=(
+                        "Run `omop-alchemy acknowledge-schema-migration` if this was a "
+                        "deliberate change, or `omop-alchemy drop-orphan-schema-tables` to "
+                        "clean up an orphaned copy."
+                    ),
+                )
+            )
 
     if foreign_key_status is not None and any(
         item.disabled_trigger_count > 0 for item in foreign_key_status
@@ -165,6 +178,7 @@ def _build_recommendations(
 def collect_doctor_report(
     *,
     engine: sa.engine.Engine,
+    resolved: ResolvedDatabase | None = None,
     db_schema: str | None = None,
     resource_name: str | None = None,
     vocabulary_included: bool = True,
@@ -178,6 +192,9 @@ def collect_doctor_report(
         Already-resolved CDM engine (e.g. from the ``@omop_command`` decorator),
         reused for all database checks instead of re-resolving config. The
         caller retains ownership; this function does not dispose it.
+    resolved : ResolvedDatabase, optional
+        Forwarded to reconcile_schema (--deep only) so vocab/results tables
+        are compared against their own schema, not db_schema uniformly.
     db_schema : str, optional
         CDM schema associated with ``engine``. Omit to use its default schema.
     resource_name : str, optional
@@ -225,6 +242,7 @@ def collect_doctor_report(
         if deep:
             reconciliation = reconcile_schema(
                 engine,
+                resolved=resolved,
                 db_schema=db_schema,
                 vocabulary_included=vocabulary_included,
             )

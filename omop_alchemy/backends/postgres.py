@@ -126,6 +126,21 @@ class PostgresBackend(Backend):
         ).scalar_one_or_none()
         return str(result) if result is not None else None
 
+    # ── Row counts ───────────────────────────────────────────────────────────
+
+    def approximate_row_counts(
+        self,
+        conn: sa.Connection,
+        schema: str,
+    ) -> dict[str, int]:
+        rows = conn.execute(
+            sa.text(
+                "SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE schemaname = :schema"
+            ),
+            {"schema": schema},
+        ).all()
+        return {row.relname: row.n_live_tup for row in rows}
+
     # ── Table operations ─────────────────────────────────────────────────────
 
     def analyze_table(

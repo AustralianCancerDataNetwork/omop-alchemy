@@ -175,7 +175,7 @@ def backup_database_command(
             engine,
             output_path=output_path,
             backup_format=backup_format,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             dry_run=dry_run,
         )
     console.print(render_backup_result(result))
@@ -200,7 +200,7 @@ def restore_database_command(
             engine,
             input_path=input_path,
             backup_format=backup_format,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             dry_run=dry_run,
         )
     console.print(render_restore_result(result))

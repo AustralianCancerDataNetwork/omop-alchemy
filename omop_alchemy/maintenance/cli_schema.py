@@ -1,10 +1,11 @@
-"""Schema subapp: thin shim re-exporting all domain types and wiring five CLI commands."""
+"""Schema subapp: thin shim re-exporting all domain types and wiring seven CLI commands."""
 
 from __future__ import annotations
 
 import typer
+from oa_configurator import Resolver, Role, load_stack_config, record_schema_provenance
 
-from ._cli_utils import omop_command
+from ._cli_utils import handle_error, omop_command
 from .cli_schema_doctor import (
     DoctorCheck as DoctorCheck,
     DoctorReport as DoctorReport,
@@ -22,6 +23,10 @@ from .cli_schema_reconcile import (
     SchemaReconciliationReport as SchemaReconciliationReport,
     TableReconciliationResult as TableReconciliationResult,
     reconcile_schema,
+)
+from .cli_schema_rectify import (
+    OrphanTablePreview as OrphanTablePreview,
+    drop_orphan_schema_tables,
 )
 from .cli_schema_summary import (
     TableSummaryResult as TableSummaryResult,
@@ -101,7 +106,8 @@ def doctor_command(
     with console.status("Running maintenance doctor checks..."):
         report = collect_doctor_report(
             engine=engine,
-            db_schema=conn.db_schema,
+            resolved=conn.resolved,
+            db_schema=conn.resolved.schema_name,
             resource_name=conn.resource_name,
             vocabulary_included=vocabulary_included,
             deep=deep,
@@ -128,7 +134,7 @@ def reconcile_schema_command(
 ) -> None:
     """Compare ORM-managed SQLAlchemy metadata against the current target database schema."""
     with console.status("Reconciling ORM metadata against target database schema..."):
-        report = reconcile_schema(engine, db_schema=conn.db_schema, vocabulary_included=vocabulary_included)
+        report = reconcile_schema(engine, resolved=conn.resolved, vocabulary_included=vocabulary_included)
     console.print(render_reconciliation_results(report.table_results))
     console.print(render_reconciliation_issues(report.issues))
     console.print(render_reconciliation_summary(report))
@@ -147,14 +153,21 @@ def create_missing_tables_command(
     dry_run: bool = False,
 ) -> None:
     """Create missing ORM-managed OMOP tables from metadata."""
-    with console.status("Creating missing tables..."):
-        results = create_missing_tables(
-            engine,
-            vocab_engine=conn.vocab_engine,
-            db_schema=conn.db_schema,
-            vocabulary_included=vocabulary_included,
-            dry_run=dry_run,
-        )
+    vocab_engine = conn.resolved.vocab_engine_for(engine)
+    try:
+        with console.status("Creating missing tables..."):
+            results = create_missing_tables(
+                engine,
+                vocab_engine=vocab_engine,
+                db_schema=conn.resolved.schema_name,
+                vocabulary_included=vocabulary_included,
+                dry_run=dry_run,
+                resolved=conn.resolved,
+                test_only=conn.resolved.connection.test_only,
+            )
+    finally:
+        if vocab_engine is not engine:
+            vocab_engine.dispose()
     console.print(render_table_creation_results(results))
     console.print(render_table_creation_summary(results, dry_run=dry_run))
 
@@ -179,9 +192,85 @@ def data_summary_command(
     with console.status("Collecting table summary..."):
         results = collect_data_summary(
             engine,
-            db_schema=conn.db_schema,
+            db_schema=conn.resolved.schema_name,
             vocabulary_included=vocabulary_included,
             existing_only=not include_missing,
         )
     console.print(render_data_summary_results(results))
     console.print(render_data_summary_summary(results))
+
+
+@app.command("acknowledge-schema-migration")
+def acknowledge_schema_migration_command(
+    database: str = typer.Option(..., "--database", help="Name of the [databases.*] entry to acknowledge."),
+    role: Role = typer.Option(Role.PRIMARY, "--role", help="Logical role whose schema is being acknowledged."),
+    new_schema: str = typer.Option(..., "--new-schema", help="Schema to record as the accepted baseline."),
+    reason: str = typer.Option(
+        ...,
+        "--reason",
+        help="Free-text justification for this acknowledgment. Mandatory: there is no --yes shortcut.",
+    ),
+) -> None:
+    """Record a schema as the deliberate baseline for a database/role.
+
+    Overwrites any existing provenance row (its prior value moves to
+    previous_schema); does not touch the CDM tables themselves.
+    """
+    try:
+        stack = load_stack_config()
+        resolved = Resolver(stack).resolve_database(database)
+        engine = resolved.create_engine(role=role)
+        try:
+            with engine.begin() as connection:
+                record_schema_provenance(
+                    connection, resolved, role=role, new_schema=new_schema, reason=reason
+                )
+        finally:
+            engine.dispose()
+    except Exception as exc:
+        handle_error(exc)
+    console.print(
+        f"[green]Acknowledged[/green] {database!r} (role {role.value!r}) -> schema {new_schema!r}."
+    )
+
+
+@app.command("drop-orphan-schema-tables")
+def drop_orphan_schema_tables_command(
+    database: str = typer.Option(..., "--database", help="Name of the [databases.*] entry providing the connection."),
+    schema: str = typer.Option(..., "--schema", help="Orphan schema to inspect/drop tables from."),
+    role: Role = typer.Option(Role.PRIMARY, "--role", help="Logical role providing the connection to use."),
+    confirm: bool = typer.Option(
+        False,
+        "--confirm",
+        help="Actually drop the previewed tables. Omit to preview only.",
+    ),
+) -> None:
+    """Drop tables physically found in an orphaned schema, after a stack-wide safety check.
+
+    Refuses if the named schema is still the current schema target of any
+    configured database/role, not just the one named here. Without
+    --confirm, only previews what would be dropped.
+    """
+    try:
+        stack = load_stack_config()
+        resolved = Resolver(stack).resolve_database(database)
+        engine = resolved.create_engine(role=role)
+        try:
+            with engine.begin() as connection:
+                preview = drop_orphan_schema_tables(
+                    connection, stack=stack, orphan_schema=schema, confirm=confirm
+                )
+        finally:
+            engine.dispose()
+
+        if not preview:
+            console.print(f"No tables found in schema {schema!r}.")
+            return
+        for item in preview:
+            count = "unknown" if item.approximate_row_count is None else str(item.approximate_row_count)
+            verb = "Dropped" if confirm else "Would drop"
+            console.print(f"{verb} {schema}.{item.table_name} (~{count} rows)")
+        if not confirm:
+            console.print("[yellow]Preview only. Re-run with --confirm to actually drop these tables.[/yellow]")
+    except Exception as exc:
+        handle_error(exc)
