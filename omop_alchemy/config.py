@@ -12,7 +12,13 @@ from oa_configurator import (
     ResolvedCDMDatabase,
     Role,
     load_stack_config,
+    register_reserved_schema,
 )
+
+# Guaranteed to be imported and registered if there is a config
+MAINTENANCE_SCHEMA: str = "omop_alchemy_maintenance"
+
+register_reserved_schema(MAINTENANCE_SCHEMA, owner="omop_alchemy")
 
 
 class OmopAlchemyConfig(PackageConfigBase):

@@ -62,7 +62,6 @@ def create_missing_tables(
     vocabulary_included: bool = True,
     dry_run: bool = False,
     resolved: ResolvedCDMDatabase | None = None,
-    test_only: bool = False,
 ) -> list[TableCreationResult]:
     """Create any ORM-managed tables missing from the target database. Skips tables with unresolved FK dependencies.
 
@@ -76,9 +75,8 @@ def create_missing_tables(
         Enables the schema-provenance guard around each ``create_all()``
         call. Omitted by direct test/programmatic callers that hand in a
         bare engine with no resolved config behind it, in which case the
-        guard no-ops.
-    test_only : bool, optional
-        Forwarded to the guard. Ignored when *resolved* is None.
+        guard no-ops. A role whose connection is test_only=true also
+        no-ops, at the guard's own discretion.
     """
     vocab_engine = vocab_engine if vocab_engine is not None else engine
     if not dry_run:
@@ -116,8 +114,8 @@ def create_missing_tables(
             # One call: create_all's dependency sort and FK-deferral must see every table together.
             with (
                 engine.begin() as connection,
-                guard_schema_provenance(connection, resolved, role=Role.PRIMARY, test_only=test_only),
-                guard_schema_provenance(connection, resolved, role=Role.RESULTS, test_only=test_only),
+                guard_schema_provenance(connection, resolved, role=Role.PRIMARY),
+                guard_schema_provenance(connection, resolved, role=Role.RESULTS),
             ):
                 Base.metadata.create_all(
                     bind=connection, tables=all_tables, checkfirst=True
@@ -134,8 +132,8 @@ def create_missing_tables(
             if other_tables:
                 with (
                     engine.begin() as connection,
-                    guard_schema_provenance(connection, resolved, role=Role.PRIMARY, test_only=test_only),
-                    guard_schema_provenance(connection, resolved, role=Role.RESULTS, test_only=test_only),
+                    guard_schema_provenance(connection, resolved, role=Role.PRIMARY),
+                    guard_schema_provenance(connection, resolved, role=Role.RESULTS),
                 ):
                     Base.metadata.create_all(
                         bind=connection, tables=other_tables, checkfirst=True
@@ -143,7 +141,7 @@ def create_missing_tables(
             if vocab_tables:
                 with (
                     vocab_engine.begin() as vocab_connection,
-                    guard_schema_provenance(vocab_connection, resolved, role=Role.VOCAB, test_only=test_only),
+                    guard_schema_provenance(vocab_connection, resolved, role=Role.VOCAB),
                 ):
                     Base.metadata.create_all(
                         bind=vocab_connection, tables=vocab_tables, checkfirst=True

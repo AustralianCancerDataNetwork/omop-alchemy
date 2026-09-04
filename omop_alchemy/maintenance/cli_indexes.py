@@ -15,7 +15,8 @@ from oa_configurator import ensure_schema, supports_schemas
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY
 
 from ..backends import resolve_backend, backend_supports
-from ._cli_utils import MAINTENANCE_SCHEMA, Status, dry_label, dry_status, omop_command
+from ..config import MAINTENANCE_SCHEMA
+from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .tables import (
     MaintenanceTable,
     TableCategory,

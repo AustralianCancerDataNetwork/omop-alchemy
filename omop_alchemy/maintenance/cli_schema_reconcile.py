@@ -112,17 +112,19 @@ def _schema_qualified_tables(
     if resolved is None and db_schema is None:
         return {id(table): table for table in Base.metadata.tables.values()}
     metadata = sa.MetaData()
+
+    def _referred_schema(_table: sa.Table, _to_schema, _constraint, referred_schema: str | None):
+        # None means "unchanged" to to_metadata(); BLANK_SCHEMA is what actually clears a schema tag.
+        target = _effective_schema(resolved, _role_from_schema_tag(referred_schema), db_schema)
+        return target if target is not None else sa.BLANK_SCHEMA
+
     return {
         id(table): table.to_metadata(
             metadata,
             # SQLAlchemy's own stub omits None from schema's declared type,
             # despite accepting and correctly handling it at runtime
             schema=_effective_schema(resolved, _role_from_schema_tag(table.schema), db_schema),  # ty: ignore[invalid-argument-type]
-            referred_schema_fn=(
-                lambda _table, _to_schema, _constraint, referred_schema: _effective_schema(
-                    resolved, _role_from_schema_tag(referred_schema), db_schema
-                )
-            ),
+            referred_schema_fn=_referred_schema,
         )
         for table in Base.metadata.tables.values()
     }
@@ -361,14 +363,19 @@ def reconcile_schema(
 
             expected_fks = _expected_foreign_keys(expected_table)
             actual_fks = _actual_foreign_keys(inspector, maintenance_table.table_name, table_schema)
+            # Uses the unqualified table, since two role-tagged tables can collapse to
+            # the same schema (e.g. all-None on SQLite) and hide a genuine cross-role FK.
+            raw_expected_fks = _expected_foreign_keys(maintenance_table.table)
 
             for signature, constraint in expected_fks.items():
                 if signature not in actual_fks:
+                    raw_constraint = raw_expected_fks.get(signature)
                     if (
                         not _cross_schema_fk_supported
-                        and constraint.referred_table.schema != expected_table.schema
+                        and raw_constraint is not None
+                        and _role_from_schema_tag(raw_constraint.referred_table.schema) != table_role
                     ):
-                        # SQLite can never create an inline FK crossing a schema boundary 
+                        # SQLite can never create an inline FK crossing a schema boundary.
                         continue
                     constrained_columns, referred_table, referred_columns = signature
                     table_issues.append(

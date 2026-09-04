@@ -393,25 +393,51 @@ def pg_engine(pg_db):
     )
 
 
+_SYSTEM_SCHEMAS = frozenset({"pg_catalog", "information_schema"})
+
+
+def _reset_test_database(engine: sa.Engine) -> None:
+    """Drop every non-system schema and recreate public.
+
+    Local to this file, not a shared oa-configurator primitive: unlike
+    every other package's committing-engine tests (self-cleaning via
+    isolated_test_schema()), pg_session's literal-"public"-name dependents
+    (see its own docstring) need a full reset, not just one schema's worth.
+    Assumes this test database isn't shared with a concurrently-running
+    process, the same assumption pg_session's public-only reset already
+    made.
+    """
+    with engine.connect() as conn:
+        schema_names = sa.inspect(conn).get_schema_names()
+        for schema in schema_names:
+            if schema in _SYSTEM_SCHEMAS or schema.startswith("pg_"):
+                continue
+            conn.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        conn.execute(sa.text("DROP SCHEMA IF EXISTS public CASCADE"))
+        conn.execute(sa.text("CREATE SCHEMA public"))
+        conn.commit()
+
+
 @pytest.fixture
-def pg_session(pg_engine):
+def pg_session(pg_engine, cleanup_after_test):
     """
     Function-scoped PostgreSQL session with a clean schema for each test.
 
-    Drops and recreates the public schema before each test to ensure full
-    isolation. Cannot move onto ``isolated_test_schema()``'s real,
-    uniquely-named schema: some tests request ``pg_session`` and
-    ``pg_engine`` together and rely on both pointing at the same physical
-    schema (``pg_engine`` itself has no schema of its own, only whatever
-    the connection's own default is). Confirmed by a real failure when
-    this migration was tried: ``test_load_vocab_postgres.py``'s
-    ``pg_session, pg_engine`` tests broke, since ``pg_engine``-only calls
-    then targeted an unbootstrapped schema.
+    Resets every non-system schema (not just public) both before and after
+    each test, via cleanup_after_test, so a test's own committed DDL/DML
+    -- in public or a reserved bookkeeping schema like MAINTENANCE_SCHEMA
+    -- never depends on some later, unrelated test to wipe it. Cannot move
+    onto ``isolated_test_schema()``'s real, uniquely-named schema: some
+    tests request ``pg_session`` and ``pg_engine`` together and rely on
+    both pointing at the same physical schema (``pg_engine`` itself has no
+    schema of its own, only whatever the connection's own default is).
+    Confirmed by a real failure when this migration was tried:
+    ``test_load_vocab_postgres.py``'s ``pg_session, pg_engine`` tests
+    broke, since ``pg_engine``-only calls then targeted an unbootstrapped
+    schema.
     """
-    with pg_engine.connect() as conn:
-        conn.execute(sa.text("DROP SCHEMA public CASCADE"))
-        conn.execute(sa.text("CREATE SCHEMA public"))
-        conn.commit()
+    _reset_test_database(pg_engine)
+    cleanup_after_test(lambda: _reset_test_database(pg_engine))
 
     bootstrap(pg_engine, create=True)
 

@@ -163,7 +163,6 @@ def create_missing_tables_command(
                 vocabulary_included=vocabulary_included,
                 dry_run=dry_run,
                 resolved=conn.resolved,
-                test_only=conn.resolved.connection.test_only,
             )
     finally:
         if vocab_engine is not engine:

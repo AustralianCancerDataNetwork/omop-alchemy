@@ -1,14 +1,16 @@
 import pytest
 import sqlalchemy as sa
+from pydantic import ValidationError
 from typer.testing import CliRunner
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Resolver, StackConfig, qualified
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig, qualified
 from oa_configurator.testing import DIALECT_PARAMS
 
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY, omop_index_name
 from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance.cli_schema import create_missing_tables
-from omop_alchemy.maintenance._cli_utils import MAINTENANCE_SCHEMA, Status
+from omop_alchemy.config import MAINTENANCE_SCHEMA
+from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.ui import render_index_summary
 from omop_alchemy.maintenance.cli_indexes import (
     IndexManagementResult,
@@ -366,7 +368,7 @@ def test_disable_indexes_cli_invokes_management(monkeypatch):
 
     cfg = StackConfig.for_session(
         connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
-        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -430,7 +432,7 @@ def test_enable_indexes_cli_no_cluster_flag_passes_through(monkeypatch):
 
     cfg = StackConfig.for_session(
         connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
-        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -564,14 +566,13 @@ def test_describe_shape_conflict_mentions_reason():
 
 
 def test_resolving_cdm_database_with_maintenance_schema_name_raises():
-    cfg = StackConfig.for_session(
-        connections={"c": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
-        databases={
-            "default": CDMDatabaseConfig(connection="c", schema_name=MAINTENANCE_SCHEMA)
-        },
-    )
-    with pytest.raises(RuntimeError, match=f"{MAINTENANCE_SCHEMA!r}.*omop_alchemy"):
-        Resolver(cfg).resolve_database("default")
+    with pytest.raises(ValidationError, match=f"{MAINTENANCE_SCHEMA!r}.*omop_alchemy"):
+        StackConfig.for_session(
+            connections={"c": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+            databases={
+                "default": CDMDatabaseConfig(connection="c", schema_name=MAINTENANCE_SCHEMA)
+            },
+        )
 
 
 # ── Foreign-named equivalent index reconciliation ────────────────────────────────

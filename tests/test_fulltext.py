@@ -210,7 +210,11 @@ def test_fulltext_install_cli_passes_options(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={
+            "db": ConnectionConfig(
+                dialect="postgresql+psycopg", host="localhost", database_name="db"
+            )
+        },
         databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="public")},
     )
     monkeypatch.setattr(

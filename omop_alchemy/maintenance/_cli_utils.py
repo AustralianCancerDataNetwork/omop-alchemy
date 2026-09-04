@@ -9,7 +9,7 @@ from enum import StrEnum
 from typing import Any, Callable, TypeVar
 
 import typer
-from oa_configurator import ResolvedCDMDatabase, register_reserved_schema
+from oa_configurator import ResolvedCDMDatabase
 from sqlalchemy.exc import SQLAlchemyError
 
 from .tables import TableCategory
@@ -18,11 +18,6 @@ from ..backends import BackendNotSupportedError
 
 
 _F = TypeVar("_F", bound=Callable[..., Any])
-
-
-MAINTENANCE_SCHEMA: str = "omop_alchemy_maintenance"
-
-register_reserved_schema(MAINTENANCE_SCHEMA, owner="omop_alchemy")
 
 
 class Severity(StrEnum):
