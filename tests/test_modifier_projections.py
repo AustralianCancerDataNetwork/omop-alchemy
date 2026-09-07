@@ -428,3 +428,53 @@ def test_target_validation_rejects_null_identity_and_cross_person_links():
         (2, "missing_target_identity"),
         (4, "person_mismatch"),
     }
+
+
+@pytest.mark.requires_database("test_cdm_db")
+def test_postgresql_executes_modifier_target_validation_contracts(pg_session):
+    """PostgreSQL rejects incomplete and cross-person links before selection."""
+
+    def modifier(
+        modifier_id: int,
+        person_id: int,
+        target_id: int | None,
+        target_field: int | None,
+    ) -> sa.Select:
+        return sa.select(
+            sa.literal(person_id).label("person_id"),
+            sa.literal(modifier_id).label("modifier_id"),
+            sa.literal(date(2025, 1, 1)).label("modifier_date"),
+            sa.literal(datetime(2025, 1, 1, 9)).label("modifier_datetime"),
+            sa.literal(100).label("modifier_concept_id"),
+            sa.literal("measurement").label("modifier_source_table"),
+            sa.literal(target_id).label("target_event_id"),
+            sa.literal(target_field).label("target_field_concept_id"),
+        )
+
+    modifiers = sa.union_all(
+        modifier(1, 10, 7, ModifierFieldConcepts.CONDITION_OCCURRENCE),
+        modifier(2, 10, None, None),
+        modifier(3, 11, 7, ModifierFieldConcepts.CONDITION_OCCURRENCE),
+    )
+    targets = sa.select(
+        sa.literal(10).label("person_id"),
+        sa.literal(7).label("event_id"),
+        sa.literal(ModifierFieldConcepts.CONDITION_OCCURRENCE).label(
+            "event_field_concept_id"
+        ),
+        sa.literal("condition_occurrence").label("event_source_table"),
+    )
+    queries = modifier_target_queries(modifiers, targets, diagnostics=True)
+
+    assert [
+        row["modifier_id"]
+        for row in pg_session.execute(queries.matches).mappings()
+    ] == [1]
+    assert queries.diagnostics is not None
+    assert {
+        (row["modifier_id"], row["diagnostic_code"])
+        for row in pg_session.execute(queries.diagnostics).mappings()
+    } == {
+        (2, "missing_target_identity"),
+        (3, "person_mismatch"),
+    }

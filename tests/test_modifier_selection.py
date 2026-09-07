@@ -187,3 +187,111 @@ def test_condition_modifier_specs_delegate_to_governed_semantics():
         tumor_size_modifier_concept_id()
         == runtime.condition_modifiers.numeric_condition_modifiers.tumor_size
     )
+
+
+@pytest.mark.requires_database("test_cdm_db")
+def test_postgresql_executes_modifier_selection_and_stage_policy_contracts(pg_session):
+    """Execute collision, stable-tie, and stage overrides on PostgreSQL."""
+    expected_by_spec = (
+        (DEFAULT_STAGE_SELECTION, 11),
+        (StageSelectionSpec.clinical_first(), 10),
+        (StageSelectionSpec.chronological_only(), 10),
+        (
+            StageSelectionSpec(temporal_policy=ModifierSelectionPolicy.latest),
+            12,
+        ),
+    )
+    for spec, expected_id in expected_by_spec:
+        selected = pg_session.execute(
+            preferred_stage_select(_stage_source(), spec=spec)
+        ).mappings().one()
+        assert selected["modifier_id"] == expected_id
+
+    stage_source = _stage_source().subquery()
+    unclassified = sa.select(
+        *(
+            sa.literal("uT2").label(column.key)
+            if column.key == "modifier_concept_code"
+            else column
+            for column in stage_source.c
+        )
+    ).where(stage_source.c.modifier_id == 10)
+    assert (
+        pg_session.execute(preferred_stage_select(unclassified))
+        .mappings()
+        .one()["modifier_id"]
+        == 10
+    )
+
+    # A true same-basis temporal tie must use the canonical source identity,
+    # independently of branch order in the input UNION ALL.
+    selected_ids = []
+    for reverse in (False, True):
+        source = _stage_source(reverse=reverse).subquery()
+        pathological = sa.select(source).where(source.c.modifier_id.in_((11, 12)))
+        tied = pathological.subquery()
+        normalized = sa.select(
+            *(
+                sa.literal(date(2025, 2, 1)).label(column.key)
+                if column.key == "modifier_date"
+                else sa.literal(datetime(2025, 2, 1, 9)).label(column.key)
+                if column.key == "modifier_datetime"
+                else column
+                for column in tied.c
+            )
+        )
+        selected_ids.append(
+            pg_session.execute(preferred_stage_select(normalized))
+            .mappings()
+            .one()["modifier_id"]
+        )
+    assert selected_ids == [11, 11]
+
+    # A shared numeric target ID remains two partitions when the OMOP Field
+    # concept differs; each target therefore retains its own winner.
+    source = _stage_source().subquery()
+    condition = sa.select(source).where(source.c.modifier_id == 10)
+    procedure = sa.select(
+        *(
+            sa.literal(1147082).label(column.key)
+            if column.key == "target_field_concept_id"
+            else column
+            for column in source.c
+        )
+    ).where(source.c.modifier_id == 11)
+    selected = pg_session.execute(
+        selected_modifier_select(sa.union_all(condition, procedure))
+    ).mappings().all()
+    assert {
+        (row["target_field_concept_id"], row["modifier_id"]) for row in selected
+    } == {
+        (1147127, 10),
+        (1147082, 11),
+    }
+
+    # Source-table scope keeps equal native IDs distinct. They also target two
+    # different OMOP tables that happen to use the same numeric event ID.
+    def modifier(source_table: str, target_field: int) -> sa.Select:
+        return sa.select(
+            sa.literal(1).label("person_id"),
+            sa.literal(7).label("modifier_id"),
+            sa.literal(date(2025, 1, 1)).label("modifier_date"),
+            sa.literal(datetime(2025, 1, 1, 9)).label("modifier_datetime"),
+            sa.literal(100).label("modifier_concept_id"),
+            sa.literal(source_table).label("modifier_source_table"),
+            sa.literal(500).label("target_event_id"),
+            sa.literal(target_field).label("target_field_concept_id"),
+        )
+
+    equal_native_ids = pg_session.execute(
+        selected_modifier_select(
+            sa.union_all(
+                modifier("measurement", 1147127),
+                modifier("observation", 1147082),
+            )
+        )
+    ).mappings().all()
+    assert {
+        (row["modifier_source_table"], row["modifier_id"])
+        for row in equal_native_ids
+    } == {("measurement", 7), ("observation", 7)}
