@@ -23,12 +23,10 @@ See [Configuration](configuration.md) for the full field reference.
 
 ## Running PostgreSQL tests locally
 
-The test suite includes PostgreSQL-specific tests that skip automatically unless a `test_cdm_db` database is configured in `~/.config/omop/config.toml`. Tests are marked with `@pytest.mark.requires_database("test_cdm_db")` and skipped at collection time when the database is absent — no manual filtering required.
+The test suite includes PostgreSQL-specific tests that skip automatically unless a `test_cdm_db_pg` database is configured in `~/.config/omop/config.toml`. They're resolved via oa-configurator's `isolated_test_database()`, wrapped in this repo's own `pg_db`/`pg_engine`/`pg_session` fixtures, and marked `@pytest.mark.postgresql` (plus `db_dialect` where a test could corrupt shared ORM metadata if run alongside SQLite in the same process). `addopts = "-m 'not db_dialect'"` excludes those by default, so a plain `pytest` run skips them with no manual filtering required. Run them explicitly with `pytest -m postgresql`.
 
-> **This test database is destructive.** The test suite drops and recreates the entire `public`
-> schema on every run. `test_cdm_db` must point to a **dedicated, empty test database**, never
-> to a database that contains real data. The test suite enforces this: it fails loudly (not skips) if the
-> configured database is not marked `test_only = true` in your config.
+!!! warning "This test database is destructive."
+    `pg_session`-backed tests drop and recreate every non-system schema (not just `public`) both before and after each test. `test_cdm_db_pg` must point to a **dedicated, empty test database**, never to a database that contains real data. The test suite enforces this: it fails loudly if the configured database is not marked `test_only = true` in your config. The suite runs sequentially by design and does not support `pytest-xdist`: it fails loudly under `-n 2` or higher rather than racing another worker's reset.
 
 **Step 1 — Register a test database connection:**
 
@@ -36,7 +34,7 @@ The test suite includes PostgreSQL-specific tests that skip automatically unless
 omop-config configure omop_alchemy
 ```
 
-When prompted whether to configure a test database, answer **Y** and supply the connection details for your dedicated test PostgreSQL instance. It will be saved as `test_cdm_db` with `test_only = true`.
+When prompted whether to configure a test database, answer **Y** and supply the connection details for your dedicated test PostgreSQL instance. It will be saved as `test_cdm_db_pg` with `test_only = true`.
 
 > **Note on permissions**: the test suite disables FK constraint triggers during bulk vocabulary
 > loads, an operation PostgreSQL restricts to superusers. Ensure the test database user has
@@ -48,4 +46,4 @@ When prompted whether to configure a test database, answer **Y** and supply the 
 pytest -v tests/
 ```
 
-PostgreSQL tests auto-skip when `test_cdm_db` is not configured; all other tests run regardless.
+PostgreSQL tests are excluded from a plain `pytest` run by default (see above); run `pytest -m postgresql` to include them, or `pytest -v tests/ -m postgresql` for verbose output. They still auto-skip if `test_cdm_db_pg` is not configured.

@@ -1,10 +1,11 @@
 import copy
+import os
 from datetime import date
 from pathlib import Path
 import pytest
 import sqlalchemy as sa
 from orm_loader.helpers import bootstrap
-from oa_configurator.testing import isolated_test_database
+from oa_configurator.testing import isolated_test_database, isolated_test_schema
 import sqlalchemy.orm as so
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -371,24 +372,17 @@ def pg_db(request):
 
 @pytest.fixture
 def pg_engine(pg_db):
-    """Real, genuinely-committing PostgreSQL engine for tests that need
-    actual engine-building code paths (e.g. code that calls ``.connect()``
-    or ``.begin()`` on what it's given, which a bare ``Connection`` can't
-    stand in for).
+    """Real, genuinely-committing PostgreSQL engine on the connection's own
+    default schema (``public``). ``pg_session`` resets it clean before and
+    after each test; this fixture just hands back the engine to run
+    genuine engine-building code paths against (``.connect()``/``.begin()``,
+    which a bare ``Connection`` can't stand in for).
 
-    A thin shim over ``pg_db``: reuses its already-resolved, test_only-checked
-    connection's own underlying ``Engine`` (``Connection.engine``) rather
-    than re-implementing resolution. Deliberately does not share pg_db's
-    rolled-back transaction: this fixture commits for real, isolated via
-    pg_session's own drop/recreate of the public schema instead. Function-scoped
-    (was session-scoped before this shim), since pg_db itself is
-    function-scoped and pytest fixtures can't depend on a narrower scope
-    than their own.
+    A thin shim over ``pg_db``'s own ``committing_engine``: every role
+    (``None``, ``"vocab"``, ``"results"``) folds back to the connection's
+    default, matching the single-schema setup ``pg_session`` provides.
     """
-    return pg_db.connection.engine.execution_options(
-        # This fixture only ever creates/recreates the public schema below --
-        # map every role back to None so vocab/results-tagged tables land
-        # there too, matching the single-schema setup this fixture provides.
+    return pg_db.committing_engine.execution_options(
         schema_translate_map={None: None, "vocab": None, "results": None}
     )
 
@@ -399,14 +393,22 @@ _SYSTEM_SCHEMAS = frozenset({"pg_catalog", "information_schema"})
 def _reset_test_database(engine: sa.Engine) -> None:
     """Drop every non-system schema and recreate public.
 
-    Local to this file, not a shared oa-configurator primitive: unlike
-    every other package's committing-engine tests (self-cleaning via
-    isolated_test_schema()), pg_session's literal-"public"-name dependents
-    (see its own docstring) need a full reset, not just one schema's worth.
-    Assumes this test database isn't shared with a concurrently-running
-    process, the same assumption pg_session's public-only reset already
-    made.
+    Only safe against a database used by one process at a time: this
+    suite runs sequentially by design (no ``pytest-xdist`` support), so a
+    single shared schema reset before/after each test is simpler than
+    per-test isolation and gives the same guarantee here. Fails loudly
+    rather than racing if that assumption is ever violated (e.g. `-n 2+`
+    run by mistake).
     """
+    worker_count = os.environ.get("PYTEST_XDIST_WORKER_COUNT")
+    if worker_count is not None and int(worker_count) > 1:
+        pytest.fail(
+            "_reset_test_database() cannot run safely under parallel pytest-xdist "
+            f"workers ({worker_count} active): it drops and recreates every "
+            "non-system schema in a database shared across the whole test session, "
+            "so concurrent workers would race each other's resets. This suite is "
+            "sequential-only; run it without -n."
+        )
     with engine.connect() as conn:
         schema_names = sa.inspect(conn).get_schema_names()
         for schema in schema_names:
@@ -420,21 +422,13 @@ def _reset_test_database(engine: sa.Engine) -> None:
 
 @pytest.fixture
 def pg_session(pg_engine, cleanup_after_test):
-    """
-    Function-scoped PostgreSQL session with a clean schema for each test.
+    """Function-scoped PostgreSQL session with a clean schema for each test.
 
-    Resets every non-system schema (not just public) both before and after
-    each test, via cleanup_after_test, so a test's own committed DDL/DML
-    -- in public or a reserved bookkeeping schema like MAINTENANCE_SCHEMA
-    -- never depends on some later, unrelated test to wipe it. Cannot move
-    onto ``isolated_test_schema()``'s real, uniquely-named schema: some
-    tests request ``pg_session`` and ``pg_engine`` together and rely on
-    both pointing at the same physical schema (``pg_engine`` itself has no
-    schema of its own, only whatever the connection's own default is).
-    Confirmed by a real failure when this migration was tried:
-    ``test_load_vocab_postgres.py``'s ``pg_session, pg_engine`` tests
-    broke, since ``pg_engine``-only calls then targeted an unbootstrapped
-    schema.
+    Resets every non-system schema (not just public) both before and
+    after each test, via ``cleanup_after_test``, so a test's own
+    committed DDL/DML -- in public or a reserved bookkeeping schema like
+    ``MAINTENANCE_SCHEMA`` -- never depends on some later, unrelated test
+    to wipe it.
     """
     _reset_test_database(pg_engine)
     cleanup_after_test(lambda: _reset_test_database(pg_engine))
@@ -447,6 +441,27 @@ def pg_session(pg_engine, cleanup_after_test):
     finally:
         session.rollback()
         session.close()
+
+
+@pytest.fixture
+def pg_schema_session(pg_db):
+    """PostgreSQL session bound to a unique committed schema.
+
+    Use this for tests that do not assert the literal ``public`` schema. The
+    schema is dropped at teardown, so separate test processes cannot reset one
+    another's objects.
+    """
+    with isolated_test_schema(pg_db.committing_engine, prefix="omop_alchemy") as schema:
+        engine = pg_db.committing_engine.execution_options(
+            schema_translate_map={None: schema, "vocab": schema, "results": schema}
+        )
+        bootstrap(engine, create=True)
+        session = so.Session(engine, expire_on_commit=False)
+        try:
+            yield session
+        finally:
+            session.rollback()
+            session.close()
 
 
 @pytest.fixture(scope="function")

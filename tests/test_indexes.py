@@ -47,9 +47,11 @@ def indexed_engine(request):
     not SQLite-specific. Only the postgresql param ever requests
     pg_session, so the sqlite param never needs a database.
 
-    pg_session's own isolation only resets the public schema, never
-    MAINTENANCE_SCHEMA (a separate, fixed schema bookkeeping tables live
-    in), so the bookkeeping table is dropped here explicitly. Otherwise
+    pg_session's own isolation gives every test a fresh, uniquely-named
+    CDM schema (see pg_engine), but MAINTENANCE_SCHEMA is a separate,
+    fixed, shared schema bookkeeping tables always live in regardless of
+    that per-test uniqueness, so it is never reset by pg_session at all.
+    The bookkeeping table is dropped here explicitly instead. Otherwise
     both its rows *and its very existence* stay visible to every later
     test, indefinitely, including tests that specifically assert it hasn't
     been created yet.

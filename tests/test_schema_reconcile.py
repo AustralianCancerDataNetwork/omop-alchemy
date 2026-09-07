@@ -57,8 +57,8 @@ def reconcile_engine(request) -> _ReconcileEngine:
     Notes
     -----
     DIALECT_PARAMS marks each param directly, since the postgresql param's
-    dynamic request.getfixturevalue("pg_session") call is invisible to
-    pytest's usual fixturenames-based auto-detection.
+    dynamic request.getfixturevalue("pg_schema_session") call is invisible
+    to pytest's usual fixturenames-based auto-detection.
     """
     if request.param == "postgresql":
         resolved = request.getfixturevalue("pg_db").resolved
