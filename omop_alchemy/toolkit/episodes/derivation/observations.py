@@ -18,8 +18,8 @@ def observation_eligibility_predicate(
 ) -> sa.ColumnElement[bool]:
     """Return the date predicate required by an observation selection policy."""
     if not spec.requires_anchor:
-        # Unanchored policies keep every source row eligible; callers can reuse 
-        # the ranking builder for episode and person level observations 
+        # Unanchored policies keep every source row eligible; callers can reuse
+        # the ranking builder for episode and person level observations
         return sa.true()
     if anchor_date is None:
         # Missing anchor input is a configuration error, not an instruction to

@@ -43,8 +43,7 @@ class ModifierColumn(StrEnum):
     unit_concept_id = "unit_concept_id"
     value_as_string = "value_as_string"
 
-# we store this column listing because we want to be able to use Unions, 
-# which rely on column ordering by role
+# Column ordering is important for UNION queries; this listing fixes the contract order.
 CANONICAL_MODIFIER_REQUIRED_COLUMNS: tuple[ModifierColumn, ...] = (
     ModifierColumn.person_id,
     ModifierColumn.modifier_id,

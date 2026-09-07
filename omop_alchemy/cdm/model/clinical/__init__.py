@@ -12,7 +12,9 @@ from .procedure_occurrence import (
     Procedure_OccurrenceContext,
     Procedure_OccurrenceView,
 )
-from .device_exposure import Device_Exposure, Device_ExposureContext, Device_ExposureView
+from .device_exposure import (
+    Device_Exposure, Device_ExposureContext, Device_ExposureView
+)
 from .death import Death
 from .specimen import Specimen
 
