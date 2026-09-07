@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from sqlalchemy.ext.hybrid import hybrid_property
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
 from orm_loader.helpers import Base
@@ -11,6 +10,7 @@ from omop_alchemy.cdm.base import (
     DomainValidationMixin,
     ExpectedDomain,
     ModifierFieldConcepts,
+    ModifierSourceMixin,
     ModifierTargetMixin,
     ReferenceContext,
     cdm_table,
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @cdm_table
-class Measurement(Base, CDMTableBase, ValueMixin):
+class Measurement(Base, CDMTableBase, ValueMixin, ModifierSourceMixin):
     __tablename__ = "measurement"
     __table_args__ = merge_table_args(
         omop_index(__tablename__, "person_id", cluster=True),
@@ -85,13 +85,8 @@ class Measurement(Base, CDMTableBase, ValueMixin):
         doc="Identifies which OMOP table measurement_event_id refers to",
     )
 
-    @hybrid_property
-    def modifier_of_event_id(self) -> Optional[int]:
-        return self.measurement_event_id
-
-    @hybrid_property
-    def modifier_of_field_concept_id(self) -> Optional[int]:
-        return self.meas_event_field_concept_id
+    __modifier_event_id_col__ = "measurement_event_id"
+    __modifier_field_concept_id_col__ = "meas_event_field_concept_id"
 
 
 class MeasurementContext(ReferenceContext):

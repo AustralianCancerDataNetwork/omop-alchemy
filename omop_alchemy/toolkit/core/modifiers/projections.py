@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
 
 import sqlalchemy as sa
 
-from .contracts import ModifierColumn
+from .contracts import CANONICAL_MODIFIER_VALUE_COLUMNS, ModifierColumn
 from .metadata import modifier_source_model_spec
+
+
+# The SQL type each value position is cast to when a source has no such column.
+# Keyed by column so the emission order below comes from the contract rather
+# than from a second hand-maintained list.
+_VALUE_COLUMN_TYPES: Mapping[ModifierColumn, sa.types.TypeEngine[Any]] = {
+    ModifierColumn.value_as_number: sa.Float(),
+    ModifierColumn.value_as_concept_id: sa.Integer(),
+    ModifierColumn.unit_concept_id: sa.Integer(),
+    ModifierColumn.value_as_string: sa.String(),
+}
 
 
 def _nullable(
@@ -26,36 +37,31 @@ def canonical_modifier_projection(
     spec = modifier_source_model_spec(model)
     columns: list[sa.ColumnElement[Any]] = [
         model.person_id.label(str(ModifierColumn.person_id)),
-        getattr(model, spec.modifier_id_attribute).label(
+        getattr(model, spec.event_id_column).label(
             str(ModifierColumn.modifier_id)
         ),
-        getattr(model, spec.modifier_date_attribute).label(
+        getattr(model, spec.event_date_column).label(
             str(ModifierColumn.modifier_date)
         ),
-        getattr(model, spec.modifier_datetime_attribute).label(
+        getattr(model, spec.event_datetime_column).label(
             str(ModifierColumn.modifier_datetime)
         ),
-        getattr(model, spec.modifier_concept_id_attribute).label(
+        getattr(model, spec.event_concept_id_column).label(
             str(ModifierColumn.modifier_concept_id)
         ),
-        sa.literal(spec.modifier_source_table).label(
+        sa.literal(spec.event_source_table).label(
             str(ModifierColumn.modifier_source_table)
         ),
-        getattr(model, spec.target_event_id_attribute).label(
-            str(ModifierColumn.target_event_id)
-        ),
-        getattr(model, spec.target_field_concept_id_attribute).label(
+        # Guaranteed by ModifierSourceMixin, whatever the physical column name.
+        model.modifier_of_event_id.label(str(ModifierColumn.target_event_id)),
+        model.modifier_of_field_concept_id.label(
             str(ModifierColumn.target_field_concept_id)
         ),
     ]
     if include_values:
         columns.extend(
-            (
-                _nullable(model, ModifierColumn.value_as_number, sa.Float()),
-                _nullable(model, ModifierColumn.value_as_concept_id, sa.Integer()),
-                _nullable(model, ModifierColumn.unit_concept_id, sa.Integer()),
-                _nullable(model, ModifierColumn.value_as_string, sa.String()),
-            )
+            _nullable(model, column, _VALUE_COLUMN_TYPES[column])
+            for column in CANONICAL_MODIFIER_VALUE_COLUMNS
         )
     return sa.select(*columns)
 

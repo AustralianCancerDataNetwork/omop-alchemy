@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from sqlalchemy.ext.hybrid import hybrid_property
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
 from orm_loader.helpers import Base
@@ -11,6 +10,7 @@ from omop_alchemy.cdm.base import (
     DomainValidationMixin,
     ExpectedDomain,
     ModifierFieldConcepts,
+    ModifierSourceMixin,
     ModifierTargetMixin,
     ReferenceContext,
     cdm_table,
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @cdm_table
-class Observation(Base, CDMTableBase, ValueMixin):
+class Observation(Base, CDMTableBase, ValueMixin, ModifierSourceMixin):
     __tablename__ = "observation"
     __table_args__ = merge_table_args(
         omop_index(__tablename__, "person_id", cluster=True),
@@ -77,13 +77,8 @@ class Observation(Base, CDMTableBase, ValueMixin):
         sa.ForeignKey("concept.concept_id")
     )
 
-    @hybrid_property
-    def modifier_of_event_id(self) -> Optional[int]:
-        return self.observation_event_id
-
-    @hybrid_property
-    def modifier_of_field_concept_id(self) -> Optional[int]:
-        return self.obs_event_field_concept_id
+    __modifier_event_id_col__ = "observation_event_id"
+    __modifier_field_concept_id_col__ = "obs_event_field_concept_id"
 
 
 class ObservationContext(ReferenceContext):

@@ -1,4 +1,9 @@
-"""Stable metadata for CDM tables that participate in clinical-event APIs."""
+"""Stable metadata for CDM tables that participate in clinical-event APIs.
+
+**NOTE:** "is a clinical event" and "can be modified" are different questions 
+with different membership. Every clinical event is a valid modifier target, 
+but not every modifier target is a clinical event.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +18,7 @@ from .drug_exposure import Drug_Exposure, Drug_ExposureView
 from .measurement import Measurement, MeasurementView
 from .observation import Observation, ObservationView
 from .procedure_occurrence import Procedure_Occurrence, Procedure_OccurrenceView
+from ..structural.episode import Episode, EpisodeView
 
 
 # Keep one explicit supported event set. Both lookup shapes are derived from it
@@ -24,6 +30,8 @@ _CLINICAL_EVENT_TARGETS: tuple[tuple[type[Any], type[ModifierTargetMixin]], ...]
     (Measurement, MeasurementView),
     (Observation, ObservationView),
     (Procedure_Occurrence, Procedure_OccurrenceView),
+    # Note that Episode itself is a valid modifier target, but it is not a clinical 
+    # event and therefore is not listed here.
 )
 
 CLINICAL_EVENT_TARGETS_BY_TABLE: Mapping[str, type[ModifierTargetMixin]] = (
@@ -38,6 +46,20 @@ CLINICAL_EVENT_TARGETS_BY_FIELD_CONCEPT_ID: Mapping[int, type[ModifierTargetMixi
             for _, target in _CLINICAL_EVENT_TARGETS
         }
     )
+)
+
+_STRUCTURAL_MODIFIER_TARGETS: tuple[tuple[type[Any], type[ModifierTargetMixin]], ...] = (
+    (Episode, EpisodeView),
+)
+
+STRUCTURAL_MODIFIER_TARGETS_BY_TABLE: Mapping[str, type[ModifierTargetMixin]] = (
+    MappingProxyType(
+        {source.__tablename__: target for source, target in _STRUCTURAL_MODIFIER_TARGETS}
+    )
+)
+
+MODIFIER_TARGETS_BY_TABLE: Mapping[str, type[ModifierTargetMixin]] = MappingProxyType(
+    {**CLINICAL_EVENT_TARGETS_BY_TABLE, **STRUCTURAL_MODIFIER_TARGETS_BY_TABLE}
 )
 
 

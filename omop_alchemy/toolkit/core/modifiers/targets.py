@@ -8,10 +8,7 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy.sql.selectable import FromClause, SelectBase
 
-from omop_alchemy.toolkit.core.events import (
-    ClinicalEventColumn,
-    canonical_event_projection,
-)
+from omop_alchemy.toolkit.core.events import ClinicalEventColumn
 
 from .contracts import (
     CANONICAL_MODIFIER_REQUIRED_COLUMNS,
@@ -41,16 +38,6 @@ class ModifierTargetQueries:
 def canonical_modifier_target_projection(model: type[Any]) -> sa.Select[Any]:
     """Project a supported clinical event or Episode to target identity columns."""
     spec = modifier_target_model_spec(model)
-    if spec.uses_clinical_event_projection:
-        event = canonical_event_projection(model, include_values=False).subquery(
-            "modifier_target_event"
-        )
-        return sa.select(
-            event.c[str(ClinicalEventColumn.person_id)],
-            event.c[str(ClinicalEventColumn.event_id)],
-            event.c[str(ClinicalEventColumn.event_field_concept_id)],
-            event.c[str(ClinicalEventColumn.event_source_table)],
-        )
     return sa.select(
         model.person_id.label(str(ClinicalEventColumn.person_id)),
         getattr(model, spec.event_id_attribute).label(

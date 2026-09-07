@@ -10,7 +10,7 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import FunctionElement
 
-from ._ranking import deterministic_row_number
+from omop_alchemy.toolkit.core._ranking import deterministic_row_number
 from .contracts import (
     EpisodeWindowSpec,
     TemporalRankingSpec,

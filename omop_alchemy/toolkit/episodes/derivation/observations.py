@@ -6,7 +6,7 @@ from typing import Any
 
 import sqlalchemy as sa
 
-from ._ranking import deterministic_row_number
+from omop_alchemy.toolkit.core._ranking import deterministic_row_number
 from .contracts import ObservationSelectionPolicy, ObservationSelectionSpec
 
 
@@ -18,9 +18,8 @@ def observation_eligibility_predicate(
 ) -> sa.ColumnElement[bool]:
     """Return the date predicate required by an observation selection policy."""
     if not spec.requires_anchor:
-        # Unanchored policies intentionally keep every source row eligible;
-        # callers can reuse the same ranking builder for episode and person
-        # level observations without inventing a sentinel anchor date.
+        # Unanchored policies keep every source row eligible; callers can reuse 
+        # the ranking builder for episode and person level observations 
         return sa.true()
     if anchor_date is None:
         # Missing anchor input is a configuration error, not an instruction to

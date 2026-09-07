@@ -43,7 +43,8 @@ class ModifierColumn(StrEnum):
     unit_concept_id = "unit_concept_id"
     value_as_string = "value_as_string"
 
-
+# we store this column listing because we want to be able to use Unions, 
+# which rely on column ordering by role
 CANONICAL_MODIFIER_REQUIRED_COLUMNS: tuple[ModifierColumn, ...] = (
     ModifierColumn.person_id,
     ModifierColumn.modifier_id,
@@ -54,13 +55,7 @@ CANONICAL_MODIFIER_REQUIRED_COLUMNS: tuple[ModifierColumn, ...] = (
     ModifierColumn.target_event_id,
     ModifierColumn.target_field_concept_id,
 )
-"""Columns required to identify, date, classify, and target every modifier.
 
-``modifier_source_table`` scopes ``modifier_id``;
-``target_field_concept_id`` scopes ``target_event_id``. Although OMOP permits
-the two target fields to be null on unbound rows, their columns are required in
-the projection so validation can report that state explicitly.
-"""
 
 CANONICAL_MODIFIER_VALUE_COLUMNS: tuple[ModifierColumn, ...] = (
     ModifierColumn.value_as_number,
@@ -68,12 +63,6 @@ CANONICAL_MODIFIER_VALUE_COLUMNS: tuple[ModifierColumn, ...] = (
     ModifierColumn.unit_concept_id,
     ModifierColumn.value_as_string,
 )
-"""Nullable OMOP value representations emitted in a fixed union order.
-
-A particular source row usually populates only one representation. Keeping all
-four positions avoids source-specific union shapes and does not imply that the
-representations are interchangeable.
-"""
 
 
 @runtime_checkable
