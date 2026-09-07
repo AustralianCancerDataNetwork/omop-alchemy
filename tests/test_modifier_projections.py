@@ -13,6 +13,7 @@ from omop_alchemy.cdm.base import (
     ModifierSourceMixin,
     ModifierTargetMixin,
 )
+from orm_loader.helpers import Base
 from omop_alchemy.cdm.model import (
     Condition_Occurrence,
     Device_Exposure,
@@ -295,7 +296,92 @@ def test_target_resolution_queries_compile_for_supported_models(target):
         assert "diagnostic_code" in str(queries.diagnostics.compile(dialect=dialect))
 
 
-def test_target_validation_rejects_missing_and_cross_person_links():
+def _seeded_engine(conditions, measurements):
+    """Build a SQLite database holding the given condition and measurement rows."""
+    engine = sa.create_engine("sqlite://")
+    Base.metadata.create_all(
+        engine, tables=[Condition_Occurrence.__table__, Measurement.__table__]
+    )
+    with engine.begin() as connection:
+        connection.execute(Condition_Occurrence.__table__.insert(), conditions)
+        connection.execute(Measurement.__table__.insert(), measurements)
+    return engine
+
+
+def _condition(condition_occurrence_id: int, person_id: int):
+    return dict(
+        condition_occurrence_id=condition_occurrence_id,
+        person_id=person_id,
+        condition_concept_id=4,
+        condition_start_date=date(2020, 1, 1),
+        condition_type_concept_id=1,
+    )
+
+
+def _modifier_of(measurement_id: int, person_id: int, target_id: int):
+    return dict(
+        measurement_id=measurement_id,
+        person_id=person_id,
+        measurement_concept_id=9,
+        measurement_date=date(2020, 6, 1),
+        measurement_type_concept_id=1,
+        measurement_event_id=target_id,
+        meas_event_field_concept_id=ModifierFieldConcepts.CONDITION_OCCURRENCE,
+    )
+
+
+def _diagnostic_codes(engine, target) -> set[tuple[int, str]]:
+    queries = modifier_target_queries(Measurement, target, diagnostics=True)
+    assert queries.diagnostics is not None
+    with engine.connect() as connection:
+        rows = connection.execute(queries.diagnostics).mappings().all()
+    return {(row["modifier_id"], row["diagnostic_code"]) for row in rows}
+
+
+def test_a_whole_target_table_can_prove_a_dangling_modifier():
+    """Absence from an entire table does mean the target row does not exist."""
+    engine = _seeded_engine(
+        conditions=[_condition(1, 10)],
+        measurements=[_modifier_of(100, 10, 1), _modifier_of(101, 10, 99)],
+    )
+
+    assert _diagnostic_codes(engine, Condition_Occurrence) == {
+        (101, "missing_target_event")
+    }
+
+
+def test_a_filtered_target_never_reports_a_missing_target_event():
+    """A narrowed target set cannot distinguish a defect from its own filter.
+
+    Both modifiers below point at conditions that genuinely exist. Reporting
+    the excluded one as missing would turn the caller's filter into a false
+    data-quality defect for downstream baseline counts.
+    """
+    engine = _seeded_engine(
+        conditions=[_condition(1, 10), _condition(2, 10)],
+        measurements=[_modifier_of(100, 10, 1), _modifier_of(101, 10, 2)],
+    )
+    narrowed = sa.select(
+        *canonical_modifier_target_projection(Condition_Occurrence).subquery().c
+    ).where(sa.column("event_id") == 2)
+
+    assert _diagnostic_codes(engine, narrowed) == set()
+
+
+def test_a_filtered_target_still_reports_person_mismatch():
+    """A mismatch is observed on a row that is present, so it stays provable."""
+    engine = _seeded_engine(
+        conditions=[_condition(1, 10)],
+        measurements=[_modifier_of(100, 11, 1)],
+    )
+    narrowed = sa.select(
+        *canonical_modifier_target_projection(Condition_Occurrence).subquery().c
+    ).where(sa.column("event_id") == 1)
+
+    assert _diagnostic_codes(engine, narrowed) == {(100, "person_mismatch")}
+
+
+def test_target_validation_rejects_null_identity_and_cross_person_links():
     def modifier(
         modifier_id: int,
         person_id: int,
@@ -336,8 +422,9 @@ def test_target_validation_rejects_missing_and_cross_person_links():
         diagnostics = connection.execute(queries.diagnostics).mappings().all()
 
     assert [row["modifier_id"] for row in matches] == [1]
+    # Modifier 3 points outside the supplied selectable, which cannot prove the
+    # row is absent from the underlying table, so no code is asserted for it.
     assert {(row["modifier_id"], row["diagnostic_code"]) for row in diagnostics} == {
         (2, "missing_target_identity"),
-        (3, "missing_target_event"),
         (4, "person_mismatch"),
     }

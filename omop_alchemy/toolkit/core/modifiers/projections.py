@@ -7,7 +7,10 @@ from typing import Any, Mapping
 import sqlalchemy as sa
 
 from .contracts import CANONICAL_MODIFIER_VALUE_COLUMNS, ModifierColumn
-from .metadata import modifier_source_model_spec
+from .metadata import (
+    UnsupportedModifierSourceModelError,
+    modifier_source_model_spec,
+)
 
 
 # The SQL type each value position is cast to when a source has no such column.
@@ -35,6 +38,11 @@ def canonical_modifier_projection(
 ) -> sa.Select[Any]:
     """Project Measurement or Observation into one modifier row shape."""
     spec = modifier_source_model_spec(model)
+    datetime_column = spec.event_datetime_column
+    if datetime_column is None:  # pragma: no cover - the spec rejects such a model
+        raise UnsupportedModifierSourceModelError(
+            model, "must expose an event datetime column"
+        )
     columns: list[sa.ColumnElement[Any]] = [
         model.person_id.label(str(ModifierColumn.person_id)),
         getattr(model, spec.event_id_column).label(
@@ -43,7 +51,7 @@ def canonical_modifier_projection(
         getattr(model, spec.event_date_column).label(
             str(ModifierColumn.modifier_date)
         ),
-        getattr(model, spec.event_datetime_column).label(
+        getattr(model, datetime_column).label(
             str(ModifierColumn.modifier_datetime)
         ),
         getattr(model, spec.event_concept_id_column).label(

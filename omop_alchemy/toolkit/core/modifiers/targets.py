@@ -179,20 +179,24 @@ def modifier_target_queries(
                 "target field concept is not supported by the supplied target",
             )
         )
-    else:
-        supported = sa.true()
-    branches.extend(
-        (
+        # Absence from the target set proves the row does not exist only when
+        # the set is a whole target table. A caller-supplied selectable may be
+        # filtered, where a missing row is the filter's doing, not a defect.
+        branches.append(
             branch(
                 ModifierTargetDiagnosticCode.missing_target_event,
                 sa.and_(has_identity, supported, sa.not_(any_event)),
                 "the identified target event does not exist",
-            ),
-            branch(
-                ModifierTargetDiagnosticCode.person_mismatch,
-                sa.and_(has_identity, supported, any_event, sa.not_(same_person)),
-                "modifier and target event belong to different people",
-            ),
+            )
+        )
+    else:
+        supported = sa.true()
+    # Safe for either source: the mismatch is observed on a row that is present.
+    branches.append(
+        branch(
+            ModifierTargetDiagnosticCode.person_mismatch,
+            sa.and_(has_identity, supported, any_event, sa.not_(same_person)),
+            "modifier and target event belong to different people",
         )
     )
     return ModifierTargetQueries(matches=matches, diagnostics=sa.union_all(*branches))
