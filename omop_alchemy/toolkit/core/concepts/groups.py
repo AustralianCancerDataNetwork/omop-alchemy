@@ -29,6 +29,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 
 from .runtime import descendant_concept_select
+from .semantics import ConceptGroupAnchors
 
 
 @dataclass(frozen=True)
@@ -47,7 +48,7 @@ class ConceptGroupSpec:
     unit
         The omop-semantics ``RuntimeSemanticUnit`` supplying anchors.  Read
         lazily, so a spec can be declared at module scope without loading the
-        semantics runtime.  omop-semantics 0.6.0 put mixed-role composition on
+        semantics runtime.  omop-semantics 0.6 put mixed-role composition on
         the semantic unit rather than on ``RuntimeGroup``, which is why this
         takes a unit: ``parent_ids`` expand through descendants while
         ``exact_ids`` are matched directly.
@@ -68,7 +69,7 @@ class ConceptGroupSpec:
     """
 
     name: str
-    unit: Any
+    unit: ConceptGroupAnchors
     include_descendants: bool = True
     require_standard: bool = False
     include_classification: bool = True

@@ -342,8 +342,62 @@ matching_procedures = select(Procedure_Occurrence).where(
 
 Use `RuntimeConceptSetSpec` when the inclusions and exclusions form one configured set with exclusion precedence. Use `descendant_concept_select()` when the surrounding query or rule model owns how separate predicates are combined.
 
+## Canonical modifier queries
+
+`ModifierIdentity(modifier_source_table, modifier_id)` and
+`ModifierTargetIdentity(target_field_concept_id, target_event_id)` make both
+table scopes explicit. The canonical source columns are:
+
+| Role | Columns |
+|---|---|
+| Source identity | `modifier_source_table`, `modifier_id` |
+| Target identity | `target_field_concept_id`, `target_event_id` |
+| Clinical row | `person_id`, `modifier_date`, `modifier_datetime`, `modifier_concept_id` |
+| Nullable values | `value_as_number`, `value_as_concept_id`, `unit_concept_id`, `value_as_string` |
+
+Target validation is intentionally performed before selection. A valid link
+matches target Field concept, target ID, and person. This prevents a modifier
+for Condition Occurrence 7 from competing with one for Procedure Occurrence 7,
+and prevents a malformed cross-person link from replacing valid evidence.
+
+```python
+from omop_alchemy.cdm.model import Condition_Occurrence, Measurement
+from omop_alchemy.toolkit.core.modifiers import (
+    ModifierSelectionPolicy,
+    ModifierSelectionSpec,
+    modifier_target_queries,
+    selected_modifier_select,
+)
+
+resolved = modifier_target_queries(Measurement, Condition_Occurrence)
+selected = selected_modifier_select(
+    resolved.matches,
+    spec=ModifierSelectionSpec(policy=ModifierSelectionPolicy.earliest),
+)
+```
+
+The default selection partition includes person and both target identity
+columns. If one input contains several modifier categories and selection should
+occur separately for each, filter to one category before ranking or add that
+category discriminator to `partition_by`. Incomplete target identities are
+excluded. The stable source table and modifier ID are always the final
+tie-breakers under the default contract.
+
+`modifier_target_queries(..., diagnostics=True)` returns a second advisory query
+covering `missing_target_identity`, `unsupported_target_field`,
+`missing_target_event`, and `person_mismatch`. Diagnostics do not change the
+valid result. For a filtered caller projection, missing events are input-relative.
+
+Oncology stage preference composes with this generic selector. Its public
+default is pathological, clinical, then unclassified, followed by earliest
+time. `StageSelectionSpec.clinical_first()`,
+`StageSelectionSpec.chronological_only()`, and a `latest` temporal policy are
+explicit query-scoped alternatives.
+
 ## API reference
 
 ::: omop_alchemy.toolkit.core.events
+
+::: omop_alchemy.toolkit.core.modifiers
 
 ::: omop_alchemy.toolkit.episodes.derivation

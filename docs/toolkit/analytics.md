@@ -67,6 +67,59 @@ The single-value properties return the first modality in this order for which th
 
 `OncologyProcedure` and `OncologyDrugExposure` expose the same governed classifications on individual facts. `OncologyEpisodeEvent` retains resolution diagnostics when a linked event cannot be loaded.
 
+### Condition modifiers and preferred stage
+
+The oncology package publishes lazy governed concept specifications for T, N,
+M, and group stage, tumour grade, and metastatic disease. Laterality and tumour
+size are exposed as governed scalar accessors. These declarations consume
+`omop-semantics`; the narrow metastatic-disease descendant group requires
+`omop-semantics` 0.6.1. Importing the module does not expand a vocabulary or
+contact a database.
+
+Stage selection is a query policy over an already filtered canonical modifier
+source enriched with `modifier_concept_code`. By default, pathological codes
+(trimmed, case-insensitive codes beginning with `p`) rank before clinical codes
+(beginning with `c`), with unclassified codes retained as fallback. Time and
+canonical modifier identity then break ties deterministically.
+
+```python
+from omop_alchemy.toolkit.analytics.oncology import preferred_stage_select
+
+# Earliest pathological, otherwise earliest clinical, otherwise unclassified.
+preferred = preferred_stage_select(stage_modifiers)
+```
+
+The preference is immutable and query-scoped. Override it explicitly rather
+than changing process-global state:
+
+```python
+from omop_alchemy.toolkit.analytics.oncology import StageSelectionSpec
+from omop_alchemy.toolkit.core.modifiers import ModifierSelectionPolicy
+
+clinical_first = preferred_stage_select(
+    stage_modifiers,
+    spec=StageSelectionSpec.clinical_first(),
+)
+
+chronological = preferred_stage_select(
+    stage_modifiers,
+    spec=StageSelectionSpec.chronological_only(),
+)
+
+latest_pathological = preferred_stage_select(
+    stage_modifiers,
+    spec=StageSelectionSpec(
+        temporal_policy=ModifierSelectionPolicy.latest,
+    ),
+)
+```
+
+Pass `concept_code_column=` when an enriched source uses another explicit
+label. An empty basis priority disables pathological/clinical preference; a
+non-empty priority must contain every `StageBasis` exactly once.
+
+::: omop_alchemy.toolkit.analytics.oncology.condition_modifiers
+
 ::: omop_alchemy.toolkit.analytics.oncology.OncologyEpisode
     options:
       members:

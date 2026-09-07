@@ -30,6 +30,12 @@ Creating the resolver reads the vocabulary tables, so create it once for a mappi
 
 Concept groups answer the complementary question: whether a known concept belongs to a governed set. A resolved group supports both in-memory membership and a SQLAlchemy expression derived from the same specification, so filtering loaded objects and filtering in SQL do not require separate definitions.
 
+Domain packages can declare module-level governed groups with
+`SemanticUnitRef(value_set, unit)`. The reference loads the optional
+`omop-semantics` runtime only when its parent, excluded-parent, or exact IDs are
+read. It always exposes a complete governed unit; narrower group definitions
+belong in `omop-semantics`, not in consumer-side adapters.
+
 Configuration-driven concept sets use `RuntimeConceptSetSpec`. It records exact and ancestral inclusions and exclusions without touching the database; see [Runtime concept sets](query-contracts.md#runtime-concept-sets) for the set semantics and current execution boundary.
 
 ## Resolve concepts to standard concepts
@@ -108,6 +114,63 @@ flowchart LR
 Each source model contributes its own ID column and Field concept; branches without a value or unit receive typed nulls so the union stays one consistent shape regardless of which models are combined.
 
 The [query contracts](query-contracts.md) explain how the canonical shape participates in episode attachment.
+
+## Resolve OMOP modifiers
+
+Measurement and Observation both implement the OMOP polymorphic modifier link,
+but use different physical column names. `canonical_modifier_projection()` and
+`canonical_modifier_union()` normalize those tables to one shape containing a
+table-scoped modifier identity, a Field-concept-scoped target identity, the
+modifier date and concept, and all four OMOP value representations.
+
+Supported source and target models are declared explicitly in immutable
+metadata. Shared event fields and the six clinical target definitions are
+derived from the clinical-event registry; Episode is the only target extension.
+This keeps imports deterministic without maintaining a second copy of the CDM
+Field concepts and native event columns.
+
+```python
+from omop_alchemy.cdm.model import Measurement, Observation
+from omop_alchemy.toolkit.core.modifiers import canonical_modifier_union
+
+modifiers = canonical_modifier_union(Measurement, Observation).subquery()
+```
+
+A numeric modifier ID is unique only inside its source table. Likewise, a
+numeric target ID is meaningful only with `target_field_concept_id`. Preserve
+both parts of both identities when a query is joined, ranked, or materialized.
+
+Use `modifier_target_queries()` before reducing repeated modifiers. The accepted
+link must agree on target ID, target Field concept, and person. Supported targets
+are Condition Occurrence, Measurement, Observation, Procedure Occurrence, Drug
+Exposure, Device Exposure, and Episode. Episode is deliberately a modifier
+target without being added to the clinical-event union.
+
+```python
+from omop_alchemy.cdm.model import Condition_Occurrence, Measurement
+from omop_alchemy.toolkit.core.modifiers import modifier_target_queries
+
+result = modifier_target_queries(
+    Measurement,
+    Condition_Occurrence,
+    diagnostics=True,
+)
+
+valid_modifiers = result.matches
+rejected_links = result.diagnostics
+```
+
+Diagnostics distinguish incomplete target identities, unsupported target Field
+concepts, missing target events, and cross-person links. Missing-row diagnostics
+for a caller-supplied filtered target projection are relative to that projection;
+use a complete target model when absence from the CDM itself is the question.
+
+`selected_modifier_select()` then applies an explicit earliest/latest policy.
+The default partition is `(person_id, target_field_concept_id, target_event_id)`;
+date, non-null datetime, source table, and modifier ID form its deterministic
+order. Rows without a complete target identity do not participate.
+
+::: omop_alchemy.toolkit.core.modifiers
 
 ## Work with a patient timeline
 

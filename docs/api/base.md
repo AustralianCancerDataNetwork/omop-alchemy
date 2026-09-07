@@ -1,10 +1,8 @@
 # Base Tables
 
-Base tables define the **foundation of all concrete OMOP CDM models**
-in OMOP Alchemy.
+Base tables define the **foundation of all concrete OMOP CDM models** in OMOP Alchemy.
 
-They establish the minimum structural and behavioral contract that
-distinguishes a real CDM table from:
+They establish the minimum structural and behavioral contract that distinguishes a real CDM table from:
 
 - mixins
 - views
@@ -37,8 +35,7 @@ Those concerns live elsewhere.
 
 ## Relationship to `orm-loader`
 
-`CDMTableBase` builds directly on infrastructure provided by
-`orm-loader`.
+`CDMTableBase` builds directly on infrastructure provided by `orm-loader`.
 
 Specifically, it inherits:
 
@@ -58,8 +55,7 @@ This separation is intentional:
 
 ## `CDMTableBase`
 
-The `CDMTableBase` class is the common ancestor for all concrete
-OMOP CDM tables.
+The `CDMTableBase` class is the common ancestor for all concrete OMOP CDM tables.
 
 ::: omop_alchemy.cdm.base.cdm_table_base.CDMTableBase
     options:

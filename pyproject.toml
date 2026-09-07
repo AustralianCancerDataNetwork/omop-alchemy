@@ -45,7 +45,8 @@ postgres = [
 ]
 
 semantics = [
-  "omop-semantics>=0.6.0",
+  # First release containing condition_modifiers.metastatic_disease_concepts.
+  "omop-semantics>=0.6.1",
 ]
 
 dev = [

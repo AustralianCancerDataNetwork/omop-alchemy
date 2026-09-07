@@ -111,6 +111,7 @@ from .runtime import (
     descendant_concept_select,
     runtime_concept_predicate,
 )
+from .semantics import ConceptGroupAnchors, SemanticUnitRef
 
 __all__ = [
     "DEFAULT_MAX_CACHE_BYTES",
@@ -118,6 +119,7 @@ __all__ = [
     "STANDARD_CONCEPT_MAPPING_COLUMNS",
     "STANDARD_CONCEPT_MAPPING_UNIQUENESS",
     "ConceptGroupRegistry",
+    "ConceptGroupAnchors",
     "ConceptGroupSpec",
     "StandardConceptMappingColumn",
     "StandardConceptMappingSpec",
@@ -127,6 +129,7 @@ __all__ = [
     "LookupSpec",
     "OMOPConceptSource",
     "ResolvedConceptGroup",
+    "SemanticUnitRef",
     "RuntimeConceptSetSpec",
     "build_concept_group",
     "clear_concept_group_cache",

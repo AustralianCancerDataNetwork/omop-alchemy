@@ -1,11 +1,8 @@
 # API Reference
 
+This section documents the **core authoring primitives** used to define OMOP CDM models in OMOP Alchemy.
 
-This section documents the **core authoring primitives** used to define
-OMOP CDM models in OMOP Alchemy.
-
-These APIs are intentionally **low-level, explicit, and composable**.
-They are designed for *model authors*, not end-users or analysts.
+These APIs are intentionally **low-level, explicit, and composable**. They are designed for *model authors*, not end-users or analysts.
 
 If you are:
 
@@ -54,11 +51,9 @@ Layered architecture specification is described in [Architecture](./architecture
 
 ## Base table infrastructure
 
-At the core of OMOP Alchemy is a small number of base classes that define
-what it means to be a CDM table.
+At the core of OMOP Alchemy is a small number of base classes that define what it means to be a CDM table.
 
-These classes integrate with lower-level infrastructure (i.e.
-`orm-loader`) but remain OMOP-specific.
+These classes integrate with lower-level infrastructure (i.e. `orm-loader`) but remain OMOP-specific.
 
 **[Base tables](base.md)**
 
@@ -93,8 +88,7 @@ Mixins encode these patterns once, and make them reusable and inspectable.
 
 ## Typing and semantic contracts
 
-OMOP Alchemy makes heavy use of Python typing to express
-*semantic expectations*:
+OMOP Alchemy makes heavy use of Python typing to express *semantic expectations*:
 
 - “this object has a concept_id”
 - “this table participates in domain validation”
@@ -111,8 +105,7 @@ These protocols support:
 
 ## Relationship to other layers
 
-This API layer sits *above* generic ORM infrastructure
-and *below* analytical or validation tooling.
+This API layer sits *above* generic ORM infrastructure and *below* analytical or validation tooling.
 
 | Layer | Responsibility |
 |------|---------------|

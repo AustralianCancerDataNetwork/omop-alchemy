@@ -1,10 +1,8 @@
 # Patient Timelines
 
-OMOP Alchemy includes a lightweight timeline layer that projects OMOP CDM ORM objects
-into a **unified, time-ordered event stream** per patient.
+OMOP Alchemy includes a lightweight timeline layer that projects OMOP CDM ORM objects into a **unified, time-ordered event stream** per patient.
 
-It is primarily intended for feature construction and exploratory analysis — not for
-production query pipelines where raw SQLAlchemy queries are more appropriate.
+It is primarily intended for feature construction and exploratory analysis — not for production query pipelines where raw SQLAlchemy queries are more appropriate.
 
 ---
 
@@ -12,8 +10,7 @@ production query pipelines where raw SQLAlchemy queries are more appropriate.
 
 ### `EventTime`
 
-A canonical temporal representation. Every clinical event has a start datetime; an end
-datetime is optional. The `kind` property returns `"point"` or `"interval"`.
+A canonical temporal representation. Every clinical event has a start datetime; an end datetime is optional. The `kind` property returns `"point"` or `"interval"`.
 
 ::: omop_alchemy.toolkit.core.timeline.event_timeline.EventTime
 
@@ -37,11 +34,7 @@ Declares which ORM fields supply the concept, start/end datetimes, and value for
 
 ## The `ClinicalEvent` mixin
 
-`ClinicalEvent` is a mixin that adds timeline behaviour to any CDM ORM class. It implements
-the shared `toolkit.core.events.ClinicalEventRow` identity and projection fields, then reads
-`_mapping` to add `event_time`, `event_value`, `event_metadata`, `to_dict`, and `to_json`.
-The shared core contract keeps timeline events and SQL event projections aligned
-without making `core.timeline` import the higher-level episode package.
+`ClinicalEvent` is a mixin that adds timeline behaviour to any CDM ORM class. It implements the shared `toolkit.core.events.ClinicalEventRow` identity and projection fields, then reads `_mapping` to add `event_time`, `event_value`, `event_metadata`, `to_dict`, and `to_json`. The shared core contract keeps timeline events and SQL event projections aligned without making `core.timeline` import the higher-level episode package.
 
 ::: omop_alchemy.toolkit.core.timeline.event_timeline.ClinicalEvent
 
@@ -70,9 +63,7 @@ Four CDM tables are pre-wired with `EventMapping`s:
 
 ## `Person_Timeline`
 
-Extends the `Person` ORM class with `.events` and `.timeline` properties. Requires an
-active SQLAlchemy session (i.e. the object must have been loaded from a session, not
-constructed in memory).
+Extends the `Person` ORM class with `.events` and `.timeline` properties. Requires an active SQLAlchemy session (i.e. the object must have been loaded from a session, not constructed in memory).
 
 ::: omop_alchemy.toolkit.core.timeline.event_timeline.Person_Timeline
 

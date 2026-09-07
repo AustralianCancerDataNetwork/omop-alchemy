@@ -1471,7 +1471,7 @@ requires-dist = [
     { name = "mkdocstrings-python", marker = "extra == 'dev'", specifier = ">=2.0.1" },
     { name = "oa-configurator", specifier = ">=1.0.0,<2.0.0" },
     { name = "oa-configurator", extras = ["dev", "postgres"], marker = "extra == 'dev'", specifier = ">=1.0.0,<2.0.0" },
-    { name = "omop-semantics", marker = "extra == 'semantics'", specifier = ">=0.6.0" },
+    { name = "omop-semantics", marker = "extra == 'semantics'", specifier = ">=0.6.1" },
     { name = "orm-loader", specifier = ">=1.2.0,<2.0.0" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2" },
@@ -1489,7 +1489,7 @@ provides-extras = ["dev", "postgres", "semantics"]
 
 [[package]]
 name = "omop-semantics"
-version = "0.6.0"
+version = "0.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ipykernel" },
@@ -1500,9 +1500,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f7/48/728207d2067363675ec6be073bba14bb1523e23895e2cd63b8a7f04e62ca/omop_semantics-0.6.0.tar.gz", hash = "sha256:88043ffaf36feb1eb023816de14d8ea232529d6bdd3c2d67a40e283004369791", size = 203380, upload-time = "2026-08-10T08:15:44.584Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/33/e42a3e0462d4843ec3b2c14731a5949b08a48659e0add053da89f42d1833/omop_semantics-0.6.1.tar.gz", hash = "sha256:5cf96c9cfa890e4d1519a7ad77c04823ab595bf4498bf2c3d5a08edf812c36aa", size = 203651, upload-time = "2026-09-07T01:12:31.86Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b8/45/38c8620119cabba3681a906a66a9006cb6f217ea9c11e5c7acfdd36ef34f/omop_semantics-0.6.0-py3-none-any.whl", hash = "sha256:a0285d213e2b98923fc46cc9ca16aff539aea289ed6fd040e863aa12ffec2793", size = 66670, upload-time = "2026-08-10T08:15:43.179Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/63/a8cfccf0beca66de03bd568a594d42248197bb0c65da30e9e52b610232d6/omop_semantics-0.6.1-py3-none-any.whl", hash = "sha256:aafe8b714de8a9348a8bad5161b6a0eb6d61cced2035daae310cd71c4055dce0", size = 66805, upload-time = "2026-09-07T01:12:30.485Z" },
 ]
 
 [[package]]

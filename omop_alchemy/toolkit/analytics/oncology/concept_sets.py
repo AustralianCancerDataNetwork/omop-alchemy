@@ -3,7 +3,7 @@
 Every set here names an omop-semantics semantic unit rather than assembling
 concept IDs locally.  That matters beyond tidiness: "what counts as
 radiotherapy" is a clinical claim, and it was previously written out by hand
-both here and in omop-constructs, governed by neither.  omop-semantics 0.6.0
+both here and in omop-constructs, governed by neither.  omop-semantics 0.6+
 publishes these as governed units, so both consumers name the same definition.
 
 Specs are declarative — importing this module resolves no semantics runtime and
@@ -16,47 +16,15 @@ groups, so they stay plain accessors below.
 
 from __future__ import annotations
 
-from typing import Any
-
 import sqlalchemy.orm as so
 
 from omop_alchemy.toolkit.core._semantics import default_semantics_runtime
 from omop_alchemy.toolkit.core.concepts import (
     ConceptGroupSpec,
     ResolvedConceptGroup,
+    SemanticUnitRef,
     resolve_concept_group,
 )
-
-
-def _unit(value_set_name: str, unit_name: str) -> Any:
-    """Resolve a governed semantic unit, lazily.
-
-    Deferred rather than captured at import so that declaring a spec does not
-    load the semantics runtime.
-    """
-    return getattr(getattr(default_semantics_runtime(), value_set_name), unit_name)
-
-
-class _LazyUnit:
-    """Attribute proxy that resolves its semantic unit on first access.
-
-    ``ConceptGroupSpec`` reads ``parent_ids`` / ``excluded_parent_ids`` /
-    ``exact_ids`` off its ``unit``.  Holding a proxy rather than the unit itself
-    keeps module import free of semantics loading, which is what allows basic
-    CDM work to avoid paying for oncology concept sets.
-    """
-
-    __slots__ = ("_value_set", "_unit")
-
-    def __init__(self, value_set_name: str, unit_name: str) -> None:
-        self._value_set = value_set_name
-        self._unit = unit_name
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(_unit(self._value_set, self._unit), name)
-
-    def __repr__(self) -> str:
-        return f"<LazyUnit {self._value_set}.{self._unit}>"
 
 
 # Governed concept sets. Names are the governed semantic-unit names, which are
@@ -64,22 +32,52 @@ class _LazyUnit:
 # rather than a locally invented label.
 RADIOTHERAPY_PROCEDURES = ConceptGroupSpec(
     name="radiotherapy",
-    unit=_LazyUnit("cancer_procedures", "radiotherapy"),
+    unit=SemanticUnitRef("cancer_procedures", "radiotherapy"),
 )
 
 CANCER_INDICATING_SURGERY = ConceptGroupSpec(
     name="cancer_indicating_surgery",
-    unit=_LazyUnit("cancer_procedures", "cancer_indicating_surgery"),
+    unit=SemanticUnitRef("cancer_procedures", "cancer_indicating_surgery"),
 )
 
 DIAGNOSTIC_STAGING_PROCEDURES = ConceptGroupSpec(
     name="diagnostic_staging_procedure",
-    unit=_LazyUnit("cancer_procedures", "diagnostic_staging_procedure"),
+    unit=SemanticUnitRef("cancer_procedures", "diagnostic_staging_procedure"),
 )
 
 SACT_DRUGS = ConceptGroupSpec(
     name="sact_drug_classification",
-    unit=_LazyUnit("sact", "sact_drug_classification"),
+    unit=SemanticUnitRef("sact", "sact_drug_classification"),
+)
+
+T_STAGE_CONCEPTS = ConceptGroupSpec(
+    name="t_stage_concepts",
+    unit=SemanticUnitRef("staging", "t_stage_concepts"),
+)
+
+N_STAGE_CONCEPTS = ConceptGroupSpec(
+    name="n_stage_concepts",
+    unit=SemanticUnitRef("staging", "n_stage_concepts"),
+)
+
+M_STAGE_CONCEPTS = ConceptGroupSpec(
+    name="m_stage_concepts",
+    unit=SemanticUnitRef("staging", "m_stage_concepts"),
+)
+
+GROUP_STAGE_CONCEPTS = ConceptGroupSpec(
+    name="group_stage_concepts",
+    unit=SemanticUnitRef("staging", "group_stage_concepts"),
+)
+
+TUMOR_GRADE_CONCEPTS = ConceptGroupSpec(
+    name="tumor_grade",
+    unit=SemanticUnitRef("condition_modifiers", "tumor_grade"),
+)
+
+METASTATIC_DISEASE_CONCEPTS = ConceptGroupSpec(
+    name="metastatic_disease_concepts",
+    unit=SemanticUnitRef("condition_modifiers", "metastatic_disease_concepts"),
 )
 
 
@@ -123,3 +121,17 @@ def treatment_regimen_episode_concept_id() -> int:
 
 def treatment_cycle_episode_concept_id() -> int:
     return default_semantics_runtime().types.treatment_episode_types.treatment_cycle
+
+
+def laterality_modifier_concept_id() -> int:
+    """Governed modifier concept used when a value records laterality."""
+    return int(
+        default_semantics_runtime().condition_modifiers.condition_modifier_values.laterality
+    )
+
+
+def tumor_size_modifier_concept_id() -> int:
+    """Governed numeric modifier concept used for tumour size."""
+    return int(
+        default_semantics_runtime().condition_modifiers.numeric_condition_modifiers.tumor_size
+    )

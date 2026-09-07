@@ -125,7 +125,3 @@ refresh_all_mvs(engine, ALL_MVS)
 for view_cls in resolve_mv_refresh_order(ALL_MVS):
     view_cls.refresh_mv(engine, concurrently=True)
 ```
-
-This registry is also the right place for application-specific choices such as whether to rebuild a view after a definition change, whether a failed refresh should block a release, and how to report lifecycle failures to operators. Do not duplicate the generic dependency resolver or database lifecycle in an OMOP Alchemy toolkit module; the ownership boundary is protected by [`tests/test_materialization_ownership.py`](https://github.com/AustralianCancerDataNetwork/OMOP_Alchemy/blob/main/tests/test_materialization_ownership.py).
-
-For the cohort delivery stack, these deployment concerns belong in `omop-constructs` or the application that runs its migrations and schedulers. OMOP Alchemy's role is to provide reusable OMOP query components and a clear read-model contract.

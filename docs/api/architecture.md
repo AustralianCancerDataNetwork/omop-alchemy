@@ -2,8 +2,7 @@
 
 OMOP Alchemy is built as a **deliberately layered system**.
 
-Each layer adds capability while preserving the guarantees of the layer below it.
-Responsibilities flow *downward*; semantic intent flows *upward*.
+Each layer adds capability while preserving the guarantees of the layer below it. Responsibilities flow *downward*; semantic intent flows *upward*.
 
 The result is a system that is:
 
@@ -71,7 +70,7 @@ This layer provides:
 * serialization helpers
 * generic materialized-view definition and lifecycle operations
 
-It is deliberately domain-agnostic.
+It is domain-agnostic.
 
 If something understands OMOP concepts, vocabularies, or clinical meaning, it does not belong here.
 
@@ -81,10 +80,7 @@ Examples:
 * [SerialisableTableInterface](https://australiancancerdatanetwork.github.io/orm-loader/tables/serialisable_table/)
 * [Materialized views](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/)
 
-OMOP Alchemy may supply an OMOP-specific selectable and its logical row
-identity to this layer, but it does not implement database DDL or refresh
-mechanics. Applications own collections of materialized views, dependency
-policy, and deployment commands.
+OMOP Alchemy may supply an OMOP-specific selectable and its logical row identity to this layer, but it does not implement database DDL or refresh mechanics. Applications own collections of materialized views, dependency policy, and deployment commands.
 
 #### cdm.base (L1)
 

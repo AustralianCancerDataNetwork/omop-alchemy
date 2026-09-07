@@ -1,7 +1,6 @@
 # PostgreSQL Full-Text Search
 
-OMOP Alchemy includes an **optional** PostgreSQL full-text search integration for
-selected vocabulary text fields.
+OMOP Alchemy includes an **optional** PostgreSQL full-text search integration for selected vocabulary text fields.
 
 This feature is deliberately bolt-on:
 
@@ -32,19 +31,15 @@ backend.concept_synonym_name_tsvector_expression()
 
 These helpers return the best available expression for the configured environment:
 
-- if the optional sidecar `tsvector` columns are registered in metadata, they return the
-  stored column
-- otherwise they fall back to an inline computed PostgreSQL expression using
-  `to_tsvector(...)`
+- if the optional sidecar `tsvector` columns are registered in metadata, they return the stored column
+- otherwise they fall back to an inline computed PostgreSQL expression using `to_tsvector(...)`
 
 ### Example (PostgreSQL Documentation)
 
-A tsvector value is a sorted list of distinct lexemes, which are words that have been normalized to merge different variants of the same word. 
-Sorting and duplicate-elimination are done automatically during input
+A tsvector value is a sorted list of distinct lexemes, which are words that have been normalized to merge different variants of the same word. Sorting and duplicate-elimination are done automatically during input
 
 
-A `tsvector` value is a sorted list of distinct lexemes (normalized word forms).  
-Sorting and duplicate elimination are applied automatically during input.
+A `tsvector` value is a sorted list of distinct lexemes (normalized word forms). Sorting and duplicate elimination are applied automatically during input.
 
 ```sql
 SELECT 'a fat cat sat on a mat and ate a fat rat'::tsvector;
@@ -63,8 +58,7 @@ omop-alchemy fulltext install
 omop-alchemy fulltext populate
 ```
 
-If your running Python process should use the stored sidecar columns through ORM
-metadata, register them once at startup:
+If your running Python process should use the stored sidecar columns through ORM metadata, register them once at startup:
 
 ```python
 from omop_alchemy.backends import resolve_backend
@@ -73,8 +67,7 @@ backend = resolve_backend(engine)
 backend.register_fulltext_metadata()
 ```
 
-That is enough to activate the feature. The rest of this page explains when to use it
-and how to operate it safely.
+That is enough to activate the feature. The rest of this page explains when to use it and how to operate it safely.
 
 ## When To Use It
 
@@ -101,12 +94,9 @@ Full-text search is useful, but it also introduces operational tradeoffs:
 - explicit backfill / refresh work
 - PostgreSQL-specific behavior
 
-Many users only need occasional text matching and are perfectly fine with inline search
-expressions. Others want fast repeated full-text lookups across large vocabularies and
-are happy to manage the extra schema objects.
+Many users only need occasional text matching and are perfectly fine with inline search expressions. Others want fast repeated full-text lookups across large vocabularies and are happy to manage the extra schema objects.
 
-OMOP Alchemy therefore treats full-text sidecars as an **optional PostgreSQL
-enhancement**, not as part of the core required OMOP schema.
+OMOP Alchemy therefore treats full-text sidecars as an **optional PostgreSQL enhancement**, not as part of the core required OMOP schema.
 
 ---
 
@@ -134,8 +124,7 @@ with Session(engine) as session:
     )
 ```
 
-In practice you will often want the PostgreSQL full-text match operator rather than
-equality:
+In practice you will often want the PostgreSQL full-text match operator rather than equality:
 
 ```python
 vector = backend.concept_name_tsvector_expression()
@@ -144,15 +133,13 @@ query = sa.func.plainto_tsquery("english", "edoxaban")
 stmt = sa.select(Concept).where(vector.op("@@")(query))
 ```
 
-This mode is simple and portable at the library level, but PostgreSQL must compute the
-vector expression at query time unless the planner can otherwise optimize it.
+This mode is simple and portable at the library level, but PostgreSQL must compute the vector expression at query time unless the planner can otherwise optimize it.
 
 ### 2. Stored Sidecar Mode
 
 This mode adds real `tsvector` columns to the database and optionally GIN indexes.
 
-Once installed and registered, the helper functions point at the stored columns instead
-of recomputing vectors inline.
+Once installed and registered, the helper functions point at the stored columns instead of recomputing vectors inline.
 
 This is the mode you want when:
 
@@ -195,8 +182,7 @@ omop-alchemy fulltext drop
 
 ## Important Behavior
 
-The current implementation uses **ordinary nullable sidecar `tsvector` columns**, not
-generated columns and not trigger-managed columns.
+The current implementation uses **ordinary nullable sidecar `tsvector` columns**, not generated columns and not trigger-managed columns.
 
 That means:
 
@@ -204,8 +190,7 @@ That means:
 - `populate` backfills or refreshes the values
 - future data changes are **not** reflected automatically until you repopulate
 
-This is a deliberate choice because it keeps the feature explicit and easier to manage
-alongside bulk vocabulary loads.
+This is a deliberate choice because it keeps the feature explicit and easier to manage alongside bulk vocabulary loads.
 
 ---
 
@@ -245,8 +230,7 @@ The same idea applies to `backend.concept_synonym_name_tsvector_expression()`.
 
 ## Metadata Registration
 
-If your process will use the stored sidecar columns directly, register them into the ORM
-metadata:
+If your process will use the stored sidecar columns directly, register them into the ORM metadata:
 
 ```python
 from omop_alchemy.backends import resolve_backend
@@ -255,15 +239,13 @@ backend = resolve_backend(engine)
 backend.register_fulltext_metadata()
 ```
 
-If you later remove the columns from the database in the same process and want query
-helpers to fall back cleanly again:
+If you later remove the columns from the database in the same process and want query helpers to fall back cleanly again:
 
 ```python
 backend.unregister_fulltext_metadata()
 ```
 
-This only affects SQLAlchemy metadata in the current Python process. It does not alter
-the database by itself.
+This only affects SQLAlchemy metadata in the current Python process. It does not alter the database by itself.
 
 ---
 
@@ -275,16 +257,13 @@ This feature is PostgreSQL-specific in its database form because it relies on:
 - PostgreSQL full-text query functions such as `to_tsvector` and `plainto_tsquery`
 - optional GIN indexes
 
-The helper expressions can still be imported safely, but the sidecar install / populate /
-drop lifecycle is only meaningful on PostgreSQL.
+The helper expressions can still be imported safely, but the sidecar install / populate / drop lifecycle is only meaningful on PostgreSQL.
 
 ---
 
-## Operational Gotchas
+## Operational Notes:
 
 - treat the sidecar columns as **derived search state**, not source-of-truth data
 - if you bulk-load new vocabulary rows, rerun `omop-alchemy fulltext populate`
-- if you use `reconcile-schema`, the sidecar columns and indexes are intentional
-  database additions outside the core OMOP schema
-- GIN indexes can be expensive to build on large vocabularies, so plan that as a real
-  maintenance operation rather than a trivial toggle
+- if you use `reconcile-schema`, the sidecar columns and indexes are intentional database additions outside the core OMOP schema
+- GIN indexes can be expensive to build on large vocabularies, so plan that as a real maintenance operation rather than a trivial toggle
