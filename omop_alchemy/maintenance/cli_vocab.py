@@ -12,7 +12,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from sqlalchemy.exc import OperationalError
 import typer
-from oa_configurator import ensure_schema
+from oa_configurator import Dialect, ensure_schema
 from orm_loader.backends import STAGING_SCHEMA, resolve_backend
 from orm_loader.helpers import Base
 from orm_loader.tables.typing import CSVTableProtocol
@@ -25,7 +25,6 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from ..backends.resolve import SupportedDialect
 from omop_alchemy.cdm.model.vocabulary import (
     Concept,
     Concept_Ancestor,
@@ -365,7 +364,7 @@ def load_vocab_source(
     )
 
     _use_bulk_mode = (
-        bulk_mode and not dry_run and engine.dialect.name == SupportedDialect.POSTGRESQL
+        bulk_mode and not dry_run and engine.dialect.name == Dialect.POSTGRESQL
     )
     if _use_bulk_mode:
         _emit(
@@ -569,7 +568,7 @@ def load_vocab_source(
         table_count=table_count,
     )
 
-    if not dry_run and engine.dialect.name == SupportedDialect.POSTGRESQL:
+    if not dry_run and engine.dialect.name == Dialect.POSTGRESQL:
         sequence_results = reset_model_sequences(
             engine,
             db_schema=db_schema,

@@ -5,6 +5,7 @@ import pytest
 import sqlalchemy as sa
 
 from oa_configurator import ResolvedCDMDatabase, ResolvedConnection
+from oa_configurator import qualified, schema_of, Dialect
 from oa_configurator.testing import DIALECT_PARAMS, isolated_test_schema
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import omop_index_name
@@ -61,12 +62,22 @@ def reconcile_engine(request) -> _ReconcileEngine:
     """
     if request.param == "postgresql":
         resolved = request.getfixturevalue("pg_db").resolved
-        engine = request.getfixturevalue("pg_session").get_bind()
+        engine = request.getfixturevalue("pg_schema_session").get_bind()
+        schema = schema_of(engine)
+        resolved = dataclasses.replace(
+            resolved,
+            schema_name=schema,
+            vocab_schema=schema,
+            results_schema=schema,
+        )
     else:
         engine = request.getfixturevalue("fresh_engine")
         resolved = _sqlite_resolved(engine)
     create_missing_tables(engine)
-    manage_indexes(engine, enable=True)
+    if request.param == Dialect.POSTGRESQL:
+        manage_indexes(engine, enable=True, db_schema=schema)
+    else:
+        manage_indexes(engine, enable=True)
     return _ReconcileEngine(engine, resolved)
 
 
@@ -107,8 +118,10 @@ def test_reconcile_schema_reports_no_drift_on_fresh_database(reconcile_engine):
 def test_reconcile_schema_reports_renamed_for_foreign_named_equivalent_index(reconcile_engine):
     engine, resolved = reconcile_engine
     with engine.begin() as connection:
-        connection.exec_driver_sql(f"DROP INDEX {PERSON_GENDER_INDEX}")
-        connection.exec_driver_sql("CREATE INDEX idx_gender ON person (gender_concept_id)")
+        connection.exec_driver_sql(f"DROP INDEX {qualified(connection, PERSON_GENDER_INDEX)}")
+        connection.exec_driver_sql(
+            f"CREATE INDEX idx_gender ON {qualified(connection, 'person')} (gender_concept_id)"
+        )
 
     report = reconcile_schema(engine, resolved=resolved)
     issues = _person_gender_issues(report)
@@ -123,8 +136,10 @@ def test_reconcile_schema_reports_renamed_for_foreign_named_equivalent_index(rec
 def test_reconcile_schema_renamed_index_does_not_flip_table_to_drifted(reconcile_engine):
     engine, resolved = reconcile_engine
     with engine.begin() as connection:
-        connection.exec_driver_sql(f"DROP INDEX {PERSON_GENDER_INDEX}")
-        connection.exec_driver_sql("CREATE INDEX idx_gender ON person (gender_concept_id)")
+        connection.exec_driver_sql(f"DROP INDEX {qualified(connection, PERSON_GENDER_INDEX)}")
+        connection.exec_driver_sql(
+            f"CREATE INDEX idx_gender ON {qualified(connection, 'person')} (gender_concept_id)"
+        )
 
     report = reconcile_schema(engine, resolved=resolved)
     person_result = next(r for r in report.table_results if r.table_name == "person")
@@ -167,6 +182,7 @@ def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(p
         # public may also legitimately carry a person table from an
         # unrelated database/test, so assert schema_b is among the
         # relocated schemas rather than the only one reported.
+        assert person_issue.actual is not None
         assert schema_b in person_issue.actual.split(", ")
         assert is_blocking_issue(person_issue)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlalchemy as sa
+from oa_configurator import Dialect
 
 from .base import Backend, FeatureNotSupportedError
 
@@ -13,7 +14,7 @@ class SQLiteBackend(Backend):
 
     @property
     def dialect(self) -> str:
-        return "sqlite"
+        return Dialect.SQLITE
 
     def index_exists(
         self,

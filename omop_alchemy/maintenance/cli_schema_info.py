@@ -10,25 +10,17 @@ import shutil
 import sqlalchemy as sa
 from sqlalchemy.exc import ArgumentError, SQLAlchemyError
 
-from oa_configurator import ResolvedCDMDatabase, Resolver, load_stack_config
+from oa_configurator import Dialect, ResolvedCDMDatabase, Resolver, load_stack_config
 from oa_configurator.loader import DEFAULT_CONFIG_PATH
-from omop_alchemy.backends.resolve import SupportedDialect
 from omop_alchemy.config import OmopAlchemyConfig
 
+from ..backends.resolve import backend_label
 from ._cli_utils import Status
 from .cli_schema_tables import collect_missing_tables
 from .tables import (
     TableCategory,
     select_maintenance_tables,
 )
-
-
-def _backend_label(dialect_name: str) -> str:
-    from ..backends.resolve import _DIALECT_TO_BACKEND_MAP, SupportedDialect
-    try:
-        return _DIALECT_TO_BACKEND_MAP[SupportedDialect(dialect_name)].name
-    except (ValueError, KeyError):
-        return dialect_name
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +138,7 @@ def _command_support_for_backend(
     psql_path: str | None,
 ) -> tuple[CommandSupport, ...]:
     """Compute the readiness status of every CLI command given the current backend, connection state, and tool availability."""
-    current_backend = _backend_label(backend)
+    current_backend = backend_label(backend)
     if not engine_created:
         blocked_detail = (
             f"Backend resolved to {current_backend}, but the engine could not be created: {engine_error}"
@@ -164,7 +156,7 @@ def _command_support_for_backend(
         f"Ready on {current_backend}." if connection_ready else blocked_detail
     )
 
-    if backend == SupportedDialect.POSTGRESQL:
+    if backend == Dialect.POSTGRESQL:
         analyze_status = portable_status
         analyze_detail = (
             "Ready on PostgreSQL; ANALYZE and VACUUM ANALYZE are both supported."
@@ -185,7 +177,7 @@ def _command_support_for_backend(
             if connection_ready
             else blocked_detail
         )
-    elif backend == "sqlite":
+    elif backend == Dialect.SQLITE:
         analyze_status = Status.LIMITED if connection_ready else Status.BLOCKED
         analyze_detail = (
             "Ready on SQLite; ANALYZE is supported, but `--vacuum` is unavailable."
@@ -250,18 +242,18 @@ def _command_support_for_backend(
             "PostgreSQL + pg_dump",
             (
                 Status.READY
-                if connection_ready and backend == SupportedDialect.POSTGRESQL and pg_dump_path is not None
+                if connection_ready and backend == Dialect.POSTGRESQL and pg_dump_path is not None
                 else Status.BLOCKED
-                if backend == SupportedDialect.POSTGRESQL
+                if backend == Dialect.POSTGRESQL
                 else Status.UNSUPPORTED
                 if connection_ready
                 else Status.BLOCKED
             ),
             (
                 "Ready on PostgreSQL; `pg_dump` is available."
-                if connection_ready and backend == SupportedDialect.POSTGRESQL and pg_dump_path is not None
+                if connection_ready and backend == Dialect.POSTGRESQL and pg_dump_path is not None
                 else "PostgreSQL is configured, but `pg_dump` is not on PATH."
-                if connection_ready and backend == SupportedDialect.POSTGRESQL
+                if connection_ready and backend == Dialect.POSTGRESQL
                 else f"Requires PostgreSQL. Current backend: {current_backend}."
                 if connection_ready
                 else blocked_detail
@@ -272,18 +264,18 @@ def _command_support_for_backend(
             "PostgreSQL + pg_restore/psql",
             (
                 Status.READY
-                if connection_ready and backend == SupportedDialect.POSTGRESQL and (pg_restore_path is not None or psql_path is not None)
+                if connection_ready and backend == Dialect.POSTGRESQL and (pg_restore_path is not None or psql_path is not None)
                 else Status.BLOCKED
-                if backend == SupportedDialect.POSTGRESQL
+                if backend == Dialect.POSTGRESQL
                 else Status.UNSUPPORTED
                 if connection_ready
                 else Status.BLOCKED
             ),
             (
                 "Ready on PostgreSQL; restore client tooling is available."
-                if connection_ready and backend == SupportedDialect.POSTGRESQL and (pg_restore_path is not None or psql_path is not None)
+                if connection_ready and backend == Dialect.POSTGRESQL and (pg_restore_path is not None or psql_path is not None)
                 else "PostgreSQL is configured, but neither `pg_restore` nor `psql` is on PATH."
-                if connection_ready and backend == SupportedDialect.POSTGRESQL
+                if connection_ready and backend == Dialect.POSTGRESQL
                 else f"Requires PostgreSQL. Current backend: {current_backend}."
                 if connection_ready
                 else blocked_detail

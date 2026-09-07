@@ -5,7 +5,7 @@ import shutil
 
 import sqlalchemy as sa
 
-from oa_configurator import qualified, schema_of
+from oa_configurator import Dialect, qualified, schema_of
 from sqlalchemy.dialects.postgresql import REGCONFIG, TSVECTOR
 from sqlalchemy.sql import func
 
@@ -20,7 +20,7 @@ class PostgresBackend(Backend):
 
     @property
     def dialect(self) -> str:
-        return "postgresql"
+        return Dialect.POSTGRESQL
 
     # ── FK trigger management ────────────────────────────────────────────────
 

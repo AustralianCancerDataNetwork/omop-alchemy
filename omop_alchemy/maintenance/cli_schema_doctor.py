@@ -5,9 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
-from oa_configurator import ResolvedDatabase
-
-from omop_alchemy.backends.resolve import SupportedDialect
+from oa_configurator import Dialect, ResolvedDatabase
 
 from ._cli_utils import Status
 from .cli_foreign_keys import (
@@ -141,7 +139,7 @@ def _build_recommendations(
             )
         )
 
-    if info.backend == SupportedDialect.POSTGRESQL and info.pg_dump_path is None:
+    if info.backend == Dialect.POSTGRESQL and info.pg_dump_path is None:
         recommendations.append(
             DoctorRecommendation(
                 status=Status.WARNING,
@@ -151,7 +149,7 @@ def _build_recommendations(
         )
 
     if (
-        info.backend == SupportedDialect.POSTGRESQL
+        info.backend == Dialect.POSTGRESQL
         and info.pg_restore_path is None
         and info.psql_path is None
     ):
@@ -273,7 +271,7 @@ def collect_doctor_report(
                 )
             )
 
-        if info.backend == SupportedDialect.POSTGRESQL:
+        if info.backend == Dialect.POSTGRESQL:
             foreign_key_status = tuple(
                 collect_foreign_key_trigger_status(
                     engine,
@@ -372,7 +370,7 @@ def collect_doctor_report(
             )
         )
 
-    if info.backend == SupportedDialect.POSTGRESQL:
+    if info.backend == Dialect.POSTGRESQL:
         backup_tools_ready = info.pg_dump_path is not None and (
             info.pg_restore_path is not None or info.psql_path is not None
         )
