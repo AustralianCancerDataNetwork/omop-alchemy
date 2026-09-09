@@ -86,7 +86,10 @@ canonical modifier identity then break ties deterministically.
 from omop_alchemy.toolkit.analytics.oncology import preferred_stage_select
 
 # Earliest pathological, otherwise earliest clinical, otherwise unclassified.
-preferred = preferred_stage_select(stage_modifiers)
+preferred = preferred_stage_select(
+    stage_modifiers,
+    concept_code_column="modifier_concept_code",
+)
 ```
 
 The preference is immutable and query-scoped. Override it explicitly rather
@@ -99,6 +102,7 @@ from omop_alchemy.toolkit.core.modifiers import ModifierSelectionPolicy
 clinical_first = preferred_stage_select(
     stage_modifiers,
     spec=StageSelectionSpec.clinical_first(),
+    concept_code_column="modifier_concept_code",
 )
 
 chronological = preferred_stage_select(
@@ -111,12 +115,14 @@ latest_pathological = preferred_stage_select(
     spec=StageSelectionSpec(
         temporal_policy=ModifierSelectionPolicy.latest,
     ),
+    concept_code_column="modifier_concept_code",
 )
 ```
 
-Pass `concept_code_column=` when an enriched source uses another explicit
-label. An empty basis priority disables pathological/clinical preference; a
-non-empty priority must contain every `StageBasis` exactly once.
+Basis-ranked selection requires an enriched source and an explicit
+`concept_code_column=`. Chronological-only selection does not require the
+enrichment. An empty basis priority disables pathological/clinical preference;
+a non-empty priority must contain every `StageBasis` exactly once.
 
 ::: omop_alchemy.toolkit.analytics.oncology.condition_modifiers
 

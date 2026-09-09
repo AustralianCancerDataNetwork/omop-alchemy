@@ -2,13 +2,7 @@
 
 The core package handles problems that have the same meaning in every clinical domain: resolving a source term to an OMOP concept, identifying an event across CDM tables, arranging events on a timeline, and converting measurements to comparable units.
 
-Generic database lifecycle operations do not belong in the clinical toolkit. Use
-[`orm-loader`](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/)
-to define, create, refresh, index, and drop materialized views. OMOP Alchemy owns
-the OMOP-specific query and row-grain decisions supplied to that infrastructure;
-an application such as `omop-constructs` owns its registry, dependency policy,
-and deployment orchestration. See [Materialized views](materialized-views.md) for
-the integration boundary.
+Generic database lifecycle operations do not belong in the clinical toolkit. Use [`orm-loader`](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/) to define, create, refresh, index, and drop materialised views. OMOP Alchemy owns the OMOP-specific query and row-grain decisions supplied to that infrastructure; a downstream application owns its registry, dependency policy, and deployment orchestration. See [Materialised views](materialized-views.md) for the integration boundary.
 
 ## Resolve source data to concepts
 
@@ -30,11 +24,7 @@ Creating the resolver reads the vocabulary tables, so create it once for a mappi
 
 Concept groups answer the complementary question: whether a known concept belongs to a governed set. A resolved group supports both in-memory membership and a SQLAlchemy expression derived from the same specification, so filtering loaded objects and filtering in SQL do not require separate definitions.
 
-Domain packages can declare module-level governed groups with
-`SemanticUnitRef(value_set, unit)`. The reference loads the optional
-`omop-semantics` runtime only when its parent, excluded-parent, or exact IDs are
-read. It always exposes a complete governed unit; narrower group definitions
-belong in `omop-semantics`, not in consumer-side adapters.
+Domain packages can declare module-level governed groups with `SemanticUnitRef(value_set, unit)`. The reference loads the optional `omop-semantics` runtime only when its parent, excluded-parent, or exact IDs are read. It always exposes a complete governed unit; narrower group definitions belong in `omop-semantics`, not in consumer-side adapters.
 
 Configuration-driven concept sets use `RuntimeConceptSetSpec`. It records exact and ancestral inclusions and exclusions without touching the database; see [Runtime concept sets](query-contracts.md#runtime-concept-sets) for the set semantics and current execution boundary.
 

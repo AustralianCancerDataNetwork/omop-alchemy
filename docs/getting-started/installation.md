@@ -93,22 +93,18 @@ Use engine_with_replica_role when:
 
 ## Optional PostgreSQL full-text search
 
-OMOP Alchemy can optionally integrate with PostgreSQL full-text search for selected
-vocabulary text fields.
+OMOP Alchemy can optionally integrate with PostgreSQL full-text search for selected vocabulary text fields.
 
-This feature is **not required** to use the library and is intentionally treated as an
-optional enhancement rather than part of the core OMOP schema.
+This feature is **not required** to use the library and is an optional enhancement rather than part of the core OMOP schema.
 
 At the library level:
 
 - query helpers can fall back to inline `to_tsvector(...)` expressions
-- optional sidecar `tsvector` columns can be registered into SQLAlchemy metadata when
-  they exist in the database
+- optional sidecar `tsvector` columns can be registered into SQLAlchemy metadata when they exist in the database
 
 At the database level:
 
-- PostgreSQL-only sidecar columns and optional GIN indexes can be managed through the
-  maintenance CLI
+- PostgreSQL-only sidecar columns and optional GIN indexes can be managed through the maintenance CLI
 - those sidecar columns are populated explicitly rather than auto-generated
 
 Typical maintenance workflow:
@@ -123,6 +119,8 @@ If you later reload vocabulary data, rerun:
 ```bash
 omop-alchemy fulltext populate
 ```
+
+![fulltext](../static/images/oa-fulltext.png)
 
 For the full design and query patterns, see:
 

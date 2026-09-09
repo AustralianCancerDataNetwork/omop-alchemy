@@ -37,6 +37,7 @@ The APIs documented here follow a few consistent principles:
   All modules are import-safe and side-effect free.
 
 This makes the API suitable for:
+
 - schema inspection
 - validation tooling
 - static analysis
@@ -72,15 +73,16 @@ Column helpers provide **named, intention-revealing shortcuts** for these patter
 
 ## Structural mixins
 
-Many OMOP tables share structural semantics:
+Many OMOP tables share structural semantics for example:
 
 - person-scoped records
 - dated events
 - value-typed observations
 - unit concepts
 - health system attribution
+- accepted modifiable targets / sources
 
-Mixins encode these patterns once, and make them reusable and inspectable.
+Don't define this behaviour directly unless it is truly a new pattern - instead you should use the available mixins, which encode these patterns once, and make them reusable and inspectable.
 
 **[Column mixins](columns.md)**
 
@@ -95,6 +97,7 @@ OMOP Alchemy makes heavy use of Python typing to express *semantic expectations*
 - “this is a clinical event”
 
 These protocols support:
+
 - static type checking
 - IDE assistance
 - tooling and validation layers
@@ -111,6 +114,6 @@ This API layer sits *above* generic ORM infrastructure and *below* analytical or
 |------|---------------|
 | Database | Physical storage, constraints |
 | orm-loader | Generic table loading, serialization |
-| OMOP Alchemy API | OMOP-specific structure & semantics |
+| **OMOP Alchemy API** | **OMOP-specific structure & semantics** |
+| **OMOP Alchemy Toolkit** | **Standard, generalisable queries, composition, exploration** |
 | Validation | Domain and semantic checks |
-| Analytics | Queries, cohorts, exploration |

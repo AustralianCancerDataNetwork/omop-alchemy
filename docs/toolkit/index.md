@@ -20,6 +20,9 @@ with Session(engine) as session:
 
 This is still ordinary SQLAlchemy. `OncologyEpisode` is mapped to the OMOP episode view, and properties may load related rows or resolve governed vocabulary sets through the active session. The toolkit adds interpretation and reusable retrieval rules; it does not replace the CDM models or hide when database access is required.
 
+!!! warning "Toolkit stability"
+    Toolkit area packages are less stable than `omop_alchemy.cdm`. Treat the documented area import paths as the compatibility boundary, pin the package version in deployed applications, and review release notes before upgrading. Changes in the toolkit do not alter the CDM model API.
+
 ## Where to begin
 
 Choose the part of the toolkit that matches the question you are asking:
@@ -43,6 +46,3 @@ from omop_alchemy.toolkit.analytics.oncology import OncologyEpisode
 ```
 
 The area packages re-export their public API. Module names below those packages are implementation details and may change without providing a compatibility import.
-
-!!! warning "Toolkit stability"
-    Toolkit area packages are less stable than `omop_alchemy.cdm`. Treat the documented area import paths as the compatibility boundary, pin the package version in deployed applications, and review release notes before upgrading. Changes in the toolkit do not alter the CDM model API.

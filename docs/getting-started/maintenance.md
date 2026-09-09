@@ -1,13 +1,6 @@
 # Maintenance CLI
 
-The `omop-alchemy` maintenance CLI handles everything you need to operate an OMOP CDM
-database: creating tables, loading Athena vocabularies, managing indexes and foreign key
-enforcement, running health checks, and taking backups. It talks directly to a SQLAlchemy
-engine, so all connection details are controlled by the same engine URL configuration you
-use for the ORM.
-
-> **Alpha status**
-> Treat this CLI as alpha operational tooling. Interfaces and behavior may still change.
+The `omop-alchemy` maintenance CLI handles everything you need to operate an OMOP CDM database: creating tables, loading Athena vocabularies, managing indexes and foreign key enforcement, running health checks, and taking backups. It talks directly to a SQLAlchemy engine, so all connection details are controlled by the same engine URL configuration you use for the ORM.
 
 ---
 
@@ -19,8 +12,7 @@ Database connection and CDM schema come from [oa_configurator](../getting-starte
 
 ## Backend support
 
-Some commands depend on PostgreSQL-specific features and will return a clear error
-if you run them against SQLite.
+Some commands depend on PostgreSQL-specific features and will return an error if you run them against an unsupported backend.
 
 | Command group | Requires PostgreSQL | Why |
 | --- | --- | --- |
@@ -40,8 +32,7 @@ if you run them against SQLite.
 
 ### Fresh database setup
 
-Use this when you are starting with an empty database and want to get an OMOP schema
-populated from scratch.
+Use this when you are starting with an empty database and want to get an OMOP schema populated from scratch.
 
 ```bash
 # 1. Create any OMOP tables that don't exist yet (safe to run on an existing DB)
@@ -55,12 +46,9 @@ omop-alchemy load-vocab-source --athena-source ./athena_files
 omop-alchemy reset-sequences
 ```
 
-The `create-missing-tables` command compares ORM metadata against the live schema and
-creates only what is missing. It is idempotent — running it again on a populated database
-does nothing.
+The `create-missing-tables` command compares ORM metadata against the live schema and creates only what is missing. It is idempotent — running it again on a populated database does nothing.
 
-`load-vocab-source` automatically creates any missing vocabulary tables before loading,
-so you can run it immediately after step 1 or even skip step 1 for vocabulary-only setups.
+`load-vocab-source` automatically creates any missing vocabulary tables before loading, so you can run it immediately after step 1 or even skip step 1 for vocabulary-only setups.
 
 ---
 
@@ -88,35 +76,22 @@ omop-alchemy fulltext populate
 ```
 
 **About `--bulk-mode` (default on PostgreSQL):**
-`load-vocab-source` disables FK triggers and drops vocabulary indexes once before the
-load loop, then rebuilds them once at the end. This is much faster than the alternative
-of toggling per table — for a full Athena export the difference can be 10–20×. SQLite
-ignores this flag. Pass `--no-bulk-mode` if you need per-table rollback safety.
+`load-vocab-source` disables FK triggers and drops vocabulary indexes once before the load loop, then rebuilds them once at the end. This is much faster than the alternative of toggling per table — for a full Athena export the difference can be 10–20×. SQLite ignores this flag. Pass `--no-bulk-mode` if you need per-table rollback safety.
 
 **About `--merge-strategy replace`:**
-`replace` overwrites rows whose primary keys occur in the CSV; it does not delete rows
-that are absent from the source. The explicit `truncate-tables` step above is therefore
-required when the database must exactly mirror a new Athena export. Use `upsert` for
-incremental vocabulary patches that must preserve existing conflicting rows. Use
-`insert_if_empty` as the fastest path when the target tables are guaranteed empty.
+`replace` overwrites rows whose primary keys occur in the CSV; it does not delete rows that are absent from the source. The explicit `truncate-tables` step above is therefore required when the database must exactly mirror a new Athena export. Use `upsert` for incremental vocabulary patches that must preserve existing conflicting rows. Use `insert_if_empty` as the fastest path when the target tables are guaranteed empty.
 
 **About `--quote-mode by_delimiter`:**
-The default preserves double-quotes as data in tab-delimited Athena exports and uses
-RFC-4180 quoting for comma-delimited files. Use `--quote-mode csv` only when the source
-genuinely wraps fields in CSV quotes; `--quote-mode literal` forces quotes to remain data.
-The `auto` mode samples content and is less predictable for large Athena files.
+The default preserves double-quotes as data in tab-delimited Athena exports and uses RFC-4180 quoting for comma-delimited files. Use `--quote-mode csv` only when the source genuinely wraps fields in CSV quotes; `--quote-mode literal` forces quotes to remain data. The `auto` mode samples content and may be less predictable for large files.
 
 **About `--strict` on `foreign-keys enable`:**
-`--strict` validates all FK relationships before re-enabling RI triggers. If violations
-are found, no triggers are re-enabled and you get a report of the problematic rows.
-Omit `--strict` to re-enable unconditionally.
+`--strict` validates all FK relationships before re-enabling RI triggers. If violations are found, no triggers are re-enabled and you get a report of the problematic rows. Omit `--strict` to re-enable unconditionally.
 
 ---
 
 ### ETL bulk load cycle
 
-Use this before and after a large clinical data load to avoid the overhead of FK and
-index maintenance during insertion.
+Use this before and after a large clinical data load to avoid the overhead of FK and index maintenance during insertion.
 
 ```bash
 # Before your ETL runs: suspend enforcement and remove indexes
@@ -132,14 +107,9 @@ omop-alchemy foreign-keys enable --strict
 omop-alchemy analyze-tables --scope clinical
 ```
 
-`analyze-tables` refreshes planner statistics after a large load so query plans don't
-degrade. `--scope clinical` targets only clinical tables; omit `--scope` to analyze
-everything.
+`analyze-tables` refreshes planner statistics after a large load so query plans don't degrade. `--scope clinical` targets only clinical tables; omit `--scope` to analyze everything.
 
-`reset-sequences` ensures that any auto-increment columns are positioned above the
-maximum key value present in the table. This matters when your ETL inserts explicit IDs
-(common in OMOP) — without a reset, the next ORM insert would try to reuse an ID that
-already exists.
+`reset-sequences` ensures that any auto-increment columns are positioned above the maximum key value present in the table. This matters when your ETL inserts explicit IDs (common in OMOP) — without a reset, the next ORM insert would try to reuse an ID that already exists.
 
 ---
 
@@ -151,8 +121,7 @@ already exists.
 omop-alchemy doctor
 ```
 
-Runs a fast, non-destructive pass over connection readiness, schema drift, and FK
-trigger status. The output tells you what is wrong and what to do about it.
+Runs a fast, non-destructive pass over connection readiness, schema drift, and FK trigger status. The output tells you what is wrong and what to do about it.
 
 **Deep FK validation (PostgreSQL):**
 
@@ -160,9 +129,7 @@ trigger status. The output tells you what is wrong and what to do about it.
 omop-alchemy doctor --deep
 ```
 
-Adds a full FK constraint scan — it actually queries the data to find rows that violate
-declared FK relationships. On large databases this can be slow; use it when you suspect
-data integrity issues after an ETL or vocabulary patch.
+Adds a full FK constraint scan — it actually queries the data to find rows that violate declared FK relationships. On large databases this can be slow; use it when you suspect data integrity issues after an ETL or vocabulary patch.
 
 **Full environment introspection:**
 
@@ -170,10 +137,7 @@ data integrity issues after an ETL or vocabulary patch.
 omop-alchemy info
 ```
 
-Shows the active engine URL, installed backend driver, OMOP Alchemy version, optional
-dependency state (orm-loader, psycopg2/psycopg, etc.), and which maintenance commands
-are available given the current backend. Run this first when diagnosing "why doesn't
-this command work".
+Shows the active engine URL, installed backend driver, OMOP Alchemy version, optional dependency state (orm-loader, psycopg2/psycopg, etc.), and which maintenance commands are available given the current backend. Run this first when diagnosing "why doesn't this command work".
 
 **When doctor reports a problem:**
 
@@ -188,8 +152,7 @@ this command work".
 
 ### Schema drift
 
-The `reconcile-schema` command compares your ORM metadata against the live database and
-reports what it finds:
+The `reconcile-schema` command compares your ORM metadata against the live database and reports what it finds:
 
 ```bash
 omop-alchemy reconcile-schema
@@ -203,15 +166,13 @@ Output categories:
 - **matched** — table exists in both and metadata is consistent.
 - **drifted** — table exists in both but column definitions differ (types, nullability, defaults). The CLI does not auto-migrate; you need to handle schema migrations manually.
 
-For safe deployment: run `reconcile-schema` first, then `create-missing-tables --dry-run`,
-then `create-missing-tables`.
+For safe deployment: run `reconcile-schema` first, then `create-missing-tables --dry-run`, then `create-missing-tables`.
 
 ---
 
 ### Full-text search sidecars
 
-Full-text search support adds `tsvector` sidecar columns (and `GIN` indexes) to the
-`concept` and `concept_synonym` tables, enabling fast text search over vocabulary.
+Full-text search support adds `tsvector` sidecar columns (and `GIN` indexes) to the `concept` and `concept_synonym` tables, enabling fast text search over vocabulary.
 
 ```bash
 # Install the sidecar columns and indexes (once, after vocabulary tables exist)
@@ -221,8 +182,7 @@ omop-alchemy fulltext install
 omop-alchemy fulltext populate
 ```
 
-**You must rerun `fulltext populate` after every vocabulary reload.** Sidecar vectors
-do not auto-refresh when the underlying concept data changes.
+**You must rerun `fulltext populate` after every vocabulary reload.** Sidecar vectors do not auto-refresh when the underlying concept data changes.
 
 To remove the sidecars:
 
@@ -230,19 +190,15 @@ To remove the sidecars:
 omop-alchemy fulltext drop
 ```
 
-The `--regconfig` option controls the PostgreSQL text search configuration
-(default `english`). For multilingual vocabularies, use a suitable config such as
-`simple`.
+The `--regconfig` option controls the PostgreSQL text search configuration (default `english`). For multilingual vocabularies, use a suitable config such as `simple`.
 
-For query-side usage and optional ORM metadata registration, see
-[PostgreSQL Full-Text Search](../advanced/fulltext.md).
+For query-side usage and optional ORM metadata registration, see [PostgreSQL Full-Text Search](../advanced/fulltext.md).
 
 ---
 
 ### Backup and restore
 
-These commands wrap `pg_dump` and `pg_restore` / `psql`. PostgreSQL client tools must
-be installed and on `PATH`.
+These commands wrap `pg_dump` and `pg_restore` / `psql`. PostgreSQL client tools must be installed and on `PATH`.
 
 ```bash
 # Create a backup (custom format is recommended — smaller and restorable in parallel)
@@ -267,8 +223,7 @@ omop-alchemy restore-database ./cdm-backup.dump \
 - For `plain` format, the schema is embedded in the SQL dump; no selective schema restore is possible.
 - For `custom` format, `pg_restore` can be invoked manually with `-n <schema>` for selective schema restore.
 
-Use `--dry-run` on `backup-database` to see the `pg_dump` command that would be run
-without executing it.
+Use `--dry-run` on `backup-database` to see the `pg_dump` command that would be run without executing it.
 
 ---
 
@@ -276,9 +231,7 @@ without executing it.
 
 ### Bulk load or vocabulary reload fails mid-way
 
-If `load-vocab-source` (with `--bulk-mode`) or your ETL process fails after FK triggers
-and indexes have been disabled, they stay disabled. The database continues to accept
-writes but does not enforce FK constraints, and queries may use slow sequential scans.
+If `load-vocab-source` (with `--bulk-mode`) or your ETL process fails after FK triggers and indexes have been disabled, they stay disabled. The database continues to accept writes but does not enforce FK constraints, and queries may use slow sequential scans.
 
 To recover:
 
@@ -301,11 +254,9 @@ omop-alchemy foreign-keys enable --strict
 omop-alchemy foreign-keys validate
 ```
 
-This reports exactly which tables have violations, which constraints are affected, and
-how many rows fail. Fix the data, then retry `foreign-keys enable --strict`.
+This reports exactly which tables have violations, which constraints are affected, and how many rows fail. Fix the data, then retry `foreign-keys enable --strict`.
 
-If you need to re-enable FK triggers despite the violations (for example, to allow the
-application to run while you investigate), use `foreign-keys enable` without `--strict`.
+If you need to re-enable FK triggers despite the violations (for example, to allow the application to run while you investigate), use `foreign-keys enable` without `--strict`.
 
 ### Sequences are out of sync after a bulk insert
 
@@ -316,8 +267,7 @@ omop-alchemy reset-sequences          # all managed tables
 omop-alchemy reset-sequences --vocab  # vocabulary tables only
 ```
 
-`reset-sequences` sets each owned sequence to `MAX(pk) + 1`. It reports every table
-it touches and the old/new sequence positions.
+`reset-sequences` sets each owned sequence to `MAX(pk) + 1`. It reports every table it touches and the old/new sequence positions.
 
 ---
 

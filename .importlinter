@@ -9,4 +9,5 @@ layers =
     omop_alchemy.toolkit.analytics
     omop_alchemy.toolkit.episodes
     omop_alchemy.toolkit.core
+    omop_alchemy.toolkit._utils
     omop_alchemy.cdm

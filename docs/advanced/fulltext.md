@@ -36,10 +36,7 @@ These helpers return the best available expression for the configured environmen
 
 ### Example (PostgreSQL Documentation)
 
-A tsvector value is a sorted list of distinct lexemes, which are words that have been normalized to merge different variants of the same word. Sorting and duplicate-elimination are done automatically during input
-
-
-A `tsvector` value is a sorted list of distinct lexemes (normalized word forms). Sorting and duplicate elimination are applied automatically during input.
+A `tsvector` value is a sorted list of distinct lexemes (normalised word forms). Sorting and duplicate elimination are applied automatically during input.
 
 ```sql
 SELECT 'a fat cat sat on a mat and ate a fat rat'::tsvector;
