@@ -140,7 +140,6 @@ nav:
       - Episodes: toolkit/episodes.md
       - Query contracts: toolkit/query-contracts.md
       - Clinical analytics: toolkit/analytics.md
-      - Integrations: toolkit/integrations.md
 
   - OMOP-Specific Validation:
       - Overview: validation/index.md

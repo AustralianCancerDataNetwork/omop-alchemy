@@ -32,9 +32,8 @@ Choose the part of the toolkit that matches the question you are asking:
 | Resolve incoming text or source codes to OMOP concepts, compare measurements in common units, or represent events from several CDM tables consistently | [`core`](core.md) |
 | Traverse episode relationships, retrieve episode-linked facts, or state how an event should be attached to an episode | [`episodes`](episodes.md) |
 | Apply a clinical interpretation such as oncology modality, dose summarisation, body-metric analysis, or weight-loss grading | [`analytics`](analytics.md) |
-| Check the availability and expectations of outbound data-standard integrations | [`integrations`](integrations.md) |
 
-The dependency direction follows the same order. `episodes` can use `core`; `analytics` can use both; `integrations` can use the whole toolkit. Lower layers never import a clinical specialty or an export format. This keeps general concepts such as event identity and unit conversion independent of the analyses that use them.
+The dependency direction follows the same order. `episodes` can use `core`; `analytics` can use both. Lower layers never import a clinical specialty or an export format. This keeps general concepts such as event identity and unit conversion independent of the analyses that use them.
 
 ## Public imports
 

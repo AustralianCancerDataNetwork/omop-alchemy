@@ -4,6 +4,16 @@ Analytics packages combine domain-neutral retrieval with governed concept sets a
 
 ## Oncology
 
+| API | Capability |
+|---|---|
+| `OncologyEpisode` | Classifies episode purpose and modality; traverses events linked to the episode and its direct children. |
+| `structural_modalities` / `concept_modalities` | Preserve every evidenced modality so mixed-treatment and SACT classification disagreements remain visible. |
+| `structural_modality` / `concept_modality` | Select one deterministic modality in radiotherapy, surgery, diagnostic/staging, SACT priority order. |
+| `OncologyProcedure` / `OncologyDrugExposure` | Add governed `is_radiotherapy`, `is_surgery`, `is_diagnostic_staging`, and `is_sact` questions to CDM facts. |
+| `RTDoseSummary.from_procedures(...)` | Constructs one radiotherapy summary; `summarize_rt_procedures_by(...)` groups before construction. |
+| `SACTDoseSummary.from_exposures(...)` | Constructs one SACT summary; `summarize_sact_exposures_by(...)` groups before construction. |
+| `OncologyEpisodeEvent` | Resolves oncology-aware facts while retaining episode-event diagnostics. |
+
 `OncologyEpisode` is the main entry point for an episode-centred oncology analysis. Keep the object attached to its SQLAlchemy session while accessing properties that traverse related events or resolve vocabulary-backed concept groups:
 
 ```python
@@ -165,6 +175,14 @@ a non-empty priority must contain every `StageBasis` exactly once.
 
 ## Body metrics
 
+| API | Capability |
+|---|---|
+| `MeasurementReading.from_measurement(...)` | Reduces an OMOP measurement to the fields used by calculations and records its resolution source. |
+| `MeasurementSeriesMixin` | Resolves normalised measurement series for an episode. |
+| `WeightTrajectoryMixin` | Exposes normalised weight and height, BMI, BSA, windowed change, trajectories, and a dict-shaped typed summary. |
+| `WeightChange` | Represents percentage change and whether it was evaluable; unevaluable change has `pct_change=None`. |
+| `WeightTrajectorySummary` | Types the DataFrame- and JSON-friendly mapping returned by `weight_trajectory_summary()`. |
+
 `WeightTrajectoryMixin` turns an episode's weight measurements and the person's height measurements into a normalised longitudinal view. Weight is converted to kilograms, height to centimetres, and measurements with missing or unrecognised units are excluded from calculations.
 
 An episode that includes the mixin can produce a compact, tabular summary:
@@ -206,6 +224,12 @@ Body-metric defaults resolve governed measurement and unit concepts. A deploymen
         - weight_trajectory_summary
 
 ## Adverse events
+
+| API | Policy |
+|---|---|
+| `ctcae_weight_loss_grade(...)` | Grades percentage weight loss against CTCAE-style bins. |
+| `martin_weight_loss_grade(...)` | Applies the Martin et al. BMI-adjusted matrix. |
+| `critical_weight_loss_grade(...)` | Uses the Martin matrix when BMI is available and otherwise falls back to CTCAE-style bins. |
 
 The adverse-event functions apply grading policy to an already calculated percentage change and, where available, BMI:
 
