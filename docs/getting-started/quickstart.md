@@ -1,10 +1,5 @@
 # Quickstart
 
-`OMOP_Alchemy` itself makes no assumptions about how PostgreSQL is provisioned: any
-reachable instance works, local or otherwise. Docker orchestration for the OMOP stack
-is handled at the workspace root (compose files there bring up every package's
-containers as peers), not by a per-package `docker-compose.yaml` in this repo.
-
 ## Prerequisites
 
 - A running PostgreSQL instance (any version supported by `omop_alchemy`'s SQLAlchemy dialects)
@@ -29,6 +24,8 @@ The test suite includes PostgreSQL-specific tests that skip automatically unless
 > schema on every run. `test_cdm_db` must point to a **dedicated, empty test database**, never
 > to a database that contains real data. The test suite enforces this: it fails loudly (not skips) if the
 > configured database is not marked `test_only = true` in your config.
+>
+> Refer to the CI/CD workflows at [cava-devops](http://github.com/AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-postgres.yml) for more details on how integration test runs are typically orchestrated.
 
 **Step 1 — Register a test database connection:**
 

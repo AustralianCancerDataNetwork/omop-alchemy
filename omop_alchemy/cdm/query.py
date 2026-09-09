@@ -59,7 +59,7 @@ class ConceptFilter:
             )
 
     def apply(self, query: sa.Select) -> sa.Select:
-        """Apply filter constraints to a Select already targeting Concept."""
+        """Apply filter constraints to a Select whose FROM clause includes Concept."""
         if self.concept_ids is not None:
             query = query.where(Concept.concept_id.in_(self.concept_ids))
 

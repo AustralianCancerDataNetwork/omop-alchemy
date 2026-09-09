@@ -16,6 +16,8 @@ from omop_alchemy.cdm.base import (
     ExpectedDomain,
     merge_table_args,
     omop_index,
+    ModifierTargetMixin,
+    ModifierFieldConcepts,
 )
 
 if TYPE_CHECKING:
@@ -99,7 +101,7 @@ class EpisodeContext(ReferenceContext):
             uselist=True,
         )
 
-class EpisodeView(Episode, EpisodeContext, DomainValidationMixin):
+class EpisodeView(Episode, EpisodeContext, DomainValidationMixin, ModifierTargetMixin):
     """
     Navigable Episode view.
 
@@ -111,6 +113,15 @@ class EpisodeView(Episode, EpisodeContext, DomainValidationMixin):
 
     __tablename__ = "episode"
     __mapper_args__ = {"concrete": False}
+    __event_id_col__ = "episode_id"
+    __concept_id_col__ = "episode_concept_id"
+    __start_date_col__ = "episode_start_date"
+    __end_date_col__ = "episode_end_date"
+    __type_concept_id_col__ = "episode_type_concept_id"
+
+    @classmethod
+    def modifier_field_concept_id(cls) -> int:
+        return ModifierFieldConcepts.EPISODE
 
     __expected_domains__ = {
         "episode_concept_id": ExpectedDomain("Episode"),

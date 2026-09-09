@@ -75,3 +75,4 @@ notebooks/
 docker/
 tests/test_meds*
 site/
+_design/

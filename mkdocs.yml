@@ -60,6 +60,7 @@ plugins:
             merge_init_into_class: true
             separate_signature: true
             show_signature_annotations: true
+            heading_level: 4
 
 nav:
   - Home: index.md
@@ -134,10 +135,11 @@ nav:
 
   - Toolkit:
       - Overview: toolkit/index.md
-      - core: toolkit/core.md
-      - episodes: toolkit/episodes.md
-      - analytics: toolkit/analytics.md
-      - integrations: toolkit/integrations.md
+      - Core services: toolkit/core.md
+      - Materialized views: toolkit/materialized-views.md
+      - Episodes: toolkit/episodes.md
+      - Query contracts: toolkit/query-contracts.md
+      - Clinical analytics: toolkit/analytics.md
 
   - OMOP-Specific Validation:
       - Overview: validation/index.md

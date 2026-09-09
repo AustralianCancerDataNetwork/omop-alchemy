@@ -1,11 +1,9 @@
 """
 PostgreSQL integration tests for OMOP_Alchemy vocabulary loading.
 
-These tests require a running PostgreSQL container. Start one with:
-    docker compose -f tests/docker-compose.yaml up -d
-
-Then run:
-    pytest -m postgres
+These tests require a dedicated ``test_cdm_db`` PostgreSQL resource configured
+with ``test_only = true``. Then run:
+    pytest -m requires_database
 """
 
 from pathlib import Path

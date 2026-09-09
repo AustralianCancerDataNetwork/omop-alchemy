@@ -7,7 +7,7 @@ from .domain_validation import DomainValidationMixin, DomainRule, ExpectedDomain
 from .concept_validation import ConceptValidationMixin
 from .reference_context import ReferenceContext
 from .typing import HasConceptId, HasEpisodeId, HasPersonId, DomainSemanticTable
-from .modifier_interface import ModifierTargetMixin
+from .modifier_interface import ModifierSourceMixin, ModifierTargetMixin
 from .cdm_constants import ModifierFieldConcepts
 
 __all__ = [
@@ -33,6 +33,7 @@ __all__ = [
     "ConceptValidationMixin",
     "FactTable",
     "merge_table_args",
+    "ModifierSourceMixin",
     "ModifierTargetMixin",
     "ModifierFieldConcepts",
     "DomainRule",

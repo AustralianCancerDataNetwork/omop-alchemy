@@ -27,7 +27,6 @@ class Drug_Exposure(
     PersonScoped,
     CDMTableBase,
     FactTable,
-    ModifierTargetMixin,
     HealthSystemContext,
     Base,
 ):

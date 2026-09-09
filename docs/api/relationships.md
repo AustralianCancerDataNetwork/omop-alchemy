@@ -2,15 +2,13 @@
 
 OMOP Alchemy takes a **deliberately conservative approach to ORM relationships**.
 
-Rather than eagerly wiring every foreign key into a bidirectional relationship,
-it distinguishes between:
+Rather than eagerly wiring every foreign key into a bidirectional relationship, it distinguishes between:
 
 - **structural foreign keys** (always present in tables)
 - **reference lookups** (read-only joins for navigation)
 - **analytical relationships** (used in views, not ETL)
 
-This separation keeps core tables simple, predictable, and fast to load,
-while still enabling rich, expressive navigation when you need it.
+This separation keeps core tables simple, predictable, and fast to load, while still enabling rich, expressive navigation when you need it.
 
 ---
 
@@ -40,8 +38,7 @@ OMOP Alchemy addresses this by introducing **Reference Contexts**.
 
 ## The core idea
 
-Instead of defining relationships directly on a table class,
-OMOP Alchemy encourages a **three-layer pattern**:
+Instead of defining relationships directly on a table class, OMOP Alchemy encourages a **three-layer pattern**:
 
 1. **Table** – structural definition only
 2. **Context** – reference relationships
@@ -160,8 +157,7 @@ Vocabulary tables (Concept, Domain, Vocabulary, etc.) are:
 * stable
 * not owned by fact tables
 
-Allowing mutation through ORM relationships would blur those boundaries
-and make ETL behavior harder to reason about.
+Allowing mutation through ORM relationships would blur those boundaries and make ETL behavior harder to reason about.
 
 ### Performance considerations
 

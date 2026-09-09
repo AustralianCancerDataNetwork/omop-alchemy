@@ -23,12 +23,13 @@ plans and can exceed driver parameter limits.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
-from omop_alchemy.cdm.model import Concept_Ancestor
+from .runtime import descendant_concept_select
+from .semantics import ConceptGroupAnchors
 
 
 @dataclass(frozen=True)
@@ -47,7 +48,7 @@ class ConceptGroupSpec:
     unit
         The omop-semantics ``RuntimeSemanticUnit`` supplying anchors.  Read
         lazily, so a spec can be declared at module scope without loading the
-        semantics runtime.  omop-semantics 0.6.0 put mixed-role composition on
+        semantics runtime.  omop-semantics 0.6 put mixed-role composition on
         the semantic unit rather than on ``RuntimeGroup``, which is why this
         takes a unit: ``parent_ids`` expand through descendants while
         ``exact_ids`` are matched directly.
@@ -68,7 +69,7 @@ class ConceptGroupSpec:
     """
 
     name: str
-    unit: Any
+    unit: ConceptGroupAnchors
     include_descendants: bool = True
     require_standard: bool = False
     include_classification: bool = True
@@ -107,7 +108,7 @@ class ConceptGroupSpec:
 
         if parents and self.include_descendants:
             expr = column.in_(
-                _descendant_select(
+                descendant_concept_select(
                     parents,
                     require_standard=self.require_standard,
                     include_classification=self.include_classification,
@@ -116,7 +117,7 @@ class ConceptGroupSpec:
             excluded = self.excluded_parent_ids()
             if excluded:
                 expr = expr & column.not_in(
-                    _descendant_select(
+                    descendant_concept_select(
                         excluded,
                         require_standard=self.require_standard,
                         include_classification=self.include_classification,
@@ -132,30 +133,6 @@ class ConceptGroupSpec:
         if not clauses:
             return sa.false()
         return sa.or_(*clauses)
-
-
-def _descendant_select(
-    parents: Iterable[int],
-    *,
-    require_standard: bool,
-    include_classification: bool = True,
-) -> sa.Select:
-    stmt = sa.select(Concept_Ancestor.descendant_concept_id).where(
-        Concept_Ancestor.ancestor_concept_id.in_(tuple(parents))
-    )
-    if require_standard:
-        from omop_alchemy.cdm.model.vocabulary import Concept
-
-        standardness = (
-            sa.or_(Concept.is_standard_expr(), Concept.is_classification_expr())
-            if include_classification
-            else Concept.is_standard_expr()
-        )
-        stmt = stmt.join(
-            Concept,
-            Concept.concept_id == Concept_Ancestor.descendant_concept_id,
-        ).where(standardness)
-    return stmt
 
 
 @dataclass(frozen=True)
@@ -217,7 +194,7 @@ def build_concept_group(
 
     if parents:
         if spec.include_descendants:
-            stmt = _descendant_select(
+            stmt = descendant_concept_select(
                 parents,
                 require_standard=spec.require_standard,
                 include_classification=spec.include_classification,
@@ -225,7 +202,7 @@ def build_concept_group(
             ids |= set(session.execute(stmt).scalars().all())
             excluded = spec.excluded_parent_ids()
             if excluded:
-                stmt = _descendant_select(
+                stmt = descendant_concept_select(
                     excluded,
                     require_standard=spec.require_standard,
                     include_classification=spec.include_classification,
