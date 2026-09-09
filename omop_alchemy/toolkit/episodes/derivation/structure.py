@@ -10,46 +10,22 @@ from sqlalchemy.sql.selectable import FromClause, SelectBase
 
 from omop_alchemy.cdm.model.structural import Episode, Episode_Event
 from omop_alchemy.cdm.model.vocabulary import Concept
+from omop_alchemy.toolkit._utils import _as_from_clause
 
 from .contracts import CANONICAL_EPISODE_COLUMNS, EpisodeColumn
 
 
 EpisodeSource = type[Episode] | FromClause | SelectBase
 EpisodeEventSource = type[Episode_Event] | FromClause | SelectBase
+EpisodeHierarchySource = type[Episode] | type[Episode_Event] | FromClause | SelectBase
 # Hierarchy builders deliberately accept both mapped tables and pre-shaped
 # selectables. This keeps filtering/aliasing at the caller boundary instead of
 # forcing recursive queries to rediscover or override that source definition.
 
 
-def _as_from_clause(
-    source: FromClause | SelectBase,
-    *,
-    name: str,
-) -> FromClause:
-    # Recursive joins and column lookup need a FromClause. Wrapping a Select
-    # once also gives it a stable name for readable SQL and repeated aliases.
-    if isinstance(source, SelectBase):
-        return source.subquery(name)
-    if isinstance(source, FromClause):
-        return source
-    raise TypeError(f"{name} must be a SQLAlchemy Select or FromClause")
-
-
-def _episode_source(source: EpisodeSource, *, name: str) -> FromClause:
+def _episode_source(source: EpisodeHierarchySource, *, name: str) -> FromClause:
     # Mapped classes contribute only their table here; relationship-bearing ORM
     # behavior is intentionally kept out of these SQL-only hierarchy builders.
-    if isinstance(source, type):
-        return cast(FromClause, getattr(source, "__table__"))
-    return _as_from_clause(source, name=name)
-
-
-def _episode_event_source(
-    source: EpisodeEventSource,
-    *,
-    name: str,
-) -> FromClause:
-    # Episode_Event is normalized separately because callers may supply a
-    # filtered link source while the hierarchy itself remains episode-relative.
     if isinstance(source, type):
         return cast(FromClause, getattr(source, "__table__"))
     return _as_from_clause(source, name=name)
@@ -194,7 +170,7 @@ def episode_event_hierarchy_projection(
         max_depth=max_depth,
         name="episode_event_descendants",
     )
-    event = _episode_event_source(
+    event = _episode_source(
         episode_event_model,
         name="episode_event_hierarchy_events",
     )

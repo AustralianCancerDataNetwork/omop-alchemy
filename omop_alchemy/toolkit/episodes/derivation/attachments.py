@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.sql.selectable import FromClause, SelectBase
 
 from omop_alchemy.cdm.model.structural import Episode, Episode_Event
+from omop_alchemy.toolkit._utils import _as_from_clause, _require_columns
 from omop_alchemy.toolkit.core.events import (
     CANONICAL_EVENT_REQUIRED_COLUMNS,
     ClinicalEventColumn,
@@ -55,18 +56,6 @@ class EpisodeAttachmentQueries:
     diagnostics: sa.Select[Any] | None = None
 
 
-def _as_from_clause(
-    source: FromClause | SelectBase,
-    *,
-    name: str,
-) -> FromClause:
-    if isinstance(source, SelectBase):
-        return source.subquery(name)
-    if isinstance(source, FromClause):
-        return source
-    raise TypeError(f"{name} must be a SQLAlchemy Select or FromClause")
-
-
 def _event_source(source: type[Any] | FromClause | SelectBase) -> FromClause:
     if isinstance(source, type):
         return canonical_event_projection(source).subquery("attachment_events")
@@ -89,19 +78,6 @@ def _episode_event_source(
         model = cast(type[Episode_Event], source)
         return model.__table__
     return _as_from_clause(source, name="attachment_episode_events")
-
-
-def _require_columns(
-    source: FromClause,
-    required: tuple[str, ...],
-    *,
-    role: str,
-) -> None:
-    missing = tuple(name for name in required if name not in source.c)
-    if missing:
-        raise InvalidAttachmentSourceError(
-            f"{role} is missing required columns: {', '.join(missing)}"
-        )
 
 
 def _same_event(left: FromClause, right: FromClause) -> sa.ColumnElement[bool]:
@@ -283,12 +259,13 @@ def episode_attachment_queries(
     event_names = tuple(column.key for column in event_source.c)
 
     _require_columns(
-        event_source,
+        event_source.c.keys(),
         tuple(str(column) for column in CANONICAL_EVENT_REQUIRED_COLUMNS),
         role="events",
+        error_type=InvalidAttachmentSourceError,
     )
     _require_columns(
-        episode_source,
+        episode_source.c.keys(),
         (
             str(EpisodeColumn.episode_id),
             str(EpisodeColumn.person_id),
@@ -296,11 +273,13 @@ def episode_attachment_queries(
             str(EpisodeColumn.episode_end_date),
         ),
         role="episodes",
+        error_type=InvalidAttachmentSourceError,
     )
     _require_columns(
-        link_source,
+        link_source.c.keys(),
         ("episode_id", "event_id", "episode_event_field_concept_id"),
         role="episode_events",
+        error_type=InvalidAttachmentSourceError,
     )
     for reserved in (ATTACHMENT_EPISODE_ID, ATTACHMENT_METHOD):
         if reserved in event_names:

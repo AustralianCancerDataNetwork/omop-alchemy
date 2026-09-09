@@ -11,6 +11,7 @@ from omop_alchemy.cdm.base import ModifierTargetMixin
 from omop_alchemy.cdm.model.clinical.event_metadata import (
     clinical_event_target_for_table,
 )
+from omop_alchemy.toolkit._utils import _nullable_column, _select_or_union_all
 
 from .contracts import ClinicalEventColumn
 
@@ -130,19 +131,6 @@ def clinical_event_model_spec(model: type[Any]) -> ClinicalEventModelSpec:
     )
 
 
-def _nullable_column(
-    model: type[Any],
-    name: ClinicalEventColumn,
-    sql_type: sa.types.TypeEngine[Any],
-) -> sa.ColumnElement[Any]:
-    column = getattr(model, str(name), None)
-    if column is None:
-        # Unions need the same column positions across event tables. A typed
-        # NULL preserves that shape when a source has no corresponding value.
-        return sa.cast(sa.null(), sql_type).label(str(name))
-    return column.label(str(name))
-
-
 def canonical_event_projection(
     model: type[Any],
     *,
@@ -201,15 +189,11 @@ def canonical_event_union(
     include_values: bool = True,
 ) -> sa.Select[Any] | sa.CompoundSelect[Any]:
     """Combine supported event models into one canonical ``UNION ALL`` query."""
-    if not models:
-        raise ValueError("canonical_event_union requires at least one model")
     projections = [
         canonical_event_projection(model, include_values=include_values)
         for model in models
     ]
-    # Keep one-model calls as Select objects while combining multiple models
-    # with UNION ALL; callers can therefore use the same canonical columns in
-    # either case without deduplicating clinically distinct rows.
-    if len(projections) == 1:
-        return projections[0]
-    return sa.union_all(*projections)
+    return _select_or_union_all(
+        projections,
+        error_message="canonical_event_union requires at least one model",
+    )

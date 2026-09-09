@@ -9,6 +9,7 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy.sql.selectable import FromClause, SelectBase
 
+from omop_alchemy.toolkit._utils import _as_from_clause
 from omop_alchemy.toolkit.core.modifiers import (
     ModifierSelectionPolicy,
     ModifierSelectionSpec,
@@ -81,7 +82,12 @@ DEFAULT_STAGE_SELECTION = StageSelectionSpec()
 def stage_basis_expression(
     concept_code: sa.ColumnElement[Any],
 ) -> sa.ColumnElement[str]:
-    """Classify OMOP stage concept codes by their conventional p/c prefix."""
+    """Classify stage codes using the source vocabulary's p/c convention.
+
+    The staging vocabulary does not expose a reliable parent concept that
+    separates pathological from clinical staging. The code prefix is therefore
+    the intentional source-level contract rather than a synthetic hierarchy.
+    """
     normalized = sa.func.lower(sa.func.trim(concept_code))
     return sa.case(
         (normalized.like("p%"), str(StageBasis.pathological)),
@@ -107,24 +113,24 @@ def stage_basis_priority_expression(
     )
 
 
-def _as_source(source: FromClause | SelectBase) -> FromClause:
-    if isinstance(source, SelectBase):
-        return source.subquery("preferred_stage_source")
-    if isinstance(source, FromClause):
-        return source
-    raise TypeError("source must be a SQLAlchemy Select or FromClause")
-
-
 def preferred_stage_select(
     source: FromClause | SelectBase,
     *,
     spec: StageSelectionSpec = DEFAULT_STAGE_SELECTION,
-    concept_code_column: str = "modifier_concept_code",
+    concept_code_column: str | None = None,
 ) -> sa.Select[Any]:
-    """Select one preferred stage modifier for every canonical target."""
-    modifiers = _as_source(source)
+    """Select one preferred stage modifier for every canonical target.
+
+    Basis-ranked selection requires a source enriched with a concept-code
+    column. Chronological-only selection does not require that enrichment.
+    """
+    modifiers = _as_from_clause(source, name="preferred_stage_source")
     priority: tuple[sa.ColumnElement[Any], ...] = ()
     if spec.basis_priority:
+        if concept_code_column is None:
+            raise ValueError(
+                "concept_code_column is required when basis ranking is enabled"
+            )
         if not concept_code_column.strip():
             raise ValueError("concept_code_column must not be empty")
         if concept_code_column not in modifiers.c:

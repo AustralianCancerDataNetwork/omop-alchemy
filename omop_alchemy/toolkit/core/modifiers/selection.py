@@ -8,6 +8,7 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy.sql.selectable import FromClause, SelectBase
 
+from omop_alchemy.toolkit._utils import _as_from_clause, _require_columns
 from omop_alchemy.toolkit.core._ranking import deterministic_row_number
 
 from .contracts import ModifierColumn, ModifierSelectionPolicy, ModifierSelectionSpec
@@ -17,14 +18,6 @@ MODIFIER_RANK = "modifier_rank"
 
 class InvalidModifierSourceError(ValueError):
     pass
-
-
-def _as_source(source: FromClause | SelectBase, name: str) -> FromClause:
-    if isinstance(source, SelectBase):
-        return source.subquery(name)
-    if isinstance(source, FromClause):
-        return source
-    raise TypeError("source must be a SQLAlchemy Select or FromClause")
 
 
 def modifier_order_expressions(
@@ -40,11 +33,12 @@ def modifier_order_expressions(
         spec.datetime_column,
         *spec.stable_identity_columns,
     }
-    missing = tuple(sorted(required.difference(columns.keys())))
-    if missing:
-        raise InvalidModifierSourceError(
-            f"modifier source is missing required columns: {', '.join(missing)}"
-        )
+    _require_columns(
+        columns.keys(),
+        required,
+        role="modifier source",
+        error_type=InvalidModifierSourceError,
+    )
     direction = sa.desc if spec.policy is ModifierSelectionPolicy.latest else sa.asc
     date_column = columns[spec.date_column]
     datetime_column = columns[spec.datetime_column]
@@ -82,7 +76,7 @@ def ranked_modifier_select(
     rank_label: str = MODIFIER_RANK,
 ) -> sa.Select[Any]:
     """Rank bound modifiers, with caller priorities preceding temporal policy."""
-    modifiers = _as_source(source, "modifier_selection_source")
+    modifiers = _as_from_clause(source, name="modifier_selection_source")
     required = {
         *spec.partition_by,
         spec.date_column,
@@ -91,11 +85,12 @@ def ranked_modifier_select(
         str(ModifierColumn.target_event_id),
         str(ModifierColumn.target_field_concept_id),
     }
-    missing = tuple(sorted(required.difference(modifiers.c.keys())))
-    if missing:
-        raise InvalidModifierSourceError(
-            f"modifier source is missing required columns: {', '.join(missing)}"
-        )
+    _require_columns(
+        modifiers.c.keys(),
+        required,
+        role="modifier source",
+        error_type=InvalidModifierSourceError,
+    )
 
     rank = modifier_row_number(
         modifiers.c,

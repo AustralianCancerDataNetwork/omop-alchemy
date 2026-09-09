@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Any, Mapping, Protocol, runtime_checkable
+from typing import Protocol, TypedDict, runtime_checkable
 
 
 class ModifierColumn(StrEnum):
@@ -42,26 +42,6 @@ class ModifierColumn(StrEnum):
     value_as_concept_id = "value_as_concept_id"
     unit_concept_id = "unit_concept_id"
     value_as_string = "value_as_string"
-
-# Column ordering is important for UNION queries; this listing fixes the contract order.
-CANONICAL_MODIFIER_REQUIRED_COLUMNS: tuple[ModifierColumn, ...] = (
-    ModifierColumn.person_id,
-    ModifierColumn.modifier_id,
-    ModifierColumn.modifier_date,
-    ModifierColumn.modifier_datetime,
-    ModifierColumn.modifier_concept_id,
-    ModifierColumn.modifier_source_table,
-    ModifierColumn.target_event_id,
-    ModifierColumn.target_field_concept_id,
-)
-
-
-CANONICAL_MODIFIER_VALUE_COLUMNS: tuple[ModifierColumn, ...] = (
-    ModifierColumn.value_as_number,
-    ModifierColumn.value_as_concept_id,
-    ModifierColumn.unit_concept_id,
-    ModifierColumn.value_as_string,
-)
 
 
 @runtime_checkable
@@ -86,6 +66,18 @@ class ValuedModifierRow(ModifierRow, Protocol):
     value_as_concept_id: int | None
     unit_concept_id: int | None
     value_as_string: str | None
+
+
+# Column ordering is important for UNION queries; derive it from the row
+# contracts so the labels and their typed fields cannot drift apart.
+CANONICAL_MODIFIER_REQUIRED_COLUMNS: tuple[ModifierColumn, ...] = tuple(
+    ModifierColumn[name] for name in ModifierRow.__annotations__
+)
+
+
+CANONICAL_MODIFIER_VALUE_COLUMNS: tuple[ModifierColumn, ...] = tuple(
+    ModifierColumn[name] for name in ValuedModifierRow.__annotations__
+)
 
 
 @dataclass(frozen=True, order=True, slots=True)
@@ -167,6 +159,15 @@ class ModifierTargetDiagnosticColumn(StrEnum):
     message = "message"
 
 
+class _ModifierTargetDiagnosticMapping(TypedDict):
+    diagnostic_code: str
+    modifier_source_table: str
+    modifier_id: int
+    target_field_concept_id: int | None
+    target_event_id: int | None
+    message: str
+
+
 @dataclass(frozen=True, slots=True)
 class ModifierTargetDiagnostic:
     """Typed value representation of one target-resolution diagnostic row."""
@@ -179,12 +180,20 @@ class ModifierTargetDiagnostic:
     message: str
 
     @classmethod
-    def from_mapping(cls, row: Mapping[str, Any]) -> ModifierTargetDiagnostic:
+    def from_mapping(
+        cls, row: _ModifierTargetDiagnosticMapping
+    ) -> ModifierTargetDiagnostic:
         return cls(
-            diagnostic_code=ModifierTargetDiagnosticCode(row["diagnostic_code"]),
-            modifier_source_table=str(row["modifier_source_table"]),
-            modifier_id=int(row["modifier_id"]),
-            target_field_concept_id=row["target_field_concept_id"],
-            target_event_id=row["target_event_id"],
-            message=str(row["message"]),
+            diagnostic_code=ModifierTargetDiagnosticCode(
+                row[str(ModifierTargetDiagnosticColumn.diagnostic_code)]
+            ),
+            modifier_source_table=str(
+                row[str(ModifierTargetDiagnosticColumn.modifier_source_table)]
+            ),
+            modifier_id=int(row[str(ModifierTargetDiagnosticColumn.modifier_id)]),
+            target_field_concept_id=row[
+                str(ModifierTargetDiagnosticColumn.target_field_concept_id)
+            ],
+            target_event_id=row[str(ModifierTargetDiagnosticColumn.target_event_id)],
+            message=str(row[str(ModifierTargetDiagnosticColumn.message)]),
         )

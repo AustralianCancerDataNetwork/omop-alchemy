@@ -79,7 +79,13 @@ def test_stage_selection_default_and_overrides(spec, expected_id: int):
     engine = sa.create_engine("sqlite://")
     with engine.connect() as connection:
         selected = (
-            connection.execute(preferred_stage_select(_stage_source(), spec=spec))
+            connection.execute(
+                preferred_stage_select(
+                    _stage_source(),
+                    spec=spec,
+                    concept_code_column="modifier_concept_code",
+                )
+            )
             .mappings()
             .one()
         )
@@ -93,6 +99,14 @@ def test_stage_selection_spec_is_immutable_and_validates_basis_permutation():
 
     with pytest.raises(ValueError, match="each StageBasis exactly once"):
         StageSelectionSpec(basis_priority=(StageBasis.pathological,))
+
+
+def test_basis_selection_requires_an_explicit_concept_code_column():
+    with pytest.raises(
+        ValueError,
+        match="concept_code_column is required when basis ranking is enabled",
+    ):
+        preferred_stage_select(_stage_source())
 
 
 def test_chronological_policy_does_not_require_a_concept_code_column():
@@ -124,7 +138,12 @@ def test_same_basis_tie_is_stable_when_input_order_reverses():
                 )
             )
             selected_ids.append(
-                connection.execute(preferred_stage_select(normalized))
+                connection.execute(
+                    preferred_stage_select(
+                        normalized,
+                        concept_code_column="modifier_concept_code",
+                    )
+                )
                 .mappings()
                 .one()["modifier_id"]
             )
@@ -202,9 +221,17 @@ def test_postgresql_executes_modifier_selection_and_stage_policy_contracts(pg_se
         ),
     )
     for spec, expected_id in expected_by_spec:
-        selected = pg_session.execute(
-            preferred_stage_select(_stage_source(), spec=spec)
-        ).mappings().one()
+        selected = (
+            pg_session.execute(
+                preferred_stage_select(
+                    _stage_source(),
+                    spec=spec,
+                    concept_code_column="modifier_concept_code",
+                )
+            )
+            .mappings()
+            .one()
+        )
         assert selected["modifier_id"] == expected_id
 
     stage_source = _stage_source().subquery()
@@ -217,7 +244,12 @@ def test_postgresql_executes_modifier_selection_and_stage_policy_contracts(pg_se
         )
     ).where(stage_source.c.modifier_id == 10)
     assert (
-        pg_session.execute(preferred_stage_select(unclassified))
+        pg_session.execute(
+            preferred_stage_select(
+                unclassified,
+                concept_code_column="modifier_concept_code",
+            )
+        )
         .mappings()
         .one()["modifier_id"]
         == 10
@@ -241,7 +273,12 @@ def test_postgresql_executes_modifier_selection_and_stage_policy_contracts(pg_se
             )
         )
         selected_ids.append(
-            pg_session.execute(preferred_stage_select(normalized))
+            pg_session.execute(
+                preferred_stage_select(
+                    normalized,
+                    concept_code_column="modifier_concept_code",
+                )
+            )
             .mappings()
             .one()["modifier_id"]
         )

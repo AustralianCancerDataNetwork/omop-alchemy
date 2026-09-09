@@ -8,6 +8,7 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy.sql.selectable import FromClause, SelectBase
 
+from omop_alchemy.toolkit._utils import _as_from_clause, _require_columns
 from omop_alchemy.toolkit.core.events import ClinicalEventColumn
 
 from .contracts import (
@@ -52,22 +53,6 @@ def canonical_modifier_target_projection(model: type[Any]) -> sa.Select[Any]:
     )
 
 
-def _as_source(source: FromClause | SelectBase, name: str) -> FromClause:
-    if isinstance(source, SelectBase):
-        return source.subquery(name)
-    if isinstance(source, FromClause):
-        return source
-    raise TypeError(f"{name} must be a SQLAlchemy Select or FromClause")
-
-
-def _require(source: FromClause, columns: tuple[str, ...], role: str) -> None:
-    missing = tuple(name for name in columns if name not in source.c)
-    if missing:
-        raise InvalidModifierTargetSourceError(
-            f"{role} is missing required columns: {', '.join(missing)}"
-        )
-
-
 def modifier_target_queries(
     modifier_source: type[Any] | FromClause | SelectBase,
     target_source: type[Any] | FromClause | SelectBase,
@@ -79,7 +64,7 @@ def modifier_target_queries(
     modifiers = (
         canonical_modifier_projection(modifier_source).subquery("target_modifiers")
         if isinstance(modifier_source, type)
-        else _as_source(modifier_source, "target_modifiers")
+        else _as_from_clause(modifier_source, name="target_modifiers")
     )
     target_spec = (
         modifier_target_model_spec(target_source)
@@ -89,15 +74,16 @@ def modifier_target_queries(
     targets = (
         canonical_modifier_target_projection(target_source).subquery("modifier_targets")
         if isinstance(target_source, type)
-        else _as_source(target_source, "modifier_targets")
+        else _as_from_clause(target_source, name="modifier_targets")
     )
-    _require(
-        modifiers,
+    _require_columns(
+        modifiers.c.keys(),
         tuple(str(column) for column in CANONICAL_MODIFIER_REQUIRED_COLUMNS),
-        "modifier source",
+        role="modifier source",
+        error_type=InvalidModifierTargetSourceError,
     )
-    _require(
-        targets,
+    _require_columns(
+        targets.c.keys(),
         tuple(
             str(column)
             for column in (
@@ -107,7 +93,8 @@ def modifier_target_queries(
                 ClinicalEventColumn.event_source_table,
             )
         ),
-        "target source",
+        role="target source",
+        error_type=InvalidModifierTargetSourceError,
     )
 
     person = str(ModifierColumn.person_id)

@@ -23,26 +23,6 @@ class ClinicalEventColumn(StrEnum):
     unit_concept_id = "unit_concept_id"
 
 
-CANONICAL_EVENT_REQUIRED_COLUMNS: tuple[ClinicalEventColumn, ...] = (
-    ClinicalEventColumn.person_id,
-    ClinicalEventColumn.event_id,
-    ClinicalEventColumn.event_date,
-    ClinicalEventColumn.event_datetime,
-    ClinicalEventColumn.event_concept_id,
-    ClinicalEventColumn.event_field_concept_id,
-    ClinicalEventColumn.event_source_table,
-)
-"""Columns every canonical clinical-event projection must expose."""
-
-
-CANONICAL_EVENT_OPTIONAL_COLUMNS: tuple[ClinicalEventColumn, ...] = (
-    ClinicalEventColumn.value_as_number,
-    ClinicalEventColumn.value_as_concept_id,
-    ClinicalEventColumn.unit_concept_id,
-)
-"""Nullable value columns a projection may add when its source supports them."""
-
-
 @runtime_checkable
 class ClinicalEventRow(Protocol):
     """Value-level view of the required canonical event projection.
@@ -68,6 +48,18 @@ class ValuedClinicalEventRow(ClinicalEventRow, Protocol):
     value_as_number: float | None
     value_as_concept_id: int | None
     unit_concept_id: int | None
+
+
+CANONICAL_EVENT_REQUIRED_COLUMNS: tuple[ClinicalEventColumn, ...] = tuple(
+    ClinicalEventColumn[name] for name in ClinicalEventRow.__annotations__
+)
+"""Columns every canonical clinical-event projection must expose."""
+
+
+CANONICAL_EVENT_OPTIONAL_COLUMNS: tuple[ClinicalEventColumn, ...] = tuple(
+    ClinicalEventColumn[name] for name in ValuedClinicalEventRow.__annotations__
+)
+"""Nullable value columns a projection may add when its source supports them."""
 
 
 @dataclass(frozen=True, order=True, slots=True)

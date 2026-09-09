@@ -6,6 +6,8 @@ from typing import Any, Mapping
 
 import sqlalchemy as sa
 
+from omop_alchemy.toolkit._utils import _nullable_column, _select_or_union_all
+
 from .contracts import CANONICAL_MODIFIER_VALUE_COLUMNS, ModifierColumn
 from .metadata import (
     UnsupportedModifierSourceModelError,
@@ -24,15 +26,6 @@ _VALUE_COLUMN_TYPES: Mapping[ModifierColumn, sa.types.TypeEngine[Any]] = {
 }
 
 
-def _nullable(
-    model: type[Any], name: ModifierColumn, sql_type: sa.types.TypeEngine[Any]
-) -> sa.ColumnElement[Any]:
-    column = getattr(model, str(name), None)
-    if column is None:
-        return sa.cast(sa.null(), sql_type).label(str(name))
-    return column.label(str(name))
-
-
 def canonical_modifier_projection(
     model: type[Any], *, include_values: bool = True
 ) -> sa.Select[Any]:
@@ -45,15 +38,9 @@ def canonical_modifier_projection(
         )
     columns: list[sa.ColumnElement[Any]] = [
         model.person_id.label(str(ModifierColumn.person_id)),
-        getattr(model, spec.event_id_column).label(
-            str(ModifierColumn.modifier_id)
-        ),
-        getattr(model, spec.event_date_column).label(
-            str(ModifierColumn.modifier_date)
-        ),
-        getattr(model, datetime_column).label(
-            str(ModifierColumn.modifier_datetime)
-        ),
+        getattr(model, spec.event_id_column).label(str(ModifierColumn.modifier_id)),
+        getattr(model, spec.event_date_column).label(str(ModifierColumn.modifier_date)),
+        getattr(model, datetime_column).label(str(ModifierColumn.modifier_datetime)),
         getattr(model, spec.event_concept_id_column).label(
             str(ModifierColumn.modifier_concept_id)
         ),
@@ -68,7 +55,7 @@ def canonical_modifier_projection(
     ]
     if include_values:
         columns.extend(
-            _nullable(model, column, _VALUE_COLUMN_TYPES[column])
+            _nullable_column(model, column, _VALUE_COLUMN_TYPES[column])
             for column in CANONICAL_MODIFIER_VALUE_COLUMNS
         )
     return sa.select(*columns)
@@ -77,10 +64,11 @@ def canonical_modifier_projection(
 def canonical_modifier_union(
     *models: type[Any], include_values: bool = True
 ) -> sa.Select[Any] | sa.CompoundSelect[Any]:
-    if not models:
-        raise ValueError("canonical_modifier_union requires at least one model")
     projections = [
         canonical_modifier_projection(model, include_values=include_values)
         for model in models
     ]
-    return projections[0] if len(projections) == 1 else sa.union_all(*projections)
+    return _select_or_union_all(
+        projections,
+        error_message="canonical_modifier_union requires at least one model",
+    )

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Mapping
+from typing import TypedDict
 
 from omop_alchemy.toolkit.core.events import ClinicalEventIdentity
 from omop_alchemy.toolkit.episodes.handling.event_windowing import (
@@ -142,6 +142,17 @@ CANONICAL_ATTACHMENT_DIAGNOSTIC_COLUMNS: tuple[AttachmentDiagnosticColumn, ...] 
 """Columns exposed by an attachment diagnostics query."""
 
 
+class _EpisodeAttachmentDiagnosticMapping(TypedDict):
+    diagnostic_code: str
+    event_source_table: str
+    event_id: int
+    event_field_concept_id: int
+    linked_event_field_concept_id: int | None
+    episode_id: int | None
+    candidate_count: int | None
+    message: str
+
+
 @dataclass(frozen=True, slots=True)
 class EpisodeAttachmentDiagnostic:
     """Typed advisory result returned by an attachment diagnostics query."""
@@ -155,19 +166,29 @@ class EpisodeAttachmentDiagnostic:
     candidate_count: int | None = None
 
     @classmethod
-    def from_mapping(cls, row: Mapping[str, Any]) -> "EpisodeAttachmentDiagnostic":
+    def from_mapping(
+        cls, row: _EpisodeAttachmentDiagnosticMapping
+    ) -> "EpisodeAttachmentDiagnostic":
         """Convert one SQLAlchemy mapping result without leaking column-name handling."""
         return cls(
-            code=AttachmentDiagnosticCode(row["diagnostic_code"]),
-            event=ClinicalEventIdentity(
-                event_source_table=row["event_source_table"],
-                event_id=row["event_id"],
+            code=AttachmentDiagnosticCode(
+                row[str(AttachmentDiagnosticColumn.diagnostic_code)]
             ),
-            event_field_concept_id=row["event_field_concept_id"],
-            linked_event_field_concept_id=row["linked_event_field_concept_id"],
-            episode_id=row["episode_id"],
-            candidate_count=row["candidate_count"],
-            message=row["message"],
+            event=ClinicalEventIdentity(
+                event_source_table=row[
+                    str(AttachmentDiagnosticColumn.event_source_table)
+                ],
+                event_id=row[str(AttachmentDiagnosticColumn.event_id)],
+            ),
+            event_field_concept_id=row[
+                str(AttachmentDiagnosticColumn.event_field_concept_id)
+            ],
+            linked_event_field_concept_id=row[
+                str(AttachmentDiagnosticColumn.linked_event_field_concept_id)
+            ],
+            episode_id=row[str(AttachmentDiagnosticColumn.episode_id)],
+            candidate_count=row[str(AttachmentDiagnosticColumn.candidate_count)],
+            message=row[str(AttachmentDiagnosticColumn.message)],
         )
 
 
