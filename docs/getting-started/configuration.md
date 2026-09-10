@@ -82,5 +82,6 @@ See the [oa-configurator integration guide](https://AustralianCancerDataNetwork.
 
 ## Further reading
 
+- [Common Use Cases](common-use-cases.md): worked examples for vocab/results schema splits, a separate vocabulary server, and migrating an existing deployment's schema layout
 - [oa_configurator quickstart](https://AustralianCancerDataNetwork.github.io/oa-configurator/quickstart/): full config reference, CLI walkthrough
 - [oa_configurator integration guide](https://AustralianCancerDataNetwork.github.io/oa-configurator/integration/): multi-package setups
