@@ -39,6 +39,29 @@ cdm_db = "cdm_db"
 
 You can also write or edit this file manually.
 
+## CDM table roles
+
+OMOP_Alchemy tags every table with a logical role, matching the [OMOP CDM v5.4](https://ohdsi.github.io/CommonDataModel/cdm54.html)
+categories:
+
+- **Clinical/derived tables**:
+    - `Person`, `Visit_Occurrence`, `Condition_Era`, ...
+    - The primary role, controlled by `schema_name` in the configuration.
+- **Vocabulary Tables**:
+    - `Concept`, `Vocabulary`, `Concept_Relationship`, `Domain`, ...
+    - Controlled by `vocab_schema` in the configuration.
+- **Results/analytics tables**:
+    - `Cohort`, `Cohort Definition`, `Condition_era`, `Drug_era`, `Dose_era`, `Observation_period`
+    - Controlled by `results_schema` in the configuration.
+
+![OMOP CDM v5.4](https://ohdsi.github.io/CommonDataModel/man/images/cdm55.png)
+
+Each role folds back to `schema_name` when its own field is unset, so a minimal config needs no extra fields. 
+Setting `vocab_schema`/`results_schema` routes just that role's tables elsewhere. See [oa_configurator's schema translate map guide](https://AustralianCancerDataNetwork.github.io/oa-configurator/architecture/#schema-translate-map) for how the routing itself works, and [Common Use Cases](common-use-cases.md) for worked examples of splitting these onto different schemas or servers.
+
+!!! info "Misconfiguration prevention"
+    Misconfiguring which schema a role points at doesn't corrupt data. [`oa-configurator`'s schema provenance guard](https://AustralianCancerDataNetwork.github.io/oa-configurator/architecture/#schema-provenance-guard) refuses the DDL.
+
 ## Vocabulary loading
 
 If you plan to load OMOP vocabulary from Athena CSV files, add the path to `[tools.omop_alchemy]`:

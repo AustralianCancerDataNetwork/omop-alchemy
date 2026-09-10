@@ -4,7 +4,7 @@ This pages details common use-cases and setups for users and how to wrap their e
 
 !!! note "Important References"
     - [**`oa-configurator` config reference**](https://AustralianCancerDataNetwork.github.io/oa-configurator/config-reference/): Information about the config file created and stored by default at `~/.config/omop/config.toml`
-    - [**`omop-alchemy` and relationship to OMOP CDM**](<missing link>): Important how schemas capture specific tables.
+    - [**`omop-alchemy` and relationship to OMOP CDM**](configuration.md#cdm-table-roles): Important how schemas capture specific tables.
     - [**`oa_configurator`'s architecture guide`**](https://AustralianCancerDataNetwork.github.io/oa-configurator/architecture/): Information about the core concepts, supported configuration templates, schema translation and provenance guard, and more.
     - [**`omop-alchemy`'s maintenance module**](maintenance.md): full command reference 
 
@@ -13,10 +13,10 @@ This pages details common use-cases and setups for users and how to wrap their e
 
 ## Vocabulary tables in a separate schema, same server
 
-!!! note "Scenario"
+!!! example "Scenario"
     - Your `Concept` table (and the rest of the vocabulary) lives in a `myvocab` schema
     - Vocabulary is separate from your clinical tables' schema. 
-    - [Reading how `omop-alchemy` bundles tables in schemas](<missing link>) reveals, that the `vocab_schema` configuration key is responsible for the `Concept` table
+    - [Reading how `omop-alchemy` bundles tables in schemas](configuration.md#cdm-table-roles) reveals, that the `vocab_schema` configuration key is responsible for the `Concept` table
 
 ### Solution
 Set `vocab_schema` to `myvocab` during interactive configuration
@@ -42,8 +42,8 @@ vocab_schema = "myvocab"  # <- overwritten schema map
 cdm_db = "<your-configured-database>"
 ```
 
-Every vocabulary-tagged table (see [Documentation for more details](<missing link>)) now resolves into `myvocab` automatically.
-This does not require any model changes. `results_schema` works the same way for results tables and is also defined in the [Documentation](<missing-link>)
+Every vocabulary-tagged table (see [Documentation for more details](configuration.md#cdm-table-roles)) now resolves into `myvocab` automatically.
+This does not require any model changes. `results_schema` works the same way for results tables and is also defined in the [Documentation](configuration.md#cdm-table-roles)
 
 ### Troubleshooting
 
@@ -60,7 +60,7 @@ The CLI wizard will guide you through the entire setup again. You can changed/mo
 
 ## Vocabulary on an entirely separate server
 
-!!! note "Scenario"
+!!! example "Scenario"
     - Your entire CDM vocabulary lives on a separate physical DB server (e.g. a shared vocabnulary instance resued across multiple CDM deployments)
     - You checked the documentation for [supported dialects in `omop-alchemy`](https://AustralianCancerDataNetwork.github.io/oa-configurator/config-reference/#supported-dialects ) and confirmed that your separate DB server is supported
 
@@ -96,7 +96,7 @@ vocab_connection = "vocab"  # <- references your vocabulary DB
 
 ## Migrating an existing deployment to a schema split
 
-!!! note "Scenario"
+!!! example "Scenario"
     - You are moving from one schema holding everything to a real vocabulary/results splits, **or**
     - You are renaming a schema on a database `omop-alchemy` has already created tables in.
     - **Assumptions:**
