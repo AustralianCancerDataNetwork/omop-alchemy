@@ -2,7 +2,8 @@ import sqlalchemy as sa
 import pytest
 from sqlalchemy.dialects import postgresql
 from typer.testing import CliRunner
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, SCHEMA_TRANSLATE_MAP_KEY, StackConfig
+from oa_configurator import Role as SchemaRole
 
 from omop_alchemy.backends import (
     CONCEPT_NAME_TSVECTOR_COLUMN,
@@ -43,7 +44,7 @@ class _FakeConnection:
         self._db_schema = db_schema
 
     def get_execution_options(self) -> dict[str, object]:
-        return {"schema_translate_map": {None: self._db_schema}}
+        return {SCHEMA_TRANSLATE_MAP_KEY: {SchemaRole.PRIMARY.value: self._db_schema}}
 
     def exec_driver_sql(
         self,
@@ -215,7 +216,7 @@ def test_fulltext_install_cli_passes_options(monkeypatch):
                 dialect="postgresql+psycopg", host="localhost", database_name="db"
             )
         },
-        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="public")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", cdm_schema="public")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",

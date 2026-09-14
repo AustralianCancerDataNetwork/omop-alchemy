@@ -4,6 +4,7 @@ from datetime import date
 from oa_configurator import Role
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
+    role_fk,
     cdm_table,
     CDMTableBase,
     required_concept_fk,
@@ -18,11 +19,11 @@ class Dose_Era(CDMTableBase, Base):
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "drug_concept_id"),
         omop_index(__tablename__, "unit_concept_id"),
-        {"schema": Role.RESULTS.value},
+        {"schema": Role.PRIMARY.value},
     )
 
     dose_era_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("person.person_id"), nullable=False)
+    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
     drug_concept_id: so.Mapped[int] = required_concept_fk()
     unit_concept_id: so.Mapped[int] = required_concept_fk()
     dose_value: so.Mapped[float] = so.mapped_column(nullable=False)

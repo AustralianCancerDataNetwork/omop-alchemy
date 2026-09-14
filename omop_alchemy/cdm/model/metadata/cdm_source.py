@@ -17,6 +17,7 @@ from omop_alchemy.cdm.base import (
 class CDM_Source(CDMTableBase, Base):
     __tablename__ = "cdm_source"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "cdm_version_concept_id")
     )
 

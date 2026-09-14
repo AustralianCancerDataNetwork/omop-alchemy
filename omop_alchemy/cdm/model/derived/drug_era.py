@@ -5,6 +5,7 @@ from datetime import date
 from oa_configurator import Role
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
+    role_fk,
     cdm_table,
     CDMTableBase,
     required_concept_fk,
@@ -18,11 +19,11 @@ class Drug_Era(CDMTableBase, Base):
     __table_args__ = merge_table_args(
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "drug_concept_id"),
-        {"schema": Role.RESULTS.value},
+        {"schema": Role.PRIMARY.value},
     )
 
     drug_era_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("person.person_id"), nullable=False)
+    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
     drug_concept_id: so.Mapped[int] = required_concept_fk()
     drug_era_start_date: so.Mapped[date] = so.mapped_column(nullable=False)
     drug_era_end_date: so.Mapped[date] = so.mapped_column(nullable=False)

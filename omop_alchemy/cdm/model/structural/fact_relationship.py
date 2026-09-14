@@ -15,6 +15,7 @@ from omop_alchemy.cdm.base import (
 class Fact_Relationship(CDMTableBase, Base):
     __tablename__ = "fact_relationship"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "domain_concept_id_1"),
         omop_index(__tablename__, "domain_concept_id_2"),
         omop_index(__tablename__, "relationship_concept_id"),

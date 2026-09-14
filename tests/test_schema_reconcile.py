@@ -4,7 +4,7 @@ from typing import NamedTuple
 import pytest
 import sqlalchemy as sa
 
-from oa_configurator import ResolvedCDMDatabase, ResolvedConnection
+from oa_configurator import ResolvedCDMDatabase, ResolvedConnection, Role
 from oa_configurator import qualified, schema_of, Dialect
 from oa_configurator.testing import DIALECT_PARAMS, isolated_test_schema
 from omop_alchemy.backends.sqlite import SQLiteBackend
@@ -162,7 +162,7 @@ def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(p
             pg_db.resolved, schema_name=schema_a, vocab_schema=schema_a, results_schema=schema_a
         )
         engine = pg_engine.execution_options(
-            schema_translate_map={None: schema_a, "vocab": schema_a, "results": schema_a}
+            schema_translate_map={Role.PRIMARY.value: schema_a, "vocab": schema_a, "results": schema_a}
         )
         # vocabulary_included defaults to True: person's gender_concept_id FK
         # targets a vocab table, so excluding vocab here would leave that FK
@@ -208,7 +208,7 @@ def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_sch
         )
         engine = pg_engine.execution_options(
             schema_translate_map={
-                None: primary_schema, "vocab": vocab_schema, "results": results_schema
+                Role.PRIMARY.value: primary_schema, "vocab": vocab_schema, "results": results_schema
             }
         )
         create_missing_tables(engine, db_schema=primary_schema, resolved=resolved)

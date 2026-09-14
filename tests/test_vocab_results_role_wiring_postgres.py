@@ -23,6 +23,7 @@ import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
+from oa_configurator import Role
 from oa_configurator.testing import isolated_test_schema
 
 from omop_alchemy.cdm.model.clinical import Observation, Person
@@ -52,7 +53,7 @@ def three_schema(pg_engine: sa.Engine) -> Iterator[_ThreeSchema]:
 
         engine = pg_engine.execution_options(
             schema_translate_map={
-                None: clinical_schema,
+                Role.PRIMARY.value: clinical_schema,
                 "vocab": vocab_schema,
                 "results": results_schema,
             }
@@ -124,7 +125,7 @@ def test_tables_land_in_the_schema_their_role_declares(three_schema: _ThreeSchem
     assert inspector.has_table("concept", schema=three_schema.vocab_schema)
     assert inspector.has_table("domain", schema=three_schema.vocab_schema)
     assert inspector.has_table("cohort", schema=three_schema.results_schema)
-    assert inspector.has_table("observation_period", schema=three_schema.results_schema)
+    assert inspector.has_table("observation_period", schema=three_schema.clinical_schema)
 
     # And not duplicated into the wrong schema.
     assert not inspector.has_table("concept", schema=three_schema.clinical_schema)

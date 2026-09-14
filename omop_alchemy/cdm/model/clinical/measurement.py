@@ -21,6 +21,7 @@ from omop_alchemy.cdm.base import (
 class Measurement(Base, CDMTableBase, ValueMixin):
     __tablename__ = "measurement"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "measurement_concept_id"),
         omop_index(__tablename__, "visit_occurrence_id"),
@@ -29,7 +30,7 @@ class Measurement(Base, CDMTableBase, ValueMixin):
     )
 
     measurement_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("person.person_id"), nullable=False)
+    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
     measurement_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
     measurement_date: so.Mapped[date] = so.mapped_column(nullable=False)
     measurement_datetime: so.Mapped[Optional[datetime]]
@@ -41,9 +42,9 @@ class Measurement(Base, CDMTableBase, ValueMixin):
     range_low: so.Mapped[Optional[float]]
     range_high: so.Mapped[Optional[float]]
 
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("provider.provider_id"))
-    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("visit_occurrence.visit_occurrence_id"))
-    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("visit_detail.visit_detail_id"))
+    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")))
+    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")))
+    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id")))
 
     measurement_source_value: so.Mapped[Optional[str]]
     measurement_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()

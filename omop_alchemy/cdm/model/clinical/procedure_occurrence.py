@@ -1,6 +1,7 @@
 from __future__ import annotations
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from typing import Optional, TYPE_CHECKING
 from datetime import date
 from orm_loader.helpers import Base
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
 class Procedure_Occurrence(CDMTableBase, Base, PersonScoped, HealthSystemContext):
     __tablename__ = "procedure_occurrence"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "procedure_concept_id"),
         omop_index(__tablename__, "visit_occurrence_id")
@@ -116,6 +118,8 @@ class Procedure_OccurrenceView(
     ModifierTargetMixin,
 ):
     __tablename__ = "procedure_occurrence"
+    # Must match Procedure_Occurrence's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
 
     __event_id_col__ = "procedure_occurrence_id"

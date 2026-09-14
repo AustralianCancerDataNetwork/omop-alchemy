@@ -34,6 +34,7 @@ class Condition_Occurrence(
 ):
     __tablename__ = "condition_occurrence"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "condition_concept_id"),
         omop_index(__tablename__, "visit_occurrence_id")
@@ -73,6 +74,8 @@ class Condition_OccurrenceView(
     ModifierTargetMixin
 ):
     __tablename__ = "condition_occurrence"
+    # Must match Condition_Occurrence's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
     __event_id_col__ = "condition_occurrence_id"
     __concept_id_col__ = "condition_concept_id"

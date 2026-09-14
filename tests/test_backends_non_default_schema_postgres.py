@@ -18,6 +18,7 @@ from typing import Iterator, NamedTuple
 
 import pytest
 import sqlalchemy as sa
+from oa_configurator import Role
 
 from oa_configurator.testing import isolated_test_schema
 
@@ -50,7 +51,7 @@ def scoped(pg_engine: sa.Engine) -> Iterator[_Scoped]:
     """
     with isolated_test_schema(pg_engine, prefix="backends_non_default") as schema:
         engine = pg_engine.execution_options(
-            schema_translate_map={None: schema, "vocab": schema, "results": schema}
+            schema_translate_map={Role.PRIMARY.value: schema, "vocab": schema, "results": schema}
         )
         yield _Scoped(engine=engine, schema=schema)
 

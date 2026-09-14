@@ -10,6 +10,17 @@ import sqlalchemy as sa
 class TableCategory(StrEnum):
     """An OMOP CDM table's structural category, carrying its render style.
 
+    Represents a logical grouping of tables as defined by the 
+    [OMOP CDM spec](https://ohdsi.github.io/CommonDataModel/). 
+    The grouping is also reflected in the subpackage under 
+    ``omop_alchemy.cdm.model``, where the same logical grouping is used
+    to organize the ORM classes. 
+
+    Notes
+    -----
+    This logical grouping is independent of the physical schema in
+    which the table's data is stored (``oa_configurator.Role``).
+
     Parameters
     ----------
     code : str

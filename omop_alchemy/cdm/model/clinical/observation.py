@@ -21,6 +21,7 @@ from omop_alchemy.cdm.base import (
 class Observation(Base, CDMTableBase, ValueMixin):
     __tablename__ = "observation"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "observation_concept_id"),
         omop_index(__tablename__, "visit_occurrence_id"),
@@ -28,7 +29,7 @@ class Observation(Base, CDMTableBase, ValueMixin):
     )
 
     observation_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("person.person_id"), nullable=False)
+    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
     observation_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
     observation_date: so.Mapped[date] = so.mapped_column(nullable=False)
     observation_datetime: so.Mapped[Optional[datetime]]
@@ -38,9 +39,9 @@ class Observation(Base, CDMTableBase, ValueMixin):
     #value_as_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     qualifier_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     unit_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("provider.provider_id"))
-    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("visit_occurrence.visit_occurrence_id"))
-    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("visit_detail.visit_detail_id"))
+    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")))
+    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")))
+    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id")))
     observation_source_value: so.Mapped[Optional[str]]
     observation_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     unit_source_value: so.Mapped[Optional[str]]

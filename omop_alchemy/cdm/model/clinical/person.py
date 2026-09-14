@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from sqlalchemy.ext.declarative import declared_attr
 from typing import Optional
 from datetime import date
@@ -9,6 +10,7 @@ from sqlalchemy.sql import ColumnElement
 from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
+    role_fk,
     cdm_table,
     CDMTableBase, 
     required_concept_fk,
@@ -28,12 +30,13 @@ from omop_alchemy.cdm.base import (
 from ..vocabulary import Concept
 from ..health_system import Location, Provider, Care_Site
 from .death import Death
-from ..derived import Observation_Period
+from .observation_period import Observation_Period
 
 @cdm_table
 class Person(CDMTableBase,Base,HealthSystemContext):
     __tablename__ = "person"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "gender_concept_id"),
         omop_table_options(cluster_on=omop_primary_key_index_name("person")),
     )
@@ -52,9 +55,9 @@ class Person(CDMTableBase,Base,HealthSystemContext):
     race_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     ethnicity_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
 
-    location_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("location.location_id"), nullable=True)
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("provider.provider_id"), nullable=True)
-    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("care_site.care_site_id"), nullable=True)
+    location_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "location.location_id")), nullable=True)
+    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")), nullable=True)
+    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "care_site.care_site_id")), nullable=True)
     
     person_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
     gender_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
@@ -105,6 +108,8 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
     Avoid in ETL loops.
     """
     __tablename__ = "person"
+    # Must match Person's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
     __expected_domains__ = {
         "gender_concept_id": ExpectedDomain("Gender"),

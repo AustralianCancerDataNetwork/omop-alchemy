@@ -22,7 +22,7 @@ import uuid
 
 import pytest
 import sqlalchemy as sa
-from oa_configurator import SchemaDriftError
+from oa_configurator import SchemaDriftError, Role
 from oa_configurator.domains.resources.sql import SCHEMA_PROVENANCE_SCHEMA, _schema_provenance_table
 
 from oa_configurator.testing import delete_rows_on_cleanup, isolated_test_schema
@@ -58,7 +58,7 @@ def test_create_missing_tables_guard_fires_on_reconfigured_schema(pg_db, pg_engi
         isolated_test_schema(pg_engine, prefix="guard_wiring_b") as schema_b,
     ):
         engine_a = pg_engine.execution_options(
-            schema_translate_map={None: schema_a, "vocab": schema_a, "results": schema_a}
+            schema_translate_map={Role.PRIMARY.value: schema_a, "vocab": schema_a, "results": schema_a}
         )
         create_missing_tables(
             engine_a,
@@ -67,7 +67,7 @@ def test_create_missing_tables_guard_fires_on_reconfigured_schema(pg_db, pg_engi
         )
 
         engine_b = pg_engine.execution_options(
-            schema_translate_map={None: schema_b, "vocab": schema_b, "results": schema_b}
+            schema_translate_map={Role.PRIMARY.value: schema_b, "vocab": schema_b, "results": schema_b}
         )
         with pytest.raises(SchemaDriftError):
             create_missing_tables(

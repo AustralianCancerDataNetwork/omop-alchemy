@@ -1,10 +1,12 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from typing import Optional, TYPE_CHECKING
 from datetime import date
 from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
+    role_fk,
     CDMTableBase,
     cdm_table,
     optional_concept_fk,
@@ -23,9 +25,10 @@ if TYPE_CHECKING:
 class Death(CDMTableBase, Base):
     __tablename__ = "death"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_table_options(cluster_on=omop_primary_key_index_name("death")),
     )
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("person.person_id"), primary_key=True)
+    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), primary_key=True)
     death_date: so.Mapped[date] = so.mapped_column(nullable=False)
     death_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
     death_type_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
@@ -41,6 +44,8 @@ class DeathContext(ReferenceContext):
 
 class DeathView(Death, DeathContext, DomainValidationMixin):
     __tablename__ = "death"
+    # Must match Death's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
     __expected_domains__ = {
 

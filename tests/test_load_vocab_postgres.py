@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 
+from oa_configurator import Role
 from omop_alchemy.backends.postgres import PostgresBackend
 from omop_alchemy.cdm.model.vocabulary import Concept
 from omop_alchemy.maintenance.cli_vocab import (
@@ -279,7 +280,7 @@ def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
     # schema as everything else, matching ResolvedCDMDatabase's own default
     # fallback behaviour when vocab_schema/results_schema aren't configured.
     scoped_engine = pg_engine.execution_options(
-        schema_translate_map={None: schema, "vocab": schema, "results": schema}
+        schema_translate_map={Role.PRIMARY.value: schema, "vocab": schema, "results": schema}
     )
 
     try:

@@ -80,11 +80,12 @@ def clear_episode_event_target_class_cache() -> None:
 class Episode_Event(CDMTableBase, Base):
     __tablename__ = "episode_event"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "episode_id", cluster=True),
         omop_index(__tablename__, "episode_event_field_concept_id"),
     )
 
-    episode_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("episode.episode_id"),nullable=False,primary_key=True)
+    episode_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "episode.episode_id")),nullable=False,primary_key=True)
     event_id: so.Mapped[int] = so.mapped_column(nullable=False,primary_key=True)
     episode_event_field_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),nullable=False,primary_key=True)
 
@@ -104,6 +105,8 @@ class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMix
     """
 
     __tablename__ = "episode_event"
+    # Must match Episode_Event's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
 
     __expected_domains__ = {

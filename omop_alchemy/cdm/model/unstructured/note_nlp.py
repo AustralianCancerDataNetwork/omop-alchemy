@@ -1,11 +1,13 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from typing import Optional
 from datetime import date
 
 from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
+    role_fk,
     CDMTableBase,
     cdm_table, 
     optional_concept_fk,
@@ -18,6 +20,7 @@ from omop_alchemy.cdm.base import (
 class Note_NLP(CDMTableBase, Base):
     __tablename__ = "note_nlp"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "note_id", cluster=True),
         omop_index(__tablename__, "note_nlp_concept_id"),
     )
@@ -25,7 +28,7 @@ class Note_NLP(CDMTableBase, Base):
     note_nlp_id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
     note_id: so.Mapped[int] = so.mapped_column(
-        sa.ForeignKey("note.note_id"),
+        sa.ForeignKey(role_fk(Role.PRIMARY, "note.note_id")),
         nullable=False,
     )
 

@@ -46,7 +46,7 @@ def cli_stack(pg_engine, monkeypatch):
             )
         },
         databases={
-            "cli_rectify_db": CDMDatabaseConfig(connection="cli_rectify_conn", schema_name="public"),
+            "cli_rectify_db": CDMDatabaseConfig(connection="cli_rectify_conn", cdm_schema="public"),
         },
     )
     monkeypatch.setattr("omop_alchemy.maintenance.cli_schema.load_stack_config", lambda: stack)

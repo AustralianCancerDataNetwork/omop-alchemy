@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
 
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
 class Note(CDMTableBase, Base, PersonScoped, HealthSystemContext):
     __tablename__ = "note"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "note_type_concept_id"),
         omop_index(__tablename__, "visit_occurrence_id"),
@@ -114,6 +116,8 @@ class NoteContext(ReferenceContext):
 class NoteView(Note, NoteContext, DomainValidationMixin):
 
     __tablename__ = "note"
+    # Must match Note's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
 
     __expected_domains__ = {

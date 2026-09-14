@@ -28,6 +28,25 @@ def role_fk(role: Role, target: str) -> str:
     return f"{role.value}.{target}"
 
 
+def role_table(role: Role, table: str) -> str:
+    """Schema-qualify a bare table-name string, e.g. for ``relationship(secondary=...)``.
+    If a target table is schema-qualified, its metadata key is ``role.table``.
+
+    Parameters
+    ----------
+    role : Role
+        Schema role the target table is tagged with.
+    table : str
+        Unqualified table name.
+
+    Returns
+    -------
+    str
+        Schema-qualified table-reference string.
+    """
+    return f"{role.value}.{table}"
+
+
 def required_concept_fk():
     """
     *required_concept_fk*

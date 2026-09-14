@@ -572,7 +572,7 @@ def test_resolving_cdm_database_with_maintenance_schema_name_raises():
         StackConfig.for_session(
             connections={"c": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
             databases={
-                "default": CDMDatabaseConfig(connection="c", schema_name=MAINTENANCE_SCHEMA)
+                "default": CDMDatabaseConfig(connection="c", cdm_schema=MAINTENANCE_SCHEMA)
             },
         )
 

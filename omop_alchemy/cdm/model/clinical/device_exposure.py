@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from typing import Optional
 from datetime import date, datetime
 
@@ -29,6 +30,7 @@ class Device_Exposure(
 ):
     __tablename__ = "device_exposure"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "device_concept_id"),
         omop_index(__tablename__, "visit_occurrence_id"),

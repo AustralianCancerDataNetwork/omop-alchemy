@@ -6,6 +6,7 @@ import pytest
 import sqlalchemy as sa
 from orm_loader.helpers import bootstrap
 from oa_configurator.testing import isolated_test_database, isolated_test_schema
+from oa_configurator import SCHEMA_TRANSLATE_MAP_KEY, Role
 import sqlalchemy.orm as so
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -13,8 +14,7 @@ from typing import Any, Dict, Iterator, Tuple
 
 from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance.cli_vocab import _load_vocab_model_csv
-from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Person
-from omop_alchemy.cdm.model.derived import Observation_Period
+from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Observation_Period, Person
 from omop_alchemy.cdm.model.structural import Episode, Episode_Event
 from omop_alchemy.cdm.model.vocabulary import (
     Concept,
@@ -39,7 +39,7 @@ def fresh_engine() -> Iterator[sa.Engine]:
         "test_cdm_db_sqlite",
         dialect="sqlite",
         future=True,
-        execution_options={"schema_translate_map": {None: None, "vocab": None, "results": None}},
+        execution_options={SCHEMA_TRANSLATE_MAP_KEY: {Role.PRIMARY.value: None, "vocab": None, "results": None}},
     ) as db:
         yield db.connection.engine
 
@@ -333,7 +333,7 @@ def engine(tmp_path_factory: pytest.TempPathFactory) -> Iterator[sa.Engine]:
         # a single flat namespace: map every role back to None so the
         # vocab/results-tagged tables land in the same place they always
         # have here, unaffected by schema role tagging.
-        execution_options={"schema_translate_map": {None: None, "vocab": None, "results": None}},
+        execution_options={SCHEMA_TRANSLATE_MAP_KEY: {Role.PRIMARY.value: None, "vocab": None, "results": None}},
     ) as db:
         engine = db.connection.engine
         bootstrap(engine, create=True)
@@ -383,7 +383,7 @@ def pg_engine(pg_db):
     default, matching the single-schema setup ``pg_session`` provides.
     """
     return pg_db.committing_engine.execution_options(
-        schema_translate_map={None: None, "vocab": None, "results": None}
+        schema_translate_map={Role.PRIMARY.value: None, "vocab": None, "results": None}
     )
 
 
@@ -453,7 +453,7 @@ def pg_schema_session(pg_db):
     """
     with isolated_test_schema(pg_db.committing_engine, prefix="omop_alchemy") as schema:
         engine = pg_db.committing_engine.execution_options(
-            schema_translate_map={None: schema, "vocab": schema, "results": schema}
+            schema_translate_map={Role.PRIMARY.value: schema, "vocab": schema, "results": schema}
         )
         bootstrap(engine, create=True)
         session = so.Session(engine, expire_on_commit=False)
