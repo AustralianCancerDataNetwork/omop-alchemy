@@ -35,7 +35,7 @@ host = ...
 [databases.<your-configured-database>]
 kind = "cdm"
 connection = "<your-configured-connection>"
-schema_name = "<regular schema name>"
+cdm_schema = "<regular schema name>"
 vocab_schema = "myvocab"  # <- overwritten schema map
 
 [tools.omop_alchemy]
@@ -109,7 +109,7 @@ vocab_connection = "vocab"  # <- references your vocabulary DB
 
 [`oa-configurator`'s schema provenance guard](https://AustralianCancerDataNetwork.github.io/oa-configurator/architecture/#schema-provenance-guard) records which physical schema each role last resolved to, and refuses to run `create-missing-tables` if the configured schema for a role has silently changed since the last run. This mechanism is in place to stop a misconfiguration from creating an orphaned second copy of your tables. To make a genuine change deliberately:
 
-1. Update `vocab_schema`/`results_schema`/`schema_name` in `config.toml` through reconfiguration  
+1. Update `vocab_schema`/`results_schema`/`cdm_schema` in `config.toml` through reconfiguration  
     ```bash
     omop-config configure omop_alchemy
     ```
