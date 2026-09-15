@@ -134,6 +134,21 @@ class Backend(ABC):
     ) -> str | None:
         raise FeatureNotSupportedError("Cluster index inspection", self)
 
+    # ── Schema reconciliation ────────────────────────────────────────────────
+
+    def normalize_index_expression(self, sql_text: str) -> str:
+        """Canonicalize a reflected functional-index expression for comparison
+        against the ORM's own compiled expression text.
+
+        A backend's own catalog reflection can introduce dialect-specific
+        canonicalization noise (implicit casts, identifier case) that the
+        ORM's compiled text never has. Only called when a backend actually
+        reflects expression-based indexes back with real expression text to
+        normalize; a backend that can't (e.g. SQLite never reflects them at
+        all) never reaches this call.
+        """
+        raise FeatureNotSupportedError("Functional-index expression normalization", self)
+
     # ── Row counts ───────────────────────────────────────────────────────────
 
     def approximate_row_counts(

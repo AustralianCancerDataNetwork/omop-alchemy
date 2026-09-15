@@ -12,7 +12,7 @@ _DIALECT_TO_BACKEND_MAP: dict[Dialect, Backend] = {
     Dialect.SQLITE: SQLiteBackend(),
 }
 
-def resolve_backend(engine: sa.Engine) -> Backend:
+def resolve_backend(engine: sa.Engine | sa.Connection) -> Backend:
     dialect = engine.dialect.name
     try:
         supported_dialect = Dialect(dialect)

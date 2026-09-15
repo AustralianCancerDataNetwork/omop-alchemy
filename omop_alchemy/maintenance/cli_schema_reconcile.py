@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from oa_configurator import ResolvedDatabase, Role, find_table_in_other_schemas, supports_schemas
 from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, ReflectedIndex
 
-from ..backends import backend_supports, resolve_backend
+from ..backends import Backend, backend_supports, resolve_backend
 from ._cli_utils import Severity, Status
 from .cli_indexes import _cluster_column_names, _cluster_target_name, _find_equivalent_index
 from .tables import (
@@ -79,9 +79,8 @@ def _role_from_schema_tag(schema_tag: str | None) -> Role:
 def _effective_schema(
     resolved: ResolvedDatabase | None, role: Role, db_schema: str | None
 ) -> str | None:
-    """resolved.schema_for_role(role) when resolved is given, else db_schema
-    applied the same regardless of role. The fallback for a caller with no
-    resolved object to hand (e.g. a test built directly against a bare engine).
+    """resolved.schema_for_role(role) when given, else db_schema regardless
+    of role, the fallback for a caller with no resolved object to hand.
     """
     return resolved.schema_for_role(role) if resolved is not None else db_schema
 
@@ -91,21 +90,13 @@ def _schema_qualified_tables(
 ) -> dict[int, sa.Table]:
     """Schema-qualified copy of every table in Base.metadata, keyed by id() of the original.
 
-    Notes
-    -----
     Each table is qualified to its own role's schema via resolved, not one
-    blanket value: a vocab-role table can live in a different physical schema
-    than a clinical one.
-
-    Copied together into one MetaData() in a single pass: to_metadata() never
-    brings a referenced table along on its own, and resolving an FK's target
-    needs that table's copy already present in the same metadata. The whole
-    Base.metadata is copied, not just the selected/diffed subset, since a
-    selected table can reference one excluded from the diff itself (e.g. a
-    vocabulary FK target when vocabulary_included=False).
-
-    Returns the tables unchanged (keyed by their own id) when both resolved
-    and db_schema are None.
+    blanket value, since a vocab-role table can live in a different physical
+    schema than a clinical one. Copied together into one MetaData() (not per
+    table): to_metadata() never brings a referenced table along on its own,
+    and an FK's target needs its copy already present in the same metadata.
+    Returns the tables unchanged, keyed by their own id, when resolved and
+    db_schema are both None.
     """
     from orm_loader.helpers import Base
 
@@ -185,6 +176,39 @@ def _actual_indexes(
     }
 
 
+def _expected_index_signature(index: sa.Index, backend: Backend) -> tuple[str, ...]:
+    """Per-position signature for index: a plain column's name, or the
+    normalized compiled SQL text of an expression (e.g. ``func.lower(...)``),
+    matching how the database reflects a functional index back. Expression
+    normalization is dialect-specific (e.g. Postgres's own catalog inserts
+    casts as reflection noise), so it's delegated to backend.
+    """
+    signature = []
+    for expr in index.expressions:
+        if isinstance(expr, sa.Column):
+            signature.append(expr.name)
+        elif isinstance(expr, str):
+            signature.append(backend.normalize_index_expression(expr))
+        else:
+            compiled = str(expr.compile(compile_kwargs={"literal_binds": True}))
+            signature.append(backend.normalize_index_expression(compiled))
+    return tuple(signature)
+
+
+def _actual_index_signature(actual_index: ReflectedIndex, backend: Backend) -> tuple[str, ...]:
+    """Per-position signature for a reflected index, matching
+    :func:`_expected_index_signature`'s shape.
+    """
+    column_names = actual_index.get("column_names") or []
+    if "expressions" not in actual_index:
+        return tuple(name for name in column_names if name is not None)
+    expressions = iter(actual_index.get("expressions") or [])
+    return tuple(
+        name if name is not None else backend.normalize_index_expression(next(expressions))
+        for name in column_names
+    )
+
+
 def reconcile_schema(
     engine: sa.Engine,
     *,
@@ -192,11 +216,27 @@ def reconcile_schema(
     db_schema: str | None = None,
     vocabulary_included: bool = False,
 ) -> SchemaReconciliationReport:
-    """Compare ORM metadata against the live database schema. Reports missing columns, indexes, FKs, and cluster state.
+    """Compare ORM metadata against the live database schema.
 
-    resolved, when given, qualifies each table to its own role's schema
-    (schema_name/vocab_schema/results_schema) rather than applying db_schema
-    to every table regardless of role.
+    Parameters
+    ----------
+    engine : sqlalchemy.Engine
+        Engine to inspect. Its dialect selects the backend used for
+        cluster-state checks.
+    resolved : ResolvedDatabase, optional
+        When given, qualifies each table to its own role's schema
+        (schema_name/vocab_schema/results_schema) instead of applying
+        db_schema to every table regardless of role.
+    db_schema : str, optional
+        Blanket schema applied to every table when resolved is not given.
+    vocabulary_included : bool, optional
+        Whether vocabulary tables are included in the diff.
+
+    Returns
+    -------
+    SchemaReconciliationReport
+        Per-table status plus every column, index, FK, and cluster issue
+        found.
     """
     excluded_categories: tuple[TableCategory, ...] = (
         () if vocabulary_included else (TableCategory.VOCABULARY,)
@@ -451,9 +491,9 @@ def reconcile_schema(
                     continue
 
                 actual_index = actual_idxs[index_name]
-                expected_columns_for_index = tuple(column.name for column in index.columns)
-                actual_columns_for_index = tuple(c for c in (actual_index.get("column_names") or []) if c is not None)
-                if expected_columns_for_index != actual_columns_for_index:
+                expected_signature = _expected_index_signature(index, _backend)
+                actual_signature = _actual_index_signature(actual_index, _backend)
+                if expected_signature != actual_signature:
                     table_issues.append(
                         ReconciliationIssue(
                             table_name=maintenance_table.table_name,
@@ -461,8 +501,8 @@ def reconcile_schema(
                             component="index",
                             object_name=index_name,
                             status=Status.MISMATCH,
-                            expected=", ".join(expected_columns_for_index),
-                            actual=", ".join(actual_columns_for_index) if actual_columns_for_index else None,
+                            expected=", ".join(expected_signature),
+                            actual=", ".join(actual_signature) if actual_signature else None,
                             detail="Index columns differ from ORM metadata.",
                         )
                     )

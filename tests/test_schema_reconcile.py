@@ -216,18 +216,7 @@ def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_sch
 
         report = reconcile_schema(engine, resolved=resolved, vocabulary_included=True)
 
-        # index issues are excluded here: ix_concept_concept_name_lower is a
-        # functional index (lower(concept_name)), and reconcile_schema's
-        # index diff can't read its expression column back from the
-        # inspector. Confirmed pre-existing and schema-independent (it
-        # reproduces against a single non-default schema too), so it is out
-        # of scope for this test, which only covers cross-schema behaviour.
-        # cluster issues are no longer excluded: reconcile_schema's cluster
-        # check used to call get_clustered_index_name() without a role,
-        # always inspecting the primary schema, so a vocab/results table's
-        # real cluster state was invisible whenever its schema differed from
-        # primary. Fixed by passing role=table_role through.
-        checked_components = {"table", "column", "primary_key", "foreign_key", "cluster"}
+        checked_components = {"table", "column", "primary_key", "foreign_key", "cluster", "index"}
         for table_name in ("person", "concept", "observation_period"):
             issues = [
                 issue
@@ -235,6 +224,45 @@ def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_sch
                 if issue.table_name == table_name and issue.component in checked_components
             ]
             assert issues == [], (table_name, issues)
+
+
+@pytest.mark.postgresql
+@pytest.mark.db_dialect
+def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db, pg_engine):
+    """concept's ix_concept_concept_name_lower (a functional index,
+    lower(concept_name)) reports no drift when unchanged, and a real
+    MISMATCH when its live expression is deliberately altered. Proves the
+    normalization process compares signatures rather than just silencing the check.
+    """
+    with isolated_test_schema(pg_engine, prefix="reconcile_functional_index") as schema:
+        resolved = dataclasses.replace(
+            pg_db.resolved, schema_name=schema, vocab_schema=schema, results_schema=schema
+        )
+        engine = pg_engine.execution_options(
+            schema_translate_map={Role.PRIMARY.value: schema, "vocab": schema, "results": schema}
+        )
+        create_missing_tables(engine, resolved=resolved)
+
+        def _index_issues(report):
+            return [
+                issue
+                for issue in report.issues
+                if issue.table_name == "concept" and issue.object_name == "ix_concept_concept_name_lower"
+            ]
+
+        report = reconcile_schema(engine, resolved=resolved, vocabulary_included=True)
+        assert _index_issues(report) == []
+
+        with engine.begin() as connection:
+            connection.exec_driver_sql(f'DROP INDEX {qualified(connection, "ix_concept_concept_name_lower")}')
+            connection.exec_driver_sql(
+                f'CREATE INDEX ix_concept_concept_name_lower ON {qualified(connection, "concept")} (upper(concept_name))'
+            )
+
+        report = reconcile_schema(engine, resolved=resolved, vocabulary_included=True)
+        issues = _index_issues(report)
+        assert len(issues) == 1
+        assert issues[0].status == "mismatch"
 
 
 def test_is_blocking_issue_excludes_renamed_only():
@@ -349,3 +377,25 @@ def test_reconcile_schema_cluster_check_reports_renamed_for_pk_based_cluster_tar
     assert cluster_issues[0].actual == "idx_person_id"
     assert unexpected_index_issues == []
     assert person_result.status == "matched"
+
+
+@pytest.mark.parametrize(
+    ("a", "b", "should_match"),
+    [
+        pytest.param("lower(x)", "lower(x::text)", True, id="cosmetic-textlike-cast-ignored"),
+        pytest.param("LOWER(x)", "lower(x::text)", True, id="function-name-case-ignored"),
+        pytest.param("lower( x )", "lower(x::text)", True, id="incidental-whitespace-ignored"),
+        pytest.param("sum(x::numeric)", "sum(x::integer)", False, id="meaningful-cast-still-caught"),
+        pytest.param(
+            "coalesce(x, 'Unknown')", "coalesce(x, 'unknown')", False, id="literal-case-still-caught"
+        ),
+        pytest.param(
+            "concat_ws(' - ', a, b)", "concat_ws('-', a, b)", False, id="literal-whitespace-still-caught"
+        ),
+    ],
+)
+def test_normalize_index_expression_ignores_cosmetic_noise_but_not_real_drift(a, b, should_match):
+    from omop_alchemy.backends.postgres import PostgresBackend
+
+    backend = PostgresBackend()
+    assert (backend.normalize_index_expression(a) == backend.normalize_index_expression(b)) is should_match

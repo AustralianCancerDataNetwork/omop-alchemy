@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 
 import sqlalchemy as sa
@@ -10,6 +11,9 @@ from sqlalchemy.dialects.postgresql import REGCONFIG, TSVECTOR
 from sqlalchemy.sql import func
 
 from .base import Backend, FullTextTargetConfig
+
+_STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
+_TEXTLIKE_CAST = re.compile(r"::(?:text|varchar|character varying|bpchar|char)\b", re.IGNORECASE)
 
 
 class PostgresBackend(Backend):
@@ -135,6 +139,30 @@ class PostgresBackend(Backend):
             {"table_name": table_name, "db_schema": schema_of(conn, role=role)},
         ).scalar_one_or_none()
         return str(result) if result is not None else None
+
+    # ── Schema reconciliation ────────────────────────────────────────────────
+
+    def normalize_index_expression(self, sql_text: str) -> str:
+        """Strip whitespace and casts to a text-ish type outside string
+        literals, and fold case the same way.
+
+        Postgres's own catalog inserts these casts around string functions
+        as cosmetic noise when reflecting an index back, e.g.
+        ``lower(concept_name::text)``. A cast to any other type
+        (``::numeric``, ``::integer``, ...) is left intact, since that
+        changes the expression's actual computation. Literal contents are
+        never touched: identifiers, keywords, and casts are
+        case/whitespace-insensitive in Postgres, but a literal value isn't.
+        """
+        parts = []
+        last_end = 0
+        for match in _STRING_LITERAL.finditer(sql_text):
+            before = sql_text[last_end : match.start()]
+            parts.append(_TEXTLIKE_CAST.sub("", before).replace(" ", "").lower())
+            parts.append(match.group(0))
+            last_end = match.end()
+        parts.append(_TEXTLIKE_CAST.sub("", sql_text[last_end:]).replace(" ", "").lower())
+        return "".join(parts)
 
     # ── Row counts ───────────────────────────────────────────────────────────
 
