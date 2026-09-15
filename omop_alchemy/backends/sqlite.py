@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlalchemy as sa
-from oa_configurator import Dialect
+from oa_configurator import Dialect, Role
 
 from .base import Backend, FeatureNotSupportedError
 
@@ -20,6 +20,8 @@ class SQLiteBackend(Backend):
         self,
         conn: sa.Connection,
         index_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> bool:
         row = conn.exec_driver_sql(
             "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
@@ -33,6 +35,7 @@ class SQLiteBackend(Backend):
         table_name: str,
         *,
         vacuum: bool = False,
+        role: Role = Role.PRIMARY,
     ) -> None:
         if vacuum:
             raise FeatureNotSupportedError("VACUUM ANALYZE", self)

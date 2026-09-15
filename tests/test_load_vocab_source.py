@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
 from sqlalchemy.orm import sessionmaker
 from typer.testing import CliRunner
 
@@ -698,6 +698,7 @@ def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, monke
                     operation="index",
                     table_name="concept",
                     category=TableCategory.VOCABULARY,
+                    role=Role.VOCAB,
                     index_name="idx_concept_partial",
                     column_names=("domain_id",),
                     unique=False,
@@ -713,6 +714,7 @@ def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, monke
                 operation="index",
                 table_name="concept",
                 category=TableCategory.VOCABULARY,
+                role=Role.VOCAB,
                 index_name="ix_concept_domain_id",
                 column_names=("domain_id",),
                 unique=False,

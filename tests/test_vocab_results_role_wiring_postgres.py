@@ -15,6 +15,7 @@ split-connection case covered separately in omop-graph's
 
 from __future__ import annotations
 
+import uuid
 from contextlib import ExitStack
 from datetime import date
 from typing import Iterator, NamedTuple
@@ -23,7 +24,7 @@ import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
-from oa_configurator import Role
+from oa_configurator import ResolvedCDMDatabase, ResolvedConnection, Role
 from oa_configurator.testing import isolated_test_schema
 
 from omop_alchemy.cdm.model.clinical import Observation, Person
@@ -116,7 +117,7 @@ def _bootstrap_vocab(engine: sa.Engine, vocab_schema: str) -> None:
 
 def test_tables_land_in_the_schema_their_role_declares(three_schema: _ThreeSchema) -> None:
     create_missing_tables(
-        three_schema.engine, db_schema=three_schema.clinical_schema, vocabulary_included=True
+        three_schema.engine, vocabulary_included=True
     )
 
     inspector = sa.inspect(three_schema.engine)
@@ -136,7 +137,7 @@ def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
     three_schema: _ThreeSchema,
 ) -> None:
     create_missing_tables(
-        three_schema.engine, db_schema=three_schema.clinical_schema, vocabulary_included=True
+        three_schema.engine, vocabulary_included=True
     )
     _bootstrap_vocab(three_schema.engine, three_schema.vocab_schema)
 
@@ -183,3 +184,60 @@ def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
             sa.select(Cohort.cohort_definition_id).where(Cohort.subject_id == 1)
         ).one()
         assert cohort_row.cohort_definition_id == 1
+
+
+def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_database(
+    pg_engine: sa.Engine, cleanup_after_test
+) -> None:
+    """create_missing_tables() used to call ensure_schema() only for the
+    primary schema, so a genuinely fresh database (where vocab/results
+    schemas don't exist yet either, unlike three_schema's fixture which
+    pre-creates all three) failed "schema does not exist" for every
+    vocab/results table. Deliberately doesn't use isolated_test_schema():
+    that physically creates the schema up front, which is exactly the step
+    under test here.
+    """
+    clinical_schema = f"phase32_fresh_clinical_{uuid.uuid4().hex[:8]}"
+    vocab_schema = f"phase32_fresh_vocab_{uuid.uuid4().hex[:8]}"
+    results_schema = f"phase32_fresh_results_{uuid.uuid4().hex[:8]}"
+
+    def _drop_schemas() -> None:
+        with pg_engine.begin() as conn:
+            for schema in (clinical_schema, vocab_schema, results_schema):
+                conn.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+
+    cleanup_after_test(_drop_schemas)
+
+    url = pg_engine.url
+    connection = ResolvedConnection(
+        name="fresh_schema_test",
+        url=url.render_as_string(hide_password=False),
+        safe_url=url.render_as_string(hide_password=True),
+        _engine_url=url,
+    )
+    resolved = ResolvedCDMDatabase(
+        name="fresh_schema_test",
+        connection=connection,
+        schema_name=clinical_schema,
+        vocab_connection=connection,
+        vocab_schema=vocab_schema,
+        results_schema=results_schema,
+    )
+    engine = pg_engine.execution_options(
+        schema_translate_map={
+            Role.PRIMARY.value: clinical_schema,
+            "vocab": vocab_schema,
+            "results": results_schema,
+        }
+    )
+
+    create_missing_tables(
+        engine,
+        vocabulary_included=True,
+        resolved=resolved,
+    )
+
+    inspector = sa.inspect(engine)
+    assert inspector.has_table("person", schema=clinical_schema)
+    assert inspector.has_table("concept", schema=vocab_schema)
+    assert inspector.has_table("cohort", schema=results_schema)

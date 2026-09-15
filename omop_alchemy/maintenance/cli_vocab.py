@@ -377,7 +377,6 @@ def load_vocab_source(
             engine,
             enable=False,
             vocabulary_included=True,
-            db_schema=db_schema,
             dry_run=False,
         )
         _emit(
@@ -390,7 +389,6 @@ def load_vocab_source(
             engine,
             enable=False,
             vocabulary_included=True,
-            db_schema=db_schema,
             dry_run=False,
         )
         index_warnings = tuple(
@@ -543,7 +541,6 @@ def load_vocab_source(
                 engine,
                 enable=True,
                 vocabulary_included=True,
-                db_schema=db_schema,
                 dry_run=False,
                 cluster=False,
             )
@@ -557,7 +554,6 @@ def load_vocab_source(
                 engine,
                 enable=True,
                 vocabulary_included=True,
-                db_schema=db_schema,
                 dry_run=False,
             )
 
@@ -571,7 +567,6 @@ def load_vocab_source(
     if not dry_run and engine.dialect.name == Dialect.POSTGRESQL:
         sequence_results = reset_model_sequences(
             engine,
-            db_schema=db_schema,
             vocabulary_included=True,
             dry_run=False,
         )

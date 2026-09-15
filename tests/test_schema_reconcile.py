@@ -75,7 +75,7 @@ def reconcile_engine(request) -> _ReconcileEngine:
         resolved = _sqlite_resolved(engine)
     create_missing_tables(engine)
     if request.param == Dialect.POSTGRESQL:
-        manage_indexes(engine, enable=True, db_schema=schema)
+        manage_indexes(engine, enable=True)
     else:
         manage_indexes(engine, enable=True)
     return _ReconcileEngine(engine, resolved)
@@ -167,7 +167,7 @@ def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(p
         # vocabulary_included defaults to True: person's gender_concept_id FK
         # targets a vocab table, so excluding vocab here would leave that FK
         # unresolved and person itself blocked from creation.
-        create_missing_tables(engine, db_schema=schema_a, resolved=resolved)
+        create_missing_tables(engine, resolved=resolved)
         with engine.begin() as connection:
             connection.exec_driver_sql(f'ALTER TABLE "{schema_a}".person SET SCHEMA "{schema_b}"')
 
@@ -211,16 +211,23 @@ def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_sch
                 Role.PRIMARY.value: primary_schema, "vocab": vocab_schema, "results": results_schema
             }
         )
-        create_missing_tables(engine, db_schema=primary_schema, resolved=resolved)
+        create_missing_tables(engine, resolved=resolved)
+        manage_indexes(engine, enable=True, vocabulary_included=True)
 
         report = reconcile_schema(engine, resolved=resolved, vocabulary_included=True)
 
-        # cluster/index issues are excluded here. manage_indexes()/
-        # cli_indexes.py's cluster commands have their own, separate
-        # cross-schema bug (found while writing this test, not yet
-        # investigated). This test only verifies that reconcile_schema
-        # resolves each table's own role schema instead of one blanket value.
-        checked_components = {"table", "column", "primary_key", "foreign_key"}
+        # index issues are excluded here: ix_concept_concept_name_lower is a
+        # functional index (lower(concept_name)), and reconcile_schema's
+        # index diff can't read its expression column back from the
+        # inspector. Confirmed pre-existing and schema-independent (it
+        # reproduces against a single non-default schema too), so it is out
+        # of scope for this test, which only covers cross-schema behaviour.
+        # cluster issues are no longer excluded: reconcile_schema's cluster
+        # check used to call get_clustered_index_name() without a role,
+        # always inspecting the primary schema, so a vocab/results table's
+        # real cluster state was invisible whenever its schema differed from
+        # primary. Fixed by passing role=table_role through.
+        checked_components = {"table", "column", "primary_key", "foreign_key", "cluster"}
         for table_name in ("person", "concept", "observation_period"):
             issues = [
                 issue
@@ -261,7 +268,7 @@ def test_reconcile_schema_cluster_check_reports_renamed_for_foreign_cluster_inde
     monkeypatch.setattr(
         SQLiteBackend,
         "get_clustered_index_name",
-        lambda self, conn, table_name: (
+        lambda self, conn, table_name, role=None: (
             "idx_episode_person" if table_name == "episode" else None
         ),
     )
@@ -288,7 +295,7 @@ def test_reconcile_schema_cluster_check_still_reports_real_mismatch(fresh_reconc
     monkeypatch.setattr(
         SQLiteBackend,
         "get_clustered_index_name",
-        lambda self, conn, table_name: (
+        lambda self, conn, table_name, role=None: (
             "some_unrelated_index" if table_name == "episode" else None
         ),
     )
@@ -322,7 +329,7 @@ def test_reconcile_schema_cluster_check_reports_renamed_for_pk_based_cluster_tar
     monkeypatch.setattr(
         SQLiteBackend,
         "get_clustered_index_name",
-        lambda self, conn, table_name: (
+        lambda self, conn, table_name, role=None: (
             "idx_person_id" if table_name == "person" else None
         ),
     )

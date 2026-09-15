@@ -2,7 +2,7 @@ import pytest
 import sqlalchemy as sa
 from pydantic import ValidationError
 from typer.testing import CliRunner
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig, qualified
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig, qualified
 from oa_configurator.testing import DIALECT_PARAMS
 
 from omop_alchemy.backends.sqlite import SQLiteBackend
@@ -201,9 +201,9 @@ def test_manage_indexes_enable_analyzes_tables_with_new_indexes(sqlite_indexed_e
     analyzed_tables: list[str] = []
     original_analyze = SQLiteBackend.analyze_table
 
-    def recording_analyze(self, conn, table_name, *, vacuum=False):
+    def recording_analyze(self, conn, table_name, *, vacuum=False, role=Role.PRIMARY):
         analyzed_tables.append(table_name)
-        return original_analyze(self, conn, table_name, vacuum=vacuum)
+        return original_analyze(self, conn, table_name, vacuum=vacuum, role=role)
 
     monkeypatch.setattr(SQLiteBackend, "analyze_table", recording_analyze)
 
@@ -345,10 +345,10 @@ def test_manage_indexes_enable_clusters_then_analyzes(sqlite_indexed_engine, mon
 
     calls: list[str] = []
 
-    def fake_cluster_table(self, conn, table_name, index_name):
+    def fake_cluster_table(self, conn, table_name, index_name, *, role=Role.PRIMARY):
         calls.append(f"cluster:{table_name}")
 
-    def fake_analyze_table(self, conn, table_name, *, vacuum=False):
+    def fake_analyze_table(self, conn, table_name, *, vacuum=False, role=Role.PRIMARY):
         calls.append(f"analyze:{table_name}")
 
     monkeypatch.setattr(SQLiteBackend, "cluster_table", fake_cluster_table)
@@ -395,6 +395,7 @@ def test_disable_indexes_cli_invokes_management(monkeypatch):
                 operation="index",
                 table_name="person",
                 category=TableCategory.CLINICAL,
+                role=Role.PRIMARY,
                 index_name=PERSON_GENDER_INDEX,
                 column_names=("gender_concept_id",),
                 unique=False,
@@ -459,6 +460,7 @@ def test_enable_indexes_cli_no_cluster_flag_passes_through(monkeypatch):
                 operation="index",
                 table_name="person",
                 category=TableCategory.CLINICAL,
+                role=Role.PRIMARY,
                 index_name=PERSON_GENDER_INDEX,
                 column_names=("gender_concept_id",),
                 unique=False,
@@ -731,14 +733,14 @@ def test_manage_indexes_enable_cluster_uses_restored_physical_name(sqlite_indexe
 
     calls: list[tuple[str, str]] = []
 
-    def fake_cluster_table(self, conn, table_name, index_name):
+    def fake_cluster_table(self, conn, table_name, index_name, *, role=Role.PRIMARY):
         calls.append((table_name, index_name))
 
     monkeypatch.setattr(SQLiteBackend, "cluster_table", fake_cluster_table)
     monkeypatch.setattr(
         SQLiteBackend,
         "analyze_table",
-        lambda self, conn, table_name, *, vacuum=False: None,
+        lambda self, conn, table_name, *, vacuum=False, role=Role.PRIMARY: None,
     )
 
     manage_indexes(engine, enable=True, cluster=True)
@@ -815,6 +817,7 @@ def _warning_result() -> IndexManagementResult:
         operation="index",
         table_name="person",
         category=TableCategory.CLINICAL,
+        role=Role.PRIMARY,
         index_name="idx_gender_partial",
         column_names=("gender_concept_id",),
         unique=False,
@@ -836,6 +839,7 @@ def test_render_index_summary_omits_warnings_row_when_none():
         operation="index",
         table_name="person",
         category=TableCategory.CLINICAL,
+        role=Role.PRIMARY,
         index_name=PERSON_GENDER_INDEX,
         column_names=("gender_concept_id",),
         unique=False,

@@ -106,8 +106,8 @@ def _build_recommendations(
                     status=Status.WARNING,
                     summary="Some tables were found under a different schema than expected.",
                     action=(
-                        "Run `omop-alchemy acknowledge-schema-migration` if this was a "
-                        "deliberate change, or `omop-alchemy drop-orphan-schema-tables` to "
+                        "Run `omop-config acknowledge-schema-migration` if this was a "
+                        "deliberate change, or `omop-config drop-orphan-schema-tables` to "
                         "clean up an orphaned copy."
                     ),
                 )
@@ -275,7 +275,6 @@ def collect_doctor_report(
             foreign_key_status = tuple(
                 collect_foreign_key_trigger_status(
                     engine,
-                    db_schema=db_schema,
                     vocabulary_included=vocabulary_included,
                 )
             )
@@ -299,7 +298,6 @@ def collect_doctor_report(
             if deep:
                 foreign_key_validation = validate_foreign_key_constraints(
                     engine,
-                    db_schema=db_schema,
                     vocabulary_included=vocabulary_included,
                 )
                 violating_tables = sum(

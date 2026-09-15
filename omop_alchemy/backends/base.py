@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 import sqlalchemy as sa
+from oa_configurator import Role
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement
@@ -85,6 +86,7 @@ class Backend(ABC):
         table_name: str,
         *,
         enable: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
         raise FeatureNotSupportedError("FK trigger management", self)
 
@@ -92,6 +94,8 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> tuple[int, int]:
         """Return (disabled_count, enabled_count) for RI triggers on the table."""
         raise FeatureNotSupportedError("FK trigger status inspection", self)
@@ -103,6 +107,9 @@ class Backend(ABC):
         referred_table: str,
         constrained_cols: list[str],
         referred_cols: list[str],
+        *,
+        source_role: Role = Role.PRIMARY,
+        referred_role: Role = Role.PRIMARY,
     ) -> int:
         raise FeatureNotSupportedError("FK constraint violation counting", self)
 
@@ -113,6 +120,8 @@ class Backend(ABC):
         conn: sa.Connection,
         table_name: str,
         index_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> None:
         raise FeatureNotSupportedError("Table clustering", self)
 
@@ -120,6 +129,8 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> str | None:
         raise FeatureNotSupportedError("Cluster index inspection", self)
 
@@ -147,12 +158,15 @@ class Backend(ABC):
         table_name: str,
         *,
         vacuum: bool = False,
+        role: Role = Role.PRIMARY,
     ) -> None: ...
 
     def index_exists(
         self,
         conn: sa.Connection,
         index_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> bool:
         """Return True when the named index currently exists on the database.
 
@@ -165,12 +179,17 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         index_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> None:
         """Drop an index by name without relying on SQLAlchemy's reflection-based checkfirst.
 
         Some backends (e.g. SQLite) can't reflect expression-based indexes, so
         Index.drop(checkfirst=True) would silently no-op on them. IF EXISTS is
-        evaluated by the database itself, not by reflection.
+        evaluated by the database itself, not by reflection. role is accepted
+        for interface parity with the schema-aware override
+        (PostgresBackend); this default implementation is unqualified,
+        matching SQLite having no schema concept to route through.
         """
         conn.exec_driver_sql(f'DROP INDEX IF EXISTS "{index_name}"')
 
@@ -181,6 +200,7 @@ class Backend(ABC):
         *,
         restart_identities: bool,
         cascade: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
         raise FeatureNotSupportedError("TRUNCATE with RESTART IDENTITY / CASCADE", self)
 
@@ -191,6 +211,8 @@ class Backend(ABC):
         conn: sa.Connection,
         table_name: str,
         column_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> str | None:
         raise FeatureNotSupportedError("Owned sequence lookup", self)
 
@@ -238,6 +260,7 @@ class Backend(ABC):
         index_name: str,
         create_indexes: bool,
         fastupdate: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
         raise FeatureNotSupportedError("Full-text search", self)
 
@@ -249,6 +272,7 @@ class Backend(ABC):
         vector_column_name: str,
         source_column_name: str,
         regconfig: str,
+        role: Role = Role.PRIMARY,
     ) -> int | None:
         raise FeatureNotSupportedError("Full-text search", self)
 
@@ -260,6 +284,7 @@ class Backend(ABC):
         vector_column_name: str,
         index_name: str,
         drop_indexes: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
         raise FeatureNotSupportedError("Full-text search", self)
 
@@ -270,6 +295,8 @@ class Backend(ABC):
         engine: sa.Engine,
         output_path: str,
         backup_format: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> tuple[str, list[str], dict[str, str], str]:
         """Return (tool_path, command, env, database_name). subprocess.run stays in CLI."""
         raise FeatureNotSupportedError("Database backup", self)
@@ -279,6 +306,8 @@ class Backend(ABC):
         engine: sa.Engine,
         input_path: str,
         backup_format: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> tuple[str, list[str], dict[str, str], str]:
         """Return (tool_path, command, env, database_name). subprocess.run stays in CLI."""
         raise FeatureNotSupportedError("Database restore", self)

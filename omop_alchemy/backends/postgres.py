@@ -5,7 +5,7 @@ import shutil
 
 import sqlalchemy as sa
 
-from oa_configurator import Dialect, qualified, schema_of
+from oa_configurator import Dialect, Role, qualified, schema_of
 from sqlalchemy.dialects.postgresql import REGCONFIG, TSVECTOR
 from sqlalchemy.sql import func
 
@@ -30,16 +30,19 @@ class PostgresBackend(Backend):
         table_name: str,
         *,
         enable: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
         action = "ENABLE" if enable else "DISABLE"
         conn.exec_driver_sql(
-            f"ALTER TABLE {qualified(conn, table_name)} {action} TRIGGER ALL"
+            f"ALTER TABLE {qualified(conn, table_name, role=role)} {action} TRIGGER ALL"
         )
 
     def get_fk_trigger_counts(
         self,
         conn: sa.Connection,
         table_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> tuple[int, int]:
         disabled_count, enabled_count = conn.execute(
             sa.text(
@@ -56,7 +59,7 @@ class PostgresBackend(Backend):
                   AND (CAST(:db_schema AS TEXT) IS NULL OR n.nspname = :db_schema)
                 """
             ),
-            {"table_name": table_name, "db_schema": schema_of(conn)},
+            {"table_name": table_name, "db_schema": schema_of(conn, role=role)},
         ).one()
         return int(disabled_count or 0), int(enabled_count or 0)
 
@@ -67,9 +70,12 @@ class PostgresBackend(Backend):
         referred_table: str,
         constrained_cols: list[str],
         referred_cols: list[str],
+        *,
+        source_role: Role = Role.PRIMARY,
+        referred_role: Role = Role.PRIMARY,
     ) -> int:
-        source = qualified(conn, source_table)
-        referred = qualified(conn, referred_table)
+        source = qualified(conn, source_table, role=source_role)
+        referred = qualified(conn, referred_table, role=referred_role)
         non_null_predicate = " AND ".join(
             f"src.{col} IS NOT NULL" for col in constrained_cols
         )
@@ -99,15 +105,19 @@ class PostgresBackend(Backend):
         conn: sa.Connection,
         table_name: str,
         index_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> None:
         conn.exec_driver_sql(
-            f"CLUSTER {qualified(conn, table_name)} USING {index_name}"
+            f"CLUSTER {qualified(conn, table_name, role=role)} USING {index_name}"
         )
 
     def get_clustered_index_name(
         self,
         conn: sa.Connection,
         table_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> str | None:
         result = conn.execute(
             sa.text(
@@ -122,7 +132,7 @@ class PostgresBackend(Backend):
                   AND (CAST(:db_schema AS TEXT) IS NULL OR n.nspname = :db_schema)
                 """
             ),
-            {"table_name": table_name, "db_schema": schema_of(conn)},
+            {"table_name": table_name, "db_schema": schema_of(conn, role=role)},
         ).scalar_one_or_none()
         return str(result) if result is not None else None
 
@@ -149,16 +159,19 @@ class PostgresBackend(Backend):
         table_name: str,
         *,
         vacuum: bool = False,
+        role: Role = Role.PRIMARY,
     ) -> None:
         operation = "VACUUM ANALYZE" if vacuum else "ANALYZE"
-        conn.exec_driver_sql(f"{operation} {qualified(conn, table_name)}")
+        conn.exec_driver_sql(f"{operation} {qualified(conn, table_name, role=role)}")
 
     def index_exists(
         self,
         conn: sa.Connection,
         index_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> bool:
-        qualified_index_name = qualified(conn, index_name)
+        qualified_index_name = qualified(conn, index_name, role=role)
         return bool(
             conn.scalar(
                 sa.select(
@@ -167,8 +180,10 @@ class PostgresBackend(Backend):
             )
         )
 
-    def drop_index_if_exists(self, conn: sa.Connection, index_name: str) -> None:
-        conn.exec_driver_sql(f"DROP INDEX IF EXISTS {qualified(conn, index_name)}")
+    def drop_index_if_exists(
+        self, conn: sa.Connection, index_name: str, *, role: Role = Role.PRIMARY
+    ) -> None:
+        conn.exec_driver_sql(f"DROP INDEX IF EXISTS {qualified(conn, index_name, role=role)}")
 
     def truncate_table_batch(
         self,
@@ -177,9 +192,10 @@ class PostgresBackend(Backend):
         *,
         restart_identities: bool,
         cascade: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
         sql = "TRUNCATE TABLE " + ", ".join(
-            qualified(conn, name) for name in table_names
+            qualified(conn, name, role=role) for name in table_names
         )
         if restart_identities:
             sql += " RESTART IDENTITY"
@@ -194,8 +210,10 @@ class PostgresBackend(Backend):
         conn: sa.Connection,
         table_name: str,
         column_name: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> str | None:
-        fully_qualified = qualified(conn, table_name)
+        fully_qualified = qualified(conn, table_name, role=role)
         return conn.execute(
             sa.text("SELECT pg_get_serial_sequence(:table_name, :column_name)"),
             {"table_name": fully_qualified, "column_name": column_name},
@@ -283,8 +301,9 @@ class PostgresBackend(Backend):
         index_name: str,
         create_indexes: bool,
         fastupdate: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
-        qualified_table = qualified(conn, table_name)
+        qualified_table = qualified(conn, table_name, role=role)
         conn.exec_driver_sql(
             f"ALTER TABLE {qualified_table} ADD COLUMN IF NOT EXISTS {vector_column_name} tsvector"
         )
@@ -293,7 +312,7 @@ class PostgresBackend(Backend):
                 table_name,
                 sa.MetaData(),
                 sa.Column(vector_column_name, TSVECTOR),
-                schema=schema_of(conn),
+                schema=schema_of(conn, role=role),
             )
             index = sa.Index(
                 index_name,
@@ -311,12 +330,13 @@ class PostgresBackend(Backend):
         vector_column_name: str,
         source_column_name: str,
         regconfig: str,
+        role: Role = Role.PRIMARY,
     ) -> int | None:
         lightweight_table = sa.table(
             table_name,
             sa.column(vector_column_name),
             sa.column(source_column_name),
-            schema=schema_of(conn),
+            schema=schema_of(conn, role=role),
         )
         source_column = lightweight_table.c[source_column_name]
         stmt = lightweight_table.update().values(
@@ -340,11 +360,12 @@ class PostgresBackend(Backend):
         vector_column_name: str,
         index_name: str,
         drop_indexes: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
         if drop_indexes:
-            conn.exec_driver_sql(f"DROP INDEX IF EXISTS {qualified(conn, index_name)}")
+            conn.exec_driver_sql(f"DROP INDEX IF EXISTS {qualified(conn, index_name, role=role)}")
         conn.exec_driver_sql(
-            f"ALTER TABLE {qualified(conn, table_name)}"
+            f"ALTER TABLE {qualified(conn, table_name, role=role)}"
             f" DROP COLUMN IF EXISTS {vector_column_name}"
         )
 
@@ -355,6 +376,8 @@ class PostgresBackend(Backend):
         engine: sa.Engine,
         output_path: str,
         backup_format: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> tuple[str, list[str], dict[str, str], str]:
         tool_path = _pg_dump_path()
         url = engine.url
@@ -373,7 +396,7 @@ class PostgresBackend(Backend):
             "--no-owner",
             "--no-privileges",
         ]
-        db_schema = schema_of(engine)
+        db_schema = schema_of(engine, role=role)
         if db_schema:
             command.extend(["--schema", db_schema])
         env = os.environ.copy()
@@ -386,6 +409,8 @@ class PostgresBackend(Backend):
         engine: sa.Engine,
         input_path: str,
         backup_format: str,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> tuple[str, list[str], dict[str, str], str]:
         url = engine.url
         database_name = url.database
@@ -394,7 +419,7 @@ class PostgresBackend(Backend):
                 "Database restore requires a database name in the configured engine URL."
             )
         connection_uri = _libpq_connection_uri(url)
-        db_schema = schema_of(engine)
+        db_schema = schema_of(engine, role=role)
 
         if backup_format == "custom":
             tool_path = _pg_restore_path()

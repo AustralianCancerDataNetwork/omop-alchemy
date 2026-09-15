@@ -19,12 +19,10 @@ def test_doctor_uses_borrowed_engine_without_resolving_config_or_disposing(
     def collect_missing(
         supplied_engine,
         *,
-        db_schema=None,
         vocabulary_included=True,
     ):
         inspected.update(
             engine=supplied_engine,
-            db_schema=db_schema,
             vocabulary_included=vocabulary_included,
         )
         return []
@@ -51,7 +49,6 @@ def test_doctor_uses_borrowed_engine_without_resolving_config_or_disposing(
     assert report.info.connection_ready is True
     assert inspected == {
         "engine": engine,
-        "db_schema": "analytics",
         "vocabulary_included": False,
     }
     assert engine not in disposed_engines

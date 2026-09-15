@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 
-from oa_configurator import ResolvedCDMDatabase, Role, ensure_schema, guard_schema_provenance
+from oa_configurator import ResolvedCDMDatabase, Role, ensure_schema, guard_schema_provenance, schema_of
 from orm_loader.helpers import Base
 from ._cli_utils import Status, dry_label, dry_status
 from .tables import (
@@ -42,14 +42,11 @@ def _table_dependencies(table: MaintenanceTable) -> tuple[str, ...]:
 def collect_missing_tables(
     engine: sa.Engine,
     *,
-    db_schema: str | None = None,
     vocabulary_included: bool = True,
 ) -> list[MaintenanceTable]:
-    """Return ORM-managed tables that are absent from the target database."""
-    inspector = sa.inspect(engine)
+    """Return ORM-managed tables that are absent from the target database, each checked against its own role's schema."""
     return missing_maintenance_tables(
-        inspector,
-        db_schema=db_schema,
+        engine,
         vocabulary_included=vocabulary_included,
     )
 
@@ -58,7 +55,6 @@ def create_missing_tables(
     engine: sa.Engine,
     *,
     vocab_engine: sa.Engine | None = None,
-    db_schema: str | None = None,
     vocabulary_included: bool = True,
     dry_run: bool = False,
     resolved: ResolvedCDMDatabase | None = None,
@@ -80,14 +76,30 @@ def create_missing_tables(
     """
     vocab_engine = vocab_engine if vocab_engine is not None else engine
     if not dry_run:
-        ensure_schema(engine, db_schema)
+        ensure_schema(engine, schema_of(engine, role=Role.PRIMARY))
+        # Primary alone isn't enough: on a genuinely fresh database,
+        # vocab_schema/results_schema don't exist yet either -- without this,
+        # create_all() below fails "schema does not exist" for every
+        # vocab/results table instead of creating it. ensure_schema() itself
+        # already no-ops for None/already-default/schema-incapable dialects,
+        # so calling it for RESULTS (which usually equals the primary schema)
+        # is safe.
+        if resolved is not None:
+            ensure_schema(engine, resolved.schema_for_role(Role.RESULTS))
+            ensure_schema(vocab_engine, resolved.schema_for_role(Role.VOCAB))
     inspector = sa.inspect(engine)
     missing_tables = collect_missing_tables(
         engine,
-        db_schema=db_schema,
         vocabulary_included=vocabulary_included,
     )
-    existing_table_names = set(inspector.get_table_names(schema=db_schema))
+    # Each role's own schema, not just primary: a dependency table can be
+    # vocab- or results-role, and checking only the primary schema here used
+    # to make every already-existing vocab/results table look absent to the
+    # dependency-resolution pass below, incorrectly blocking creation of
+    # clinical tables that reference them.
+    existing_table_names: set[str] = set()
+    for role in Role:
+        existing_table_names |= set(inspector.get_table_names(schema=schema_of(engine, role=role)))
     missing_table_names = {table.table_name for table in missing_tables}
 
     blocked_dependencies: dict[str, tuple[str, ...]] = {}

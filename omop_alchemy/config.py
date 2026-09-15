@@ -110,39 +110,21 @@ def get_cdm_context() -> tuple[OmopAlchemyConfig, ResolvedCDMDatabase]:
 def vocabulary_identity(resolved: ResolvedCDMDatabase) -> str | None:
     """Stable identity for the vocabulary dataset ``resolved`` reads, or None.
 
-    Concept-set expansions are a function of the vocabulary, so caching them
-    against this identity means recreating an engine against the same dataset
-    reuses the expansion instead of re-running ``concept_ancestor`` traversals.
+    Caches concept-set expansions (``concept_ancestor`` traversals) across
+    engines reading the same vocabulary. Built from the VOCAB role, not
+    primary, since ``concept_ancestor`` is a vocabulary table; do not
+    simplify to ``resolved.connection``. Uses ``safe_url`` so no password
+    reaches the cache key.
 
-    Composed from the **vocab** role rather than the primary one, because
-    ``concept_ancestor`` is a vocabulary table. On any deployment that does not
-    configure a separate vocabulary target this resolves to the CDM database, so
-    it costs nothing today and stays correct if vocabulary routing is ever
-    honoured by the ORM. Do not "simplify" it to ``resolved.connection``.
-
-    Uses ``safe_url``, the credential-redacted form, so no password reaches a
-    cache key.
-
-    **Returns None wherever sharing would be unsafe, so every caller inherits
-    that judgement.** Exported precisely so that packages building their own
-    engines compose the identity the same way — two spellings of one dataset
-    would produce two cache entries that each look authoritative. That only works
-    if the safety conditions live here rather than at one call site.
-
-    Two conditions yield None:
-
-    *Split vocabulary target.* Vocabulary models use the primary logical schema,
-    and one SQLAlchemy engine cannot route tables to a second physical
-    connection, so a declared vocabulary target that differs from the primary is
-    not what the engine actually reads. Returning its identity would let two
-    different primary databases that name the same external vocabulary share
-    expansions — one database's concept sets served for another. Such a
-    deployment falls back to per-engine caching until ORM routing supports it.
-
-    *Ephemeral database.* In-memory SQLite, where two engines built from
-    identical configuration are genuinely separate databases.
-
-    Both cases are correct-but-unshared rather than wrong.
+    Returns None wherever sharing would be unsafe, so every caller inherits
+    that judgement instead of each composing its own identity: 
+    - a split vocabulary target: schema_translate_map cannot route to a different
+    physical connection, so identity based on the declared target would not
+    match what the engine actually reads, or 
+    - an ephemeral database: in-memory SQLite, where identically-configured engines are genuinely
+    separate databases. 
+    
+    Both fall back to per-engine caching instead of being wrong.
     """
     vocab_target = resolved.connection_target(Role.VOCAB)
 

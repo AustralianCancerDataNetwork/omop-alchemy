@@ -57,34 +57,34 @@ def scoped(pg_engine: sa.Engine) -> Iterator[_Scoped]:
 
 
 def test_fk_trigger_toggle_targets_the_configured_schema(scoped: _Scoped) -> None:
-    create_missing_tables(scoped.engine, db_schema=scoped.schema, vocabulary_included=True)
+    create_missing_tables(scoped.engine, vocabulary_included=True)
 
-    disabled = manage_foreign_key_triggers(scoped.engine, enable=False, db_schema=scoped.schema)
+    disabled = manage_foreign_key_triggers(scoped.engine, enable=False)
     assert disabled
     assert all(result.status == Status.APPLIED for result in disabled)
 
     status_after_disable = {
         result.table_name: result
-        for result in collect_foreign_key_trigger_status(scoped.engine, db_schema=scoped.schema)
+        for result in collect_foreign_key_trigger_status(scoped.engine)
     }
     person_status = status_after_disable["person"]
     assert person_status.enabled_trigger_count == 0
     assert person_status.disabled_trigger_count > 0
 
-    enabled = manage_foreign_key_triggers(scoped.engine, enable=True, db_schema=scoped.schema)
+    enabled = manage_foreign_key_triggers(scoped.engine, enable=True)
     assert all(result.status == Status.APPLIED for result in enabled)
 
     status_after_enable = {
         result.table_name: result
-        for result in collect_foreign_key_trigger_status(scoped.engine, db_schema=scoped.schema)
+        for result in collect_foreign_key_trigger_status(scoped.engine)
     }
     assert status_after_enable["person"].disabled_trigger_count == 0
 
 
 def test_index_disable_and_enable_targets_the_configured_schema(scoped: _Scoped) -> None:
-    create_missing_tables(scoped.engine, db_schema=scoped.schema, vocabulary_included=True)
+    create_missing_tables(scoped.engine, vocabulary_included=True)
 
-    disabled = manage_indexes(scoped.engine, enable=False, db_schema=scoped.schema)
+    disabled = manage_indexes(scoped.engine, enable=False)
     assert disabled
     assert all(result.status in (Status.APPLIED, Status.SKIPPED) for result in disabled)
 
@@ -93,7 +93,7 @@ def test_index_disable_and_enable_targets_the_configured_schema(scoped: _Scoped)
         idx["name"] for idx in inspector.get_indexes("person", schema=scoped.schema)
     }
 
-    enabled = manage_indexes(scoped.engine, enable=True, db_schema=scoped.schema)
+    enabled = manage_indexes(scoped.engine, enable=True)
     assert all(result.status in (Status.APPLIED, Status.SKIPPED) for result in enabled)
 
     inspector = sa.inspect(scoped.engine)
@@ -104,9 +104,9 @@ def test_index_disable_and_enable_targets_the_configured_schema(scoped: _Scoped)
 
 
 def test_fulltext_install_targets_the_configured_schema(scoped: _Scoped) -> None:
-    create_missing_tables(scoped.engine, db_schema=scoped.schema, vocabulary_included=True)
+    create_missing_tables(scoped.engine, vocabulary_included=True)
 
-    results = install_fulltext_columns(scoped.engine, db_schema=scoped.schema)
+    results = install_fulltext_columns(scoped.engine)
     assert results
     assert all(result.status == Status.APPLIED for result in results)
 
@@ -119,10 +119,10 @@ def test_fulltext_install_targets_the_configured_schema(scoped: _Scoped) -> None
 
 
 def test_sequence_reset_targets_the_configured_schema(scoped: _Scoped) -> None:
-    create_missing_tables(scoped.engine, db_schema=scoped.schema, vocabulary_included=True)
+    create_missing_tables(scoped.engine, vocabulary_included=True)
 
     results = {
-        r.table_name: r for r in reset_model_sequences(scoped.engine, db_schema=scoped.schema)
+        r.table_name: r for r in reset_model_sequences(scoped.engine)
     }
     person_result = results["person"]
 

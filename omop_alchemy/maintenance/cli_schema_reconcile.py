@@ -485,6 +485,7 @@ def reconcile_schema(
                 actual_cluster = _backend.get_clustered_index_name(
                     connection,
                     maintenance_table.table_name,
+                    role=table_role,
                 )
                 if expected_cluster != actual_cluster:
                     # May be a rename, not drift, so treat like a renamed index.

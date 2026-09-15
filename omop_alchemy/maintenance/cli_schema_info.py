@@ -374,7 +374,6 @@ def collect_maintenance_info(
             connection_ready = True
             missing_tables = collect_missing_tables(
                 engine,
-                db_schema=db_schema,
                 vocabulary_included=vocabulary_included,
             )
             missing_table_count = len(missing_tables)

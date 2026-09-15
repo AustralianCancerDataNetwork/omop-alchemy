@@ -44,7 +44,13 @@ class _FakeConnection:
         self._db_schema = db_schema
 
     def get_execution_options(self) -> dict[str, object]:
-        return {SCHEMA_TRANSLATE_MAP_KEY: {SchemaRole.PRIMARY.value: self._db_schema}}
+        return {
+            SCHEMA_TRANSLATE_MAP_KEY: {
+                SchemaRole.PRIMARY.value: self._db_schema,
+                SchemaRole.VOCAB.value: self._db_schema,
+                SchemaRole.RESULTS.value: self._db_schema,
+            }
+        }
 
     def exec_driver_sql(
         self,
@@ -120,7 +126,6 @@ def test_install_fulltext_columns_builds_postgresql_ddl_and_registers_metadata()
 
     results = install_fulltext_columns(
         engine,  # type: ignore[arg-type]
-        db_schema="public",
         create_indexes=True,
         fastupdate=True,
     )
@@ -147,7 +152,6 @@ def test_populate_fulltext_columns_issues_update_with_regconfig_and_row_counts()
 
     results = populate_fulltext_columns(
         engine,  # type: ignore[arg-type]
-        db_schema="public",
         regconfig="simple",
     )
 
@@ -167,7 +171,6 @@ def test_drop_fulltext_columns_drops_schema_objects_and_unregisters_metadata():
 
     results = drop_fulltext_columns(
         engine,  # type: ignore[arg-type]
-        db_schema="public",
         drop_indexes=True,
     )
 
@@ -226,13 +229,11 @@ def test_fulltext_install_cli_passes_options(monkeypatch):
     def fake_install_fulltext_columns(
         engine: object,
         *,
-        db_schema: str | None = None,
         create_indexes: bool = True,
         fastupdate: bool = False,
         dry_run: bool = False,
     ):
         calls["engine"] = engine
-        calls["db_schema"] = db_schema
         calls["create_indexes"] = create_indexes
         calls["fastupdate"] = fastupdate
         calls["dry_run"] = dry_run
@@ -265,7 +266,6 @@ def test_fulltext_install_cli_passes_options(monkeypatch):
     )
 
     assert result.exit_code == 0
-    assert calls["db_schema"] == "public"
     assert calls["fastupdate"] is True
     assert calls["dry_run"] is True
     assert "fulltext install" in result.stdout

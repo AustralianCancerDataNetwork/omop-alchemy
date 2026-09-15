@@ -62,7 +62,6 @@ def test_create_missing_tables_guard_fires_on_reconfigured_schema(pg_db, pg_engi
         )
         create_missing_tables(
             engine_a,
-            db_schema=schema_a,
             resolved=_resolved(pg_db, database_name=database_name, schema=schema_a),
         )
 
@@ -72,7 +71,6 @@ def test_create_missing_tables_guard_fires_on_reconfigured_schema(pg_db, pg_engi
         with pytest.raises(SchemaDriftError):
             create_missing_tables(
                 engine_b,
-                db_schema=schema_b,
                 resolved=_resolved(pg_db, database_name=database_name, schema=schema_b),
             )
 

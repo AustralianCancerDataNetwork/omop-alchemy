@@ -1,7 +1,7 @@
 import importlib
 import pytest
 from typer.testing import CliRunner
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
 
 from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance._cli_utils import Status
@@ -73,7 +73,6 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
     def fake_truncate_tables(
         engine: object,
         *,
-        db_schema: str | None = None,
         scope: TableCategory | None = None,
         table_names: tuple[str, ...] | None = None,
         restart_identities: bool = False,
@@ -81,7 +80,6 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
         dry_run: bool = False,
     ) -> list[TruncateTableResult]:
         calls["engine"] = engine
-        calls["db_schema"] = db_schema
         calls["scope"] = scope
         calls["table_names"] = table_names
         calls["restart_identities"] = restart_identities
@@ -91,6 +89,7 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
             TruncateTableResult(
                 table_name="person",
                 category=TableCategory.CLINICAL,
+                role=Role.PRIMARY,
                 row_count=10,
                 status=Status.PLANNED,
                 detail="table would be truncated",

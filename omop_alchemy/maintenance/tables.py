@@ -5,6 +5,8 @@ from enum import StrEnum
 from typing import Iterable
 
 import sqlalchemy as sa
+from oa_configurator import Role, schema_of
+from orm_loader.helpers import role_of_table
 
 
 class TableCategory(StrEnum):
@@ -55,6 +57,18 @@ class MaintenanceTable:
     category: TableCategory
     table: sa.Table
     primary_key_columns: tuple[sa.Column[object], ...]
+
+    @property
+    def role(self) -> Role:
+        """The schema_translate_map role this table's data physically lives
+        under (oa_configurator.Role), read off its own declared schema tag.
+
+        Independent of TableCategory: category is a logical/folder grouping
+        (e.g. cohort/cohort_definition are RESULTS-category despite
+        classifying as "derived" in the CDM sense), role is where the
+        table's rows physically live.
+        """
+        return role_of_table(self.table)
 
     @property
     def is_vocabulary(self) -> bool:
@@ -234,30 +248,47 @@ def select_omop_tables(
 
 
 def existing_maintenance_tables(
-    inspector: sa.Inspector,
+    bindable: sa.Engine | sa.Connection,
     *,
-    db_schema: str | None,
     vocabulary_included: bool,
     require_single_integer_primary_key: bool = False,
 ) -> list[MaintenanceTable]:
+    """ORM-managed tables that already exist, each checked against its own role's schema.
+
+    Parameters
+    ----------
+    bindable : sqlalchemy.Engine or sqlalchemy.Connection
+        Used both to inspect the database and, via its schema_translate_map,
+        to resolve each table's own role to a physical schema
+        (``schema_of(bindable, role=table.role)``) -- a blanket schema
+        passed in once would silently misclassify every vocab/results
+        table checked against a database with a genuine primary/vocab/
+        results split.
+    """
+    inspector = sa.inspect(bindable)
     return [
         table
         for table in select_omop_tables(
             vocabulary_included=vocabulary_included,
             require_single_integer_primary_key=require_single_integer_primary_key,
         )
-        if inspector.has_table(table.table_name, schema=db_schema)
+        if inspector.has_table(table.table_name, schema=schema_of(bindable, role=table.role))
     ]
 
 
 def missing_maintenance_tables(
-    inspector: sa.Inspector,
+    bindable: sa.Engine | sa.Connection,
     *,
-    db_schema: str | None,
     vocabulary_included: bool,
 ) -> list[MaintenanceTable]:
+    """ORM-managed tables that are absent, each checked against its own role's schema.
+
+    See :func:`existing_maintenance_tables` for why *bindable* replaces a
+    single ``db_schema`` string.
+    """
+    inspector = sa.inspect(bindable)
     return [
         table
         for table in select_omop_tables(vocabulary_included=vocabulary_included)
-        if not inspector.has_table(table.table_name, schema=db_schema)
+        if not inspector.has_table(table.table_name, schema=schema_of(bindable, role=table.role))
     ]
