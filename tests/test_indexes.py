@@ -532,6 +532,20 @@ def test_is_plain_index_false_for_non_btree_index():
     assert _is_plain_index(_NON_BTREE) is False
 
 
+def test_is_plain_index_false_for_sqlite_partial_index():
+    """A SQLite partial index, reflected with a sqlite_where dialect
+    option, must not be classified as plain. Treating it as plain would
+    make it look safe to drop and recreate from a bare column list, which
+    would silently lose its WHERE predicate."""
+    sqlite_partial = {
+        "name": "idx_partial_sqlite",
+        "column_names": ["gender_concept_id"],
+        "unique": False,
+        "dialect_options": {"sqlite_where": "gender_concept_id IS NOT NULL"},
+    }
+    assert _is_plain_index(sqlite_partial) is False
+
+
 def test_find_equivalent_index_is_order_sensitive():
     existing = [{"name": "idx_ab", "column_names": ["b", "a"], "unique": False}]
     assert _find_equivalent_index(existing, ("a", "b"), False) is None
@@ -560,6 +574,20 @@ def test_find_shape_conflict_detects_partial_and_non_btree_but_not_plain():
 def test_describe_shape_conflict_mentions_reason():
     assert "partial WHERE predicate" in _describe_shape_conflict(_PARTIAL)
     assert "non-btree access method 'gin'" in _describe_shape_conflict(_NON_BTREE)
+
+
+def test_describe_shape_conflict_mentions_reason_for_sqlite_dialect_options():
+    """The conflict reason for a SQLite index must name the actual cause
+    (a WHERE predicate or a non-btree access method), read from its
+    sqlite_where/sqlite_using dialect options, not just Postgres's."""
+    sqlite_partial = {
+        "dialect_options": {"sqlite_where": "gender_concept_id IS NOT NULL"},
+    }
+    sqlite_non_btree = {
+        "dialect_options": {"sqlite_using": "gin"},
+    }
+    assert "partial WHERE predicate" in _describe_shape_conflict(sqlite_partial)
+    assert "non-btree access method 'gin'" in _describe_shape_conflict(sqlite_non_btree)
 
 
 # ── Reserved schema guard ────────────────────────────────────────────────────────
@@ -923,8 +951,7 @@ def test_record_captured_index_scopes_by_db_schema(indexed_engine):
     assert captured_b is True
 
     # Capturing again for the *same* schema, with a different foreign name, must
-    # still be rejected (this is the case test_manage_indexes_disable_second_run_
-    # without_enable_degrades_to_warning covers end-to-end).
+    # still be rejected.
     with engine.begin() as connection:
         captured_a_again = _record_captured_index(
             connection,
@@ -966,14 +993,9 @@ def test_resolve_physical_cluster_name_ignores_uniqueness_for_pk_based_target():
 
 
 def test_vocabulary_domain_concept_class_relationship_cluster_on_primary_key():
-    """vocabulary/domain/concept_class/relationship previously declared a
-    redundant secondary index as their cluster target (same column as their own
-    primary key), inconsistently with person/location/care_site/provider/concept
-    which cluster directly on the primary key's own index. Normalized onto the
-    latter: Alchemy never creates that redundant index itself, and index
-    reconciliation is what recognizes a database that has the OHDSI-standard
-    duplicate (see _resolve_physical_cluster_name_falls_back_to_equivalent)
-    as an equivalent cluster target."""
+    """vocabulary/domain/concept_class/relationship must cluster directly on
+    their own primary key's index, the same as person/location/care_site/
+    provider/concept do, not on a separate, redundant same-column index."""
     tables = {table.table_name: table for table in collect_maintenance_tables()}
     for table_name, pk_column in (
         ("vocabulary", "vocabulary_id"),

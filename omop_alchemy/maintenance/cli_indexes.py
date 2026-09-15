@@ -81,11 +81,39 @@ def _is_plain_index(reflected: Mapping[str, Any]) -> bool:
     if reflected.get("duplicates_constraint"):
         return False
     dialect_options = reflected.get("dialect_options") or {}
-    if dialect_options.get("postgresql_where"):
+    if _dialect_option(dialect_options, "where") is not None:
         return False
-    if dialect_options.get("postgresql_using"):
+    if _dialect_option(dialect_options, "using") is not None:
         return False
     return True
+
+
+def _dialect_option(dialect_options: Mapping[str, Any], suffix: str) -> Any | None:
+    """Find a reflected index's dialect-specific option, regardless of dialect.
+
+    SQLAlchemy always prefixes a reflected index's dialect-specific options
+    with the dialect name, e.g. ``"postgresql_where"`` or ``"sqlite_where"``.
+    Matching by suffix instead of a hardcoded dialect name means this works
+    for any dialect, current or future, with no per-dialect registration
+    needed.
+
+    Parameters
+    ----------
+    dialect_options : Mapping[str, Any]
+        A reflected index's ``dialect_options`` mapping.
+    suffix : str
+        The option name to look for, without its dialect prefix (e.g.
+        ``"where"``, ``"using"``).
+
+    Returns
+    -------
+    Any | None
+        The matching option's value, or None if no dialect set it.
+    """
+    for key, value in dialect_options.items():
+        if key.endswith(f"_{suffix}") and value:
+            return value
+    return None
 
 
 def _find_equivalent_index(
@@ -185,10 +213,11 @@ def _describe_shape_conflict(reflected: Mapping[str, Any]) -> str:
     reasons: list[str] = []
     if reflected.get("duplicates_constraint"):
         reasons.append("backs a UNIQUE/PRIMARY KEY constraint")
-    if dialect_options.get("postgresql_where"):
+    if _dialect_option(dialect_options, "where") is not None:
         reasons.append("has a partial WHERE predicate")
-    if dialect_options.get("postgresql_using"):
-        reasons.append(f"uses non-btree access method '{dialect_options['postgresql_using']}'")
+    using = _dialect_option(dialect_options, "using")
+    if using is not None:
+        reasons.append(f"uses non-btree access method '{using}'")
     if not reasons:
         reasons.append("has an unsupported definition")
     return ", ".join(reasons)
