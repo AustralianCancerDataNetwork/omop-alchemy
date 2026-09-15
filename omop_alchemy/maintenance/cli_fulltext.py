@@ -4,20 +4,39 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import cast
 
 import typer
+import sqlalchemy as sa
 from sqlalchemy.engine import Engine
-
 from oa_configurator import Role
+from orm_loader.helpers import role_of_table
+
 from ..backends import backend_support_note as _backend_support_note
 from ..backends import resolve_backend, require_backend_support
 from ..backends.base import FullTextError
+from ..cdm.model.vocabulary.concept import Concept
+from ..cdm.model.vocabulary.concept_synonym import Concept_Synonym
 from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .ui import (
     console,
     render_fulltext_results,
     render_fulltext_summary,
 )
+
+_FULLTEXT_TARGET_TABLES: dict[str, sa.Table] = {
+    "concept": cast(sa.Table, Concept.__table__),
+    "concept_synonym": cast(sa.Table, Concept_Synonym.__table__),
+}
+
+
+def _role_for_target(table_name: str) -> Role:
+    """The Role a fulltext target table's own declared schema tag names.
+    Resolves via role_of_table() rather than hardcoding Role.VOCAB, 
+    so a future non-vocab fulltext target resolves correctly.
+    """
+    return role_of_table(_FULLTEXT_TARGET_TABLES[table_name])
+
 
 app = typer.Typer(
     help=f"Manage full-text search for OMOP vocabulary tables. {_backend_support_note('install_fulltext_on_table')}",
@@ -72,7 +91,7 @@ def install_fulltext_columns(
                         index_name=cfg.index_name,
                         create_indexes=create_indexes,
                         fastupdate=fastupdate,
-                        role=Role.VOCAB,
+                        role=_role_for_target(cfg.table_name),
                     )
             backend.register_fulltext_metadata()
     except FullTextError:
@@ -123,7 +142,7 @@ def populate_fulltext_columns(
                         vector_column_name=cfg.vector_column_name,
                         source_column_name=cfg.source_column_name,
                         regconfig=regconfig,
-                        role=Role.VOCAB,
+                        role=_role_for_target(cfg.table_name),
                     )
             backend.register_fulltext_metadata()
     except FullTextError:
@@ -170,7 +189,7 @@ def drop_fulltext_columns(
                         vector_column_name=cfg.vector_column_name,
                         index_name=cfg.index_name,
                         drop_indexes=drop_indexes,
-                        role=Role.VOCAB,
+                        role=_role_for_target(cfg.table_name),
                     )
             backend.unregister_fulltext_metadata()
     except FullTextError:
