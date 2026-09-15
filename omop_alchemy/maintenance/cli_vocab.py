@@ -38,6 +38,7 @@ from omop_alchemy.cdm.model.vocabulary import (
     Vocabulary,
 )
 
+from ..backends import backend_supports, resolve_backend as resolve_omop_backend
 from ._cli_utils import Status, omop_command
 from .cli_foreign_keys import manage_foreign_key_triggers
 from .cli_indexes import manage_indexes
@@ -564,7 +565,7 @@ def load_vocab_source(
         table_count=table_count,
     )
 
-    if not dry_run and engine.dialect.name == Dialect.POSTGRESQL:
+    if not dry_run and backend_supports(resolve_omop_backend(engine), "find_sequence_name"):
         sequence_results = reset_model_sequences(
             engine,
             vocabulary_included=True,
