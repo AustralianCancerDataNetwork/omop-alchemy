@@ -793,3 +793,12 @@ def test_render_vocab_index_warnings_lists_messages_when_present():
     summary_text = summary_buffer.getvalue()
     assert "Index warnings" in summary_text
     assert "1" in summary_text
+
+
+def test_sequence_reset_gate_matches_find_sequence_name_capability(fresh_engine, pg_engine):
+    """The sequence-reset gate must match find_sequence_name support:
+    False for SQLite, True for Postgres."""
+    from omop_alchemy.backends import backend_supports, resolve_backend
+
+    assert backend_supports(resolve_backend(fresh_engine), "find_sequence_name") is False
+    assert backend_supports(resolve_backend(pg_engine), "find_sequence_name") is True

@@ -44,9 +44,11 @@ def resolved_cdm_database_from_engine(
     vocab_schema: str | None = None,
     results_schema: str | None = None,
 ) -> ResolvedCDMDatabase:
-    """Build a ResolvedCDMDatabase from an already-live engine's own
-    URL, for a test that needs a resolved object pointing at one real
-    engine with caller-chosen schema names.
+    """Build a ResolvedCDMDatabase from an already-live engine's own URL.
+
+    Only for a case with no resolved object to build off at all (e.g. a
+    bare SQLite engine). When one already exists, prefer
+    ``dataclasses.replace(existing.resolved, ...)`` instead.
     """
     url = engine.url
     connection = ResolvedConnection(

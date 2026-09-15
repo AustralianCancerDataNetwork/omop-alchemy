@@ -15,6 +15,7 @@ split-connection case covered separately in omop-graph's
 
 from __future__ import annotations
 
+import dataclasses
 import uuid
 from contextlib import ExitStack
 from datetime import date
@@ -26,8 +27,6 @@ import sqlalchemy.orm as so
 
 from oa_configurator import Role
 from oa_configurator.testing import isolated_test_schema
-
-from tests.conftest import resolved_cdm_database_from_engine
 
 from omop_alchemy.cdm.model.clinical import Observation, Person
 from omop_alchemy.cdm.model.derived import Cohort
@@ -189,7 +188,7 @@ def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
 
 
 def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_database(
-    pg_engine: sa.Engine, cleanup_after_test
+    pg_db, pg_engine: sa.Engine, cleanup_after_test
 ) -> None:
     """create_missing_tables() used to call ensure_schema() only for the
     primary schema, so a genuinely fresh database (where vocab/results
@@ -210,12 +209,15 @@ def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_data
 
     cleanup_after_test(_drop_schemas)
 
-    resolved = resolved_cdm_database_from_engine(
-        pg_engine,
+    patched_connection = dataclasses.replace(pg_db.resolved.connection, test_only=False)
+    resolved = dataclasses.replace(
+        pg_db.resolved,
         name="fresh_schema_test",
         schema_name=clinical_schema,
         vocab_schema=vocab_schema,
         results_schema=results_schema,
+        connection=patched_connection,
+        vocab_connection=patched_connection,
     )
     engine = pg_engine.execution_options(
         schema_translate_map={
