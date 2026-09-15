@@ -22,10 +22,10 @@ class Concept_Relationship(
     ):
     __tablename__ = "concept_relationship"
     __table_args__ = merge_table_args(
+        {"schema": Role.VOCAB.value},
         omop_index(__tablename__, "concept_id_1", cluster=True),
         omop_index(__tablename__, "concept_id_2"),
         omop_index(__tablename__, "relationship_id"),
-        {"schema": Role.VOCAB.value},
     )
     concept_id_1: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)
     concept_id_2: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)

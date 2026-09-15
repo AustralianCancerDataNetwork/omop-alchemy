@@ -16,8 +16,8 @@ from omop_alchemy.cdm.base import (
 class Concept_Class(Base, ReferenceTable, CDMTableBase):
     __tablename__ = "concept_class"
     __table_args__ = merge_table_args(
-        omop_table_options(cluster_on=omop_primary_key_index_name("concept_class")),
         {"schema": Role.VOCAB.value},
+        omop_table_options(cluster_on=omop_primary_key_index_name("concept_class")),
     )
     concept_class_id: so.Mapped[str] = so.mapped_column(sa.String(20), primary_key=True)
     concept_class_name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)

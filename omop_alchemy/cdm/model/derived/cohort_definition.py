@@ -16,9 +16,9 @@ from omop_alchemy.cdm.base import (
 class Cohort_Definition(CDMTableBase, Base):
     __tablename__ = "cohort_definition"
     __table_args__ = merge_table_args(
+        {"schema": Role.RESULTS.value},
         omop_index(__tablename__, "definition_type_concept_id"),
         omop_index(__tablename__, "subject_concept_id"),
-        {"schema": Role.RESULTS.value},
     )
 
     cohort_definition_id: so.Mapped[int] = so.mapped_column(primary_key=True)

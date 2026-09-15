@@ -34,11 +34,11 @@ class Source_To_Concept_Map(
     __tablename__ = "source_to_concept_map"
     __cdm_extra_checks__ = ["source_concept_id_range"]
     __table_args__ = merge_table_args(
+        {"schema": Role.VOCAB.value},
         omop_index(__tablename__, "target_concept_id", cluster=True),
         omop_index(__tablename__, "source_vocabulary_id"),
         omop_index(__tablename__, "target_vocabulary_id"),
         omop_index(__tablename__, "source_code"),
-        {"schema": Role.VOCAB.value},
     )
 
     source_code: so.Mapped[str] = so.mapped_column(sa.String(50),primary_key=True)

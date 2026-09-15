@@ -30,9 +30,9 @@ class Drug_Strength(
     """
     __tablename__ = "drug_strength"
     __table_args__ = merge_table_args(
+        {"schema": Role.VOCAB.value},
         omop_index(__tablename__, "drug_concept_id", cluster=True),
         omop_index(__tablename__, "ingredient_concept_id"),
-        {"schema": Role.VOCAB.value},
     )
 
     drug_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)

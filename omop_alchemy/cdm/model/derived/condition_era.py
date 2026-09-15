@@ -17,9 +17,9 @@ from omop_alchemy.cdm.base import (
 class Condition_Era(CDMTableBase, Base):
     __tablename__ = "condition_era"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "condition_concept_id"),
-        {"schema": Role.PRIMARY.value},
     )
 
     condition_era_id: so.Mapped[int] = so.mapped_column(primary_key=True)

@@ -16,10 +16,10 @@ from omop_alchemy.cdm.base import (
 class Dose_Era(CDMTableBase, Base):
     __tablename__ = "dose_era"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "drug_concept_id"),
         omop_index(__tablename__, "unit_concept_id"),
-        {"schema": Role.PRIMARY.value},
     )
 
     dose_era_id: so.Mapped[int] = so.mapped_column(primary_key=True)
