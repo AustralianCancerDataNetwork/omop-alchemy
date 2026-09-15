@@ -4,7 +4,7 @@ from typing import NamedTuple
 import pytest
 import sqlalchemy as sa
 
-from oa_configurator import ResolvedCDMDatabase, ResolvedConnection, Role
+from oa_configurator import ResolvedCDMDatabase, Role
 from oa_configurator import qualified, schema_of, Dialect
 from oa_configurator.testing import DIALECT_PARAMS, isolated_test_schema
 from omop_alchemy.backends.sqlite import SQLiteBackend
@@ -12,6 +12,8 @@ from omop_alchemy.cdm.base.indexing import omop_index_name
 from omop_alchemy.maintenance.cli_indexes import manage_indexes
 from omop_alchemy.maintenance.cli_schema import create_missing_tables
 from omop_alchemy.maintenance.cli_schema_reconcile import is_blocking_issue, reconcile_schema
+
+from tests.conftest import resolved_cdm_database_from_engine
 
 PERSON_GENDER_INDEX = omop_index_name("person", "gender_concept_id")
 EPISODE_PERSON_INDEX = omop_index_name("episode", "person_id")
@@ -28,21 +30,7 @@ def _sqlite_resolved(engine: sa.Engine) -> ResolvedCDMDatabase:
     connection identity to resolve, so building this directly from the
     engine's own URL is the whole story, unlike Postgres.
     """
-    url = engine.url
-    connection = ResolvedConnection(
-        name="fresh_engine_test",
-        url=url.render_as_string(hide_password=False),
-        safe_url=url.render_as_string(hide_password=True),
-        _engine_url=url,
-    )
-    return ResolvedCDMDatabase(
-        name="fresh_engine_test",
-        connection=connection,
-        schema_name=None,
-        vocab_connection=connection,
-        vocab_schema=None,
-        results_schema=None,
-    )
+    return resolved_cdm_database_from_engine(engine, name="fresh_engine_test")
 
 
 @pytest.fixture(params=DIALECT_PARAMS)

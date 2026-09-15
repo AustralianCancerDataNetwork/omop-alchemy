@@ -7,7 +7,7 @@ import sqlalchemy as sa
 import typer.rich_utils as _typer_rich_utils
 from orm_loader.helpers import bootstrap
 from oa_configurator.testing import isolated_test_database, isolated_test_schema
-from oa_configurator import SCHEMA_TRANSLATE_MAP_KEY, Role
+from oa_configurator import SCHEMA_TRANSLATE_MAP_KEY, Role, ResolvedCDMDatabase, ResolvedConnection
 import sqlalchemy.orm as so
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -34,6 +34,35 @@ from omop_alchemy.cdm.model.vocabulary import (
 # force feeds every typer rich Console, so clear it here: tests then see the same
 # uncolored output everywhere; real users still get colour in a real terminal.
 _typer_rich_utils.FORCE_TERMINAL = None
+
+
+def resolved_cdm_database_from_engine(
+    engine: sa.Engine,
+    *,
+    name: str,
+    schema_name: str | None = None,
+    vocab_schema: str | None = None,
+    results_schema: str | None = None,
+) -> ResolvedCDMDatabase:
+    """Build a ResolvedCDMDatabase from an already-live engine's own
+    URL, for a test that needs a resolved object pointing at one real
+    engine with caller-chosen schema names.
+    """
+    url = engine.url
+    connection = ResolvedConnection(
+        name=name,
+        url=url.render_as_string(hide_password=False),
+        safe_url=url.render_as_string(hide_password=True),
+        _engine_url=url,
+    )
+    return ResolvedCDMDatabase(
+        name=name,
+        connection=connection,
+        schema_name=schema_name,
+        vocab_connection=connection,
+        vocab_schema=vocab_schema,
+        results_schema=results_schema,
+    )
 
 
 @pytest.fixture

@@ -24,8 +24,10 @@ import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
-from oa_configurator import ResolvedCDMDatabase, ResolvedConnection, Role
+from oa_configurator import Role
 from oa_configurator.testing import isolated_test_schema
+
+from tests.conftest import resolved_cdm_database_from_engine
 
 from omop_alchemy.cdm.model.clinical import Observation, Person
 from omop_alchemy.cdm.model.derived import Cohort
@@ -208,18 +210,10 @@ def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_data
 
     cleanup_after_test(_drop_schemas)
 
-    url = pg_engine.url
-    connection = ResolvedConnection(
+    resolved = resolved_cdm_database_from_engine(
+        pg_engine,
         name="fresh_schema_test",
-        url=url.render_as_string(hide_password=False),
-        safe_url=url.render_as_string(hide_password=True),
-        _engine_url=url,
-    )
-    resolved = ResolvedCDMDatabase(
-        name="fresh_schema_test",
-        connection=connection,
         schema_name=clinical_schema,
-        vocab_connection=connection,
         vocab_schema=vocab_schema,
         results_schema=results_schema,
     )
