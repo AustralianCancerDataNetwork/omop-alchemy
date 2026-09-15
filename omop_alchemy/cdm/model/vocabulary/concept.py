@@ -163,8 +163,6 @@ class ConceptView(Concept, ConceptContext):
     Avoid in tight loops or ETL paths.
     """
     __tablename__ = "concept"
-    # Must match Concept.__table_args__'s schema exactly: same (schema, name)
-    # key is what makes SQLAlchemy reuse Concept's own Table object here
-    # instead of building a second, distinct one with no FK link between them.
+    # Must match Concept's schema, or SQLAlchemy silently builds a second, unlinked Table object.
     __table_args__ = {"schema": Role.VOCAB.value}
     __mapper_args__ = {"concrete": False}
