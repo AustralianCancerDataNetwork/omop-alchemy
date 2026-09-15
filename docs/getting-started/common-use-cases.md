@@ -117,12 +117,14 @@ vocab_connection = "vocab"  # <- references your vocabulary DB
     - This is **NEVER** done automatically to preserve data integrity from our end.
 3. Record the new schema as the accepted baseline following the assumptions listed in "Scenario" above:
    ```bash
-   omop-alchemy acknowledge-schema-migration --database -my_db --role vocab --new-schema myvocab --reason "moving vocab off the shared schema"
+   omop-config acknowledge-schema-migration --database my_db --role vocab --new-schema myvocab --reason "moving vocab off the shared schema"
    ```
 4. Once you've confirmed the new schema is correct, clean up the old one:
    ```bash
-   omop-alchemy drop-orphan-schema-tables --database cdm_db --schema old_vocab_schema --confirm
+   omop-config drop-orphan-schema-tables --database cdm_db --schema old_vocab_schema --confirm
    ```
    Omit `--confirm` first to preview what would be dropped.
+
+   Both commands live in `oa-configurator`, not `omop-alchemy` as they're generic over any `[databases.*]` entry, not CDM-specific.
 
 
