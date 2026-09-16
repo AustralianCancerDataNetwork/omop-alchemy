@@ -12,7 +12,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from sqlalchemy.exc import OperationalError
 import typer
-from oa_configurator import Dialect, ensure_schema
+from oa_configurator import ensure_schema
 from orm_loader.backends import STAGING_SCHEMA, resolve_backend
 from orm_loader.helpers import Base
 from orm_loader.tables.typing import CSVTableProtocol
@@ -365,7 +365,7 @@ def load_vocab_source(
     )
 
     _use_bulk_mode = (
-        bulk_mode and not dry_run and engine.dialect.name == Dialect.POSTGRESQL
+        bulk_mode and not dry_run and backend_supports(resolve_omop_backend(engine), "toggle_fk_triggers")
     )
     if _use_bulk_mode:
         _emit(

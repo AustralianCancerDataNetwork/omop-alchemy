@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 from oa_configurator import Dialect, ResolvedDatabase
 
+from ..backends import backend_supports, resolve_backend
 from ._cli_utils import Status
 from .cli_foreign_keys import (
     ForeignKeyStatusResult,
@@ -271,7 +272,8 @@ def collect_doctor_report(
                 )
             )
 
-        if info.backend == Dialect.POSTGRESQL:
+        backend = resolve_backend(engine)
+        if backend_supports(backend, "get_fk_trigger_counts"):
             foreign_key_status = tuple(
                 collect_foreign_key_trigger_status(
                     engine,
@@ -295,7 +297,7 @@ def collect_doctor_report(
                 )
             )
 
-            if deep:
+            if deep and backend_supports(backend, "count_fk_violations"):
                 foreign_key_validation = validate_foreign_key_constraints(
                     engine,
                     vocabulary_included=vocabulary_included,
@@ -319,6 +321,14 @@ def collect_doctor_report(
                         ),
                     )
                 )
+            elif deep:
+                checks.append(
+                    DoctorCheck(
+                        name="foreign key validation",
+                        status=Status.SKIPPED,
+                        detail="Foreign key validation isn't supported on this backend.",
+                    )
+                )
             else:
                 checks.append(
                     DoctorCheck(
@@ -332,14 +342,14 @@ def collect_doctor_report(
                 DoctorCheck(
                     name="foreign keys",
                     status=Status.SKIPPED,
-                    detail="Foreign key trigger inspection is only available on PostgreSQL.",
+                    detail="Foreign key trigger inspection isn't supported on this backend.",
                 )
             )
             checks.append(
                 DoctorCheck(
                     name="foreign key validation",
                     status=Status.SKIPPED,
-                    detail="Foreign key validation is only available on PostgreSQL.",
+                    detail="Foreign key validation isn't supported on this backend.",
                 )
             )
     else:
