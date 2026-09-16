@@ -8,6 +8,7 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
 
+from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model import Procedure_Occurrence
 from omop_alchemy.toolkit.core.events import ClinicalEventIdentity
 from omop_alchemy.toolkit.episodes.derivation import (
@@ -31,7 +32,6 @@ from tests.fixtures.query_contract_cases import (
     EpisodeCase,
     EventCase,
     ExplicitLinkCase,
-    PROCEDURE_FIELD_CONCEPT_ID,
 )
 
 
@@ -114,7 +114,7 @@ def test_valid_explicit_links_suppress_ranked_fallback_with_colliding_ids(sessio
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
         person_id=101,
         event_date=date(2026, 1, 20),
-        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
     )
     sources = episode_attachment_queries(
         _event_source(*COLLIDING_EVENTS, unlinked),
@@ -196,7 +196,7 @@ def test_side_preference_is_applied_to_ranked_fallback(session):
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
         person_id=101,
         event_date=date(2026, 1, 20),
-        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
     )
 
     def selected_episode(ranking: TemporalRankingSpec) -> int:
@@ -221,7 +221,7 @@ def test_all_in_window_fallback_retains_each_eligible_episode(session):
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
         person_id=101,
         event_date=date(2026, 1, 20),
-        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
     )
     queries = episode_attachment_queries(
         _event_source(event),
@@ -242,7 +242,7 @@ def test_all_in_window_uses_a_window_contract_without_ranking(session):
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
         person_id=101,
         event_date=date(2025, 10, 17),
-        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
     )
     queries = episode_attachment_queries(
         _event_source(boundary_event),
@@ -260,7 +260,7 @@ def test_all_in_window_diagnostics_do_not_report_intended_fanout(session):
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
         person_id=101,
         event_date=date(2026, 1, 20),
-        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
     )
     queries = episode_attachment_queries(
         _event_source(event),
@@ -297,13 +297,13 @@ def test_diagnostics_explain_person_mismatches_and_fallback_outcomes(session):
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
         person_id=101,
         event_date=date(2026, 1, 20),
-        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
     )
     unlinked = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 9),
         person_id=303,
         event_date=date(2026, 1, 20),
-        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
     )
     queries = episode_attachment_queries(
         _event_source(*COLLIDING_EVENTS, ambiguous, unlinked),
@@ -461,7 +461,7 @@ def test_postgresql_executes_collision_and_stable_tie_contracts(pg_session):
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
         person_id=101,
         event_date=date(2026, 1, 20),
-        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
     )
     queries = episode_attachment_queries(
         _event_source(*COLLIDING_EVENTS[:2], unlinked),

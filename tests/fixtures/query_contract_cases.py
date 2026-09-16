@@ -13,11 +13,6 @@ from datetime import date
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.toolkit.core.events import ClinicalEventIdentity
 
-MEASUREMENT_FIELD_CONCEPT_ID = ModifierFieldConcepts.MEASUREMENT
-OBSERVATION_FIELD_CONCEPT_ID = ModifierFieldConcepts.OBSERVATION
-PROCEDURE_FIELD_CONCEPT_ID = ModifierFieldConcepts.PROCEDURE_OCCURRENCE
-DRUG_FIELD_CONCEPT_ID = ModifierFieldConcepts.DRUG_EXPOSURE
-
 
 @dataclass(frozen=True, slots=True)
 class EventCase:
@@ -59,19 +54,19 @@ COLLIDING_EVENTS = (
         ClinicalEventIdentity("measurement", 7),
         person_id=101,
         event_date=date(2026, 1, 20),
-        event_field_concept_id=MEASUREMENT_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.MEASUREMENT,
     ),
     EventCase(
         ClinicalEventIdentity("procedure_occurrence", 7),
         person_id=101,
         event_date=date(2026, 1, 20),
-        event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
     ),
     EventCase(
         ClinicalEventIdentity("observation", 7),
         person_id=202,
         event_date=date(2026, 1, 20),
-        event_field_concept_id=OBSERVATION_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.OBSERVATION,
     ),
 )
 
@@ -124,25 +119,25 @@ CONSTRUCTS_EXACT_180_DAY_EPISODE = EpisodeCase(
 VALID_EXPLICIT_LINK = ExplicitLinkCase(
     event=ClinicalEventIdentity("procedure_occurrence", 7),
     episode_id=1002,
-    episode_event_field_concept_id=PROCEDURE_FIELD_CONCEPT_ID,
+    episode_event_field_concept_id=ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
 )
 
 COLLIDING_VALID_LINK = ExplicitLinkCase(
     event=ClinicalEventIdentity("measurement", 7),
     episode_id=1001,
-    episode_event_field_concept_id=MEASUREMENT_FIELD_CONCEPT_ID,
+    episode_event_field_concept_id=ModifierFieldConcepts.MEASUREMENT,
 )
 
 OUT_OF_SCOPE_LINK = ExplicitLinkCase(
     event=ClinicalEventIdentity("drug_exposure", 7),
     episode_id=1001,
-    episode_event_field_concept_id=DRUG_FIELD_CONCEPT_ID,
+    episode_event_field_concept_id=ModifierFieldConcepts.DRUG_EXPOSURE,
 )
 
 CROSS_PERSON_LINK = ExplicitLinkCase(
     event=ClinicalEventIdentity("observation", 7),
     episode_id=1001,
-    episode_event_field_concept_id=OBSERVATION_FIELD_CONCEPT_ID,
+    episode_event_field_concept_id=ModifierFieldConcepts.OBSERVATION,
 )
 
 
@@ -153,25 +148,25 @@ BOUNDARY_EVENTS = (
         ClinicalEventIdentity("measurement", 8),
         person_id=101,
         event_date=date(2025, 10, 17),
-        event_field_concept_id=MEASUREMENT_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.MEASUREMENT,
     ),
     EventCase(
         ClinicalEventIdentity("measurement", 9),
         person_id=101,
         event_date=date(2025, 10, 16),
-        event_field_concept_id=MEASUREMENT_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.MEASUREMENT,
     ),
     EventCase(
         ClinicalEventIdentity("measurement", 10),
         person_id=101,
         event_date=date(2026, 2, 5),
-        event_field_concept_id=MEASUREMENT_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.MEASUREMENT,
     ),
     EventCase(
         ClinicalEventIdentity("measurement", 11),
         person_id=101,
         event_date=date(2026, 2, 6),
-        event_field_concept_id=MEASUREMENT_FIELD_CONCEPT_ID,
+        event_field_concept_id=ModifierFieldConcepts.MEASUREMENT,
     ),
 )
 
