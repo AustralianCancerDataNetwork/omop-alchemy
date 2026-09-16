@@ -1250,6 +1250,7 @@ dependencies = [
     { name = "rich" },
     { name = "sqlalchemy" },
     { name = "typer" },
+    { name = "typing-extensions" },
 ]
 
 [package.optional-dependencies]
@@ -1297,6 +1298,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.45" },
     { name = "ty", marker = "extra == 'dev'", specifier = "==0.0.61" },
     { name = "typer", specifier = ">=0.12" },
+    { name = "typing-extensions", specifier = ">=4.5" },
 ]
 provides-extras = ["dev", "postgres", "semantics"]
 

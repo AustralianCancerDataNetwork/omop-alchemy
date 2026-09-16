@@ -1,4 +1,5 @@
 import warnings
+from typing_extensions import deprecated
 
 from sqlalchemy import select, union_all, literal
 from .condition_occurrence import Condition_Occurrence
@@ -41,6 +42,11 @@ clinical_event_union = union_all(
 ).subquery("clinical_event")
 
 
+@deprecated(
+    "Use omop_alchemy.toolkit.core.events.canonical_event_union instead. "
+    "ClinicalEventView will be removed in omop-alchemy 2.0.",
+    category=None,
+)
 class ClinicalEventView(Base):
     __table__ = clinical_event_union
     __mapper_args__ = {
