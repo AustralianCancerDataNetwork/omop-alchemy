@@ -348,6 +348,55 @@ def test_diagnostics_explain_person_mismatches_and_fallback_outcomes(session):
     assert typed.episode_id == CROSS_PERSON_LINK.episode_id
 
 
+@pytest.mark.parametrize(
+    "session_fixture",
+    [
+        "session",
+        pytest.param("pg_session", marks=pytest.mark.requires_database("test_cdm_db")),
+    ],
+)
+@pytest.mark.parametrize("copies", [(2, 1), (1, 2), (2, 2)])
+@pytest.mark.parametrize("episode_count", [1, 2])
+@pytest.mark.parametrize(
+    "policy",
+    [
+        EpisodeAttachmentPolicy.explicit_first_ranked,
+        EpisodeAttachmentPolicy.explicit_first_all_in_window,
+    ],
+)
+def test_fallback_counts_distinct_episodes_with_duplicate_inputs(
+    request, session_fixture, copies, episode_count, policy
+):
+    session = request.getfixturevalue(session_fixture)
+    event_copies, episode_copies = copies
+    queries = episode_attachment_queries(
+        _event_source(*([COLLIDING_EVENTS[0]] * event_copies)),
+        episodes=_episode_source(
+            *(OVERLAPPING_EPISODES[:episode_count] * episode_copies)
+        ),
+        episode_events=_empty_link_source(),
+        policy=policy,
+        ranking=_nearest() if policy.requires_fallback_ranking else None,
+        include_diagnostics=True,
+    )
+    rows = session.execute(queries.attachments).mappings().all()
+    expected_ids = (
+        {1001}
+        if policy.requires_fallback_ranking
+        else {episode.episode_id for episode in OVERLAPPING_EPISODES[:episode_count]}
+    )
+    assert len(rows) == len(expected_ids)
+    assert {row["episode_id"] for row in rows} == expected_ids
+    assert queries.diagnostics is not None
+    diagnostics = session.execute(queries.diagnostics).mappings().all()
+    if episode_count == 2 and policy.requires_fallback_ranking:
+        assert len(diagnostics) == 1
+        assert diagnostics[0]["diagnostic_code"] == "ambiguous_fallback"
+        assert diagnostics[0]["candidate_count"] == 2
+    else:
+        assert diagnostics == []
+
+
 def test_diagnostics_and_fallback_share_the_explicit_event_key_cte():
     queries = episode_attachment_queries(
         _event_source(COLLIDING_EVENTS[0]),

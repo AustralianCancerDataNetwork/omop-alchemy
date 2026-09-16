@@ -5,6 +5,11 @@ selection once; the runtime resolver then performs only in-memory
 normalisation and correction. Keeping those responsibilities separate is
 important for bulk ETL, where a resolver must not reopen relationships or
 expand vocabulary hierarchies per row.
+
+OMOP Alchemy's resolver is scoped deterministic lookup over that materialised
+index. Candidate generation, graph traversal and grounding constraints belong
+to omop-graph; the two layers may share vocabulary concepts without sharing a
+resolver contract.
 """
 
 from typing import Iterable, Callable
@@ -460,9 +465,8 @@ class ConceptResolver:
     def all_concepts(self) -> set[int]:
         """Every concept ID reachable through this resolver's index.
 
-        Cached: the index is fixed at construction, and callers legitimately
-        union several resolvers' sets, which previously rebuilt each one per
-        access.  Returned by reference, so treat it as read-only.
+        Cached because the index is fixed at construction. Returned by
+        reference, so treat it as read-only.
         """
         return set(self.index.mapping.values())
 

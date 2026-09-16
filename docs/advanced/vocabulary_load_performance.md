@@ -23,11 +23,11 @@ Empirical timing on an 8 GB RAM dev machine with `concept_relationship` (~56 M r
 
 | Configuration | Total load time |
 |---------------|----------------|
-| `--merge-batch-size 1_000_000` (old default) | ~120 min |
+| `--merge-batch-size 1_000_000` | ~120 min |
 | `--merge-batch-size 20_000_000` | ~80 min |
 | No pagination (default) | **~40 min** |
 
-The staging index build alone on a 56 M-row table adds 10–15 minutes regardless of batch size. **The default is now `None` (no pagination).** Only set `--merge-batch-size` if your system cannot hold the full merge in a single transaction.
+The staging index build alone on a 56 M-row table adds 10–15 minutes regardless of batch size. **The default is `None` (no pagination).** Only set `--merge-batch-size` if your system cannot hold the full merge in a single transaction.
 
 > **Warning:** Setting `--merge-batch-size` to a large number to "avoid" pagination does not help if that number is still smaller than the largest table. For `concept_relationship` (~56 M rows), any value below 56 M will trigger the index build. If you need pagination, set it to your actual memory limit; if you don't, leave it unset.
 
@@ -37,7 +37,7 @@ The next biggest bottleneck after pagination is `synchronous_commit=on` (the Pos
 
 ### Recommended settings
 
-Apply these via `postgresql.conf` or `-c` flags on whatever PostgreSQL instance you're loading into (per-package `docker-compose.yaml` files no longer exist; Docker orchestration for the OMOP stack now happens at the workspace root).
+Apply these via `postgresql.conf` or `-c` flags on the PostgreSQL instance you're loading into.
 
 **8 GB host:**
 ```

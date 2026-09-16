@@ -48,19 +48,17 @@ class ConceptGroupSpec:
     unit
         The omop-semantics ``RuntimeSemanticUnit`` supplying anchors.  Read
         lazily, so a spec can be declared at module scope without loading the
-        semantics runtime.  omop-semantics 0.6 put mixed-role composition on
-        the semantic unit rather than on ``RuntimeGroup``, which is why this
-        takes a unit: ``parent_ids`` expand through descendants while
-        ``exact_ids`` are matched directly.
+        semantics runtime. The unit supplies mixed-role anchors:
+        ``parent_ids`` expand through descendants while ``exact_ids`` are
+        matched directly.
     include_descendants
         Expand ``parent_ids`` through ``concept_ancestor``.  When False only
         the anchors themselves are members.
     require_standard
         Restrict expansion to concepts carrying a standardness flag.  Defaults to
-        False, matching the historical oncology behaviour of reading
-        ``concept_ancestor`` without a standard filter.  Note this is the
-        *opposite* default to ``OMOPConceptSource.descendants``; the difference is
-        deliberate and declared here rather than left implicit.
+        False, so expansion reads ``concept_ancestor`` without a standard
+        filter. ``OMOPConceptSource.descendants`` defaults to requiring standard
+        concepts.
     include_classification
         Widens ``require_standard`` to admit classification ('C') concepts.
         Defaults to True so a governed group can be anchored on a classification

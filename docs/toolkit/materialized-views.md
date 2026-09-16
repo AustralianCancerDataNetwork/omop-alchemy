@@ -50,7 +50,15 @@ class MeasurementSummaryMV(MaterializedViewMixin):
 ```python
 class PersonMeasurementSummaryMV(MaterializedViewMixin):
     __mv_name__ = "person_measurement_summary"
-    __mv_select__ = sa.select(measurement_summary.subquery())
+    __mv_select__ = sa.select(
+        sa.table(
+            "measurement_summary",
+            sa.column("person_id", sa.Integer),
+            sa.column("concept_id", sa.Integer),
+            sa.column("last_measurement_date", sa.Date),
+            sa.column("measurement_count", sa.Integer),
+        )
+    )
     __mv_dependencies__ = {"measurement_summary"}
 ```
 

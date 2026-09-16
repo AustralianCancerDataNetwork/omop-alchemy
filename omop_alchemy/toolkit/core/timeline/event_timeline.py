@@ -291,7 +291,6 @@ class Measurement_Event(ClinicalEvent, Measurement):
         value_fields=[
             "value_as_concept_id",
             "value_as_number",
-            "value_as_string",
         ],
     )
 

@@ -25,7 +25,7 @@ The test suite includes PostgreSQL-specific tests that skip automatically unless
 > to a database that contains real data. The test suite enforces this: it fails loudly (not skips) if the
 > configured database is not marked `test_only = true` in your config.
 >
-> Refer to the CI/CD workflows at [cava-devops](http://github.com/AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-postgres.yml) for more details on how integration test runs are typically orchestrated.
+> Refer to the CI/CD workflows at [cava-devops](https://github.com/AustralianCancerDataNetwork/cava-devops/blob/main/.github/workflows/build-test-postgres.yml) for more details on how integration test runs are typically orchestrated.
 
 **Step 1 — Register a test database connection:**
 

@@ -1,10 +1,7 @@
 """Governed oncology concept sets.
 
-Every set here names an omop-semantics semantic unit rather than assembling
-concept IDs locally.  That matters beyond tidiness: "what counts as
-radiotherapy" is a clinical claim, and it was previously written out by hand
-both here and in omop-constructs, governed by neither.  omop-semantics 0.6+
-publishes these as governed units, so both consumers name the same definition.
+Every set here references a governed omop-semantics semantic unit. The unit
+defines clinical membership, such as which concepts count as radiotherapy.
 
 Specs are declarative — importing this module resolves no semantics runtime and
 touches no database.  Expansion happens on first use and is cached per

@@ -99,6 +99,11 @@ class ObservationContext(ReferenceContext):
             remote_pk="concept_id",
         )
     )  # type: ignore[assignment]
+    unit_concept: so.Mapped[Optional["Concept"]] = (
+        ReferenceContext._reference_relationship(
+            target="Concept", local_fk="unit_concept_id", remote_pk="concept_id"
+        )
+    )  # type: ignore[assignment]
     provider: so.Mapped[Optional["Provider"]] = (
         ReferenceContext._reference_relationship(
             target="Provider", local_fk="provider_id", remote_pk="provider_id"

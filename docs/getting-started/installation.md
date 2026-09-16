@@ -88,7 +88,6 @@ This is supported for postgres only.
 Use engine_with_replica_role when:
 
 * Running schema-level operations that may open independent sessions
-* Running schema-level operations that might trigger independent sessions
 * Using tooling that opens its own connections
 
 ## Optional PostgreSQL full-text search

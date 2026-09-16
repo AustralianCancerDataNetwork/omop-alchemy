@@ -48,7 +48,7 @@ concept.is_standard                         # True
 
 The core API under `cdm/` should be considered stable as of the 1.x release.
 
-The toolkit API is stabilising, but some modules may change as real-world use cases expand. Feedback and issues are welcome.
+The toolkit API is experimental and carries no compatibility guarantees. Feedback and issues are welcome.
 
 ### Some additional background
 

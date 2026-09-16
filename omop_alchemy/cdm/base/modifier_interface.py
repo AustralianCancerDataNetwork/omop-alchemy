@@ -6,7 +6,8 @@ from sqlalchemy.sql.elements import SQLColumnExpression
 
 class ModifierSourceMixin:
     """
-    Marker + helpers for OMOP tables that can modify another CDM row.
+    Marker and helpers for OMOP tables that record a supplementary fact about
+    another CDM row through OMOP's polymorphic modifier link.
 
     OMOP puts the modifier link on the source table under table-specific
     column names (``measurement_event_id`` / ``meas_event_field_concept_id``
@@ -17,6 +18,11 @@ class ModifierSourceMixin:
     This is a declarative marker, not a support list. Which models are
     accepted as modifier sources stays an explicit allow-list in the toolkit;
     wearing this mixin describes a model's shape, it does not enrol it.
+
+    The mixin exposes row-level link columns and properties only. Bulk target
+    validation, including person and Field-concept checks, is provided by the
+    toolkit's ``modifier_target_queries`` builder rather than by an implicit
+    ``resolved_target`` lookup on each ORM instance.
     """
 
     __abstract__ = True
@@ -49,8 +55,11 @@ class ModifierSourceMixin:
 
 class ModifierTargetMixin:
     """
-    Marker + helpers for OMOP tables that can be modified
-    by Measurements / Observations / Episode Events.
+    Marker and helpers for OMOP tables that can receive a polymorphic modifier
+    link from Measurements, Observations, or Episode Events.
+
+    Wearing this mixin describes target-row identity metadata; it does not
+    enrol a class as a clinical event or modifier target in a registry.
     """
 
     __abstract__ = True

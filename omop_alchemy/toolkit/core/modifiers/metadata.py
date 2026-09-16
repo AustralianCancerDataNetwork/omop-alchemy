@@ -22,18 +22,27 @@ from omop_alchemy.toolkit.core.events import (
     UnsupportedClinicalEventModelError,
     clinical_event_model_spec,
 )
+from omop_alchemy.toolkit.core.errors import UnsupportedModelError
 
 
-class UnsupportedModifierSourceModelError(TypeError):
+class UnsupportedModifierSourceModelError(UnsupportedModelError):
     """Raised when a model cannot provide a canonical modifier projection."""
 
-    def __init__(self, model: object, reason: str) -> None:
-        name = getattr(model, "__name__", repr(model))
-        super().__init__(f"{name} is not a supported modifier model: {reason}")
+    model_kind = "modifier model"
 
 
-class UnsupportedModifierTargetError(TypeError):
+class UnsupportedModifierTargetError(UnsupportedModelError):
     """Raised when a model cannot be a canonical modifier target."""
+
+    model_kind = "modifier target"
+
+    def __init__(self, model: object, reason: str | None = None) -> None:
+        # Keep the historical message-only constructor usable for callers that
+        # instantiated this public exception directly.
+        if reason is None:
+            super().__init__(None, str(model), message=str(model))
+            return
+        super().__init__(model, reason)
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,22 +128,21 @@ def modifier_source_model_spec(model: type[Any]) -> ClinicalEventModelSpec:
             raise UnsupportedModifierSourceModelError(
                 model, f"{declaration} names a missing column: {column_name}"
             )
-    spec = MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE.get(
-        str(getattr(model, "__tablename__", ""))
-    )
-    if spec is not None:
-        return spec
+    # Only the bare built-ins share cached metadata. Views and subclasses may
+    # override event declarations and must resolve and validate their own spec.
+    if model in CDM_MODIFIER_SOURCE_MODELS:
+        return MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE[model.__tablename__]
     return _source_spec(model)
 
 
 def modifier_target_model_spec(model: type[Any]) -> ModifierTargetModelSpec:
     """Resolve and validate immutable metadata for a modifier target model."""
     if not isinstance(model, type) or not hasattr(model, "__table__"):
-        raise UnsupportedModifierTargetError("expected a mapped ORM model class")
+        raise UnsupportedModifierTargetError(model, "expected a mapped ORM model class")
     spec = MODIFIER_TARGET_SPECS_BY_TABLE.get(str(getattr(model, "__tablename__", "")))
     if spec is None:
         raise UnsupportedModifierTargetError(
-            f"{model.__name__} is not a supported modifier target"
+            model, "is not a supported modifier target"
         )
     missing = tuple(
         name
@@ -143,6 +151,7 @@ def modifier_target_model_spec(model: type[Any]) -> ModifierTargetModelSpec:
     )
     if missing:
         raise UnsupportedModifierTargetError(
-            f"{model.__name__} is missing required attributes: {', '.join(missing)}"
+            model,
+            f"is missing required attributes: {', '.join(missing)}",
         )
     return spec

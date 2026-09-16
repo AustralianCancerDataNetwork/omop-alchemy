@@ -23,6 +23,7 @@ from omop_alchemy.cdm.model import (
     Person,
     Procedure_Occurrence,
 )
+from omop_alchemy.cdm.model.clinical import MeasurementView, ObservationView
 from omop_alchemy.cdm.model.structural import Episode, Episode_EventView
 from omop_alchemy.cdm.model.clinical.event_metadata import (
     CLINICAL_EVENT_TARGETS_BY_FIELD_CONCEPT_ID,
@@ -31,7 +32,10 @@ from omop_alchemy.cdm.model.clinical.event_metadata import (
     STRUCTURAL_MODIFIER_TARGETS_BY_TABLE,
     clinical_event_target_for_table,
 )
-from omop_alchemy.toolkit.core.events import ClinicalEventModelSpec
+from omop_alchemy.toolkit.core.events import (
+    ClinicalEventModelSpec,
+    clinical_event_model_spec,
+)
 from omop_alchemy.toolkit.core.modifiers.projections import _VALUE_COLUMN_TYPES
 from omop_alchemy.toolkit.core.modifiers.contracts import (
     ModifierColumn,
@@ -45,6 +49,7 @@ from omop_alchemy.toolkit.core.modifiers import (
     MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE,
     MODIFIER_TARGET_SPECS_BY_TABLE,
     UnsupportedModifierSourceModelError,
+    UnsupportedModifierTargetError,
     canonical_modifier_projection,
     canonical_modifier_target_projection,
     canonical_modifier_union,
@@ -91,8 +96,32 @@ def test_modifier_union_preserves_shape_and_all_rows():
 def test_non_modifier_model_fails_at_query_construction():
     with pytest.raises(
         UnsupportedModifierSourceModelError, match="ModifierSourceMixin"
-    ):
+    ) as raised:
         canonical_modifier_projection(Person)
+
+    assert raised.value.model is Person
+    assert raised.value.reason == (
+        "must declare the OMOP modifier link via ModifierSourceMixin"
+    )
+
+
+def test_unsupported_modifier_target_error_preserves_model_and_reason():
+    with pytest.raises(
+        UnsupportedModifierTargetError,
+        match="is not a supported modifier target",
+    ) as raised:
+        modifier_target_model_spec(Person)
+
+    assert raised.value.model is Person
+    assert raised.value.reason == "is not a supported modifier target"
+
+
+def test_unsupported_modifier_target_error_keeps_message_only_compatibility():
+    error = UnsupportedModifierTargetError("legacy target message")
+
+    assert str(error) == "legacy target message"
+    assert error.model is None
+    assert error.reason == "legacy target message"
 
 
 def test_modifier_metadata_reuses_generic_model_interfaces():
@@ -245,6 +274,70 @@ def test_a_source_naming_a_missing_link_column_is_rejected():
         UnsupportedModifierSourceModelError, match="names a missing column"
     ):
         modifier_source_model_spec(custom)
+
+
+@pytest.mark.parametrize("source_model", [MeasurementView, ObservationView])
+def test_modifier_source_subclass_projects_its_own_event_metadata(source_model):
+    original = clinical_event_model_spec(source_model)
+    specialized = type(
+        f"{source_model.__name__}WithOverriddenEventMetadata",
+        (source_model,),
+        {
+            "__event_id_col__": "projected_id",
+            "projected_id": so.column_property(
+                getattr(source_model, original.event_id_column) + 100
+            ),
+            "__concept_id_col__": "value_as_concept_id",
+            "__start_date_col__": "projected_date",
+            "projected_date": so.synonym(original.event_date_column),
+            "projected_datetime": so.synonym(original.event_datetime_column),
+        },
+    )
+    spec = modifier_source_model_spec(specialized)
+    assert spec == clinical_event_model_spec(specialized)
+    assert spec.event_date_column == "projected_date"
+    assert spec.event_datetime_column == "projected_datetime"
+
+    engine = sa.create_engine("sqlite://")
+    Base.metadata.create_all(engine, tables=[source_model.__table__])
+    with engine.begin() as connection:
+        connection.execute(
+            source_model.__table__.insert(),
+            {
+                original.event_id_column: 7,
+                "person_id": 101,
+                original.event_concept_id_column: 900_001,
+                original.event_date_column: date(2026, 1, 20),
+                source_model.__type_concept_id_col__: 32817,
+                "value_as_concept_id": 900_002,
+            },
+        )
+        row = (
+            connection.execute(canonical_modifier_projection(specialized))
+            .mappings()
+            .one()
+        )
+    engine.dispose()
+
+    assert row["modifier_id"] == 107
+    assert row["modifier_concept_id"] == 900_002
+    assert row["modifier_date"] == date(2026, 1, 20)
+
+
+@pytest.mark.parametrize("source_model", [MeasurementView, ObservationView])
+@pytest.mark.parametrize(
+    "declaration", ["__event_id_col__", "__concept_id_col__", "__start_date_col__"]
+)
+def test_modifier_source_subclass_rejects_missing_declared_columns(
+    source_model, declaration
+):
+    specialized = type(
+        f"{source_model.__name__}WithMissing{declaration.strip('_')}",
+        (source_model,),
+        {declaration: "no_such_column"},
+    )
+    with pytest.raises(UnsupportedModifierSourceModelError, match="no_such_column"):
+        canonical_modifier_projection(specialized)
 
 
 def test_modifier_targets_derive_the_clinical_surface_and_extend_it_with_episode():
@@ -467,8 +560,7 @@ def test_postgresql_executes_modifier_target_validation_contracts(pg_session):
     queries = modifier_target_queries(modifiers, targets, diagnostics=True)
 
     assert [
-        row["modifier_id"]
-        for row in pg_session.execute(queries.matches).mappings()
+        row["modifier_id"] for row in pg_session.execute(queries.matches).mappings()
     ] == [1]
     assert queries.diagnostics is not None
     assert {

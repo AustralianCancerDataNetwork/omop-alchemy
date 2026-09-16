@@ -172,23 +172,23 @@ class EpisodeAttachmentDiagnostic:
         """Convert one SQLAlchemy mapping result without leaking column-name handling."""
         return cls(
             code=AttachmentDiagnosticCode(
-                row[str(AttachmentDiagnosticColumn.diagnostic_code)]
+                row[AttachmentDiagnosticColumn.diagnostic_code.value]
             ),
             event=ClinicalEventIdentity(
                 event_source_table=row[
-                    str(AttachmentDiagnosticColumn.event_source_table)
+                    AttachmentDiagnosticColumn.event_source_table.value
                 ],
-                event_id=row[str(AttachmentDiagnosticColumn.event_id)],
+                event_id=row[AttachmentDiagnosticColumn.event_id.value],
             ),
             event_field_concept_id=row[
-                str(AttachmentDiagnosticColumn.event_field_concept_id)
+                AttachmentDiagnosticColumn.event_field_concept_id.value
             ],
             linked_event_field_concept_id=row[
-                str(AttachmentDiagnosticColumn.linked_event_field_concept_id)
+                AttachmentDiagnosticColumn.linked_event_field_concept_id.value
             ],
-            episode_id=row[str(AttachmentDiagnosticColumn.episode_id)],
-            candidate_count=row[str(AttachmentDiagnosticColumn.candidate_count)],
-            message=row[str(AttachmentDiagnosticColumn.message)],
+            episode_id=row[AttachmentDiagnosticColumn.episode_id.value],
+            candidate_count=row[AttachmentDiagnosticColumn.candidate_count.value],
+            message=row[AttachmentDiagnosticColumn.message.value],
         )
 
 

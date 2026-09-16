@@ -17,7 +17,7 @@ MODIFIER_RANK = "modifier_rank"
 
 
 class InvalidModifierSourceError(ValueError):
-    pass
+    """Raised when a modifier selection input lacks a required column."""
 
 
 def modifier_order_expressions(
@@ -110,7 +110,33 @@ def selected_modifier_select(
     *,
     priority: Sequence[sa.ColumnElement[Any]] = (),
 ) -> sa.Select[Any]:
-    """Select the first deterministically ranked modifier in each partition."""
+    """Select the first deterministically ranked modifier in each partition.
+
+    Parameters
+    ----------
+    source:
+        A selectable containing canonical modifier columns and target identity
+        columns.
+    spec:
+        Temporal direction, partition columns and stable identity columns used
+        to define the selection contract.
+    priority:
+        Optional SQL expressions placed before the temporal policy, such as a
+        domain-specific stage preference.
+
+    Returns
+    -------
+    sqlalchemy.sql.Select
+        A selectable containing the source columns, with one row at rank one
+        for each target partition. Rows missing either target identity column
+        are excluded before selection.
+
+    Notes
+    -----
+    The final tie-breakers come from ``spec.stable_identity_columns``. This
+    keeps the result deterministic when dates, datetimes and caller priorities
+    are equal.
+    """
     ranked = ranked_modifier_select(source, spec=spec, priority=priority).subquery(
         "ranked_modifiers"
     )

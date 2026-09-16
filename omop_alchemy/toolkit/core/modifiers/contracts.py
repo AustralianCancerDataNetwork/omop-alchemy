@@ -185,15 +185,15 @@ class ModifierTargetDiagnostic:
     ) -> ModifierTargetDiagnostic:
         return cls(
             diagnostic_code=ModifierTargetDiagnosticCode(
-                row[str(ModifierTargetDiagnosticColumn.diagnostic_code)]
+                row[ModifierTargetDiagnosticColumn.diagnostic_code.value]
             ),
             modifier_source_table=str(
-                row[str(ModifierTargetDiagnosticColumn.modifier_source_table)]
+                row[ModifierTargetDiagnosticColumn.modifier_source_table.value]
             ),
-            modifier_id=int(row[str(ModifierTargetDiagnosticColumn.modifier_id)]),
+            modifier_id=int(row[ModifierTargetDiagnosticColumn.modifier_id.value]),
             target_field_concept_id=row[
-                str(ModifierTargetDiagnosticColumn.target_field_concept_id)
+                ModifierTargetDiagnosticColumn.target_field_concept_id.value
             ],
-            target_event_id=row[str(ModifierTargetDiagnosticColumn.target_event_id)],
-            message=str(row[str(ModifierTargetDiagnosticColumn.message)]),
+            target_event_id=row[ModifierTargetDiagnosticColumn.target_event_id.value],
+            message=str(row[ModifierTargetDiagnosticColumn.message.value]),
         )

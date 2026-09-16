@@ -28,7 +28,10 @@ from omop_alchemy.cdm.model.clinical import (
     Procedure_OccurrenceView,
 )
 from omop_alchemy.cdm.base import ModifierTargetMixin
-from omop_alchemy.cdm.model.structural import Episode_EventView
+from omop_alchemy.cdm.model.structural import Episode, Episode_EventView, EpisodeView
+from omop_alchemy.cdm.model.clinical.event_metadata import (
+    _validate_unique_target_keys,
+)
 from omop_alchemy.toolkit.core.events import (
     CANONICAL_EVENT_OPTIONAL_COLUMNS,
     CANONICAL_EVENT_REQUIRED_COLUMNS,
@@ -119,8 +122,34 @@ def test_incomplete_modifier_target_has_a_typed_error():
     with pytest.raises(
         UnsupportedClinicalEventModelError,
         match="no complete ModifierTargetMixin metadata",
-    ):
+    ) as raised:
         canonical_event_projection(Person)
+
+    assert raised.value.model is Person
+    assert raised.value.reason == "no complete ModifierTargetMixin metadata is available"
+
+
+@pytest.mark.parametrize("model", [Episode, EpisodeView])
+def test_structural_modifier_targets_are_not_clinical_events(model):
+    with pytest.raises(
+        UnsupportedClinicalEventModelError,
+        match="no complete ModifierTargetMixin metadata",
+    ):
+        clinical_event_model_spec(model)
+
+
+def test_target_registry_rejects_duplicate_identities():
+    entries = (
+        (Condition_Occurrence, Condition_OccurrenceView),
+        (Measurement, MeasurementView),
+    )
+
+    with pytest.raises(ValueError, match="duplicate test identity"):
+        _validate_unique_target_keys(
+            entries,
+            key=lambda _source, _target: "same",
+            label="test identity",
+        )
 
 
 def test_all_core_event_views_are_registered_episode_event_targets():

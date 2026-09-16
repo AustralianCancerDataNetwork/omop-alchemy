@@ -9,11 +9,13 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
 from omop_alchemy.cdm.base import ModifierFieldConcepts
+from omop_alchemy.cdm.model.clinical import MeasurementView, ObservationView
 from omop_alchemy.toolkit.core.events import ClinicalEventRow
 from omop_alchemy.toolkit.core.timeline import (
     ClinicalEvent,
     Condition_Event,
     Drug_Exposure_Event,
+    Measurement_Event,
     Observation_Event,
     Person_Timeline,
 )
@@ -71,6 +73,23 @@ def test_drug_exposure_quantity_is_a_numeric_timeline_value():
     assert event.event_value().type == "numeric"
     assert event.event_value().value == 12.5
     assert event.to_dict()["value"] == {"type": "numeric", "value": 12.5}
+
+
+def test_measurement_event_only_declares_measurement_value_columns():
+    assert Measurement_Event._mapping.value_fields == [
+        "value_as_concept_id",
+        "value_as_number",
+    ]
+
+
+def test_measurement_and_observation_views_expose_schema_backed_unit_context():
+    measurement_relationships = MeasurementView.__mapper__.relationships
+    observation_relationships = ObservationView.__mapper__.relationships
+
+    assert "unit_concept" in measurement_relationships
+    assert "unit_source_concept" in measurement_relationships
+    assert "unit_concept" in observation_relationships
+    assert "unit_source_concept" not in observation_relationships
 
 
 def test_all_timeline_events_use_clinical_event_behaviour():

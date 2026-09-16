@@ -7,23 +7,20 @@ from typing import Any
 
 import sqlalchemy as sa
 
-from omop_alchemy.cdm.base import ModifierTargetMixin
+from omop_alchemy.cdm.base import ModifierSourceMixin, ModifierTargetMixin
 from omop_alchemy.cdm.model.clinical.event_metadata import (
     clinical_event_target_for_table,
 )
 from omop_alchemy.toolkit._utils import _nullable_column, _select_or_union_all
+from omop_alchemy.toolkit.core.errors import UnsupportedModelError
 
 from .contracts import ClinicalEventColumn
 
 
-class UnsupportedClinicalEventModelError(TypeError):
+class UnsupportedClinicalEventModelError(UnsupportedModelError):
     """Raised when a model cannot provide a canonical clinical-event projection."""
 
-    def __init__(self, model: object, reason: str) -> None:
-        self.model = model
-        self.reason = reason
-        name = getattr(model, "__name__", repr(model))
-        super().__init__(f"{name} is not a supported clinical-event model: {reason}")
+    model_kind = "clinical-event model"
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,11 +54,21 @@ def _has_complete_event_metadata(model: type[Any]) -> bool:
 
 
 def _metadata_candidate(model: type[Any]) -> type[ModifierTargetMixin] | None:
-    # An explicitly supplied event view owns its metadata. Bare CDM tables use the
-    # registered CDM view for that table; unrelated subclasses are never discovered
-    # by walking Python's import-dependent subclass graph.
+    # An explicitly supplied registered event view (or its domain-specific
+    # subclass) owns its metadata. Bare CDM tables use the registered CDM view
+    # for that table; unrelated subclasses are never discovered by walking
+    # Python's import-dependent subclass graph.
     if _has_complete_event_metadata(model):
-        return model
+        table_name = getattr(model, "__tablename__", None)
+        registered_view = clinical_event_target_for_table(str(table_name))
+        if registered_view is not None and issubclass(model, registered_view):
+            return model
+        # Modifier sources outside the built-in event set are intentionally
+        # supported by the canonical modifier projection. They carry the same
+        # event-shaped metadata, but do not become episode-resolvable events.
+        if issubclass(model, ModifierSourceMixin):
+            return model
+        return None
     # Lean CDM models intentionally do not carry modifier metadata. Resolve
     # their table through the configured analytical view without changing the
     # class used to read scalar event rows.

@@ -71,7 +71,7 @@ assert measurement != procedure
 
 `ClinicalEventColumn` defines the common labels used when heterogeneous event tables are projected into one result. The required shape includes the person, table-scoped event identity, event date and datetime, clinical concept, and OMOP Field concept that identifies the source ID column. Optional labels cover numeric values, value concepts, and units.
 
-`canonical_event_union()` turns supported event models into that shared shape. Measurement and Observation retain their value and unit columns; sources without those fields receive typed nulls so every branch of the union remains compatible:
+`canonical_event_union()` turns supported event models into that shared shape. Measurement and Observation retain numeric values, value concepts and units; Observation string values are outside this projection. Sources without those fields receive typed nulls so every branch of the union remains compatible:
 
 ```python
 from omop_alchemy.cdm.model import (

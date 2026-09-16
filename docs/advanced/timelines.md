@@ -47,7 +47,7 @@ Four CDM tables are pre-wired with `EventMapping`s:
 | Class | CDM table | Concept field | Value fields |
 |-------|-----------|---------------|--------------|
 | `Condition_Event` | `condition_occurrence` | `condition_concept_id` | — |
-| `Measurement_Event` | `measurement` | `measurement_concept_id` | `value_as_number`, `value_as_concept_id`, `value_as_string` |
+| `Measurement_Event` | `measurement` | `measurement_concept_id` | `value_as_concept_id`, `value_as_number` |
 | `Drug_Exposure_Event` | `drug_exposure` | `drug_concept_id` | `quantity` |
 | `Observation_Event` | `observation` | `observation_concept_id` | `value_as_concept_id`, `value_as_number`, `value_as_string` |
 
@@ -81,6 +81,8 @@ with Session(engine) as session:
         print(event)
         print(event.to_dict())
 ```
+
+Serialized timeline events include `event_id`, `event_source_table`, `event_field_concept_id` and `event_concept_id`. Direct `EventMapping` construction requires `event_id_field`, `event_source_table` and `event_field_concept_id`; `EventMapping.from_model()` derives these fields from model metadata.
 
 ---
 

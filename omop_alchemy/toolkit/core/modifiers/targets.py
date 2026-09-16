@@ -60,7 +60,37 @@ def modifier_target_queries(
     include_unmatched: bool = False,
     diagnostics: bool = False,
 ) -> ModifierTargetQueries:
-    """Resolve valid target links and optionally explain rejected modifier rows."""
+    """Resolve valid target links and optionally explain rejected modifier rows.
+
+    Parameters
+    ----------
+    modifier_source:
+        A supported modifier model or a selectable exposing the canonical
+        modifier columns.
+    target_source:
+        A supported ORM target model or a selectable exposing target identity
+        columns. Selectables are treated as the caller's supplied scope.
+    include_unmatched:
+        If ``True``, retain modifier rows without a valid target in
+        ``matches``. Otherwise only valid links are returned.
+    diagnostics:
+        If ``True``, also build an advisory diagnostic selectable. Building
+        the queries does not execute either selectable.
+
+    Returns
+    -------
+    ModifierTargetQueries
+        ``matches`` contains the modifier columns plus resolved target
+        identity columns. ``diagnostics`` is ``None`` unless requested.
+
+    Notes
+    -----
+    A link is valid only when target event ID, target Field concept and person
+    ID all agree. For an ORM target model, diagnostics can report an
+    unsupported target field or a missing target event. For a caller-supplied
+    selectable, those absences may be caused by filtering, so only missing
+    identity and observed person mismatches are reported.
+    """
     modifiers = (
         canonical_modifier_projection(modifier_source).subquery("target_modifiers")
         if isinstance(modifier_source, type)

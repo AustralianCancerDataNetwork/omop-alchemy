@@ -1,7 +1,4 @@
-"""Shared CDM concept-table query filtering.
-
-Consolidates filtering logic previously duplicated across downstream packages
-"""
+"""Shared CDM concept-table query filtering."""
 
 from __future__ import annotations
 
