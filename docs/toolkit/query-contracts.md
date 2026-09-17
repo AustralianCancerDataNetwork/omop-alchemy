@@ -376,23 +376,28 @@ selected = selected_modifier_select(
 )
 ```
 
-The default selection partition includes person and both target identity
-columns. If one input contains several modifier categories and selection should
-occur separately for each, filter to one category before ranking or add that
-category discriminator to `partition_by`. Incomplete target identities are
-excluded. The stable source table and modifier ID are always the final
-tie-breakers under the default contract.
+The default selection partition includes person and both target identity columns. If one input contains several modifier categories and selection should occur separately for each, filter to one category before ranking or add that category discriminator to `partition_by`. Incomplete target identities are excluded. The stable source table and modifier ID are always the final tie-breakers under the default contract.
 
-`modifier_target_queries(..., diagnostics=True)` returns a second advisory query
-covering `missing_target_identity`, `unsupported_target_field`,
-`missing_target_event`, and `person_mismatch`. Diagnostics do not change the
-valid result. For a filtered caller projection, missing events are input-relative.
+`modifier_target_queries(..., diagnostics=True)` returns a second advisory query covering `missing_target_identity`, `unsupported_target_field`, `missing_target_event`, and `person_mismatch`. Diagnostics do not change the valid result. For a caller-supplied selectable, only missing identity and observed person mismatches are reported: a filtered result cannot prove that an event is absent from the underlying table or that its Field is unsupported.
 
-Oncology stage preference composes with this generic selector. Its public
-default is pathological, clinical, then unclassified, followed by earliest
-time. `StageSelectionSpec.clinical_first()`,
-`StageSelectionSpec.chronological_only()`, and a `latest` temporal policy are
-explicit query-scoped alternatives.
+Diagnostics support inspection and validation independently of selection. Consume SQLAlchemy mappings directly, or convert them with the thin typed adapters. The adapters do not execute queries or alter the valid matches:
+
+```python
+from omop_alchemy.toolkit.core.modifiers import ModifierTargetDiagnostic
+
+checked = modifier_target_queries(
+    Measurement, Condition_Occurrence, diagnostics=True,
+)
+assert checked.diagnostics is not None
+diagnostic_rows = session.execute(checked.diagnostics).mappings().all()
+typed_diagnostics = [
+    ModifierTargetDiagnostic.from_mapping(row) for row in diagnostic_rows
+]
+```
+
+`EpisodeAttachmentDiagnostic` provides the corresponding convenience for attachment diagnostics, as shown above. These are exported downstream validation contracts; their presence does not imply an in-package workflow or a scheduled consumer integration.
+
+Oncology stage preference composes with this generic selector. Its public default is pathological, clinical, then unclassified, followed by earliest time. `StageSelectionSpec.clinical_first()`, `StageSelectionSpec.chronological_only()`, and a `latest` temporal policy are explicit query-scoped alternatives.
 
 ## API reference
 

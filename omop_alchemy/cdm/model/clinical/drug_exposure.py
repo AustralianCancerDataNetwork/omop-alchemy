@@ -63,10 +63,10 @@ class Drug_Exposure(
 
 
 class Drug_ExposureContext(ReferenceContext):
-    drug_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="drug_concept_id", remote_pk="concept_id")  # type: ignore[assignment]
-    drug_type: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="drug_type_concept_id", remote_pk="concept_id")  # type: ignore[assignment]
-    route: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="route_concept_id", remote_pk="concept_id")  # type: ignore[assignment]
-    drug_source_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="drug_source_concept_id", remote_pk="concept_id")  # type: ignore[assignment]
+    drug_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="drug_concept_id")  # type: ignore[assignment]
+    drug_type: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="drug_type_concept_id")  # type: ignore[assignment]
+    route: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="route_concept_id")  # type: ignore[assignment]
+    drug_source_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="drug_source_concept_id")  # type: ignore[assignment]
 
 
 class Drug_ExposureView(

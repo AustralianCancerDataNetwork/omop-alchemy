@@ -26,7 +26,7 @@ The value associated with a clinical event — numeric, concept, string, or none
 
 ### `EventMapping`
 
-Declares which ORM fields supply the concept, start/end datetimes, and value for a particular CDM table. `EventMapping.from_model()` derives event identity, source, concept, and start fields from the same stable metadata used by canonical SQL projections. Timeline classes add only their end, value, and display-specific fields.
+Declares which ORM fields supply the concept, start/end datetimes, and value for a particular CDM table. `EventMapping.from_model()` derives identity, source, concept and start fields from the shared CDM metadata used by canonical SQL projections. It also infers independent interval endpoints from that metadata: Measurement and Observation alias their one date column in the target API and remain point events in the timeline. Timeline classes add value and display-specific fields. Explicit endpoint strings override inference; explicit `None` disables the corresponding inferred endpoint.
 
 ::: omop_alchemy.toolkit.core.timeline.event_timeline.EventMapping
 

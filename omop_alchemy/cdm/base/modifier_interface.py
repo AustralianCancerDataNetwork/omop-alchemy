@@ -15,18 +15,27 @@ class ModifierSourceMixin:
     Subclasses name those columns once and inherit a common vocabulary, so
     query code never branches on the physical modifier source.
 
-    This is a declarative marker, not a support list. Which models are
-    accepted as modifier sources stays an explicit allow-list in the toolkit;
-    wearing this mixin describes a model's shape, it does not enrol it.
+    Built-in CDM tables put this mixin on the bare Measurement and Observation
+    classes. Custom mapped sources may also use it when they supply complete
+    event and link metadata; source support is validated from that metadata,
+    not restricted to the built-in cached specs. Wearing this mixin does not
+    enrol a model in the clinical-event or modifier-target registries.
 
     The mixin exposes row-level link columns and properties only. Bulk target
     validation, including person and Field-concept checks, is provided by the
     toolkit's ``modifier_target_queries`` builder rather than by an implicit
     ``resolved_target`` lookup on each ORM instance.
+
+    This asymmetry is deliberate: Episode_EventView retains a session-bound
+    convenience for navigating one existing link, without person validation.
+    Measurement and Observation instead use set-based target queries for bulk
+    processing and person/Field/event validation, avoiding implicit per-row
+    target loads on fact-table instances.
     """
 
     __abstract__ = True
     __tablename__: ClassVar[str]
+    # Source-link metadata names the target identity, not this row's own ID.
     __modifier_event_id_col__: ClassVar[str]
     __modifier_field_concept_id_col__: ClassVar[str]
 
@@ -60,10 +69,15 @@ class ModifierTargetMixin:
 
     Wearing this mixin describes target-row identity metadata; it does not
     enrol a class as a clinical event or modifier target in a registry.
+
+    Built-in CDM models place it on analytical Views, keeping the bare tables
+    lean. That placement convention does not restrict custom mapped sources
+    from using both source and target metadata without a View/context base.
     """
 
     __abstract__ = True
     __tablename__: ClassVar[str]
+    # Target-self metadata names this row's identity and clinical fields.
     __event_id_col__: ClassVar[str]
     __concept_id_col__: ClassVar[str]
     __start_date_col__: ClassVar[str]

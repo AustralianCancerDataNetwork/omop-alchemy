@@ -6,11 +6,13 @@ from datetime import date, datetime
 import json
 
 import sqlalchemy as sa
+import pytest
 from sqlalchemy.dialects import sqlite
 
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.clinical import MeasurementView, ObservationView
 from omop_alchemy.toolkit.core.events import ClinicalEventRow
+from omop_alchemy.toolkit.core.timeline.event_timeline import EventMapping
 from omop_alchemy.toolkit.core.timeline import (
     ClinicalEvent,
     Condition_Event,
@@ -96,3 +98,54 @@ def test_all_timeline_events_use_clinical_event_behaviour():
     assert Condition_Event.to_json is ClinicalEvent.to_json
     assert Drug_Exposure_Event.to_json is ClinicalEvent.to_json
     assert Observation_Event.to_json is ClinicalEvent.to_json
+
+
+@pytest.mark.parametrize("model", [Measurement_Event, Observation_Event])
+@pytest.mark.parametrize("has_datetime", [False, True])
+def test_single_date_events_remain_points_with_inferred_metadata(model, has_datetime):
+    mapping = EventMapping.from_model(model)
+    fields = {mapping.start_date_field: date(2026, 9, 17)}
+    if has_datetime:
+        fields[mapping.start_datetime_field] = datetime(2026, 9, 17, 9, 30)
+    event = model(**fields)
+    assert mapping.end_date_field is None
+    assert mapping.end_datetime_field is None
+    assert event.event_time.kind == "point"
+    assert event.to_dict()["event_end"] is None
+
+
+@pytest.mark.parametrize("model", [Condition_Event, Drug_Exposure_Event])
+@pytest.mark.parametrize("has_datetime", [False, True])
+def test_interval_events_infer_independent_endpoints(model, has_datetime):
+    mapping = EventMapping.from_model(model)
+    fields = {
+        mapping.start_date_field: date(2026, 9, 16),
+        mapping.end_date_field: date(2026, 9, 17),
+    }
+    expected_end = datetime(2026, 9, 17, 23, 59, 59, 999999)
+    if has_datetime:
+        fields[mapping.start_datetime_field] = datetime(2026, 9, 16, 9, 30)
+        fields[mapping.end_datetime_field] = expected_end = datetime(
+            2026, 9, 17, 11, 30
+        )
+    event = model(**fields)
+    assert event.event_time.kind == "interval"
+    assert event.event_time.end == expected_end
+    assert event.to_dict()["event_end"] == expected_end.isoformat()
+
+
+def test_explicit_endpoint_overrides_can_disable_inferred_intervals():
+    mapping = EventMapping.from_model(
+        Condition_Event,
+        end_date_field=None,
+        end_datetime_field=None,
+    )
+    assert mapping.end_date_field is None
+    assert mapping.end_datetime_field is None
+    overridden = EventMapping.from_model(
+        Condition_Event,
+        end_date_field="custom_end_date",
+        end_datetime_field="custom_end_datetime",
+    )
+    assert overridden.end_date_field == "custom_end_date"
+    assert overridden.end_datetime_field == "custom_end_datetime"

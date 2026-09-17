@@ -14,7 +14,7 @@ This prompts for connection details (host, dialect, credentials) and schema name
 
 The default location for this file is `~/.config/omop/config.toml`
 
-![configure](../static/images/oa-configure.png)
+![configure](../assets/images/oa-configure.png)
 
 The resulting TOML will look like:
 
@@ -59,7 +59,7 @@ omop-alchemy info
 
 This prints the resolved config file path, connection details, and schema. A successful run confirms that OMOP_Alchemy can reach your database.
 
-![info](../static/images/oa-info.png)
+![info](../assets/images/oa-info.png)
 
 ## Multiple instances
 

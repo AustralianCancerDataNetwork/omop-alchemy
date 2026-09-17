@@ -119,7 +119,7 @@ If you later reload vocabulary data, rerun:
 omop-alchemy fulltext populate
 ```
 
-![fulltext](../static/images/oa-fulltext.png)
+![fulltext](../assets/images/oa-fulltext.png)
 
 For the full design and query patterns, see:
 

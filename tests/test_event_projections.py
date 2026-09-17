@@ -245,3 +245,39 @@ def test_analytics_import_preserves_all_core_metadata_and_compiled_projections()
     )
 
     subprocess.run([sys.executable, "-c", code], check=True)
+
+
+@pytest.mark.parametrize(
+    "first_import",
+    [
+        "omop_alchemy.cdm.base.event_metadata",
+        "omop_alchemy.cdm.model.clinical.event_metadata",
+        "omop_alchemy.toolkit.core.events.projections",
+        "omop_alchemy.toolkit.core.modifiers.metadata",
+        "omop_alchemy.toolkit.core.timeline.event_timeline",
+    ],
+)
+def test_metadata_import_order_preserves_public_aliases(first_import):
+    code = textwrap.dedent(
+        f"""
+        import importlib
+        import sys
+        importlib.import_module({first_import!r})
+        from omop_alchemy.cdm.base.event_metadata import (
+            ClinicalEventModelSpec, UnsupportedClinicalEventModelError,
+        )
+        from omop_alchemy.cdm.base.errors import UnsupportedModelError
+        from omop_alchemy.cdm.model.clinical.event_metadata import clinical_event_model_spec
+        from omop_alchemy.cdm.model.clinical import Measurement
+        if {first_import!r}.startswith('omop_alchemy.cdm.'):
+            assert not any(name.startswith('omop_alchemy.toolkit') for name in sys.modules)
+        from omop_alchemy.toolkit.core import events, errors
+        from omop_alchemy.toolkit.core.events import projections
+        assert events.ClinicalEventModelSpec is projections.ClinicalEventModelSpec is ClinicalEventModelSpec
+        assert events.UnsupportedClinicalEventModelError is projections.UnsupportedClinicalEventModelError is UnsupportedClinicalEventModelError
+        assert events.clinical_event_model_spec is projections.clinical_event_model_spec is clinical_event_model_spec
+        assert errors.UnsupportedModelError is UnsupportedModelError
+        assert isinstance(clinical_event_model_spec(Measurement), ClinicalEventModelSpec)
+        """
+    )
+    subprocess.run([sys.executable, "-c", code], check=True)

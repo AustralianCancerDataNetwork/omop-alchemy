@@ -55,40 +55,34 @@ class Procedure_OccurrenceContext(ReferenceContext):
     person: so.Mapped["Person"] = ReferenceContext._reference_relationship(
         target="Person",
         local_fk="person_id",
-        remote_pk="person_id",
     )  # type: ignore[assignment]
 
     procedure_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="procedure_concept_id",
-        remote_pk="concept_id",
     )  # type: ignore[assignment]
 
     procedure_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="procedure_type_concept_id",
-        remote_pk="concept_id",
     )  # type: ignore[assignment]
 
     modifier_concept: so.Mapped[Optional["Concept"]] = (
         ReferenceContext._reference_relationship(
             target="Concept",
             local_fk="modifier_concept_id",
-            remote_pk="concept_id",
         )
     )  # type: ignore[assignment]
 
     provider: so.Mapped[Optional["Provider"]] = ReferenceContext._reference_relationship(
         target="Provider",
         local_fk="provider_id",
-        remote_pk="provider_id",
     )  # type: ignore[assignment]
 
     visit_occurrence: so.Mapped[Optional["Visit_Occurrence"]] = (
         ReferenceContext._reference_relationship(
             target="Visit_Occurrence",
             local_fk="visit_occurrence_id",
-            remote_pk="visit_occurrence_id",
         )
     )  # type: ignore[assignment]
 
@@ -96,7 +90,6 @@ class Procedure_OccurrenceContext(ReferenceContext):
         ReferenceContext._reference_relationship(
             target="Visit_Detail",
             local_fk="visit_detail_id",
-            remote_pk="visit_detail_id",
         )
     )  # type: ignore[assignment]
 
@@ -104,7 +97,6 @@ class Procedure_OccurrenceContext(ReferenceContext):
         ReferenceContext._reference_relationship(
             target="Concept",
             local_fk="procedure_source_concept_id",
-            remote_pk="concept_id",
         )
     )  # type: ignore[assignment]
 

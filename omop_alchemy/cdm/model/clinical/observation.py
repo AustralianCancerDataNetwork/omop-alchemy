@@ -85,42 +85,39 @@ class ObservationContext(ReferenceContext):
     """Read-only analytical relationships for an Observation row."""
 
     person: so.Mapped["Person"] = ReferenceContext._reference_relationship(
-        target="Person", local_fk="person_id", remote_pk="person_id"
+        target="Person", local_fk="person_id"
     )  # type: ignore[assignment]
     observation_concept: so.Mapped["Concept"] = (
         ReferenceContext._reference_relationship(
-            target="Concept", local_fk="observation_concept_id", remote_pk="concept_id"
+            target="Concept", local_fk="observation_concept_id"
         )
     )  # type: ignore[assignment]
     observation_type_concept: so.Mapped["Concept"] = (
         ReferenceContext._reference_relationship(
             target="Concept",
             local_fk="observation_type_concept_id",
-            remote_pk="concept_id",
         )
     )  # type: ignore[assignment]
     unit_concept: so.Mapped[Optional["Concept"]] = (
         ReferenceContext._reference_relationship(
-            target="Concept", local_fk="unit_concept_id", remote_pk="concept_id"
+            target="Concept", local_fk="unit_concept_id"
         )
     )  # type: ignore[assignment]
     provider: so.Mapped[Optional["Provider"]] = (
         ReferenceContext._reference_relationship(
-            target="Provider", local_fk="provider_id", remote_pk="provider_id"
+            target="Provider", local_fk="provider_id"
         )
     )  # type: ignore[assignment]
     visit_occurrence: so.Mapped[Optional["Visit_Occurrence"]] = (
         ReferenceContext._reference_relationship(
             target="Visit_Occurrence",
             local_fk="visit_occurrence_id",
-            remote_pk="visit_occurrence_id",
         )
     )  # type: ignore[assignment]
     visit_detail: so.Mapped[Optional["Visit_Detail"]] = (
         ReferenceContext._reference_relationship(
             target="Visit_Detail",
             local_fk="visit_detail_id",
-            remote_pk="visit_detail_id",
         )
     )  # type: ignore[assignment]
 
@@ -138,6 +135,8 @@ class ObservationView(
     __event_id_col__ = "observation_id"
     __concept_id_col__ = "observation_concept_id"
     __start_date_col__ = "observation_date"
+    # One date column: the target API aliases it; interval metadata treats
+    # equal start/end declarations as a point with no independent endpoint.
     __end_date_col__ = "observation_date"
     __type_concept_id_col__ = "observation_type_concept_id"
     __expected_domains__ = {

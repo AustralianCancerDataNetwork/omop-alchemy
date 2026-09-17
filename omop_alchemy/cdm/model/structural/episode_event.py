@@ -49,12 +49,10 @@ class Episode_EventContext(ReferenceContext):
     episode: so.Mapped["Episode"] = ReferenceContext._reference_relationship(
         target="Episode",
         local_fk="episode_id",
-        remote_pk="episode_id",
     )  # type: ignore[assignment]
     event_field: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="episode_event_field_concept_id",
-        remote_pk="concept_id",
     )  # type: ignore[assignment]
 
 
@@ -98,8 +96,13 @@ class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMix
     @cached_property
     def resolved_event(self) -> Any | None:
         """
-        Resolve EVENT_ID to concrete OMOP row.
-        Cached per-instance.
+        Navigate one link to its concrete OMOP row, cached per instance.
+
+        This existing convenience is deliberately session-bound: it returns
+        None without an attached session or known target class, and session.get
+        may load a target individually. It does not validate person identity.
+        Measurement/Observation intentionally have no equivalent implicit
+        lookup; use the bulk target/attachment queries for validated links.
         """
         session = so.object_session(self)
         cls = self.resolved_event_class

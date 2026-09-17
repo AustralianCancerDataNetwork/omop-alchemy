@@ -2,140 +2,20 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 import sqlalchemy as sa
 
-from omop_alchemy.cdm.base import ModifierSourceMixin, ModifierTargetMixin
+from omop_alchemy.cdm.base.event_metadata import (
+    ClinicalEventModelSpec as ClinicalEventModelSpec,
+    UnsupportedClinicalEventModelError as UnsupportedClinicalEventModelError,
+)
 from omop_alchemy.cdm.model.clinical.event_metadata import (
-    clinical_event_target_for_table,
+    clinical_event_model_spec as clinical_event_model_spec,
 )
 from omop_alchemy.toolkit._utils import _nullable_column, _select_or_union_all
-from omop_alchemy.toolkit.core.errors import UnsupportedModelError
 
 from .contracts import ClinicalEventColumn
-
-
-class UnsupportedClinicalEventModelError(UnsupportedModelError):
-    """Raised when a model cannot provide a canonical clinical-event projection."""
-
-    model_kind = "clinical-event model"
-
-
-@dataclass(frozen=True, slots=True)
-class ClinicalEventModelSpec:
-    """Resolved model metadata used to build a canonical event projection."""
-
-    event_id_column: str
-    event_concept_id_column: str
-    event_date_column: str
-    event_datetime_column: str | None
-    event_field_concept_id: int
-    event_source_table: str
-
-
-def _has_complete_event_metadata(model: type[Any]) -> bool:
-    # A model is eligible to own metadata only when the complete modifier
-    # contract is present. Partial class attributes would produce a projection
-    # whose labels look valid while pointing at the wrong source columns.
-    if not issubclass(model, ModifierTargetMixin):
-        return False
-    if any(
-        not getattr(model, name, None)
-        for name in ("__event_id_col__", "__concept_id_col__", "__start_date_col__")
-    ):
-        return False
-    try:
-        model.modifier_field_concept_id()
-    except NotImplementedError:
-        return False
-    return True
-
-
-def _metadata_candidate(model: type[Any]) -> type[ModifierTargetMixin] | None:
-    # An explicitly supplied registered event view (or its domain-specific
-    # subclass) owns its metadata. Bare CDM tables use the registered CDM view
-    # for that table; unrelated subclasses are never discovered by walking
-    # Python's import-dependent subclass graph.
-    if _has_complete_event_metadata(model):
-        table_name = getattr(model, "__tablename__", None)
-        registered_view = clinical_event_target_for_table(str(table_name))
-        if registered_view is not None and issubclass(model, registered_view):
-            return model
-        # Modifier sources outside the built-in event set are intentionally
-        # supported by the canonical modifier projection. They carry the same
-        # event-shaped metadata, but do not become episode-resolvable events.
-        if issubclass(model, ModifierSourceMixin):
-            return model
-        return None
-    # Lean CDM models intentionally do not carry modifier metadata. Resolve
-    # their table through the configured analytical view without changing the
-    # class used to read scalar event rows.
-    table_name = getattr(model, "__tablename__", None)
-    return clinical_event_target_for_table(str(table_name))
-
-
-def _datetime_column_name(model: type[Any], date_column_name: str) -> str | None:
-    # Datetime is optional in OMOP event tables. Derive the conventional name
-    # only when the mapped model actually exposes that column.
-    if date_column_name.endswith("_date"):
-        candidate = f"{date_column_name[:-5]}_datetime"
-        if hasattr(model, candidate):
-            return candidate
-    return None
-
-
-def clinical_event_model_spec(model: type[Any]) -> ClinicalEventModelSpec:
-    """Resolve the event metadata for an ORM model without accessing a database."""
-    # Resolve metadata before building SQL so unsupported models fail at query
-    # construction, rather than producing a partially shaped union at runtime.
-    if not isinstance(model, type) or not hasattr(model, "__table__"):
-        raise UnsupportedClinicalEventModelError(
-            model, "expected a mapped ORM model class"
-        )
-
-    metadata_model = _metadata_candidate(model)
-    if metadata_model is None:
-        raise UnsupportedClinicalEventModelError(
-            model,
-            "no complete ModifierTargetMixin metadata is available",
-        )
-
-    event_id_column = metadata_model.__event_id_col__
-    event_concept_id_column = metadata_model.__concept_id_col__
-    event_date_column = metadata_model.__start_date_col__
-    required_columns = (
-        event_id_column,
-        event_concept_id_column,
-        event_date_column,
-        "person_id",
-    )
-    # Metadata may come from a sibling view, so validate the physical source
-    # model separately before using the view's canonical field-concept marker.
-    missing = tuple(name for name in required_columns if not hasattr(model, name))
-    if missing:
-        raise UnsupportedClinicalEventModelError(
-            model,
-            f"missing required columns: {', '.join(missing)}",
-        )
-
-    try:
-        field_concept_id = metadata_model.modifier_field_concept_id()
-    except NotImplementedError as error:
-        raise UnsupportedClinicalEventModelError(
-            model,
-            "modifier Field concept is not defined",
-        ) from error
-
-    return ClinicalEventModelSpec(
-        event_id_column=event_id_column,
-        event_concept_id_column=event_concept_id_column,
-        event_date_column=event_date_column,
-        event_datetime_column=_datetime_column_name(model, event_date_column),
-        event_field_concept_id=field_concept_id,
-        event_source_table=metadata_model.modifier_target_table(),
-    )
 
 
 def canonical_event_projection(

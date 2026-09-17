@@ -12,8 +12,10 @@ from typing import Optional, Mapping, Any, List, cast
 import json
 from dataclasses import dataclass
 from typing import Protocol, Union, Literal
+from types import EllipsisType
 
-from omop_alchemy.toolkit.core.events import ClinicalEventRow, clinical_event_model_spec
+from omop_alchemy.cdm.model.clinical.event_metadata import clinical_event_model_spec
+from omop_alchemy.toolkit.core.events import ClinicalEventRow
 
 
 TemporalKind = Literal["point", "interval"]
@@ -101,11 +103,16 @@ class EventMapping:
         cls,
         model: type[Any],
         *,
-        end_date_field: str | None = None,
-        end_datetime_field: str | None = None,
+        end_date_field: str | None | EllipsisType = ...,
+        end_datetime_field: str | None | EllipsisType = ...,
         value_fields: list[str] | None = None,
     ) -> "EventMapping":
-        """Build shared event fields from the canonical Core metadata definition."""
+        """Build event fields from shared CDM metadata, including intervals.
+
+        Equal start/end column declarations denote a point event. Omitted
+        endpoint arguments infer independent end columns; a string overrides
+        the corresponding column, and explicit None disables that endpoint.
+        """
         spec = clinical_event_model_spec(model)
         return cls(
             event_id_field=spec.event_id_column,
@@ -114,8 +121,16 @@ class EventMapping:
             concept_field=spec.event_concept_id_column,
             start_date_field=spec.event_date_column,
             start_datetime_field=spec.event_datetime_column,
-            end_date_field=end_date_field,
-            end_datetime_field=end_datetime_field,
+            end_date_field=(
+                spec.event_end_date_column
+                if isinstance(end_date_field, EllipsisType)
+                else end_date_field
+            ),
+            end_datetime_field=(
+                spec.event_end_datetime_column
+                if isinstance(end_datetime_field, EllipsisType)
+                else end_datetime_field
+            ),
             value_fields=value_fields,
         )
 
@@ -278,11 +293,7 @@ class ClinicalEvent:
 
 
 class Condition_Event(ClinicalEvent, Condition_Occurrence):
-    _mapping = EventMapping.from_model(
-        Condition_Occurrence,
-        end_date_field="condition_end_date",
-        end_datetime_field="condition_end_datetime",
-    )
+    _mapping = EventMapping.from_model(Condition_Occurrence)
 
 
 class Measurement_Event(ClinicalEvent, Measurement):
@@ -302,8 +313,6 @@ class Measurement_Event(ClinicalEvent, Measurement):
 class Drug_Exposure_Event(ClinicalEvent, Drug_Exposure):
     _mapping = EventMapping.from_model(
         Drug_Exposure,
-        end_date_field="drug_exposure_end_date",
-        end_datetime_field="drug_exposure_end_datetime",
         value_fields=["quantity"],
     )
 
