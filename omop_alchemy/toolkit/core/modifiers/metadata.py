@@ -20,11 +20,11 @@ from omop_alchemy.cdm.base.event_metadata import (
     ClinicalEventModelSpec,
     UnsupportedClinicalEventModelError,
 )
+from omop_alchemy.cdm.base.errors import UnsupportedModelError
 from omop_alchemy.cdm.model.clinical.event_metadata import (
     MODIFIER_TARGETS_BY_TABLE,
     clinical_event_model_spec,
 )
-from omop_alchemy.toolkit.core.errors import UnsupportedModelError
 
 
 class UnsupportedModifierSourceModelError(UnsupportedModelError):

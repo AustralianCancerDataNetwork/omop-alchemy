@@ -15,11 +15,8 @@ from .contracts import (
     ValuedClinicalEventRow,
 )
 from .projections import (
-    ClinicalEventModelSpec,
-    UnsupportedClinicalEventModelError,
     canonical_event_projection,
     canonical_event_union,
-    clinical_event_model_spec,
 )
 
 __all__ = [
@@ -27,11 +24,8 @@ __all__ = [
     "CANONICAL_EVENT_REQUIRED_COLUMNS",
     "ClinicalEventColumn",
     "ClinicalEventIdentity",
-    "ClinicalEventModelSpec",
     "ClinicalEventRow",
     "ValuedClinicalEventRow",
-    "UnsupportedClinicalEventModelError",
     "canonical_event_projection",
     "canonical_event_union",
-    "clinical_event_model_spec",
 ]

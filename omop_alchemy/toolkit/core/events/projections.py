@@ -6,12 +6,8 @@ from typing import Any
 
 import sqlalchemy as sa
 
-from omop_alchemy.cdm.base.event_metadata import (
-    ClinicalEventModelSpec as ClinicalEventModelSpec,
-    UnsupportedClinicalEventModelError as UnsupportedClinicalEventModelError,
-)
 from omop_alchemy.cdm.model.clinical.event_metadata import (
-    clinical_event_model_spec as clinical_event_model_spec,
+    clinical_event_model_spec as _clinical_event_model_spec,
 )
 from omop_alchemy.toolkit._utils import _nullable_column, _select_or_union_all
 
@@ -24,7 +20,7 @@ def canonical_event_projection(
     include_values: bool = True,
 ) -> sa.Select[Any]:
     """Project one supported OMOP event model to canonical event columns."""
-    spec = clinical_event_model_spec(model)
+    spec = _clinical_event_model_spec(model)
     # The output deliberately uses canonical labels rather than source names;
     # downstream attachment, timeline, and union code should not branch on the
     # particular OMOP event table being projected.

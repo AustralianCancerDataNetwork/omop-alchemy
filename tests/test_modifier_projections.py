@@ -25,16 +25,14 @@ from omop_alchemy.cdm.model import (
 )
 from omop_alchemy.cdm.model.clinical import MeasurementView, ObservationView
 from omop_alchemy.cdm.model.structural import Episode, Episode_EventView
+from omop_alchemy.cdm.base.event_metadata import ClinicalEventModelSpec
 from omop_alchemy.cdm.model.clinical.event_metadata import (
     CLINICAL_EVENT_TARGETS_BY_FIELD_CONCEPT_ID,
     CLINICAL_EVENT_TARGETS_BY_TABLE,
     MODIFIER_TARGETS_BY_TABLE,
     STRUCTURAL_MODIFIER_TARGETS_BY_TABLE,
-    clinical_event_target_for_table,
-)
-from omop_alchemy.toolkit.core.events import (
-    ClinicalEventModelSpec,
     clinical_event_model_spec,
+    clinical_event_target_for_table,
 )
 from omop_alchemy.toolkit.core.modifiers.projections import _VALUE_COLUMN_TYPES
 from omop_alchemy.toolkit.core.modifiers.contracts import (
