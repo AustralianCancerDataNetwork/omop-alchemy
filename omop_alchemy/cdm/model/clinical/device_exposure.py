@@ -17,7 +17,7 @@ from omop_alchemy.cdm.base import (
     required_concept_fk,
     optional_concept_fk,
     optional_int,
-    ModifierTargetMixin,
+    ClinicalEventMixin,
     merge_table_args,
     omop_index,
 )
@@ -117,7 +117,7 @@ class Device_ExposureView(
     Device_Exposure,
     Device_ExposureContext,
     DomainValidationMixin,
-    ModifierTargetMixin,
+    ClinicalEventMixin,
 ):
     """Analytical Device Exposure mapping with event metadata and references."""
 

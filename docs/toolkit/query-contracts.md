@@ -29,7 +29,7 @@ observation = ClinicalEventIdentity("observation", 7)
 assert len({measurement, procedure, observation}) == 3
 ```
 
-A cross-table projection needs more than an identity. `CANONICAL_EVENT_REQUIRED_COLUMNS` defines the labels a consumer can rely on:
+A cross-table projection needs more than an identity. `ClinicalEventColumn.required_columns()` defines the labels a consumer can rely on:
 
 | Column | Meaning |
 |---|---|
@@ -41,7 +41,7 @@ A cross-table projection needs more than an identity. `CANONICAL_EVENT_REQUIRED_
 | `event_datetime` | Source datetime when one is available |
 | `event_concept_id` | Primary clinical concept carried by the event |
 
-Numeric value, value concept, and unit labels are available through `CANONICAL_EVENT_OPTIONAL_COLUMNS` when a source table supports them.
+Numeric value, value concept, and unit labels are available through `ClinicalEventColumn.optional_columns()` when a source table supports them.
 
 The Field concept is not interchangeable with the event's clinical concept. For example, a Procedure Occurrence projection uses the Field concept for `procedure_occurrence.procedure_occurrence_id` as its discriminator and the row's `procedure_concept_id` as its clinical concept.
 

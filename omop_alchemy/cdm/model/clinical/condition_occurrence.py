@@ -12,7 +12,7 @@ from omop_alchemy.cdm.base import (
     CDMTableBase,
     cdm_table, 
     ModifierFieldConcepts,
-    ModifierTargetMixin,
+    ClinicalEventMixin,
     merge_table_args,
     omop_index,
 )
@@ -67,7 +67,7 @@ class Condition_OccurrenceContext(ReferenceContext):
 class Condition_OccurrenceView(
     Condition_Occurrence, 
     Condition_OccurrenceContext, 
-    ModifierTargetMixin
+    ClinicalEventMixin
 ):
     __tablename__ = "condition_occurrence"
     __mapper_args__ = {"concrete": False}

@@ -16,8 +16,8 @@ class ModifierSourceMixin:
     query code never branches on the physical modifier source.
 
     Built-in CDM tables put this mixin on the bare Measurement and Observation
-    classes. Custom mapped sources may also use it when they supply complete
-    event and link metadata; source support is validated from that metadata,
+    classes. Custom mapped sources combine it with ``ClinicalEventMixin`` to
+    supply event and link metadata; source support is validated from that metadata,
     not restricted to the built-in cached specs. Wearing this mixin does not
     enrol a model in the clinical-event or modifier-target registries.
 
@@ -72,7 +72,7 @@ class ModifierTargetMixin:
 
     Built-in CDM models place it on analytical Views, keeping the bare tables
     lean. That placement convention does not restrict custom mapped sources
-    from using both source and target metadata without a View/context base.
+    from supplying source and event metadata without a View/context base.
     """
 
     __abstract__ = True

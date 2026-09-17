@@ -7,8 +7,6 @@ the database is accessed only when a caller executes the returned statement.
 """
 
 from .contracts import (
-    CANONICAL_EVENT_OPTIONAL_COLUMNS,
-    CANONICAL_EVENT_REQUIRED_COLUMNS,
     ClinicalEventColumn,
     ClinicalEventIdentity,
     ClinicalEventRow,
@@ -20,8 +18,6 @@ from .projections import (
 )
 
 __all__ = [
-    "CANONICAL_EVENT_OPTIONAL_COLUMNS",
-    "CANONICAL_EVENT_REQUIRED_COLUMNS",
     "ClinicalEventColumn",
     "ClinicalEventIdentity",
     "ClinicalEventRow",

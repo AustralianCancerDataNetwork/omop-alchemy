@@ -8,7 +8,7 @@ import sqlalchemy as sa
 
 from omop_alchemy.toolkit._utils import _nullable_column, _select_or_union_all
 
-from .contracts import CANONICAL_MODIFIER_VALUE_COLUMNS, ModifierColumn
+from .contracts import ModifierColumn
 from .metadata import (
     UnsupportedModifierSourceModelError,
     modifier_source_model_spec,
@@ -56,7 +56,7 @@ def canonical_modifier_projection(
     if include_values:
         columns.extend(
             _nullable_column(model, column, _VALUE_COLUMN_TYPES[column])
-            for column in CANONICAL_MODIFIER_VALUE_COLUMNS
+            for column in ModifierColumn.value_columns()
         )
     return sa.select(*columns)
 

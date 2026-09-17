@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from omop_alchemy.cdm.base import (
     ModifierFieldConcepts,
     ModifierSourceMixin,
-    ModifierTargetMixin,
+    ClinicalEventMixin,
 )
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.model import (
@@ -41,8 +41,6 @@ from omop_alchemy.toolkit.core.modifiers.contracts import (
     ValuedModifierRow,
 )
 from omop_alchemy.toolkit.core.modifiers import (
-    CANONICAL_MODIFIER_REQUIRED_COLUMNS,
-    CANONICAL_MODIFIER_VALUE_COLUMNS,
     CDM_MODIFIER_SOURCE_MODELS,
     MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE,
     MODIFIER_TARGET_SPECS_BY_TABLE,
@@ -60,7 +58,7 @@ from omop_alchemy.toolkit.core.modifiers import (
 # The full projection shape, in UNION position order. Only the tests need the
 # whole; production code asks for the obligation it actually cares about.
 _ALL_MODIFIER_COLUMNS = (
-    CANONICAL_MODIFIER_REQUIRED_COLUMNS + CANONICAL_MODIFIER_VALUE_COLUMNS
+    ModifierColumn.required_columns() + ModifierColumn.value_columns()
 )
 
 
@@ -114,14 +112,6 @@ def test_unsupported_modifier_target_error_preserves_model_and_reason():
     assert raised.value.reason == "is not a supported modifier target"
 
 
-def test_unsupported_modifier_target_error_keeps_message_only_compatibility():
-    error = UnsupportedModifierTargetError("legacy target message")
-
-    assert str(error) == "legacy target message"
-    assert error.model is None
-    assert error.reason == "legacy target message"
-
-
 def test_modifier_metadata_reuses_generic_model_interfaces():
     # The target link is no longer described by the spec at all; it is read off
     # ModifierSourceMixin, which is asserted separately.
@@ -169,13 +159,13 @@ def test_structural_groupers_never_enter_the_clinical_event_registry():
 
 
 def test_canonical_column_vocabulary_is_stated_once():
-    """The enum, the obligation tuples, and the row protocols must agree.
+    """The enum, its column groups, and the row protocols must agree.
 
     Each names the same columns for a different audience, and nothing in the
     language keeps them in step, so the agreement is asserted here.
     """
-    assert not set(CANONICAL_MODIFIER_REQUIRED_COLUMNS) & set(
-        CANONICAL_MODIFIER_VALUE_COLUMNS
+    assert not set(ModifierColumn.required_columns()) & set(
+        ModifierColumn.value_columns()
     ), "a column cannot be both required and an optional value"
     assert set(_ALL_MODIFIER_COLUMNS) == set(ModifierColumn), (
         "every ModifierColumn must be classified as required or value"
@@ -183,15 +173,15 @@ def test_canonical_column_vocabulary_is_stated_once():
     assert len(_ALL_MODIFIER_COLUMNS) == len(ModifierColumn)
 
     assert tuple(ModifierRow.__annotations__) == tuple(
-        map(str, CANONICAL_MODIFIER_REQUIRED_COLUMNS)
+        map(str, ModifierColumn.required_columns())
     )
     assert tuple(ValuedModifierRow.__annotations__) == tuple(
-        map(str, CANONICAL_MODIFIER_VALUE_COLUMNS)
+        map(str, ModifierColumn.value_columns())
     )
 
     # The projection casts each value position when a source lacks the column,
     # so every value column needs a declared SQL type to fall back to.
-    assert set(_VALUE_COLUMN_TYPES) == set(CANONICAL_MODIFIER_VALUE_COLUMNS)
+    assert set(_VALUE_COLUMN_TYPES) == set(ModifierColumn.value_columns())
 
 
 def test_modifier_sources_declare_the_link_through_the_source_mixin():
@@ -220,7 +210,7 @@ def _make_custom_source(**overrides):
     class LocalBase(so.DeclarativeBase):
         pass
 
-    class CustomSource(LocalBase, ModifierSourceMixin, ModifierTargetMixin):
+    class CustomSource(LocalBase, ModifierSourceMixin, ClinicalEventMixin):
         __tablename__ = "custom_source"
         __event_id_col__ = "custom_source_id"
         __concept_id_col__ = "custom_concept_id"
@@ -259,6 +249,12 @@ def test_a_new_modifier_source_needs_no_change_to_the_toolkit():
     spec = modifier_source_model_spec(custom)
     assert spec.event_source_table == "custom_source"
     assert spec.event_id_column == "custom_source_id"
+    assert custom.has_complete_metadata()
+    assert custom.clinical_event_model_spec() == spec
+    assert custom.modifier_target_table() not in MODIFIER_TARGETS_BY_TABLE
+    assert custom.modifier_field_concept_id() not in (
+        Episode_EventView.resolved_event_target_classes()
+    )
 
     union = canonical_modifier_union(Measurement, custom)
     assert "UNION ALL" in str(union.compile(dialect=sqlite.dialect()))

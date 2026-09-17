@@ -1,8 +1,6 @@
 """Canonical modifier projections, target validation, and selection."""
 
 from .contracts import (
-    CANONICAL_MODIFIER_REQUIRED_COLUMNS,
-    CANONICAL_MODIFIER_VALUE_COLUMNS,
     ModifierColumn,
     ModifierIdentity,
     ModifierRow,
@@ -48,8 +46,6 @@ from .targets import (
 )
 
 __all__ = [
-    "CANONICAL_MODIFIER_REQUIRED_COLUMNS",
-    "CANONICAL_MODIFIER_VALUE_COLUMNS",
     "MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE",
     "MODIFIER_RANK",
     "MODIFIER_TARGET_SPECS_BY_TABLE",

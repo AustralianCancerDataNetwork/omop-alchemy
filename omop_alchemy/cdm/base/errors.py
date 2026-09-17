@@ -10,16 +10,8 @@ class UnsupportedModelError(TypeError):
 
     model_kind: ClassVar[str] = "model"
 
-    def __init__(
-        self,
-        model: object | None,
-        reason: str,
-        *,
-        message: str | None = None,
-    ) -> None:
+    def __init__(self, model: object, reason: str) -> None:
         self.model = model
         self.reason = reason
-        if message is None:
-            name = getattr(model, "__name__", repr(model))
-            message = f"{name} is not a supported {self.model_kind}: {reason}"
-        super().__init__(message)
+        name = getattr(model, "__name__", repr(model))
+        super().__init__(f"{name} is not a supported {self.model_kind}: {reason}")

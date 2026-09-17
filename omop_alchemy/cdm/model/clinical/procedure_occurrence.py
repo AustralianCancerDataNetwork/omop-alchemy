@@ -15,7 +15,7 @@ from omop_alchemy.cdm.base import (
     ReferenceContext,
     DomainValidationMixin,
     ExpectedDomain,
-    ModifierTargetMixin,
+    ClinicalEventMixin,
     ModifierFieldConcepts,
     merge_table_args,
     omop_index,
@@ -105,7 +105,7 @@ class Procedure_OccurrenceView(
     Procedure_Occurrence,
     Procedure_OccurrenceContext,
     DomainValidationMixin,
-    ModifierTargetMixin,
+    ClinicalEventMixin,
 ):
     __tablename__ = "procedure_occurrence"
     __mapper_args__ = {"concrete": False}

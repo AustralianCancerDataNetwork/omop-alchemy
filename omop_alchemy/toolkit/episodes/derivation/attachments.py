@@ -11,7 +11,6 @@ from sqlalchemy.sql.selectable import FromClause, SelectBase
 from omop_alchemy.cdm.model.structural import Episode, Episode_Event
 from omop_alchemy.toolkit._utils import _as_from_clause, _require_columns
 from omop_alchemy.toolkit.core.events import (
-    CANONICAL_EVENT_REQUIRED_COLUMNS,
     ClinicalEventColumn,
     canonical_event_projection,
 )
@@ -299,7 +298,7 @@ def episode_attachment_queries(
 
     _require_columns(
         event_source.c.keys(),
-        tuple(str(column) for column in CANONICAL_EVENT_REQUIRED_COLUMNS),
+        tuple(str(column) for column in ClinicalEventColumn.required_columns()),
         role="events",
         error_type=InvalidAttachmentSourceError,
     )

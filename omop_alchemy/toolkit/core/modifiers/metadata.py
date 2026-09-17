@@ -38,14 +38,6 @@ class UnsupportedModifierTargetError(UnsupportedModelError):
 
     model_kind = "modifier target"
 
-    def __init__(self, model: object, reason: str | None = None) -> None:
-        # Keep the historical message-only constructor usable for callers that
-        # instantiated this public exception directly.
-        if reason is None:
-            super().__init__(None, str(model), message=str(model))
-            return
-        super().__init__(model, reason)
-
 
 @dataclass(frozen=True, slots=True)
 class ModifierTargetModelSpec:

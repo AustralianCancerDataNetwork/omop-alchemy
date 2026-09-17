@@ -12,7 +12,6 @@ from omop_alchemy.toolkit._utils import _as_from_clause, _require_columns
 from omop_alchemy.toolkit.core.events import ClinicalEventColumn
 
 from .contracts import (
-    CANONICAL_MODIFIER_REQUIRED_COLUMNS,
     ModifierColumn,
     ModifierTargetDiagnosticCode,
     ModifierTargetDiagnosticColumn,
@@ -108,7 +107,7 @@ def modifier_target_queries(
     )
     _require_columns(
         modifiers.c.keys(),
-        tuple(str(column) for column in CANONICAL_MODIFIER_REQUIRED_COLUMNS),
+        tuple(str(column) for column in ModifierColumn.required_columns()),
         role="modifier source",
         error_type=InvalidModifierTargetSourceError,
     )

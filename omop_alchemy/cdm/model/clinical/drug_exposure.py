@@ -13,7 +13,7 @@ from omop_alchemy.cdm.base import (
     required_concept_fk,
     optional_concept_fk,
     optional_int,
-    ModifierTargetMixin,
+    ClinicalEventMixin,
     ModifierFieldConcepts,
     merge_table_args,
     omop_index,
@@ -72,7 +72,7 @@ class Drug_ExposureContext(ReferenceContext):
 class Drug_ExposureView(
     Drug_Exposure,
     Drug_ExposureContext,
-    ModifierTargetMixin
+    ClinicalEventMixin
 ):
 
     __tablename__ = "drug_exposure"

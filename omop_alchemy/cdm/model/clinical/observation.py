@@ -11,7 +11,7 @@ from omop_alchemy.cdm.base import (
     ExpectedDomain,
     ModifierFieldConcepts,
     ModifierSourceMixin,
-    ModifierTargetMixin,
+    ClinicalEventMixin,
     ReferenceContext,
     cdm_table,
     ValueMixin,
@@ -126,7 +126,7 @@ class ObservationView(
     Observation,
     ObservationContext,
     DomainValidationMixin,
-    ModifierTargetMixin,
+    ClinicalEventMixin,
 ):
     """Analytical Observation mapping with event metadata and reference context."""
 

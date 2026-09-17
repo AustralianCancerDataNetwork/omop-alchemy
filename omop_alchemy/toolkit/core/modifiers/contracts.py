@@ -43,6 +43,16 @@ class ModifierColumn(StrEnum):
     unit_concept_id = "unit_concept_id"
     value_as_string = "value_as_string"
 
+    @classmethod
+    def required_columns(cls) -> tuple[ModifierColumn, ...]:
+        """Required projection labels in row-contract order."""
+        return tuple(cls[name] for name in ModifierRow.__annotations__)
+
+    @classmethod
+    def value_columns(cls) -> tuple[ModifierColumn, ...]:
+        """Nullable value labels, excluding inherited required fields."""
+        return tuple(cls[name] for name in ValuedModifierRow.__annotations__)
+
 
 @runtime_checkable
 class ModifierRow(Protocol):
@@ -66,18 +76,6 @@ class ValuedModifierRow(ModifierRow, Protocol):
     value_as_concept_id: int | None
     unit_concept_id: int | None
     value_as_string: str | None
-
-
-# Column ordering is important for UNION queries; derive it from the row
-# contracts so the labels and their typed fields cannot drift apart.
-CANONICAL_MODIFIER_REQUIRED_COLUMNS: tuple[ModifierColumn, ...] = tuple(
-    ModifierColumn[name] for name in ModifierRow.__annotations__
-)
-
-
-CANONICAL_MODIFIER_VALUE_COLUMNS: tuple[ModifierColumn, ...] = tuple(
-    ModifierColumn[name] for name in ValuedModifierRow.__annotations__
-)
 
 
 @dataclass(frozen=True, order=True, slots=True)

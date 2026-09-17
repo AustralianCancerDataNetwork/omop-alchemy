@@ -27,7 +27,7 @@ from omop_alchemy.cdm.model.clinical import (
     ObservationView,
     Procedure_OccurrenceView,
 )
-from omop_alchemy.cdm.base import ModifierTargetMixin
+from omop_alchemy.cdm.base import ClinicalEventMixin, ModifierTargetMixin
 from omop_alchemy.cdm.base.event_metadata import (
     UnsupportedClinicalEventModelError,
 )
@@ -35,10 +35,10 @@ from omop_alchemy.cdm.model.structural import Episode, Episode_EventView, Episod
 from omop_alchemy.cdm.model.clinical.event_metadata import (
     _validate_unique_target_keys,
     clinical_event_model_spec,
+    clinical_event_target_for_table,
 )
 from omop_alchemy.toolkit.core.events import (
-    CANONICAL_EVENT_OPTIONAL_COLUMNS,
-    CANONICAL_EVENT_REQUIRED_COLUMNS,
+    ClinicalEventColumn,
     canonical_event_projection,
     canonical_event_union,
 )
@@ -73,12 +73,21 @@ def test_projection_resolves_source_metadata(
     field_concept_id: int,
 ):
     spec = clinical_event_model_spec(model)
+    view = clinical_event_target_for_table(source_table)
+    assert issubclass(view, ClinicalEventMixin)
+    assert view.has_complete_metadata()
+    assert view.clinical_event_model_spec(model) == spec
+    assert view.clinical_event_model_spec() == spec
     statement = canonical_event_projection(model)
 
     assert spec.event_source_table == source_table
     assert spec.event_field_concept_id == field_concept_id
     assert tuple(statement.selected_columns.keys()) == tuple(
-        map(str, CANONICAL_EVENT_REQUIRED_COLUMNS + CANONICAL_EVENT_OPTIONAL_COLUMNS)
+        map(
+            str,
+            ClinicalEventColumn.required_columns()
+            + ClinicalEventColumn.optional_columns(),
+        )
     )
 
 
@@ -115,7 +124,11 @@ def test_projection_union_preserves_one_shared_shape():
     compiled = str(statement.compile(dialect=sqlite.dialect()))
 
     assert tuple(statement.selected_columns.keys()) == tuple(
-        map(str, CANONICAL_EVENT_REQUIRED_COLUMNS + CANONICAL_EVENT_OPTIONAL_COLUMNS)
+        map(
+            str,
+            ClinicalEventColumn.required_columns()
+            + ClinicalEventColumn.optional_columns(),
+        )
     )
     assert compiled.count("UNION ALL") == 2
 
@@ -123,19 +136,19 @@ def test_projection_union_preserves_one_shared_shape():
 def test_incomplete_modifier_target_has_a_typed_error():
     with pytest.raises(
         UnsupportedClinicalEventModelError,
-        match="no complete ModifierTargetMixin metadata",
+        match="no complete ClinicalEventMixin metadata",
     ) as raised:
         canonical_event_projection(Person)
 
     assert raised.value.model is Person
-    assert raised.value.reason == "no complete ModifierTargetMixin metadata is available"
+    assert raised.value.reason == "no complete ClinicalEventMixin metadata is available"
 
 
 @pytest.mark.parametrize("model", [Episode, EpisodeView])
 def test_structural_modifier_targets_are_not_clinical_events(model):
     with pytest.raises(
         UnsupportedClinicalEventModelError,
-        match="no complete ModifierTargetMixin metadata",
+        match="no complete ClinicalEventMixin metadata",
     ):
         clinical_event_model_spec(model)
 
@@ -167,6 +180,9 @@ def test_all_core_event_views_are_registered_episode_event_targets():
     }
 
     assert {field: targets[field] for field in expected} == expected
+    assert all(issubclass(view, ClinicalEventMixin) for view in expected.values())
+    assert issubclass(EpisodeView, ModifierTargetMixin)
+    assert not issubclass(EpisodeView, ClinicalEventMixin)
     assert all(
         not issubclass(model, ModifierTargetMixin)
         for model in (
@@ -192,6 +208,20 @@ def test_registered_event_views_have_distinct_field_concepts():
     field_concepts = tuple(view.modifier_field_concept_id() for view in views)
 
     assert len(field_concepts) == len(set(field_concepts)) == 6
+
+
+def test_event_mixin_rejects_metadata_without_a_field_concept():
+    class MissingFieldConcept(ClinicalEventMixin):
+        __event_id_col__ = "measurement_id"
+        __concept_id_col__ = "measurement_concept_id"
+        __start_date_col__ = "measurement_date"
+
+    assert not MissingFieldConcept.has_complete_metadata()
+    with pytest.raises(
+        UnsupportedClinicalEventModelError,
+        match="no complete ClinicalEventMixin metadata",
+    ):
+        MissingFieldConcept.clinical_event_model_spec(Measurement)
 
 
 def test_analytics_import_preserves_all_core_metadata_and_compiled_projections():

@@ -8,6 +8,7 @@ from .concept_validation import ConceptValidationMixin
 from .reference_context import ReferenceContext
 from .typing import HasConceptId, HasEpisodeId, HasPersonId, DomainSemanticTable
 from .modifier_interface import ModifierSourceMixin, ModifierTargetMixin
+from .event_metadata import ClinicalEventMixin
 from .cdm_constants import ModifierFieldConcepts
 
 __all__ = [
@@ -35,6 +36,7 @@ __all__ = [
     "merge_table_args",
     "ModifierSourceMixin",
     "ModifierTargetMixin",
+    "ClinicalEventMixin",
     "ModifierFieldConcepts",
     "DomainRule",
     "omop_index",

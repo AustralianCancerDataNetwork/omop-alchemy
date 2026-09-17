@@ -71,6 +71,9 @@ assert measurement != procedure
 
 `ClinicalEventColumn` defines the common labels used when heterogeneous event tables are projected into one result. The required shape includes the person, table-scoped event identity, event date and datetime, clinical concept, and OMOP Field concept that identifies the source ID column. Optional labels cover numeric values, value concepts, and units.
 
+`ClinicalEventColumn.required_columns()` and `optional_columns()` expose these
+groups as ordered enum tuples derived from the field-only row contracts.
+
 `canonical_event_union()` turns supported event models into that shared shape. Measurement and Observation retain numeric values, value concepts and units; Observation string values are outside this projection. Sources without those fields receive typed nulls so every branch of the union remains compatible:
 
 ```python
@@ -93,6 +96,21 @@ for event in session.execute(events).mappings():
 
 The projection resolves its ID, clinical concept, date, source table, and Field concept through stable CDM event metadata shared with episode-event resolution. Bare `Measurement`, `Observation`, and `Device_Exposure` classes remain lightweight mappings for ETL, while their analytical views provide reference context, domain validation, and episode-event resolution. Importing analytics modules cannot change either the Core projection metadata or the default resolution target. `UnsupportedClinicalEventModelError` is raised before SQL execution when no supported CDM definition exists.
 
+The six clinical analytical Views inherit `ClinicalEventMixin`, which extends
+`ModifierTargetMixin` with `has_complete_metadata()` and
+`clinical_event_model_spec()`. The spec method can validate either the View's
+columns or those of a supplied bare source model. The explicit registry still
+controls event membership: `EpisodeView` is a modifier target rather than a
+clinical event, and custom modifier sources may combine `ModifierSourceMixin`
+with `ClinicalEventMixin` without registering as episode-event targets.
+
+```python
+from omop_alchemy.cdm.model.clinical import Measurement, MeasurementView
+
+assert MeasurementView.has_complete_metadata()
+spec = MeasurementView.clinical_event_model_spec(Measurement)
+```
+
 ```mermaid
 flowchart LR
     M["Measurement<br/>measurement_id"] --> U["canonical_event_union()"]
@@ -112,6 +130,9 @@ but use different physical column names. `canonical_modifier_projection()` and
 `canonical_modifier_union()` normalize those tables to one shape containing a
 table-scoped modifier identity, a Field-concept-scoped target identity, the
 modifier date and concept, and all four OMOP value representations.
+
+`ModifierColumn.required_columns()` and `value_columns()` expose the ordered
+modifier label groups without adding methods to the row Protocols.
 
 Supported source and target models are declared explicitly in immutable
 metadata. Shared event fields and the six clinical target definitions are

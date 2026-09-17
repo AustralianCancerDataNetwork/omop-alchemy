@@ -13,8 +13,6 @@ from omop_alchemy.toolkit.core.concepts import (
     RuntimeConceptSetSpec,
 )
 from omop_alchemy.toolkit.core.events import (
-    CANONICAL_EVENT_OPTIONAL_COLUMNS,
-    CANONICAL_EVENT_REQUIRED_COLUMNS,
     ClinicalEventColumn,
     ClinicalEventIdentity,
     ClinicalEventRow,
@@ -47,10 +45,12 @@ from tests.fixtures.query_contract_cases import (
 
 
 def test_canonical_event_shape_has_unique_stable_names():
-    all_columns = CANONICAL_EVENT_REQUIRED_COLUMNS + CANONICAL_EVENT_OPTIONAL_COLUMNS
+    all_columns = (
+        ClinicalEventColumn.required_columns() + ClinicalEventColumn.optional_columns()
+    )
 
     assert len(all_columns) == len(set(all_columns))
-    assert tuple(str(column) for column in CANONICAL_EVENT_REQUIRED_COLUMNS) == (
+    assert tuple(str(column) for column in ClinicalEventColumn.required_columns()) == (
         "person_id",
         "event_id",
         "event_date",
@@ -320,7 +320,7 @@ def test_required_projection_contract_compiles_without_execution(dialect):
     )
 
     assert tuple(statement.selected_columns.keys()) == tuple(
-        str(column) for column in CANONICAL_EVENT_REQUIRED_COLUMNS
+        str(column) for column in ClinicalEventColumn.required_columns()
     )
     assert "event_field_concept_id" in compiled
     assert "event_source_table" in compiled
