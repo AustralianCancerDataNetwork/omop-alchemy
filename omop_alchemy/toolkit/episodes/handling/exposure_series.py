@@ -9,6 +9,7 @@ from omop_alchemy.cdm.model import Drug_Exposure
 
 
 def _episode_date_bounds(episode):
+    """Return the closed fallback window used only by opt-in recovery."""
     start = episode.episode_start_date
     end = episode.episode_end_date or start
     return start, end
@@ -33,6 +34,8 @@ def resolve_drug_exposure_series(
     seen_ids: set[int] = set()
     exposures: list[Drug_Exposure] = []
 
+    # Explicit Episode_Event links are authoritative. They remain usable
+    # without a session and are not replaced by a broader date-based guess.
     for event in episode.events:
         if not isinstance(event, Drug_Exposure):
             continue
@@ -43,6 +46,9 @@ def resolve_drug_exposure_series(
 
     session = object_session(episode)
     if include_window and session is not None:
+        # Date fallback is deliberately opt-in because same-person, same-date
+        # exposure is not sufficient evidence of episode membership. The ID
+        # set prevents an explicitly linked row from being returned twice.
         start, end = _episode_date_bounds(episode)
         stmt = select(Drug_Exposure).where(
             Drug_Exposure.person_id == episode.person_id,

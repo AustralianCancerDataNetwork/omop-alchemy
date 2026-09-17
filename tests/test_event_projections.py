@@ -1,0 +1,314 @@
+"""Canonical clinical-event projection behaviour."""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+import textwrap
+
+import pytest
+from sqlalchemy.dialects import postgresql, sqlite
+
+from omop_alchemy.cdm.base import ModifierFieldConcepts
+from omop_alchemy.cdm.model import (
+    Condition_Occurrence,
+    Device_Exposure,
+    Drug_Exposure,
+    Measurement,
+    Observation,
+    Person,
+    Procedure_Occurrence,
+)
+from omop_alchemy.cdm.model.clinical import (
+    Condition_OccurrenceView,
+    Device_ExposureView,
+    Drug_ExposureView,
+    MeasurementView,
+    ObservationView,
+    Procedure_OccurrenceView,
+)
+from omop_alchemy.cdm.base import ClinicalEventMixin, ModifierTargetMixin
+from omop_alchemy.cdm.base.event_metadata import (
+    UnsupportedClinicalEventModelError,
+)
+from omop_alchemy.cdm.model.structural import Episode, Episode_EventView, EpisodeView
+from omop_alchemy.cdm.model.clinical.event_metadata import (
+    _validate_unique_target_keys,
+    clinical_event_model_spec,
+    clinical_event_target_for_table,
+)
+from omop_alchemy.toolkit.core.events import (
+    ClinicalEventColumn,
+    canonical_event_projection,
+    canonical_event_union,
+)
+
+
+@pytest.mark.parametrize(
+    ("model", "source_table", "field_concept_id"),
+    [
+        (
+            Condition_Occurrence,
+            "condition_occurrence",
+            ModifierFieldConcepts.CONDITION_OCCURRENCE,
+        ),
+        (
+            Device_Exposure,
+            "device_exposure",
+            ModifierFieldConcepts.DEVICE_EXPOSURE,
+        ),
+        (Drug_Exposure, "drug_exposure", ModifierFieldConcepts.DRUG_EXPOSURE),
+        (Measurement, "measurement", ModifierFieldConcepts.MEASUREMENT),
+        (Observation, "observation", ModifierFieldConcepts.OBSERVATION),
+        (
+            Procedure_Occurrence,
+            "procedure_occurrence",
+            ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
+        ),
+    ],
+)
+def test_projection_resolves_source_metadata(
+    model,
+    source_table: str,
+    field_concept_id: int,
+):
+    spec = clinical_event_model_spec(model)
+    view = clinical_event_target_for_table(source_table)
+    assert issubclass(view, ClinicalEventMixin)
+    assert view.has_complete_metadata()
+    assert view.clinical_event_model_spec(model) == spec
+    assert view.clinical_event_model_spec() == spec
+    statement = canonical_event_projection(model)
+
+    assert spec.event_source_table == source_table
+    assert spec.event_field_concept_id == field_concept_id
+    assert tuple(statement.selected_columns.keys()) == tuple(
+        map(
+            str,
+            ClinicalEventColumn.required_columns()
+            + ClinicalEventColumn.optional_columns(),
+        )
+    )
+
+
+@pytest.mark.parametrize("dialect", [sqlite.dialect(), postgresql.dialect()])
+def test_projection_compiles_discriminator_and_source_as_literals(dialect):
+    statement = canonical_event_projection(Measurement)
+    compiled = str(
+        statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+    )
+
+    assert str(ModifierFieldConcepts.MEASUREMENT) in compiled
+    assert "'measurement'" in compiled
+    assert "measurement.value_as_number AS value_as_number" in compiled
+
+
+def test_non_value_event_projects_typed_null_value_columns():
+    compiled = str(
+        canonical_event_projection(Procedure_Occurrence).compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={"literal_binds": True},
+        )
+    )
+
+    assert "CAST(NULL AS FLOAT) AS value_as_number" in compiled
+    assert "CAST(NULL AS INTEGER) AS value_as_concept_id" in compiled
+
+
+def test_projection_union_preserves_one_shared_shape():
+    statement = canonical_event_union(
+        Measurement,
+        Observation,
+        Procedure_Occurrence,
+    )
+    compiled = str(statement.compile(dialect=sqlite.dialect()))
+
+    assert tuple(statement.selected_columns.keys()) == tuple(
+        map(
+            str,
+            ClinicalEventColumn.required_columns()
+            + ClinicalEventColumn.optional_columns(),
+        )
+    )
+    assert compiled.count("UNION ALL") == 2
+
+
+def test_incomplete_modifier_target_has_a_typed_error():
+    with pytest.raises(
+        UnsupportedClinicalEventModelError,
+        match="no complete ClinicalEventMixin metadata",
+    ) as raised:
+        canonical_event_projection(Person)
+
+    assert raised.value.model is Person
+    assert raised.value.reason == "no complete ClinicalEventMixin metadata is available"
+
+
+@pytest.mark.parametrize("model", [Episode, EpisodeView])
+def test_structural_modifier_targets_are_not_clinical_events(model):
+    with pytest.raises(
+        UnsupportedClinicalEventModelError,
+        match="no complete ClinicalEventMixin metadata",
+    ):
+        clinical_event_model_spec(model)
+
+
+def test_target_registry_rejects_duplicate_identities():
+    entries = (
+        (Condition_Occurrence, Condition_OccurrenceView),
+        (Measurement, MeasurementView),
+    )
+
+    with pytest.raises(ValueError, match="duplicate test identity"):
+        _validate_unique_target_keys(
+            entries,
+            key=lambda _source, _target: "same",
+            label="test identity",
+        )
+
+
+def test_all_core_event_views_are_registered_episode_event_targets():
+    targets = Episode_EventView.resolved_event_target_classes()
+
+    expected = {
+        ModifierFieldConcepts.CONDITION_OCCURRENCE: Condition_OccurrenceView,
+        ModifierFieldConcepts.DEVICE_EXPOSURE: Device_ExposureView,
+        ModifierFieldConcepts.DRUG_EXPOSURE: Drug_ExposureView,
+        ModifierFieldConcepts.MEASUREMENT: MeasurementView,
+        ModifierFieldConcepts.OBSERVATION: ObservationView,
+        ModifierFieldConcepts.PROCEDURE_OCCURRENCE: Procedure_OccurrenceView,
+    }
+
+    assert {field: targets[field] for field in expected} == expected
+    assert all(issubclass(view, ClinicalEventMixin) for view in expected.values())
+    assert issubclass(EpisodeView, ModifierTargetMixin)
+    assert not issubclass(EpisodeView, ClinicalEventMixin)
+    assert all(
+        not issubclass(model, ModifierTargetMixin)
+        for model in (
+            Condition_Occurrence,
+            Device_Exposure,
+            Drug_Exposure,
+            Measurement,
+            Observation,
+            Procedure_Occurrence,
+        )
+    )
+
+
+def test_registered_event_views_have_distinct_field_concepts():
+    views = (
+        Condition_OccurrenceView,
+        Device_ExposureView,
+        Drug_ExposureView,
+        MeasurementView,
+        ObservationView,
+        Procedure_OccurrenceView,
+    )
+    field_concepts = tuple(view.modifier_field_concept_id() for view in views)
+
+    assert len(field_concepts) == len(set(field_concepts)) == 6
+
+
+def test_event_mixin_rejects_metadata_without_a_field_concept():
+    class MissingFieldConcept(ClinicalEventMixin):
+        __event_id_col__ = "measurement_id"
+        __concept_id_col__ = "measurement_concept_id"
+        __start_date_col__ = "measurement_date"
+
+    assert not MissingFieldConcept.has_complete_metadata()
+    with pytest.raises(
+        UnsupportedClinicalEventModelError,
+        match="no complete ClinicalEventMixin metadata",
+    ):
+        MissingFieldConcept.clinical_event_model_spec(Measurement)
+
+
+def test_analytics_import_preserves_all_core_metadata_and_compiled_projections():
+    code = textwrap.dedent(
+        """
+        from sqlalchemy.dialects import postgresql, sqlite
+        from omop_alchemy.cdm.model import (
+            Condition_Occurrence,
+            Device_Exposure,
+            Drug_Exposure,
+            Measurement,
+            Observation,
+            Procedure_Occurrence,
+        )
+        from omop_alchemy.toolkit.core.events import canonical_event_projection
+        from omop_alchemy.cdm.model.clinical.event_metadata import clinical_event_model_spec
+        from omop_alchemy.cdm.model.structural import Episode_EventView
+
+        models = (
+            Condition_Occurrence,
+            Device_Exposure,
+            Drug_Exposure,
+            Measurement,
+            Observation,
+            Procedure_Occurrence,
+        )
+
+        def snapshot():
+            return (
+                tuple(
+                    (
+                        model.__name__,
+                        clinical_event_model_spec(model),
+                        str(canonical_event_projection(model).compile(dialect=sqlite.dialect())),
+                        str(canonical_event_projection(model).compile(dialect=postgresql.dialect())),
+                    )
+                    for model in models
+                ),
+                tuple(
+                    sorted(
+                        (field, target.__name__)
+                        for field, target in Episode_EventView.resolved_event_target_classes().items()
+                    )
+                )
+            )
+
+        before = snapshot()
+        import omop_alchemy.toolkit.analytics.oncology
+        assert snapshot() == before
+        """
+    )
+
+    subprocess.run([sys.executable, "-c", code], check=True)
+
+
+@pytest.mark.parametrize(
+    "first_import",
+    [
+        "omop_alchemy.cdm.base.event_metadata",
+        "omop_alchemy.cdm.model.clinical.event_metadata",
+        "omop_alchemy.toolkit.core.events.projections",
+        "omop_alchemy.toolkit.core.modifiers.metadata",
+        "omop_alchemy.toolkit.core.timeline.event_timeline",
+    ],
+)
+def test_metadata_import_order_keeps_metadata_in_cdm(first_import):
+    code = textwrap.dedent(
+        f"""
+        import importlib
+        import sys
+        importlib.import_module({first_import!r})
+        from omop_alchemy.cdm.base.event_metadata import (
+            ClinicalEventModelSpec, UnsupportedClinicalEventModelError,
+        )
+        from omop_alchemy.cdm.model.clinical.event_metadata import clinical_event_model_spec
+        from omop_alchemy.cdm.model.clinical import Measurement
+        if {first_import!r}.startswith('omop_alchemy.cdm.'):
+            assert not any(name.startswith('omop_alchemy.toolkit') for name in sys.modules)
+        from omop_alchemy.toolkit.core import events
+        from omop_alchemy.toolkit.core.events import projections
+        assert not hasattr(events, 'ClinicalEventModelSpec')
+        assert not hasattr(events, 'UnsupportedClinicalEventModelError')
+        assert not hasattr(events, 'clinical_event_model_spec')
+        assert not hasattr(projections, 'ClinicalEventModelSpec')
+        assert not hasattr(projections, 'UnsupportedClinicalEventModelError')
+        assert not hasattr(projections, 'clinical_event_model_spec')
+        assert isinstance(clinical_event_model_spec(Measurement), ClinicalEventModelSpec)
+        """
+    )
+    subprocess.run([sys.executable, "-c", code], check=True)

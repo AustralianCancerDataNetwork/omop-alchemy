@@ -16,6 +16,8 @@ from omop_alchemy.cdm.base import (
     ExpectedDomain,
     merge_table_args,
     omop_index,
+    ModifierTargetMixin,
+    ModifierFieldConcepts,
 )
 
 if TYPE_CHECKING:
@@ -58,11 +60,11 @@ class Episode(CDMTableBase, Base, PersonScoped):
 class EpisodeContext(ReferenceContext):
     __table__: ClassVar[sa.Table]
 
-    person: so.Mapped["Person"] = ReferenceContext._reference_relationship(target="Person",local_fk="person_id",remote_pk="person_id")  # type: ignore[assignment]
-    episode_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_concept_id",remote_pk="concept_id")  # type: ignore[assignment]
-    episode_object_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_object_concept_id",remote_pk="concept_id")  # type: ignore[assignment]
-    episode_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_type_concept_id",remote_pk="concept_id")  # type: ignore[assignment]
-    #parent_episode: so.Mapped[Optional["Episode"]] = ReferenceContext._reference_relationship(target="Episode",local_fk="episode_parent_id",remote_pk="episode_id")  # type: ignore[assignment]
+    person: so.Mapped["Person"] = ReferenceContext._reference_relationship(target="Person",local_fk="person_id")  # type: ignore[assignment]
+    episode_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_concept_id")  # type: ignore[assignment]
+    episode_object_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_object_concept_id")  # type: ignore[assignment]
+    episode_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_type_concept_id")  # type: ignore[assignment]
+    #parent_episode: so.Mapped[Optional["Episode"]] = ReferenceContext._reference_relationship(target="Episode",local_fk="episode_parent_id")  # type: ignore[assignment]
     
     @declared_attr
     def episode_events(cls: type['HasEpisodeId']) -> so.Mapped[List["Episode_EventView"]]:
@@ -99,7 +101,7 @@ class EpisodeContext(ReferenceContext):
             uselist=True,
         )
 
-class EpisodeView(Episode, EpisodeContext, DomainValidationMixin):
+class EpisodeView(Episode, EpisodeContext, DomainValidationMixin, ModifierTargetMixin):
     """
     Navigable Episode view.
 
@@ -111,6 +113,15 @@ class EpisodeView(Episode, EpisodeContext, DomainValidationMixin):
 
     __tablename__ = "episode"
     __mapper_args__ = {"concrete": False}
+    __event_id_col__ = "episode_id"
+    __concept_id_col__ = "episode_concept_id"
+    __start_date_col__ = "episode_start_date"
+    __end_date_col__ = "episode_end_date"
+    __type_concept_id_col__ = "episode_type_concept_id"
+
+    @classmethod
+    def modifier_field_concept_id(cls) -> int:
+        return ModifierFieldConcepts.EPISODE
 
     __expected_domains__ = {
         "episode_concept_id": ExpectedDomain("Episode"),

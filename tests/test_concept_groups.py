@@ -13,6 +13,7 @@ import sqlalchemy.orm as so
 
 from omop_alchemy.toolkit.core.concepts import (
     ConceptGroupSpec,
+    SemanticUnitRef,
     build_concept_group,
     clear_concept_group_cache,
     concept_group_cache_stats,
@@ -49,6 +50,7 @@ def _clean_cache():
 
 # ── laziness ────────────────────────────────────────────────────────────────
 
+
 def test_importing_oncology_touches_no_database_or_semantics():
     """The oncology package must import with no database and no semantics runtime.
 
@@ -80,6 +82,25 @@ def test_spec_construction_performs_no_io():
             raise AssertionError(f"unit was read at construction: {name}")
 
     ConceptGroupSpec(name="lazy", unit=Exploding())
+
+
+def test_semantic_unit_reference_is_a_lazy_complete_role_adapter():
+    pytest.importorskip("omop_semantics")
+    from omop_semantics.runtime.default_valuesets import runtime
+
+    ref = SemanticUnitRef("condition_modifiers", "metastatic_disease_concepts")
+
+    assert ref.parent_ids == {
+        runtime.condition_modifiers.condition_modifier_values.metastatic_disease
+    }
+    assert ref.excluded_parent_ids == set()
+    assert ref.exact_ids == set()
+
+
+@pytest.mark.parametrize(("value_set", "unit"), [("", "unit"), ("set", "")])
+def test_semantic_unit_reference_rejects_empty_paths(value_set: str, unit: str):
+    with pytest.raises(ValueError, match="must not be empty"):
+        SemanticUnitRef(value_set, unit)
 
 
 # ── resolution semantics ────────────────────────────────────────────────────
@@ -162,6 +183,7 @@ def test_membership_rejects_none(session):
 
 # ── the two access paths agree ──────────────────────────────────────────────
 
+
 def test_python_and_sql_paths_agree(session):
     """The instance and expression forms must select the same concepts.
 
@@ -204,6 +226,7 @@ def test_empty_group_expression_is_false():
 
 # ── caching ─────────────────────────────────────────────────────────────────
 
+
 def test_expansion_is_cached_per_vocabulary(session):
     """A second request must not rebuild."""
     spec = _spec(name="cached", parents=(), exact=(1,))
@@ -221,7 +244,9 @@ def test_registered_identity_is_shared_across_engines(session):
     try:
         registry_a = concept_group_registry(session)
         with so.Session(engine) as other_session:
-            register_vocabulary_identity(other_session.get_bind().engine, "test-vocab-identity")
+            register_vocabulary_identity(
+                other_session.get_bind().engine, "test-vocab-identity"
+            )
             registry_b = concept_group_registry(other_session)
         assert registry_a is registry_b
     finally:
@@ -254,10 +279,13 @@ def test_connection_bound_sessions_share_their_engine_scope(session):
     engine = session.get_bind().engine
     with engine.connect() as connection:
         with so.Session(bind=connection) as conn_session:
-            assert concept_group_registry(conn_session) is concept_group_registry(session)
+            assert concept_group_registry(conn_session) is concept_group_registry(
+                session
+            )
 
 
 # ── bounded cache and its observability ─────────────────────────────────────
+
 
 def test_eviction_is_bounded_and_counted(session):
     """A too-small bound must evict, and a rebuild after eviction must be counted.
@@ -297,12 +325,13 @@ def test_cache_stats_are_reportable(session):
     assert all("rebuilds_after_evict" in v for v in stats.values())
 
 
-# ── governed specs use the non-deprecated 0.6.0 surface ─────────────────────
+# ── governed specs use the non-deprecated 0.6+ surface ──────────────────────
+
 
 def test_governed_specs_emit_no_deprecation_warnings():
-    """The oncology specs must read 0.6.0's role-specific accessors.
+    """The oncology specs must read the 0.6+ role-specific accessors.
 
-    Guards against slipping back to group-backed `.ids`, which 0.6.0 deprecates
+    Guards against slipping back to group-backed `.ids`, which 0.6 deprecates
     because it does not say whether members expand through descendants.
     """
     pytest.importorskip("omop_semantics")
@@ -347,13 +376,12 @@ def test_radiotherapy_spec_matches_governed_group():
 # ConceptFilter: require_standard / include_classification. These pin that the
 # names mean the same thing here as everywhere else in the package.
 
+
 def _rendered(spec) -> str:
     """Compile the group's membership predicate to inspectable SQL."""
     column = sa.column("concept_id")
     return str(
-        spec.expression_for(column).compile(
-            compile_kwargs={"literal_binds": True}
-        )
+        spec.expression_for(column).compile(compile_kwargs={"literal_binds": True})
     ).lower()
 
 

@@ -8,6 +8,16 @@ uv run pytest -q
 uv run ruff check .
 ```
 
+## Ownership boundaries
+
+Before adding general database or ORM infrastructure, check whether it belongs in a lower-level dependency:
+
+- [`orm-loader`](https://australiancancerdatanetwork.github.io/orm-loader/) owns domain-independent loading, serialization, and materialized-view lifecycle mechanics.
+- `omop-alchemy` owns OMOP table models, clinical semantics, and OMOP-specific selectables and row grains.
+- Consuming applications own view registries, dependency and rebuild policy, and deployment orchestration.
+
+Do not add materialized-view DDL, lifecycle helpers, or orchestration to `omop_alchemy`.
+
 ## Opening a pull request
 
 1. Apply **exactly one** label before merging:

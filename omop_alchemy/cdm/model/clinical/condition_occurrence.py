@@ -12,7 +12,7 @@ from omop_alchemy.cdm.base import (
     CDMTableBase,
     cdm_table, 
     ModifierFieldConcepts,
-    ModifierTargetMixin,
+    ClinicalEventMixin,
     merge_table_args,
     omop_index,
 )
@@ -49,10 +49,10 @@ class Condition_Occurrence(
     condition_status_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("concept.concept_id"))
 
 class Condition_OccurrenceContext(ReferenceContext):
-    condition_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_concept_id", remote_pk="concept_id")  # type: ignore[assignment]
-    condition_type: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_type_concept_id", remote_pk="concept_id")  # type: ignore[assignment]
-    condition_source_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_source_concept_id", remote_pk="concept_id")  # type: ignore[assignment]
-    condition_status: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_status_concept_id", remote_pk="concept_id")  # type: ignore[assignment]
+    condition_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_concept_id")  # type: ignore[assignment]
+    condition_type: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_type_concept_id")  # type: ignore[assignment]
+    condition_source_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_source_concept_id")  # type: ignore[assignment]
+    condition_status: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_status_concept_id")  # type: ignore[assignment]
 
     @declared_attr
     def visit_occurrence(cls) -> so.Mapped[Optional["Visit_Occurrence"]]:
@@ -67,7 +67,7 @@ class Condition_OccurrenceContext(ReferenceContext):
 class Condition_OccurrenceView(
     Condition_Occurrence, 
     Condition_OccurrenceContext, 
-    ModifierTargetMixin
+    ClinicalEventMixin
 ):
     __tablename__ = "condition_occurrence"
     __mapper_args__ = {"concrete": False}
