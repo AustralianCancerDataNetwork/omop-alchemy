@@ -25,8 +25,8 @@ class ReferenceContext:
         """Join a local reference to its target's single mapped primary key.
 
         Target metadata is resolved only when the join is configured, preserving
-        declaration/import order. Legacy remote_pk arguments are accepted but
-        must name the derived primary-key attribute.
+        declaration/import order. The released ``remote_pk`` argument remains
+        accepted, but must name the derived primary-key attribute.
         """
         return so.declared_attr(
             lambda cls_: so.relationship(
