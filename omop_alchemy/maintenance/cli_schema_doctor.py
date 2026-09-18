@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
+from oa_configurator import Dialect, ResolvedDatabase
 
-from omop_alchemy.backends.resolve import SupportedDialect
-
+from ..backends import backend_supports, resolve_backend
 from ._cli_utils import Status
 from .cli_foreign_keys import (
     ForeignKeyStatusResult,
@@ -101,6 +101,18 @@ def _build_recommendations(
                     action="Review `omop-alchemy reconcile-schema` output before continuing with ETL or maintenance work.",
                 )
             )
+        if any(issue.status == Status.RELOCATED for issue in reconciliation.issues):
+            recommendations.append(
+                DoctorRecommendation(
+                    status=Status.WARNING,
+                    summary="Some tables were found under a different schema than expected.",
+                    action=(
+                        "Run `omop-config acknowledge-schema-migration` if this was a "
+                        "deliberate change, or `omop-config drop-orphan-schema-tables` to "
+                        "clean up an orphaned copy."
+                    ),
+                )
+            )
 
     if foreign_key_status is not None and any(
         item.disabled_trigger_count > 0 for item in foreign_key_status
@@ -128,7 +140,7 @@ def _build_recommendations(
             )
         )
 
-    if info.backend == SupportedDialect.POSTGRESQL and info.pg_dump_path is None:
+    if info.backend == Dialect.POSTGRESQL and info.pg_dump_path is None:
         recommendations.append(
             DoctorRecommendation(
                 status=Status.WARNING,
@@ -138,7 +150,7 @@ def _build_recommendations(
         )
 
     if (
-        info.backend == SupportedDialect.POSTGRESQL
+        info.backend == Dialect.POSTGRESQL
         and info.pg_restore_path is None
         and info.psql_path is None
     ):
@@ -165,6 +177,7 @@ def _build_recommendations(
 def collect_doctor_report(
     *,
     engine: sa.engine.Engine,
+    resolved: ResolvedDatabase | None = None,
     db_schema: str | None = None,
     resource_name: str | None = None,
     vocabulary_included: bool = True,
@@ -178,6 +191,9 @@ def collect_doctor_report(
         Already-resolved CDM engine (e.g. from the ``@omop_command`` decorator),
         reused for all database checks instead of re-resolving config. The
         caller retains ownership; this function does not dispose it.
+    resolved : ResolvedDatabase, optional
+        Forwarded to reconcile_schema (--deep only) so vocab/results tables
+        are compared against their own schema, not db_schema uniformly.
     db_schema : str, optional
         CDM schema associated with ``engine``. Omit to use its default schema.
     resource_name : str, optional
@@ -225,6 +241,7 @@ def collect_doctor_report(
         if deep:
             reconciliation = reconcile_schema(
                 engine,
+                resolved=resolved,
                 db_schema=db_schema,
                 vocabulary_included=vocabulary_included,
             )
@@ -255,11 +272,11 @@ def collect_doctor_report(
                 )
             )
 
-        if info.backend == SupportedDialect.POSTGRESQL:
+        backend = resolve_backend(engine)
+        if backend_supports(backend, "get_fk_trigger_counts"):
             foreign_key_status = tuple(
                 collect_foreign_key_trigger_status(
                     engine,
-                    db_schema=db_schema,
                     vocabulary_included=vocabulary_included,
                 )
             )
@@ -280,10 +297,9 @@ def collect_doctor_report(
                 )
             )
 
-            if deep:
+            if deep and backend_supports(backend, "count_fk_violations"):
                 foreign_key_validation = validate_foreign_key_constraints(
                     engine,
-                    db_schema=db_schema,
                     vocabulary_included=vocabulary_included,
                 )
                 violating_tables = sum(
@@ -305,6 +321,14 @@ def collect_doctor_report(
                         ),
                     )
                 )
+            elif deep:
+                checks.append(
+                    DoctorCheck(
+                        name="foreign key validation",
+                        status=Status.SKIPPED,
+                        detail="Foreign key validation isn't supported on this backend.",
+                    )
+                )
             else:
                 checks.append(
                     DoctorCheck(
@@ -318,14 +342,14 @@ def collect_doctor_report(
                 DoctorCheck(
                     name="foreign keys",
                     status=Status.SKIPPED,
-                    detail="Foreign key trigger inspection is only available on PostgreSQL.",
+                    detail="Foreign key trigger inspection isn't supported on this backend.",
                 )
             )
             checks.append(
                 DoctorCheck(
                     name="foreign key validation",
                     status=Status.SKIPPED,
-                    detail="Foreign key validation is only available on PostgreSQL.",
+                    detail="Foreign key validation isn't supported on this backend.",
                 )
             )
     else:
@@ -354,7 +378,7 @@ def collect_doctor_report(
             )
         )
 
-    if info.backend == SupportedDialect.POSTGRESQL:
+    if info.backend == Dialect.POSTGRESQL:
         backup_tools_ready = info.pg_dump_path is not None and (
             info.pg_restore_path is not None or info.psql_path is not None
         )

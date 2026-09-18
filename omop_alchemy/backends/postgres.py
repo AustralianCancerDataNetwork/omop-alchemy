@@ -1,26 +1,19 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 
 import sqlalchemy as sa
 
-from sqlalchemy.dialects.postgresql import TSVECTOR
+from oa_configurator import Dialect, Role, qualified, schema_of
+from sqlalchemy.dialects.postgresql import REGCONFIG, TSVECTOR
 from sqlalchemy.sql import func
 
 from .base import Backend, FullTextTargetConfig
 
-
-def _qualified(table_name: str, db_schema: str | None) -> str:
-    if db_schema:
-        return f'"{db_schema}"."{table_name}"'
-    return f'"{table_name}"'
-
-
-def _qualified_index(index_name: str, db_schema: str | None) -> str:
-    if db_schema:
-        return f'"{db_schema}"."{index_name}"'
-    return f'"{index_name}"'
+_STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
+_TEXTLIKE_CAST = re.compile(r"::(?:text|varchar|character varying|bpchar|char)\b", re.IGNORECASE)
 
 
 class PostgresBackend(Backend):
@@ -31,7 +24,7 @@ class PostgresBackend(Backend):
 
     @property
     def dialect(self) -> str:
-        return "postgresql"
+        return Dialect.POSTGRESQL
 
     # ── FK trigger management ────────────────────────────────────────────────
 
@@ -39,20 +32,21 @@ class PostgresBackend(Backend):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
         *,
         enable: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
         action = "ENABLE" if enable else "DISABLE"
         conn.exec_driver_sql(
-            f"ALTER TABLE {_qualified(table_name, db_schema)} {action} TRIGGER ALL"
+            f"ALTER TABLE {qualified(conn, table_name, role=role)} {action} TRIGGER ALL"
         )
 
     def get_fk_trigger_counts(
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> tuple[int, int]:
         disabled_count, enabled_count = conn.execute(
             sa.text(
@@ -69,7 +63,7 @@ class PostgresBackend(Backend):
                   AND (CAST(:db_schema AS TEXT) IS NULL OR n.nspname = :db_schema)
                 """
             ),
-            {"table_name": table_name, "db_schema": db_schema},
+            {"table_name": table_name, "db_schema": schema_of(conn, role=role)},
         ).one()
         return int(disabled_count or 0), int(enabled_count or 0)
 
@@ -80,10 +74,12 @@ class PostgresBackend(Backend):
         referred_table: str,
         constrained_cols: list[str],
         referred_cols: list[str],
-        db_schema: str | None,
+        *,
+        source_role: Role = Role.PRIMARY,
+        referred_role: Role = Role.PRIMARY,
     ) -> int:
-        source = _qualified(source_table, db_schema)
-        referred = _qualified(referred_table, db_schema)
+        source = qualified(conn, source_table, role=source_role)
+        referred = qualified(conn, referred_table, role=referred_role)
         non_null_predicate = " AND ".join(
             f"src.{col} IS NOT NULL" for col in constrained_cols
         )
@@ -113,17 +109,19 @@ class PostgresBackend(Backend):
         conn: sa.Connection,
         table_name: str,
         index_name: str,
-        db_schema: str | None,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> None:
         conn.exec_driver_sql(
-            f"CLUSTER {_qualified(table_name, db_schema)} USING {index_name}"
+            f"CLUSTER {qualified(conn, table_name, role=role)} USING {index_name}"
         )
 
     def get_clustered_index_name(
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> str | None:
         result = conn.execute(
             sa.text(
@@ -138,9 +136,48 @@ class PostgresBackend(Backend):
                   AND (CAST(:db_schema AS TEXT) IS NULL OR n.nspname = :db_schema)
                 """
             ),
-            {"table_name": table_name, "db_schema": db_schema},
+            {"table_name": table_name, "db_schema": schema_of(conn, role=role)},
         ).scalar_one_or_none()
         return str(result) if result is not None else None
+
+    # ── Schema reconciliation ────────────────────────────────────────────────
+
+    def normalize_index_expression(self, sql_text: str) -> str:
+        """Strip whitespace and casts to a text-ish type outside string
+        literals, and fold case the same way.
+
+        Postgres's own catalog inserts these casts around string functions
+        as cosmetic noise when reflecting an index back, e.g.
+        ``lower(concept_name::text)``. A cast to any other type
+        (``::numeric``, ``::integer``, ...) is left intact, since that
+        changes the expression's actual computation. Literal contents are
+        never touched: identifiers, keywords, and casts are
+        case/whitespace-insensitive in Postgres, but a literal value isn't.
+        """
+        parts = []
+        last_end = 0
+        for match in _STRING_LITERAL.finditer(sql_text):
+            before = sql_text[last_end : match.start()]
+            parts.append(_TEXTLIKE_CAST.sub("", before).replace(" ", "").lower())
+            parts.append(match.group(0))
+            last_end = match.end()
+        parts.append(_TEXTLIKE_CAST.sub("", sql_text[last_end:]).replace(" ", "").lower())
+        return "".join(parts)
+
+    # ── Row counts ───────────────────────────────────────────────────────────
+
+    def approximate_row_counts(
+        self,
+        conn: sa.Connection,
+        schema: str,
+    ) -> dict[str, int]:
+        rows = conn.execute(
+            sa.text(
+                "SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE schemaname = :schema"
+            ),
+            {"schema": schema},
+        ).all()
+        return {row.relname: row.n_live_tup for row in rows}
 
     # ── Table operations ─────────────────────────────────────────────────────
 
@@ -148,20 +185,21 @@ class PostgresBackend(Backend):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
         *,
         vacuum: bool = False,
+        role: Role = Role.PRIMARY,
     ) -> None:
         operation = "VACUUM ANALYZE" if vacuum else "ANALYZE"
-        conn.exec_driver_sql(f"{operation} {_qualified(table_name, db_schema)}")
+        conn.exec_driver_sql(f"{operation} {qualified(conn, table_name, role=role)}")
 
     def index_exists(
         self,
         conn: sa.Connection,
         index_name: str,
-        db_schema: str | None,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> bool:
-        qualified_index_name = _qualified_index(index_name, db_schema)
+        qualified_index_name = qualified(conn, index_name, role=role)
         return bool(
             conn.scalar(
                 sa.select(
@@ -170,20 +208,22 @@ class PostgresBackend(Backend):
             )
         )
 
-    def drop_index_if_exists(self, conn: sa.Connection, index_name: str, db_schema: str | None) -> None:
-        conn.exec_driver_sql(f"DROP INDEX IF EXISTS {_qualified_index(index_name, db_schema)}")
+    def drop_index_if_exists(
+        self, conn: sa.Connection, index_name: str, *, role: Role = Role.PRIMARY
+    ) -> None:
+        conn.exec_driver_sql(f"DROP INDEX IF EXISTS {qualified(conn, index_name, role=role)}")
 
     def truncate_table_batch(
         self,
         conn: sa.Connection,
         table_names: list[str],
-        db_schema: str | None,
         *,
         restart_identities: bool,
         cascade: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
         sql = "TRUNCATE TABLE " + ", ".join(
-            _qualified(name, db_schema) for name in table_names
+            qualified(conn, name, role=role) for name in table_names
         )
         if restart_identities:
             sql += " RESTART IDENTITY"
@@ -198,9 +238,10 @@ class PostgresBackend(Backend):
         conn: sa.Connection,
         table_name: str,
         column_name: str,
-        db_schema: str | None,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> str | None:
-        fully_qualified = _qualified(table_name, db_schema)
+        fully_qualified = qualified(conn, table_name, role=role)
         return conn.execute(
             sa.text("SELECT pg_get_serial_sequence(:table_name, :column_name)"),
             {"table_name": fully_qualified, "column_name": column_name},
@@ -216,28 +257,6 @@ class PostgresBackend(Backend):
             sa.text("SELECT setval(:sequence_name, :value, false)"),
             {"sequence_name": sequence_name, "value": value},
         )
-
-    # ── Schema context ───────────────────────────────────────────────────────
-
-    def configure_schema_context(
-        self,
-        conn: sa.Connection,
-        db_schema: str | None,
-    ) -> None:
-        if db_schema is None:
-            return
-        quoted = '"' + db_schema.replace('"', '""') + '"'
-        conn.exec_driver_sql(f"SET search_path TO {quoted}")
-
-    def ensure_schema(
-        self,
-        conn: sa.Connection,
-        schema: str | None,
-    ) -> None:
-        if not schema or schema == "public":
-            return
-        quoted = '"' + schema.replace('"', '""') + '"'
-        conn.exec_driver_sql(f"CREATE SCHEMA IF NOT EXISTS {quoted}")
 
     # ── Full-text search ─────────────────────────────────────────────────────
 
@@ -308,20 +327,28 @@ class PostgresBackend(Backend):
         table_name: str,
         vector_column_name: str,
         index_name: str,
-        db_schema: str | None,
         create_indexes: bool,
         fastupdate: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
-        qualified_table = _qualified(table_name, db_schema)
+        qualified_table = qualified(conn, table_name, role=role)
         conn.exec_driver_sql(
             f"ALTER TABLE {qualified_table} ADD COLUMN IF NOT EXISTS {vector_column_name} tsvector"
         )
         if create_indexes:
-            conn.exec_driver_sql(
-                f"CREATE INDEX IF NOT EXISTS {index_name}"
-                f" ON {qualified_table} USING GIN ({vector_column_name})"
-                f" WITH (fastupdate = {'on' if fastupdate else 'off'})"
+            lightweight_table = sa.Table(
+                table_name,
+                sa.MetaData(),
+                sa.Column(vector_column_name, TSVECTOR),
+                schema=schema_of(conn, role=role),
             )
+            index = sa.Index(
+                index_name,
+                lightweight_table.c[vector_column_name],
+                postgresql_using="gin",
+                postgresql_with={"fastupdate": "on" if fastupdate else "off"},
+            )
+            conn.execute(sa.schema.CreateIndex(index, if_not_exists=True))
 
     def populate_fulltext_on_table(
         self,
@@ -330,18 +357,25 @@ class PostgresBackend(Backend):
         table_name: str,
         vector_column_name: str,
         source_column_name: str,
-        db_schema: str | None,
         regconfig: str,
+        role: Role = Role.PRIMARY,
     ) -> int | None:
-        result = conn.execute(
-            sa.text(
-                f"UPDATE {_qualified(table_name, db_schema)}"
-                f" SET {vector_column_name} = to_tsvector("
-                f"     CAST(:regconfig AS regconfig), coalesce({source_column_name}, '')"
-                f" )"
-            ),
-            {"regconfig": regconfig},
+        lightweight_table = sa.table(
+            table_name,
+            sa.column(vector_column_name),
+            sa.column(source_column_name),
+            schema=schema_of(conn, role=role),
         )
+        source_column = lightweight_table.c[source_column_name]
+        stmt = lightweight_table.update().values(
+            **{
+                vector_column_name: func.to_tsvector(
+                    sa.cast(sa.bindparam("regconfig"), REGCONFIG),
+                    func.coalesce(source_column, ""),
+                )
+            }
+        )
+        result = conn.execute(stmt, {"regconfig": regconfig})
         if result.rowcount is None or result.rowcount < 0:
             return None
         return int(result.rowcount)
@@ -353,13 +387,13 @@ class PostgresBackend(Backend):
         table_name: str,
         vector_column_name: str,
         index_name: str,
-        db_schema: str | None,
         drop_indexes: bool,
+        role: Role = Role.PRIMARY,
     ) -> None:
         if drop_indexes:
-            conn.exec_driver_sql(f"DROP INDEX IF EXISTS {_qualified_index(index_name, db_schema)}")
+            conn.exec_driver_sql(f"DROP INDEX IF EXISTS {qualified(conn, index_name, role=role)}")
         conn.exec_driver_sql(
-            f"ALTER TABLE {_qualified(table_name, db_schema)}"
+            f"ALTER TABLE {qualified(conn, table_name, role=role)}"
             f" DROP COLUMN IF EXISTS {vector_column_name}"
         )
 
@@ -370,7 +404,8 @@ class PostgresBackend(Backend):
         engine: sa.Engine,
         output_path: str,
         backup_format: str,
-        db_schema: str | None,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> tuple[str, list[str], dict[str, str], str]:
         tool_path = _pg_dump_path()
         url = engine.url
@@ -389,6 +424,7 @@ class PostgresBackend(Backend):
             "--no-owner",
             "--no-privileges",
         ]
+        db_schema = schema_of(engine, role=role)
         if db_schema:
             command.extend(["--schema", db_schema])
         env = os.environ.copy()
@@ -401,7 +437,8 @@ class PostgresBackend(Backend):
         engine: sa.Engine,
         input_path: str,
         backup_format: str,
-        db_schema: str | None,
+        *,
+        role: Role = Role.PRIMARY,
     ) -> tuple[str, list[str], dict[str, str], str]:
         url = engine.url
         database_name = url.database
@@ -410,6 +447,7 @@ class PostgresBackend(Backend):
                 "Database restore requires a database name in the configured engine URL."
             )
         connection_uri = _libpq_connection_uri(url)
+        db_schema = schema_of(engine, role=role)
 
         if backup_format == "custom":
             tool_path = _pg_restore_path()

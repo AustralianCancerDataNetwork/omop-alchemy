@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
 
@@ -37,6 +38,7 @@ class Device_Exposure(
 ):
     __tablename__ = "device_exposure"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "device_concept_id"),
         omop_index(__tablename__, "visit_occurrence_id"),
@@ -122,6 +124,8 @@ class Device_ExposureView(
     """Analytical Device Exposure mapping with event metadata and references."""
 
     __tablename__ = "device_exposure"
+    # Must match Device_Exposure's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
     __event_id_col__ = "device_exposure_id"
     __concept_id_col__ = "device_concept_id"

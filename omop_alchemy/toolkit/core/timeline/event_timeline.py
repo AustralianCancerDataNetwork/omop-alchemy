@@ -5,6 +5,7 @@ from omop_alchemy.cdm.model.clinical import (
     Drug_Exposure,
     Observation,
 )
+from oa_configurator import Role
 from sqlalchemy.orm import object_session
 from sqlalchemy import select
 from datetime import datetime, time, date
@@ -297,6 +298,12 @@ class Condition_Event(ClinicalEvent, Condition_Occurrence):
 
 
 class Measurement_Event(ClinicalEvent, Measurement):
+    # Measurement's ModifierSourceMixin carries __abstract__ = True; without
+    # redeclaring these, SQLAlchemy silently builds a second, unlinked Table
+    # object for a subclass that doesn't otherwise declare its own table.
+    __tablename__ = "measurement"
+    __table_args__ = {"schema": Role.PRIMARY.value}
+
     _mapping = EventMapping.from_model(
         Measurement,
         value_fields=[
@@ -325,6 +332,12 @@ class Drug_Exposure_Event(ClinicalEvent, Drug_Exposure):
 
 
 class Observation_Event(ClinicalEvent, Observation):
+    # Observation's ModifierSourceMixin carries __abstract__ = True; without
+    # redeclaring these, SQLAlchemy silently builds a second, unlinked Table
+    # object for a subclass that doesn't otherwise declare its own table.
+    __tablename__ = "observation"
+    __table_args__ = {"schema": Role.PRIMARY.value}
+
     _mapping = EventMapping.from_model(
         Observation,
         value_fields=["value_as_concept_id", "value_as_number", "value_as_string"],

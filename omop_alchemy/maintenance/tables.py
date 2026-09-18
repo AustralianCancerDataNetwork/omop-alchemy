@@ -5,10 +5,23 @@ from enum import StrEnum
 from typing import Iterable
 
 import sqlalchemy as sa
+from oa_configurator import Role, schema_of
+from orm_loader.helpers import role_of_table
 
 
 class TableCategory(StrEnum):
     """An OMOP CDM table's structural category, carrying its render style.
+
+    Represents a logical grouping of tables as defined by the 
+    [OMOP CDM spec](https://ohdsi.github.io/CommonDataModel/). 
+    The grouping is also reflected in the subpackage under 
+    ``omop_alchemy.cdm.model``, where the same logical grouping is used
+    to organize the ORM classes. 
+
+    Notes
+    -----
+    This logical grouping is independent of the physical schema in
+    which the table's data is stored (``oa_configurator.Role``).
 
     Parameters
     ----------
@@ -46,6 +59,18 @@ class MaintenanceTable:
     primary_key_columns: tuple[sa.Column[object], ...]
 
     @property
+    def role(self) -> Role:
+        """The schema_translate_map role this table's data physically lives
+        under (oa_configurator.Role), read off its own declared schema tag.
+
+        Independent of TableCategory: category is a logical/folder grouping
+        (e.g. cohort/cohort_definition are RESULTS-category despite
+        classifying as "derived" in the CDM sense), role is where the
+        table's rows physically live.
+        """
+        return role_of_table(self.table)
+
+    @property
     def is_vocabulary(self) -> bool:
         return self.category is TableCategory.VOCABULARY
 
@@ -69,13 +94,6 @@ class MaintenanceTable:
             self.has_single_primary_key
             and isinstance(self.primary_key_columns[0].type, sa.Integer)
         )
-
-
-def qualified_table_name(table_name: str, db_schema: str | None) -> str:
-    if db_schema:
-        quoted_schema = '"' + db_schema.replace('"', '""') + '"'
-        return f"{quoted_schema}.{table_name}"
-    return table_name
 
 
 def _mapped_cdm_table_classes() -> Iterable[type]:
@@ -230,50 +248,47 @@ def select_omop_tables(
 
 
 def existing_maintenance_tables(
-    inspector: sa.Inspector,
+    bindable: sa.Engine | sa.Connection,
     *,
-    db_schema: str | None,
     vocabulary_included: bool,
     require_single_integer_primary_key: bool = False,
 ) -> list[MaintenanceTable]:
+    """ORM-managed tables that already exist, each checked against its own role's schema.
+
+    Parameters
+    ----------
+    bindable : sqlalchemy.Engine or sqlalchemy.Connection
+        Used both to inspect the database and, via its schema_translate_map,
+        to resolve each table's own role to a physical schema
+        (``schema_of(bindable, role=table.role)``) -- a blanket schema
+        passed in once would silently misclassify every vocab/results
+        table checked against a database with a genuine primary/vocab/
+        results split.
+    """
+    inspector = sa.inspect(bindable)
     return [
         table
         for table in select_omop_tables(
             vocabulary_included=vocabulary_included,
             require_single_integer_primary_key=require_single_integer_primary_key,
         )
-        if inspector.has_table(table.table_name, schema=db_schema)
+        if inspector.has_table(table.table_name, schema=schema_of(bindable, role=table.role))
     ]
 
 
 def missing_maintenance_tables(
-    inspector: sa.Inspector,
+    bindable: sa.Engine | sa.Connection,
     *,
-    db_schema: str | None,
     vocabulary_included: bool,
 ) -> list[MaintenanceTable]:
+    """ORM-managed tables that are absent, each checked against its own role's schema.
+
+    See :func:`existing_maintenance_tables` for why *bindable* replaces a
+    single ``db_schema`` string.
+    """
+    inspector = sa.inspect(bindable)
     return [
         table
         for table in select_omop_tables(vocabulary_included=vocabulary_included)
-        if not inspector.has_table(table.table_name, schema=db_schema)
+        if not inspector.has_table(table.table_name, schema=schema_of(bindable, role=table.role))
     ]
-
-
-def schema_adjusted_metadata(
-    tables: Iterable[MaintenanceTable],
-    *,
-    db_schema: str | None,
-) -> tuple[sa.MetaData, dict[str, sa.Table]]:
-    metadata = sa.MetaData()
-    adjusted_tables: dict[str, sa.Table] = {}
-
-    for maintenance_table in tables:
-        adjusted_tables[maintenance_table.table_name] = maintenance_table.table.to_metadata(
-            metadata,
-            schema=db_schema,  # ty: ignore[invalid-argument-type]
-            referred_schema_fn=(
-                lambda _table, to_schema, _constraint, _referred_schema: to_schema
-            ),
-        )
-
-    return metadata, adjusted_tables

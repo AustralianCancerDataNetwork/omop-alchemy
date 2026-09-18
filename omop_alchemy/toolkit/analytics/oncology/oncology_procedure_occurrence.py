@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from sqlalchemy.ext.hybrid import hybrid_property
 
+from oa_configurator import Role
+
 from omop_alchemy.cdm.model.clinical.procedure_occurrence import (
     Procedure_OccurrenceView,
 )
@@ -32,6 +34,11 @@ class OncologyProcedure(Procedure_OccurrenceView):
     The instance path requires an attached instance -- a detached row cannot
     determine membership, and reporting "no" would silently misclassify.
     """
+
+    __tablename__ = "procedure_occurrence"
+    # Must match Procedure_Occurrence's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
+    __mapper_args__ = {"concrete": False}
 
     @hybrid_property
     def is_radiotherapy(self) -> bool:

@@ -51,9 +51,7 @@ def test_get_cdm_context_resolves_the_typed_database_field(monkeypatch) -> None:
         connections={
             "cdm": ConnectionConfig(dialect="sqlite", database_name=":memory:")
         },
-        databases={
-            "cdm_db": CDMDatabaseConfig(connection="cdm", schema_name="main")
-        },
+        databases={"cdm_db": CDMDatabaseConfig(connection="cdm")},
     )
     monkeypatch.setattr("omop_alchemy.config.load_stack_config", lambda: stack)
 
@@ -61,7 +59,7 @@ def test_get_cdm_context_resolves_the_typed_database_field(monkeypatch) -> None:
 
     assert package_config.cdm_db == "cdm_db"
     assert isinstance(resolved, ResolvedCDMDatabase)
-    assert resolved.schema_name == "main"
+    assert resolved.schema_name is None
 
 
 def test_vocabulary_identity_for_colocated_vocabulary() -> None:

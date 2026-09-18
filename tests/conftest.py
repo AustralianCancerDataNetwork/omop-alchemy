@@ -1,17 +1,21 @@
 import copy
+import os
 from datetime import date
 from pathlib import Path
 import pytest
 import sqlalchemy as sa
+import typer.rich_utils as _typer_rich_utils
 from orm_loader.helpers import bootstrap
+from oa_configurator.testing import isolated_test_database, isolated_test_schema
+from oa_configurator import SCHEMA_TRANSLATE_MAP_KEY, Role, ResolvedCDMDatabase, ResolvedConnection
 import sqlalchemy.orm as so
 from sqlalchemy.orm import Session, sessionmaker
 
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Iterator, Tuple
 
+from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance.cli_vocab import _load_vocab_model_csv
-from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Person
-from omop_alchemy.cdm.model.derived import Observation_Period
+from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Observation_Period, Person
 from omop_alchemy.cdm.model.structural import Episode, Episode_Event
 from omop_alchemy.cdm.model.vocabulary import (
     Concept,
@@ -22,6 +26,62 @@ from omop_alchemy.cdm.model.vocabulary import (
     Relationship,
     Vocabulary,
 )
+
+# typer forces colorized rich error/output rendering when GITHUB_ACTIONS (or
+# FORCE_COLOR / PY_COLORS) is set -- see typer.rich_utils.FORCE_TERMINAL. Under
+# GitHub Actions that injects ANSI escapes into CLI output, breaking tests that
+# assert on plain-substring message content (e.g. "no such option: --foo"). The
+# force feeds every typer rich Console, so clear it here: tests then see the same
+# uncolored output everywhere; real users still get colour in a real terminal.
+_typer_rich_utils.FORCE_TERMINAL = None
+
+
+def resolved_cdm_database_from_engine(
+    engine: sa.Engine,
+    *,
+    name: str,
+    schema_name: str | None = None,
+    vocab_schema: str | None = None,
+    results_schema: str | None = None,
+) -> ResolvedCDMDatabase:
+    """Build a ResolvedCDMDatabase from an already-live engine's own URL.
+
+    Only for a case with no resolved object to build off at all (e.g. a
+    bare SQLite engine). When one already exists, prefer
+    ``dataclasses.replace(existing.resolved, ...)`` instead.
+    """
+    url = engine.url
+    connection = ResolvedConnection(
+        name=name,
+        url=url.render_as_string(hide_password=False),
+        safe_url=url.render_as_string(hide_password=True),
+        _engine_url=url,
+    )
+    return ResolvedCDMDatabase(
+        name=name,
+        connection=connection,
+        schema_name=schema_name,
+        vocab_connection=connection,
+        vocab_schema=vocab_schema,
+        results_schema=results_schema,
+    )
+
+
+@pytest.fixture
+def fresh_engine() -> Iterator[sa.Engine]:
+    """Fresh, empty, function-scoped SQLite engine.
+
+    SQLite has no schema concept, so every role maps back to None, matching
+    the flat namespace every caller here has always assumed.
+    """
+    with isolated_test_database(
+        OmopAlchemyConfig,
+        "test_cdm_db_sqlite",
+        dialect="sqlite",
+        future=True,
+        execution_options={SCHEMA_TRANSLATE_MAP_KEY: {Role.PRIMARY.value: None, "vocab": None, "results": None}},
+    ) as db:
+        yield db.connection.engine
 
 
 ATHENA_LOAD_ORDER = [
@@ -294,70 +354,124 @@ def _seed_basic_clinical_data(session: Session) -> None:
 
 
 @pytest.fixture(scope="session")
-def engine(tmp_path_factory: pytest.TempPathFactory):
+def engine(tmp_path_factory: pytest.TempPathFactory) -> Iterator[sa.Engine]:
     """
     Session-scoped SQLite engine built from repo fixtures.
 
-    The database is created fresh for each test session, so it behaves
-    the same on the host and inside containers.
+    Resolves to a real tempfile (not ``:memory:``), matching this fixture's
+    own need to behave the same on the host and inside containers.
     """
-    db_dir = tmp_path_factory.mktemp("omop-alchemy")
-    db_path = db_dir / "test.db"
-    engine = sa.create_engine(
-        f"sqlite:///{db_path}",
+    with isolated_test_database(
+        OmopAlchemyConfig,
+        "test_cdm_db_sqlite",
+        dialect="sqlite",
         future=True,
         echo=False,
         poolclass=sa.pool.StaticPool,
         connect_args={"check_same_thread": False, "timeout": 30},
-    )
+        # SQLite has no schema concept, and this fixture always represented
+        # a single flat namespace: map every role back to None so the
+        # vocab/results-tagged tables land in the same place they always
+        # have here, unaffected by schema role tagging.
+        execution_options={SCHEMA_TRANSLATE_MAP_KEY: {Role.PRIMARY.value: None, "vocab": None, "results": None}},
+    ) as db:
+        engine = db.connection.engine
+        bootstrap(engine, create=True)
+        _load_fixture_vocabulary(engine, tmp_path_factory.mktemp("omop-alchemy-fixtures"))
 
-    bootstrap(engine, create=True)
-    _load_fixture_vocabulary(engine, db_dir)
+        with so.Session(engine, expire_on_commit=False) as seed_session:
+            _seed_basic_clinical_data(seed_session)
 
-    with so.Session(engine, expire_on_commit=False) as seed_session:
-        _seed_basic_clinical_data(seed_session)
-
-    try:
         yield engine
-    finally:
-        engine.dispose()
-
-
-@pytest.fixture(scope="session")
-def pg_engine():
-    """Session-scoped PostgreSQL engine for integration tests.
-
-    Resolves via OA_Configurator resource 'test_cdm_db' in ~/.config/omop/config.toml.
-    Run: omop-config configure omop_alchemy (answer Y when asked to configure test database).
-    """
-    from oa_configurator.pytest_plugin import (
-        ensure_test_db_exists,
-        ensure_test_user_exists,
-        resolve_test_database,
-    )
-    from omop_alchemy.config import OmopAlchemyConfig
-    url = resolve_test_database(OmopAlchemyConfig, "test_cdm_db")
-
-    ensure_test_user_exists(url)
-    ensure_test_db_exists(url)
-    engine = sa.create_engine(url, future=True)
-    try:
-        yield engine
-    finally:
-        engine.dispose()
 
 
 @pytest.fixture
-def pg_session(pg_engine):
-    """
-    Function-scoped PostgreSQL session with a clean schema for each test.
+def pg_db(request):
+    """Canonical isolated PostgreSQL test database (Phase 0 of the
+    schema_translate_map fix).
 
-    Drops and recreates the public schema before each test to ensure full isolation.
+    Resolves via OA_Configurator resource 'test_cdm_db_pg' in ~/.config/omop/config.toml.
+    Run: omop-config configure omop_alchemy (answer Y when asked to configure test database).
+
+    Everything a test does through ``pg_db.connection``/``pg_db.session``
+    happens inside one transaction that's rolled back on exit: nothing
+    here is ever committed to the shared server, so concurrent test runs
+    can't collide and no manual cleanup is needed.
+
+    New tests should use this directly rather than ``pg_engine``/``pg_session``
+    below, which need a real, genuinely-committing ``Engine`` (for code that
+    calls ``.connect()``/``.begin()`` on what it's given) and are now thin
+    shims over this fixture's own connection.
     """
-    with pg_engine.connect() as conn:
-        conn.execute(sa.text("DROP SCHEMA public CASCADE"))
+    from oa_configurator.testing import isolated_test_database
+    from omop_alchemy.config import OmopAlchemyConfig
+
+    with isolated_test_database(OmopAlchemyConfig, "test_cdm_db_pg", request=request) as db:
+        yield db
+
+
+@pytest.fixture
+def pg_engine(pg_db):
+    """Real, genuinely-committing PostgreSQL engine on the connection's own
+    default schema (``public``). ``pg_session`` resets it clean before and
+    after each test; this fixture just hands back the engine to run
+    genuine engine-building code paths against (``.connect()``/``.begin()``,
+    which a bare ``Connection`` can't stand in for).
+
+    A thin shim over ``pg_db``'s own ``committing_engine``: every role
+    (``None``, ``"vocab"``, ``"results"``) folds back to the connection's
+    default, matching the single-schema setup ``pg_session`` provides.
+    """
+    return pg_db.committing_engine.execution_options(
+        schema_translate_map={Role.PRIMARY.value: None, "vocab": None, "results": None}
+    )
+
+
+_SYSTEM_SCHEMAS = frozenset({"pg_catalog", "information_schema"})
+
+
+def _reset_test_database(engine: sa.Engine) -> None:
+    """Drop every non-system schema and recreate public.
+
+    Only safe against a database used by one process at a time: this
+    suite runs sequentially by design (no ``pytest-xdist`` support), so a
+    single shared schema reset before/after each test is simpler than
+    per-test isolation and gives the same guarantee here. Fails loudly
+    rather than racing if that assumption is ever violated (e.g. `-n 2+`
+    run by mistake).
+    """
+    worker_count = os.environ.get("PYTEST_XDIST_WORKER_COUNT")
+    if worker_count is not None and int(worker_count) > 1:
+        pytest.fail(
+            "_reset_test_database() cannot run safely under parallel pytest-xdist "
+            f"workers ({worker_count} active): it drops and recreates every "
+            "non-system schema in a database shared across the whole test session, "
+            "so concurrent workers would race each other's resets. This suite is "
+            "sequential-only; run it without -n."
+        )
+    with engine.connect() as conn:
+        schema_names = sa.inspect(conn).get_schema_names()
+        for schema in schema_names:
+            if schema in _SYSTEM_SCHEMAS or schema.startswith("pg_"):
+                continue
+            conn.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        conn.execute(sa.text("DROP SCHEMA IF EXISTS public CASCADE"))
         conn.execute(sa.text("CREATE SCHEMA public"))
         conn.commit()
+
+
+@pytest.fixture
+def pg_session(pg_engine, cleanup_after_test):
+    """Function-scoped PostgreSQL session with a clean schema for each test.
+
+    Resets every non-system schema (not just public) both before and
+    after each test, via ``cleanup_after_test``, so a test's own
+    committed DDL/DML -- in public or a reserved bookkeeping schema like
+    ``MAINTENANCE_SCHEMA`` -- never depends on some later, unrelated test
+    to wipe it.
+    """
+    _reset_test_database(pg_engine)
+    cleanup_after_test(lambda: _reset_test_database(pg_engine))
 
     bootstrap(pg_engine, create=True)
 
@@ -367,6 +481,27 @@ def pg_session(pg_engine):
     finally:
         session.rollback()
         session.close()
+
+
+@pytest.fixture
+def pg_schema_session(pg_db):
+    """PostgreSQL session bound to a unique committed schema.
+
+    Use this for tests that do not assert the literal ``public`` schema. The
+    schema is dropped at teardown, so separate test processes cannot reset one
+    another's objects.
+    """
+    with isolated_test_schema(pg_db.committing_engine, prefix="omop_alchemy") as schema:
+        engine = pg_db.committing_engine.execution_options(
+            schema_translate_map={Role.PRIMARY.value: schema, "vocab": schema, "results": schema}
+        )
+        bootstrap(engine, create=True)
+        session = so.Session(engine, expire_on_commit=False)
+        try:
+            yield session
+        finally:
+            session.rollback()
+            session.close()
 
 
 @pytest.fixture(scope="function")

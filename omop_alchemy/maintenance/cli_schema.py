@@ -1,4 +1,4 @@
-"""Schema subapp: thin shim re-exporting all domain types and wiring five CLI commands."""
+"""Schema subapp: thin shim re-exporting all domain types and wiring seven CLI commands."""
 
 from __future__ import annotations
 
@@ -101,7 +101,8 @@ def doctor_command(
     with console.status("Running maintenance doctor checks..."):
         report = collect_doctor_report(
             engine=engine,
-            db_schema=conn.db_schema,
+            resolved=conn.resolved,
+            db_schema=conn.resolved.schema_name,
             resource_name=conn.resource_name,
             vocabulary_included=vocabulary_included,
             deep=deep,
@@ -128,7 +129,7 @@ def reconcile_schema_command(
 ) -> None:
     """Compare ORM-managed SQLAlchemy metadata against the current target database schema."""
     with console.status("Reconciling ORM metadata against target database schema..."):
-        report = reconcile_schema(engine, db_schema=conn.db_schema, vocabulary_included=vocabulary_included)
+        report = reconcile_schema(engine, resolved=conn.resolved, vocabulary_included=vocabulary_included)
     console.print(render_reconciliation_results(report.table_results))
     console.print(render_reconciliation_issues(report.issues))
     console.print(render_reconciliation_summary(report))
@@ -147,13 +148,19 @@ def create_missing_tables_command(
     dry_run: bool = False,
 ) -> None:
     """Create missing ORM-managed OMOP tables from metadata."""
-    with console.status("Creating missing tables..."):
-        results = create_missing_tables(
-            engine,
-            db_schema=conn.db_schema,
-            vocabulary_included=vocabulary_included,
-            dry_run=dry_run,
-        )
+    vocab_engine = conn.resolved.vocab_engine_for(engine)
+    try:
+        with console.status("Creating missing tables..."):
+            results = create_missing_tables(
+                engine,
+                vocab_engine=vocab_engine,
+                vocabulary_included=vocabulary_included,
+                dry_run=dry_run,
+                resolved=conn.resolved,
+            )
+    finally:
+        if vocab_engine is not engine:
+            vocab_engine.dispose()
     console.print(render_table_creation_results(results))
     console.print(render_table_creation_summary(results, dry_run=dry_run))
 
@@ -178,9 +185,10 @@ def data_summary_command(
     with console.status("Collecting table summary..."):
         results = collect_data_summary(
             engine,
-            db_schema=conn.db_schema,
             vocabulary_included=vocabulary_included,
             existing_only=not include_missing,
         )
     console.print(render_data_summary_results(results))
     console.print(render_data_summary_summary(results))
+
+

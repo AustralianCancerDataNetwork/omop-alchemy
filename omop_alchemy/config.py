@@ -12,7 +12,13 @@ from oa_configurator import (
     ResolvedCDMDatabase,
     Role,
     load_stack_config,
+    register_reserved_schema,
 )
+
+# Guaranteed to be imported and registered if there is a config
+MAINTENANCE_SCHEMA: str = "omop_alchemy_maintenance"
+
+register_reserved_schema(MAINTENANCE_SCHEMA, owner="omop_alchemy")
 
 
 class OmopAlchemyConfig(PackageConfigBase):
@@ -26,9 +32,18 @@ class OmopAlchemyConfig(PackageConfigBase):
     ----------
     cdm_db : str
         Name of the ``[databases.*]`` entry holding the CDM database.
-    test_cdm_db : str, optional
+    test_cdm_db_pg : str, optional
         Name of the ``[databases.*]`` entry holding the test CDM database,
-        marked ``RefTo(CDMDatabaseConfig, is_test=True)``.
+        marked ``RefTo(CDMDatabaseConfig, is_test=True)``. Must resolve to a
+        real PostgreSQL connection; used for real integration testing of
+        Postgres-only behavior (FK triggers, catalog queries, ALTER, etc.).
+    test_cdm_db_sqlite : str, optional
+        Same shape as ``test_cdm_db_pg``, for tests that must always run
+        against SQLite specifically (dialect-behavior tests), regardless of
+        what ``test_cdm_db_pg`` happens to be configured to. Left
+        unconfigured by design in every environment, since
+        ``isolated_test_database(..., dialect="sqlite")`` provisions a
+        disposable instance with no config needed at all.
 
     Notes
     -----
@@ -40,9 +55,21 @@ class OmopAlchemyConfig(PackageConfigBase):
     extra_logging_namespaces: ClassVar[tuple[str, ...]] = ("orm_loader",)
 
     cdm_db: Annotated[str, RefTo(CDMDatabaseConfig)] = "cdm_db"
-    test_cdm_db: Annotated[
+    test_cdm_db_pg: Annotated[
         str | None, RefTo(CDMDatabaseConfig, is_test=True)
-    ] = None
+    ] = Field(
+        default=None,
+        description="Real PostgreSQL test CDM database, for Postgres-only integration testing.",
+    )
+    test_cdm_db_sqlite: Annotated[
+        str | None, RefTo(CDMDatabaseConfig, is_test=True)
+    ] = Field(
+        default=None,
+        description=(
+            "Disposable SQLite test database; left unconfigured by design "
+            "(isolated_test_database(..., dialect='sqlite') provisions one automatically)."
+        ),
+    )
 
     athena_source_path: str | None = Field(
         default=None,
@@ -83,39 +110,21 @@ def get_cdm_context() -> tuple[OmopAlchemyConfig, ResolvedCDMDatabase]:
 def vocabulary_identity(resolved: ResolvedCDMDatabase) -> str | None:
     """Stable identity for the vocabulary dataset ``resolved`` reads, or None.
 
-    Concept-set expansions are a function of the vocabulary, so caching them
-    against this identity means recreating an engine against the same dataset
-    reuses the expansion instead of re-running ``concept_ancestor`` traversals.
+    Caches concept-set expansions (``concept_ancestor`` traversals) across
+    engines reading the same vocabulary. Built from the VOCAB role, not
+    primary, since ``concept_ancestor`` is a vocabulary table; do not
+    simplify to ``resolved.connection``. Uses ``safe_url`` so no password
+    reaches the cache key.
 
-    Composed from the **vocab** role rather than the primary one, because
-    ``concept_ancestor`` is a vocabulary table. On any deployment that does not
-    configure a separate vocabulary target this resolves to the CDM database, so
-    it costs nothing today and stays correct if vocabulary routing is ever
-    honoured by the ORM. Do not "simplify" it to ``resolved.connection``.
-
-    Uses ``safe_url``, the credential-redacted form, so no password reaches a
-    cache key.
-
-    **Returns None wherever sharing would be unsafe, so every caller inherits
-    that judgement.** Exported precisely so that packages building their own
-    engines compose the identity the same way — two spellings of one dataset
-    would produce two cache entries that each look authoritative. That only works
-    if the safety conditions live here rather than at one call site.
-
-    Two conditions yield None:
-
-    *Split vocabulary target.* Vocabulary models use the primary logical schema,
-    and one SQLAlchemy engine cannot route tables to a second physical
-    connection, so a declared vocabulary target that differs from the primary is
-    not what the engine actually reads. Returning its identity would let two
-    different primary databases that name the same external vocabulary share
-    expansions — one database's concept sets served for another. Such a
-    deployment falls back to per-engine caching until ORM routing supports it.
-
-    *Ephemeral database.* In-memory SQLite, where two engines built from
-    identical configuration are genuinely separate databases.
-
-    Both cases are correct-but-unshared rather than wrong.
+    Returns None wherever sharing would be unsafe, so every caller inherits
+    that judgement instead of each composing its own identity: 
+    - a split vocabulary target: schema_translate_map cannot route to a different
+    physical connection, so identity based on the declared target would not
+    match what the engine actually reads, or 
+    - an ephemeral database: in-memory SQLite, where identically-configured engines are genuinely
+    separate databases. 
+    
+    Both fall back to per-engine caching instead of being wrong.
     """
     vocab_target = resolved.connection_target(Role.VOCAB)
 

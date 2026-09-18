@@ -208,7 +208,6 @@ def test_condition_modifier_specs_delegate_to_governed_semantics():
     )
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_postgresql_executes_modifier_selection_and_stage_policy_contracts(pg_session):
     """Execute collision, stable-tie, and stage overrides on PostgreSQL."""
     expected_by_spec = (
