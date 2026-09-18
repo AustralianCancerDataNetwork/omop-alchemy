@@ -2686,7 +2686,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2714,7 +2742,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2742,35 +2798,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3102,6 +3130,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3293,8 +3349,7 @@
 
 
 <h1 id="typing">Typing<a class="headerlink" href="#typing" title="Permanent link">&para;</a></h1>
-<p>OMOP Alchemy exposes a set of <strong>Protocols and typed containers</strong> for code that needs to
-interact with CDM classes without coupling to specific ORM implementations.</p>
+<p>OMOP Alchemy exposes a set of <strong>Protocols and typed containers</strong> for code that needs to interact with CDM classes without coupling to specific ORM implementations.</p>
 <p>These live in two modules:</p>
 <table>
 <thead>
@@ -3512,9 +3567,7 @@ interact with CDM classes without coupling to specific ORM implementations.</p>
 
 </div><hr />
 <h3 id="domainsemantictable"><code>DomainSemanticTable</code><a class="headerlink" href="#domainsemantictable" title="Permanent link">&para;</a></h3>
-<p>Structural protocol for CDM ORM classes that participate in domain validation. A class
-satisfies this protocol if it has <code>__tablename__</code>, <code>__mapper__</code>, <code>__expected_domains__</code>,
-and a <code>collect_domain_rules()</code> classmethod.</p>
+<p>Structural protocol for CDM ORM classes that participate in domain validation. A class satisfies this protocol if it has <code>__tablename__</code>, <code>__mapper__</code>, <code>__expected_domains__</code>, and a <code>collect_domain_rules()</code> classmethod.</p>
 
 
 <div class="doc doc-object doc-class">
@@ -3646,8 +3699,7 @@ and a <code>collect_domain_rules()</code> classmethod.</p>
 </div><hr />
 <h2 id="typed-row-containers-cdmmodeltyping">Typed row containers (<code>cdm.model.typing</code>)<a class="headerlink" href="#typed-row-containers-cdmmodeltyping" title="Permanent link">&para;</a></h2>
 <h3 id="conceptrow"><code>ConceptRow</code><a class="headerlink" href="#conceptrow" title="Permanent link">&para;</a></h3>
-<p>A frozen dataclass representing the core fields of a concept lookup row. Used where a
-lightweight, hashable concept record is preferable to a full ORM object.</p>
+<p>A frozen dataclass representing the core fields of a concept lookup row. Used where a lightweight, hashable concept record is preferable to a full ORM object.</p>
 
 
 <div class="doc doc-object doc-class">

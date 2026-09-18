@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://AustralianCancerDataNetwork.github.io/OMOP_Alchemy/toolkit/integrations/">
+        <link rel="canonical" href="https://AustralianCancerDataNetwork.github.io/OMOP_Alchemy/toolkit/materialized-views/">
       
       
-        <link rel="prev" href="../analytics/">
+        <link rel="prev" href="../core/">
       
       
-        <link rel="next" href="../../validation/">
+        <link rel="next" href="../episodes/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>integrations - OMOP Alchemy</title>
+        <title>Materialized views - OMOP Alchemy</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#integrations" class="md-skip">
+        <a href="#materialized-views" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              integrations
+              Materialized views
             
           </span>
         </div>
@@ -2550,63 +2550,7 @@
   <span class="md-ellipsis">
     
   
-    core
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../episodes/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    episodes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../analytics/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    analytics
+    Core services
   
 
     
@@ -2643,7 +2587,7 @@
   <span class="md-ellipsis">
     
   
-    integrations
+    Materialized views
   
 
     
@@ -2661,7 +2605,7 @@
   <span class="md-ellipsis">
     
   
-    integrations
+    Materialized views
   
 
     
@@ -2687,10 +2631,43 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#meds_standard" class="md-nav__link">
+  <a href="#the-deployment-contract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        meds_standard
+        The deployment contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#treat-creation-as-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Treat creation as deployment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choose-a-refresh-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choose a refresh policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orchestrate-a-family-of-views" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orchestrate a family of views
       
     </span>
   </a>
@@ -2701,6 +2678,90 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../episodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clinical analytics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -3024,6 +3085,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3058,10 +3147,43 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#meds_standard" class="md-nav__link">
+  <a href="#the-deployment-contract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        meds_standard
+        The deployment contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#treat-creation-as-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Treat creation as deployment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choose-a-refresh-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choose a refresh policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orchestrate-a-family-of-views" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orchestrate a family of views
       
     </span>
   </a>
@@ -3136,16 +3258,106 @@
   
 
 
-<h1 id="integrations">integrations<a class="headerlink" href="#integrations" title="Permanent link">&para;</a></h1>
-<p>Export to external data standards. Integrations sit at the outer edge of the toolkit —
-one may use anything in <code>core</code>, <code>episodes</code>, or <code>analytics</code>, and nothing in those tiers
-depends on an integration, so adding or changing an export format cannot affect the
-clinical logic beneath it. Each integration brings its own heavyweight dependencies and
-is gated behind an optional extra, so installing omop-alchemy does not pull in formats
-you are not exporting to.</p>
-<h2 id="meds_standard">meds_standard<a class="headerlink" href="#meds_standard" title="Permanent link">&para;</a></h2>
-<p>Export to the <a href="https://github.com/Medical-Event-Data-Standard/meds">Medical Event Data Standard</a>.</p>
-<p>Not yet populated.</p>
+<h1 id="materialized-views">Materialized views<a class="headerlink" href="#materialized-views" title="Permanent link">&para;</a></h1>
+<p>A materialized view is a persisted read model: an expensive or carefully defined query is computed once and then read like a table. This is useful when the same analytical shape is consumed repeatedly, but it also introduces a deployment lifecycle that ordinary query construction does not have.</p>
+<h2 id="the-deployment-contract">The deployment contract<a class="headerlink" href="#the-deployment-contract" title="Permanent link">&para;</a></h2>
+<p>The supported deployment contract is PostgreSQL with unqualified materialized-view names resolving to the <code>public</code> schema through the connection's <code>search_path</code>. Leave <code>schema</code> at its default when calling the lifecycle methods. Qualified non-<code>public</code> schemas and schema translation are not part of this package's materialized-view contract.</p>
+<p>OMOP Alchemy owns the OMOP models and the query-building vocabulary. <a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/"><code>orm-loader</code></a> owns the generic materialized-view definition and database lifecycle. Keeping that boundary means this package can describe an OMOP read model without growing a second implementation of DDL, refresh, index creation, or dependency ordering.</p>
+<p>This page explains how an OMOP Alchemy query becomes a managed read model. The linked <a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/"><code>orm-loader</code> materialized-view guide</a> is the authoritative reference for the complete API, supported options, backend behavior, and generated reference documentation.</p>
+<p>The important design decision is the shape of the result. Give the view a stable name, build its contents with the same SQLAlchemy expressions used elsewhere in the toolkit, and make the row grain explicit in the query. The example below creates one row per person and measurement concept, which makes the unique index meaningful as well as useful for concurrent refresh.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sa</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Measurement</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">orm_loader.mappers</span><span class="w"> </span><span class="kn">import</span> <span class="n">MaterializedViewIndex</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">orm_loader.mappers</span><span class="w"> </span><span class="kn">import</span> <span class="n">MaterializedViewMixin</span>
+
+
+<span class="n">measurement_summary</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">sa</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+        <span class="n">Measurement</span><span class="o">.</span><span class="n">person_id</span><span class="p">,</span>
+        <span class="n">Measurement</span><span class="o">.</span><span class="n">measurement_concept_id</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;concept_id&quot;</span><span class="p">),</span>
+        <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">Measurement</span><span class="o">.</span><span class="n">measurement_date</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;last_measurement_date&quot;</span><span class="p">),</span>
+        <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;measurement_count&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Measurement</span><span class="o">.</span><span class="n">person_id</span><span class="p">,</span> <span class="n">Measurement</span><span class="o">.</span><span class="n">measurement_concept_id</span><span class="p">)</span>
+<span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MeasurementSummaryMV</span><span class="p">(</span><span class="n">MaterializedViewMixin</span><span class="p">):</span>
+    <span class="n">__mv_name__</span> <span class="o">=</span> <span class="s2">&quot;measurement_summary&quot;</span>
+    <span class="n">__mv_select__</span> <span class="o">=</span> <span class="n">measurement_summary</span>
+    <span class="n">__mv_indexes__</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">MaterializedViewIndex</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;measurement_summary_identity_uq&quot;</span><span class="p">,</span>
+            <span class="n">columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;person_id&quot;</span><span class="p">,</span> <span class="s2">&quot;concept_id&quot;</span><span class="p">),</span>
+            <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+</code></pre></div>
+<p><code>orm-loader</code> does not infer or validate the logical grain of a selectable. Treat the query's grouping and joins as the source of truth, test that grain against representative data, and declare a matching unique index when the view needs concurrent refresh. The index is the database-level guarantee; a comment or a convention in the Python class is not.</p>
+<p><code>__mv_dependencies__</code> is for dependencies between managed materialized views. Its values are matched against the names of the view classes passed to the refresh-order resolver, so a base OMOP table such as <code>measurement</code> does not create a lifecycle dependency by itself. Add a dependency when one materialized view reads another:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">PersonMeasurementSummaryMV</span><span class="p">(</span><span class="n">MaterializedViewMixin</span><span class="p">):</span>
+    <span class="n">__mv_name__</span> <span class="o">=</span> <span class="s2">&quot;person_measurement_summary&quot;</span>
+    <span class="n">__mv_select__</span> <span class="o">=</span> <span class="n">sa</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+        <span class="n">sa</span><span class="o">.</span><span class="n">table</span><span class="p">(</span>
+            <span class="s2">&quot;measurement_summary&quot;</span><span class="p">,</span>
+            <span class="n">sa</span><span class="o">.</span><span class="n">column</span><span class="p">(</span><span class="s2">&quot;person_id&quot;</span><span class="p">,</span> <span class="n">sa</span><span class="o">.</span><span class="n">Integer</span><span class="p">),</span>
+            <span class="n">sa</span><span class="o">.</span><span class="n">column</span><span class="p">(</span><span class="s2">&quot;concept_id&quot;</span><span class="p">,</span> <span class="n">sa</span><span class="o">.</span><span class="n">Integer</span><span class="p">),</span>
+            <span class="n">sa</span><span class="o">.</span><span class="n">column</span><span class="p">(</span><span class="s2">&quot;last_measurement_date&quot;</span><span class="p">,</span> <span class="n">sa</span><span class="o">.</span><span class="n">Date</span><span class="p">),</span>
+            <span class="n">sa</span><span class="o">.</span><span class="n">column</span><span class="p">(</span><span class="s2">&quot;measurement_count&quot;</span><span class="p">,</span> <span class="n">sa</span><span class="o">.</span><span class="n">Integer</span><span class="p">),</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">__mv_dependencies__</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;measurement_summary&quot;</span><span class="p">}</span>
+</code></pre></div>
+<p>Use the class as a schema-level definition, not as a promise that OMOP Alchemy will map the resulting relation or schedule its deployment. If application code needs ORM-style reads, map the relation separately according to the application's identity and session requirements.</p>
+<h2 id="treat-creation-as-deployment">Treat creation as deployment<a class="headerlink" href="#treat-creation-as-deployment" title="Permanent link">&para;</a></h2>
+<p>Creation is usually part of an application migration, bootstrap command, or release step. Keep it explicit and make the existing-target policy deliberate:</p>
+<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">engine</span><span class="o">.</span><span class="n">begin</span><span class="p">()</span> <span class="k">as</span> <span class="n">connection</span><span class="p">:</span>
+    <span class="n">MeasurementSummaryMV</span><span class="o">.</span><span class="n">create_mv</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+</code></pre></div>
+<p>The default is idempotent: <code>create_mv()</code> emits <code>IF NOT EXISTS</code>, so an already-present view is left in place. That is convenient for repeatable bootstrap, but it does not detect definition drift. Pass <code>if_not_exists=False</code> when an existing target should fail the deployment and force an explicit replacement decision.</p>
+<p>The view's declared indexes are created by <code>create_mv()</code> by default. Pass <code>create_indexes=False</code> only when index creation is intentionally managed elsewhere. With an <code>Engine</code>, <code>orm-loader</code> manages the transaction for each backend operation; with a <code>Connection</code>, the caller controls the transaction and can keep view and index creation inside a larger migration transaction. If index creation fails after the view has been created through an engine, treat the deployment as incomplete and reconcile it before retrying.</p>
+<p><code>with_data=False</code> is useful when the relation must exist before its source data is ready, but the resulting view cannot be queried until it has been refreshed:</p>
+<div class="highlight"><pre><span></span><code><span class="n">MeasurementSummaryMV</span><span class="o">.</span><span class="n">create_mv</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">with_data</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">if_not_exists</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="c1"># Load or migrate the source data, then make the read model available.</span>
+<span class="n">MeasurementSummaryMV</span><span class="o">.</span><span class="n">refresh_mv</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
+</code></pre></div>
+<p>For replacement or teardown, use the lifecycle options documented by <a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/"><code>orm-loader</code></a> rather than issuing raw <code>CREATE</code>, <code>DROP</code>, or <code>REFRESH</code> statements in this package. In particular, <code>cascade=True</code> is an explicit decision to remove dependent database objects as part of a drop.</p>
+<h2 id="choose-a-refresh-policy">Choose a refresh policy<a class="headerlink" href="#choose-a-refresh-policy" title="Permanent link">&para;</a></h2>
+<p>An ordinary refresh is the simple operational default:</p>
+<div class="highlight"><pre><span></span><code><span class="n">MeasurementSummaryMV</span><span class="o">.</span><span class="n">refresh_mv</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
+</code></pre></div>
+<p>Concurrent refresh is a PostgreSQL feature for keeping the existing materialized view available while its contents are rebuilt. It requires an eligible unique index over the view, with no predicate or expression-based shortcut. <code>orm-loader</code> first fails closed when the class declares no unique index and then translates PostgreSQL's rejection when the live database still does not satisfy the requirement. Both paths raise <code>ConcurrentRefreshNotEligibleError</code>, with the database exception preserved as the cause when PostgreSQL produced one.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">orm_loader.backends</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConcurrentRefreshNotEligibleError</span>
+
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">MeasurementSummaryMV</span><span class="o">.</span><span class="n">refresh_mv</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">concurrently</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">ConcurrentRefreshNotEligibleError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Concurrent refresh unavailable: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">error</span><span class="p">)</span>
+    <span class="n">MeasurementSummaryMV</span><span class="o">.</span><span class="n">refresh_mv</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
+</code></pre></div>
+<p>Use the fallback only if serving a briefly stale or synchronously refreshed read model is acceptable. A failed statement can leave a caller-managed PostgreSQL transaction aborted, so roll that transaction back before issuing more statements. An <code>engine.begin()</code> context rolls back automatically when an exception leaves the context.</p>
+<h2 id="orchestrate-a-family-of-views">Orchestrate a family of views<a class="headerlink" href="#orchestrate-a-family-of-views" title="Permanent link">&para;</a></h2>
+<p>The application owns the registry because it knows which views belong to a deployment and which policy should govern them. <code>orm-loader</code> supplies the small amount of generic machinery needed to order managed views and invoke their lifecycle methods.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">orm_loader.mappers</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">refresh_all_mvs</span><span class="p">,</span>
+    <span class="n">resolve_mv_refresh_order</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="n">ALL_MVS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">MeasurementSummaryMV</span><span class="p">,</span>
+    <span class="n">PersonMeasurementSummaryMV</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="c1"># Ordinary refreshes in dependency order.</span>
+<span class="n">refresh_all_mvs</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">ALL_MVS</span><span class="p">)</span>
+
+<span class="c1"># For concurrent refreshes, retain the same order while choosing the policy.</span>
+<span class="k">for</span> <span class="n">view_cls</span> <span class="ow">in</span> <span class="n">resolve_mv_refresh_order</span><span class="p">(</span><span class="n">ALL_MVS</span><span class="p">):</span>
+    <span class="n">view_cls</span><span class="o">.</span><span class="n">refresh_mv</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">concurrently</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
 
 
 

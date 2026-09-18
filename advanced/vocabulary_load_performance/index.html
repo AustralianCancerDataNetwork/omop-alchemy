@@ -13,6 +13,8 @@
         <link rel="canonical" href="https://AustralianCancerDataNetwork.github.io/OMOP_Alchemy/advanced/vocabulary_load_performance/">
       
       
+        <link rel="prev" href="../fulltext/">
+      
       
       
         
@@ -23,7 +25,7 @@
     
     
       
-        <title>Vocabulary Load Performance Tuning - OMOP Alchemy</title>
+        <title>Vocabulary Load Performance - OMOP Alchemy</title>
       
     
     
@@ -112,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Vocabulary Load Performance Tuning
+              Vocabulary Load Performance
             
           </span>
         </div>
@@ -2546,7 +2548,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2574,7 +2604,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2602,35 +2660,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -2800,8 +2830,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -2812,13 +2844,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
         
           
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
@@ -2839,7 +2869,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2957,6 +2987,192 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-load-works-two-phases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the load works (two phases)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pagination-and-why-it-is-disabled-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pagination and why it is disabled by default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#postgresql-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PostgreSQL configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recommended-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#applying-settings-live-without-a-container-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Applying settings live without a container restart
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CLI parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#-merge-batch-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --merge-batch-size
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#-staging-chunk-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --staging-chunk-size
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommended-invocation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended invocation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3124,6 +3340,46 @@
   
 
 
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Advanced
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
               
               <article class="md-content__inner md-typeset">
                 
@@ -3176,7 +3432,7 @@
 </thead>
 <tbody>
 <tr>
-<td><code>--merge-batch-size 1_000_000</code> (old default)</td>
+<td><code>--merge-batch-size 1_000_000</code></td>
 <td>~120 min</td>
 </tr>
 <tr>
@@ -3189,14 +3445,14 @@
 </tr>
 </tbody>
 </table>
-<p>The staging index build alone on a 56 M-row table adds 10–15 minutes regardless of batch size. <strong>The default is now <code>None</code> (no pagination).</strong> Only set <code>--merge-batch-size</code> if your system cannot hold the full merge in a single transaction.</p>
+<p>The staging index build alone on a 56 M-row table adds 10–15 minutes regardless of batch size. <strong>The default is <code>None</code> (no pagination).</strong> Only set <code>--merge-batch-size</code> if your system cannot hold the full merge in a single transaction.</p>
 <blockquote>
 <p><strong>Warning:</strong> Setting <code>--merge-batch-size</code> to a large number to "avoid" pagination does not help if that number is still smaller than the largest table. For <code>concept_relationship</code> (~56 M rows), any value below 56 M will trigger the index build. If you need pagination, set it to your actual memory limit; if you don't, leave it unset.</p>
 </blockquote>
 <h2 id="postgresql-configuration">PostgreSQL configuration<a class="headerlink" href="#postgresql-configuration" title="Permanent link">&para;</a></h2>
 <p>The next biggest bottleneck after pagination is <code>synchronous_commit=on</code> (the PostgreSQL default): every <code>COMMIT</code> blocks until WAL is flushed to disk. With pagination enabled and 5 M-row batches this means 11 synchronous disk flushes of ~1.5 GB each for <code>concept_relationship</code> alone.</p>
 <h3 id="recommended-settings">Recommended settings<a class="headerlink" href="#recommended-settings" title="Permanent link">&para;</a></h3>
-<p>Apply these via <code>postgresql.conf</code> or <code>-c</code> flags on whatever PostgreSQL instance you're loading into (per-package <code>docker-compose.yaml</code> files no longer exist; Docker orchestration for the OMOP stack now happens at the workspace root).</p>
+<p>Apply these via <code>postgresql.conf</code> or <code>-c</code> flags on the PostgreSQL instance you're loading into.</p>
 <p><strong>8 GB host:</strong>
 <div class="highlight"><pre><span></span><code>synchronous_commit=off
 checkpoint_timeout=30min

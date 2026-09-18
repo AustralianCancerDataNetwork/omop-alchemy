@@ -2630,7 +2630,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2658,7 +2686,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2686,35 +2742,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3046,6 +3074,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3181,10 +3237,6 @@
 
 
 <h1 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h1>
-<p><code>OMOP_Alchemy</code> itself makes no assumptions about how PostgreSQL is provisioned: any
-reachable instance works, local or otherwise. Docker orchestration for the OMOP stack
-is handled at the workspace root (compose files there bring up every package's
-containers as peers), not by a per-package <code>docker-compose.yaml</code> in this repo.</p>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <ul>
 <li>A running PostgreSQL instance (any version supported by <code>omop_alchemy</code>'s SQLAlchemy dialects)</li>
@@ -3203,6 +3255,7 @@ omop-config<span class="w"> </span>configure<span class="w"> </span>omop_alchemy
 schema on every run. <code>test_cdm_db</code> must point to a <strong>dedicated, empty test database</strong>, never
 to a database that contains real data. The test suite enforces this: it fails loudly (not skips) if the
 configured database is not marked <code>test_only = true</code> in your config.</p>
+<p>Refer to the CI/CD workflows at <a href="https://github.com/AustralianCancerDataNetwork/cava-devops/blob/main/.github/workflows/build-test-postgres.yml">cava-devops</a> for more details on how integration test runs are typically orchestrated.</p>
 </blockquote>
 <p><strong>Step 1 — Register a test database connection:</strong></p>
 <div class="highlight"><pre><span></span><code>omop-config<span class="w"> </span>configure<span class="w"> </span>omop_alchemy

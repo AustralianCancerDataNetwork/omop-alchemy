@@ -810,28 +810,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.cdm.base.cdm_table_base.CDMTableBase" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CDMTableBase
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.cdm.base.cdm_table_base.CDMTableBase.__omop_table_category__" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        __omop_table_category__
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#design-notes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2702,7 +2680,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2730,7 +2736,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2758,35 +2792,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3118,6 +3124,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3178,28 +3212,6 @@
     <span class="md-ellipsis">
       
         CDMTableBase
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.cdm.base.cdm_table_base.CDMTableBase" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CDMTableBase
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.cdm.base.cdm_table_base.CDMTableBase.__omop_table_category__" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        __omop_table_category__
       
     </span>
   </a>
@@ -3325,10 +3337,8 @@
 
 
 <h1 id="base-tables">Base Tables<a class="headerlink" href="#base-tables" title="Permanent link">&para;</a></h1>
-<p>Base tables define the <strong>foundation of all concrete OMOP CDM models</strong>
-in OMOP Alchemy.</p>
-<p>They establish the minimum structural and behavioral contract that
-distinguishes a real CDM table from:</p>
+<p>Base tables define the <strong>foundation of all concrete OMOP CDM models</strong> in OMOP Alchemy.</p>
+<p>They establish the minimum structural and behavioral contract that distinguishes a real CDM table from:</p>
 <ul>
 <li>mixins</li>
 <li>views</li>
@@ -3355,8 +3365,7 @@ distinguishes a real CDM table from:</p>
 <p>Those concerns live elsewhere.</p>
 <hr />
 <h2 id="relationship-to-orm-loader">Relationship to <code>orm-loader</code><a class="headerlink" href="#relationship-to-orm-loader" title="Permanent link">&para;</a></h2>
-<p><code>CDMTableBase</code> builds directly on infrastructure provided by
-<code>orm-loader</code>.</p>
+<p><code>CDMTableBase</code> builds directly on infrastructure provided by <code>orm-loader</code>.</p>
 <p>Specifically, it inherits:</p>
 <ul>
 <li><code>CSVLoadableTableInterface</code> — controlled CSV ingestion</li>
@@ -3384,8 +3393,7 @@ distinguishes a real CDM table from:</p>
 <p><code>CDMTableBase</code> is where those two layers meet.</p>
 <hr />
 <h2 id="cdmtablebase"><code>CDMTableBase</code><a class="headerlink" href="#cdmtablebase" title="Permanent link">&para;</a></h2>
-<p>The <code>CDMTableBase</code> class is the common ancestor for all concrete
-OMOP CDM tables.</p>
+<p>The <code>CDMTableBase</code> class is the common ancestor for all concrete OMOP CDM tables.</p>
 
 
 <div class="doc doc-object doc-class">
@@ -3423,7 +3431,7 @@ OMOP CDM tables.</p>
 
 
 
-<h2 id="omop_alchemy.cdm.base.cdm_table_base.CDMTableBase.__omop_table_category__" class="doc doc-heading">
+<h4 id="omop_alchemy.cdm.base.cdm_table_base.CDMTableBase.__omop_table_category__" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">__omop_table_category__</span>
 
 
@@ -3432,7 +3440,7 @@ OMOP CDM tables.</p>
       <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
-<a href="#omop_alchemy.cdm.base.cdm_table_base.CDMTableBase.__omop_table_category__" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.cdm.base.cdm_table_base.CDMTableBase.__omop_table_category__" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">__omop_table_category__</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 </code></pre></div>
 

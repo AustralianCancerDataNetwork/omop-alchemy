@@ -2575,10 +2575,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#four-tiers" class="md-nav__link">
+  <a href="#where-to-begin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Four tiers
+        Where to begin
       
     </span>
   </a>
@@ -2586,21 +2586,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-worked-example" class="md-nav__link">
+  <a href="#public-imports" class="md-nav__link">
     <span class="md-ellipsis">
       
-        A worked example
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#import-surface" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Import surface
+        Public imports
       
     </span>
   </a>
@@ -2630,7 +2619,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2658,7 +2675,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2686,35 +2731,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3046,6 +3063,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3080,10 +3125,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#four-tiers" class="md-nav__link">
+  <a href="#where-to-begin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Four tiers
+        Where to begin
       
     </span>
   </a>
@@ -3091,21 +3136,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-worked-example" class="md-nav__link">
+  <a href="#public-imports" class="md-nav__link">
     <span class="md-ellipsis">
       
-        A worked example
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#import-surface" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Import surface
+        Public imports
       
     </span>
   </a>
@@ -3181,73 +3215,57 @@
 
 
 <h1 id="toolkit">Toolkit<a class="headerlink" href="#toolkit" title="Permanent link">&para;</a></h1>
-<p><code>omop_alchemy.cdm</code> gives you the OMOP CDM schema as SQLAlchemy models. The toolkit is
-what you build with them: vocabulary resolution, patient timelines, episode traversal,
-domain analytics, and outbound export.</p>
-<div class="admonition warning">
-<p class="admonition-title">Experimental</p>
-<p>The toolkit is newer and less battle-tested than the CDM models it sits on top of.
-Module paths below an area (anything past <code>toolkit.&lt;tier&gt;.&lt;area&gt;</code>) may still move;
-the area itself is the stable import surface. The CDM models themselves are not
-affected by anything here.</p>
-</div>
-<h2 id="four-tiers">Four tiers<a class="headerlink" href="#four-tiers" title="Permanent link">&para;</a></h2>
-<p>Each tier may depend only on the tiers before it in this list — <code>core</code> knows nothing of
-episodes or clinical domains, and nothing depends on <code>integrations</code>.</p>
-<table>
-<thead>
-<tr>
-<th>Tier</th>
-<th>Answers</th>
-<th>Assumes a clinical domain?</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="core/"><code>core</code></a></td>
-<td>Resolve concepts, build a patient timeline, convert units</td>
-<td>No</td>
-</tr>
-<tr>
-<td><a href="episodes/"><code>episodes</code></a></td>
-<td>Build episodes, retrieve what belongs to one</td>
-<td>No</td>
-</tr>
-<tr>
-<td><a href="analytics/"><code>analytics</code></a></td>
-<td>What does this value mean clinically?</td>
-<td>Yes, one subpackage per domain</td>
-</tr>
-<tr>
-<td><a href="integrations/"><code>integrations</code></a></td>
-<td>Export to an external data standard</td>
-<td>No</td>
-</tr>
-</tbody>
-</table>
-<h2 id="a-worked-example">A worked example<a class="headerlink" href="#a-worked-example" title="Permanent link">&para;</a></h2>
-<p>Querying an oncology episode pulls together all four tiers without you having to think
-about the seams between them: concept resolution and timelines from <code>core</code>, drug
-retrieval from <code>episodes</code>, oncology classification from <code>analytics</code>.</p>
+<p>The toolkit turns OMOP rows into objects that answer clinical questions. For example, given the ID of an oncology episode, you can inspect its treatment modality, linked drug exposures, radiotherapy dose, and weight-loss assessment while the episode remains attached to a SQLAlchemy session:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Session</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.analytics.oncology</span><span class="w"> </span><span class="kn">import</span> <span class="n">OncologyEpisode</span>
 
 <span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
     <span class="n">episode</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">OncologyEpisode</span><span class="p">,</span> <span class="n">episode_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">episode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">LookupError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown episode: </span><span class="si">{</span><span class="n">episode_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-    <span class="n">episode</span><span class="o">.</span><span class="n">structural_modality</span>        <span class="c1"># OncologyModality.SACT, .RADIOTHERAPY, ...</span>
-    <span class="n">episode</span><span class="o">.</span><span class="n">drug_exposures</span>              <span class="c1"># linked Drug_Exposure rows</span>
-    <span class="n">episode</span><span class="o">.</span><span class="n">rt_dose_summary</span>             <span class="c1"># RTDoseSummary, if any RT was given</span>
-    <span class="n">episode</span><span class="o">.</span><span class="n">critical_weight_loss_grade</span>  <span class="c1"># graded against Martin/CTCAE criteria</span>
+    <span class="n">modalities</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">structural_modalities</span>
+    <span class="n">drug_exposures</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">sact_exposures</span>
+    <span class="n">radiotherapy</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">rt_dose_summary</span>
+    <span class="n">weight_loss</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">critical_weight_loss_summary</span><span class="p">()</span>
 </code></pre></div>
-<h2 id="import-surface">Import surface<a class="headerlink" href="#import-surface" title="Permanent link">&para;</a></h2>
-<p>Import from the area subpackage — <code>omop_alchemy.toolkit.&lt;tier&gt;.&lt;area&gt;</code> — not from a
-specific module beneath it:</p>
+<p>This is still ordinary SQLAlchemy. <code>OncologyEpisode</code> is mapped to the OMOP episode view, and properties may load related rows or resolve governed vocabulary sets through the active session. The toolkit adds interpretation and reusable retrieval rules; it does not replace the CDM models or hide when database access is required.</p>
+<div class="admonition warning">
+<p class="admonition-title">Experimental toolkit</p>
+<p>Toolkit APIs are experimental and may change without compatibility guarantees. Pin the package version in deployed applications and review release notes before upgrading.</p>
+</div>
+<h2 id="where-to-begin">Where to begin<a class="headerlink" href="#where-to-begin" title="Permanent link">&para;</a></h2>
+<p>Choose the part of the toolkit that matches the question you are asking:</p>
+<table>
+<thead>
+<tr>
+<th>If you need to…</th>
+<th>Start with</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Resolve incoming text or source codes to OMOP concepts, compare measurements in common units, or represent events from several CDM tables consistently</td>
+<td><a href="core/"><code>core</code></a></td>
+</tr>
+<tr>
+<td>Traverse episode relationships, retrieve episode-linked facts, or state how an event should be attached to an episode</td>
+<td><a href="episodes/"><code>episodes</code></a></td>
+</tr>
+<tr>
+<td>Apply a clinical interpretation such as oncology modality, dose summarisation, body-metric analysis, or weight-loss grading</td>
+<td><a href="analytics/"><code>analytics</code></a></td>
+</tr>
+</tbody>
+</table>
+<p>The dependency direction follows the same order. <code>episodes</code> can use <code>core</code>; <code>analytics</code> can use both. Lower layers never import a clinical specialty or an export format. This keeps general concepts such as event identity and unit conversion independent of the analyses that use them.</p>
+<h2 id="public-imports">Public imports<a class="headerlink" href="#public-imports" title="Permanent link">&para;</a></h2>
+<p>Import from the documented area package rather than from a file beneath it:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.concepts</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_concept_resolver</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.analytics.oncology</span><span class="w"> </span><span class="kn">import</span> <span class="n">OncologyEpisode</span>
 </code></pre></div>
-<p>Each area's <code>__init__.py</code> re-exports its public names, and that's the part of the path
-that stays stable. Files beneath it are free to move.</p>
+<p>The area packages re-export their public API. Module names below those packages are implementation details.</p>
 
 
 

@@ -2630,7 +2630,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2658,7 +2686,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2686,35 +2742,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3046,6 +3074,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3249,25 +3305,20 @@
 <p>This is supported for postgres only.</p>
 <p>Use engine_with_replica_role when:</p>
 <ul>
-<li>Creating / refreshing materialized views</li>
-<li>Running schema-level operations that might trigger independent sessions</li>
+<li>Running schema-level operations that may open independent sessions</li>
 <li>Using tooling that opens its own connections</li>
 </ul>
 <h2 id="optional-postgresql-full-text-search">Optional PostgreSQL full-text search<a class="headerlink" href="#optional-postgresql-full-text-search" title="Permanent link">&para;</a></h2>
-<p>OMOP Alchemy can optionally integrate with PostgreSQL full-text search for selected
-vocabulary text fields.</p>
-<p>This feature is <strong>not required</strong> to use the library and is intentionally treated as an
-optional enhancement rather than part of the core OMOP schema.</p>
+<p>OMOP Alchemy can optionally integrate with PostgreSQL full-text search for selected vocabulary text fields.</p>
+<p>This feature is <strong>not required</strong> to use the library and is an optional enhancement rather than part of the core OMOP schema.</p>
 <p>At the library level:</p>
 <ul>
 <li>query helpers can fall back to inline <code>to_tsvector(...)</code> expressions</li>
-<li>optional sidecar <code>tsvector</code> columns can be registered into SQLAlchemy metadata when
-  they exist in the database</li>
+<li>optional sidecar <code>tsvector</code> columns can be registered into SQLAlchemy metadata when they exist in the database</li>
 </ul>
 <p>At the database level:</p>
 <ul>
-<li>PostgreSQL-only sidecar columns and optional GIN indexes can be managed through the
-  maintenance CLI</li>
+<li>PostgreSQL-only sidecar columns and optional GIN indexes can be managed through the maintenance CLI</li>
 <li>those sidecar columns are populated explicitly rather than auto-generated</li>
 </ul>
 <p>Typical maintenance workflow:</p>
@@ -3277,6 +3328,7 @@ omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 <p>If you later reload vocabulary data, rerun:</p>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 </code></pre></div>
+<p><img alt="fulltext" src="../../assets/images/oa-fulltext.png" /></p>
 <p>For the full design and query patterns, see:</p>
 <ul>
 <li><a href="../../advanced/fulltext/">PostgreSQL Full-Text Search</a></li>

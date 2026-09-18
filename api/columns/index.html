@@ -2769,7 +2769,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2797,7 +2825,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2825,35 +2881,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3185,6 +3213,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3459,8 +3515,7 @@
 
 
 <h1 id="columns-structural-mixins">Columns &amp; Structural Mixins<a class="headerlink" href="#columns-structural-mixins" title="Permanent link">&para;</a></h1>
-<p>OMOP Alchemy provides a small set of <strong>column helpers and mixins</strong>
-that encode recurring OMOP CDM patterns directly into ORM structure.</p>
+<p>OMOP Alchemy provides a small set of <strong>column helpers and mixins</strong> that encode recurring OMOP CDM patterns directly into ORM structure.</p>
 <p>These utilities exist to:</p>
 <ul>
 <li>reduce boilerplate</li>
@@ -3468,17 +3523,13 @@ that encode recurring OMOP CDM patterns directly into ORM structure.</p>
 <li>keep table definitions readable</li>
 <li>align ORM structure with CDM specifications</li>
 </ul>
-<p>They are <strong>structural</strong>, not analytical:
-they describe <em>how data is shaped</em>, not <em>what it means</em>.</p>
+<p>They are <strong>structural</strong>, not analytical: they describe <em>how data is shaped</em>, not <em>what it means</em>.</p>
 <hr />
 <h2 id="column-helper-functions">Column helper functions<a class="headerlink" href="#column-helper-functions" title="Permanent link">&para;</a></h2>
-<p>Column helpers wrap common OMOP column patterns into
-small, intention-revealing factory functions.</p>
-<p>They are thin wrappers around <code>sqlalchemy.orm.mapped_column</code>
-with defaults chosen to match the CDM Field-Level specifications.</p>
+<p>Column helpers wrap common OMOP column patterns into small, intention-revealing factory functions.</p>
+<p>They are thin wrappers around <code>sqlalchemy.orm.mapped_column</code> with defaults chosen to match the CDM Field-Level specifications.</p>
 <h3 id="concept-foreign-keys">Concept foreign keys<a class="headerlink" href="#concept-foreign-keys" title="Permanent link">&para;</a></h3>
-<p>OMOP relies heavily on concept identifiers, with specific semantics
-around nullability and unknown values.</p>
+<p>OMOP relies heavily on concept identifiers, with specific semantics around nullability and unknown values.</p>
 
 
 <div class="doc doc-object doc-function">
@@ -3526,8 +3577,7 @@ see <code>omop_alchemy.cdm.base.indexing</code>.</p>
 
 </div><hr />
 <h3 id="convenience-wrappers">Convenience wrappers<a class="headerlink" href="#convenience-wrappers" title="Permanent link">&para;</a></h3>
-<p>These helpers exist primarily for consistency and readability
-when defining large tables with many fields.</p>
+<p>These helpers exist primarily for consistency and readability when defining large tables with many fields.</p>
 
 
 <div class="doc doc-object doc-function">
@@ -3578,8 +3628,7 @@ see <code>omop_alchemy.cdm.base.indexing</code>.</p>
 
 </div><hr />
 <h2 id="structural-mixins">Structural mixins<a class="headerlink" href="#structural-mixins" title="Permanent link">&para;</a></h2>
-<p>Structural mixins encode <strong>table-level OMOP patterns</strong> that recur
-across multiple CDM tables.</p>
+<p>Structural mixins encode <strong>table-level OMOP patterns</strong> that recur across multiple CDM tables.</p>
 
 
 <div class="doc doc-object doc-class">

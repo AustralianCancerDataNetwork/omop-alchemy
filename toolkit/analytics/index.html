@@ -13,10 +13,10 @@
         <link rel="canonical" href="https://AustralianCancerDataNetwork.github.io/OMOP_Alchemy/toolkit/analytics/">
       
       
-        <link rel="prev" href="../episodes/">
+        <link rel="prev" href="../query-contracts/">
       
       
-        <link rel="next" href="../integrations/">
+        <link rel="next" href="../../validation/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>analytics - OMOP Alchemy</title>
+        <title>Clinical analytics - OMOP Alchemy</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#analytics" class="md-skip">
+        <a href="#clinical-analytics" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              analytics
+              Clinical analytics
             
           </span>
         </div>
@@ -2550,7 +2550,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2578,7 +2606,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2615,7 +2671,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
+    Clinical analytics
   
 
     
@@ -2633,7 +2689,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
+    Clinical analytics
   
 
     
@@ -2662,7 +2718,57 @@
   <a href="#oncology" class="md-nav__link">
     <span class="md-ellipsis">
       
-        oncology
+        Oncology
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Oncology">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modality-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modality evidence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#treatment-summaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Treatment summaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#condition-modifiers-and-preferred-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Condition modifiers and preferred stage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#body-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Body metrics
       
     </span>
   </a>
@@ -2670,428 +2776,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode" class="md-nav__link">
+  <a href="#adverse-events" class="md-nav__link">
     <span class="md-ellipsis">
       
-        OncologyEpisode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.primary_episode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        primary_episode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        child_treatment_episodes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modalities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        structural_modalities
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modality" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        structural_modality
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modalities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        concept_modalities
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modality" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        concept_modality
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_modality" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        child_treatment_episodes_by_modality
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_concept_modality" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        child_treatment_episodes_by_concept_modality
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_disease_episode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        is_disease_episode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_overarching" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        is_overarching
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_episode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        is_treatment_episode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_regimen" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        is_treatment_regimen
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_cycle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        is_treatment_cycle
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.RTDoseSummary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        RTDoseSummary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.RTDoseSummary.from_procedures" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        from_procedures
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.SACTDoseSummary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SACTDoseSummary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.SACTDoseSummary.from_exposures" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        from_exposures
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#body_metrics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        body_metrics
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.MeasurementReading" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MeasurementReading
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.MeasurementReading.from_measurement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        from_measurement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        WeightTrajectoryMixin
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_readings" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        weight_readings
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_readings_cm" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        height_readings_cm
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_m" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        height_m
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_weight" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        baseline_weight
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.latest_weight" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        latest_weight
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bmi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        baseline_bmi
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bsa_mosteller_m2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        baseline_bsa_mosteller_m2
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_from_baseline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        pct_change_from_baseline
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_over" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        pct_change_over
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_trajectory" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        pct_change_trajectory
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.sustained_loss" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        sustained_loss
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_trajectory_summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        weight_trajectory_summary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#adverse_events" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        adverse_events
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.adverse_events" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        adverse_events
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.adverse_events.CTCAEWeightLoss" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CTCAEWeightLoss
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.adverse_events.MartinWeightLoss" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MartinWeightLoss
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.adverse_events.critical_weight_loss_grade" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        critical_weight_loss_grade
+        Adverse events
       
     </span>
   </a>
@@ -3102,34 +2790,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -3453,6 +3113,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3490,7 +3178,57 @@
   <a href="#oncology" class="md-nav__link">
     <span class="md-ellipsis">
       
-        oncology
+        Oncology
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Oncology">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modality-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modality evidence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#treatment-summaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Treatment summaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#condition-modifiers-and-preferred-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Condition modifiers and preferred stage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#body-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Body metrics
       
     </span>
   </a>
@@ -3498,428 +3236,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode" class="md-nav__link">
+  <a href="#adverse-events" class="md-nav__link">
     <span class="md-ellipsis">
       
-        OncologyEpisode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.primary_episode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        primary_episode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        child_treatment_episodes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modalities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        structural_modalities
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modality" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        structural_modality
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modalities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        concept_modalities
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modality" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        concept_modality
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_modality" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        child_treatment_episodes_by_modality
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_concept_modality" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        child_treatment_episodes_by_concept_modality
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_disease_episode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        is_disease_episode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_overarching" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        is_overarching
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_episode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        is_treatment_episode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_regimen" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        is_treatment_regimen
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_cycle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        is_treatment_cycle
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.RTDoseSummary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        RTDoseSummary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.RTDoseSummary.from_procedures" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        from_procedures
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.SACTDoseSummary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SACTDoseSummary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.oncology.SACTDoseSummary.from_exposures" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        from_exposures
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#body_metrics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        body_metrics
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.MeasurementReading" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MeasurementReading
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.MeasurementReading.from_measurement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        from_measurement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        WeightTrajectoryMixin
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_readings" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        weight_readings
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_readings_cm" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        height_readings_cm
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_m" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        height_m
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_weight" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        baseline_weight
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.latest_weight" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        latest_weight
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bmi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        baseline_bmi
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bsa_mosteller_m2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        baseline_bsa_mosteller_m2
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_from_baseline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        pct_change_from_baseline
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_over" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        pct_change_over
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_trajectory" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        pct_change_trajectory
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.sustained_loss" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        sustained_loss
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_trajectory_summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        weight_trajectory_summary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#adverse_events" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        adverse_events
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.adverse_events" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        adverse_events
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.adverse_events.CTCAEWeightLoss" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CTCAEWeightLoss
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.adverse_events.MartinWeightLoss" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MartinWeightLoss
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.analytics.adverse_events.critical_weight_loss_grade" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        critical_weight_loss_grade
+        Adverse events
       
     </span>
   </a>
@@ -3994,11 +3314,9 @@
   
 
 
-<h1 id="analytics">analytics<a class="headerlink" href="#analytics" title="Permanent link">&para;</a></h1>
-<p>Clinical-domain logic lives beside the concept sets and policies that give it meaning.
-The domain-neutral <code>core</code> and <code>episodes</code> packages provide the underlying resolution and
-traversal mechanisms.</p>
-<h2 id="oncology">oncology<a class="headerlink" href="#oncology" title="Permanent link">&para;</a></h2>
+<h1 id="clinical-analytics">Clinical analytics<a class="headerlink" href="#clinical-analytics" title="Permanent link">&para;</a></h1>
+<p>Analytics packages combine domain-neutral retrieval with governed concept sets and clinical interpretation. This is where a procedure becomes evidence of radiotherapy, a series of measurements becomes a weight trajectory, or percentage weight loss becomes a severity grade.</p>
+<h2 id="oncology">Oncology<a class="headerlink" href="#oncology" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -4013,7 +3331,7 @@ traversal mechanisms.</p>
 </tr>
 <tr>
 <td><code>structural_modalities</code> / <code>concept_modalities</code></td>
-<td>Preserve every evidenced modality so mixed treatment and SACT classification disagreements remain visible.</td>
+<td>Preserve every evidenced modality so mixed-treatment and SACT classification disagreements remain visible.</td>
 </tr>
 <tr>
 <td><code>structural_modality</code> / <code>concept_modality</code></td>
@@ -4037,26 +3355,273 @@ traversal mechanisms.</p>
 </tr>
 </tbody>
 </table>
-<p>Governed membership has two access modes:</p>
-<table>
-<thead>
-<tr>
-<th>Access form</th>
-<th>Behaviour</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Loaded instance property</td>
-<td>Expands once per vocabulary identity, then uses cached O(1) membership. Initial classification requires a live session; a cached result remains the snapshot computed while the instance was attached.</td>
-</tr>
-<tr>
-<td>Class-level hybrid expression</td>
-<td>Emits a database subquery for each query and does not use the Python expansion cache.</td>
-</tr>
-</tbody>
-</table>
+<p><code>OncologyEpisode</code> is the main entry point for an episode-centred oncology analysis. Keep the object attached to its SQLAlchemy session while accessing properties that traverse related events or resolve vocabulary-backed concept groups:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Session</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.analytics.oncology</span><span class="w"> </span><span class="kn">import</span> <span class="n">OncologyEpisode</span>
+
+<span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+    <span class="n">episode</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">OncologyEpisode</span><span class="p">,</span> <span class="n">episode_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">episode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">LookupError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown episode: </span><span class="si">{</span><span class="n">episode_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">treatment_episodes</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">child_treatment_episodes</span>
+    <span class="n">modalities</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">structural_modalities</span>
+    <span class="n">sact</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">sact_dose_summaries_by_drug_concept</span>
+    <span class="n">radiotherapy</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">rt_dose_summaries_by_site</span>
+</code></pre></div>
+<p>The episode includes events linked directly to it and events linked to its direct children. This supports a regimen whose drug exposures or procedures are recorded against cycle-level child episodes without flattening the episode hierarchy itself.</p>
+<div  class="mermaid">flowchart TD
+    OE["OncologyEpisode"] --> Direct["Events linked directly to this episode"]
+    OE --> Children["child_treatment_episodes"]
+    Children --> ChildEvents["Events linked to those children<br/>(e.g. cycle-level drug exposures)"]
+    Direct --> Pool["Evidence pool for<br/>modalities, dose summaries, weight loss"]
+    ChildEvents --> Pool
+</div>
+<h3 id="modality-evidence">Modality evidence<a class="headerlink" href="#modality-evidence" title="Permanent link">&para;</a></h3>
+<p>An episode can contain evidence for more than one treatment modality. <code>structural_modalities</code> and <code>concept_modalities</code> therefore return sets rather than forcing the record into a single label:</p>
+<ul>
+<li>structural evidence treats any linked drug exposure as SACT evidence and uses governed concepts for radiotherapy, surgery, and diagnostic or staging procedures;</li>
+<li>concept evidence requires drug exposures to belong to the governed SACT concept set as well.</li>
+</ul>
+<p>Comparing the two sets makes source-structure and terminology disagreements visible:</p>
+<div class="highlight"><pre><span></span><code><span class="n">structural</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">structural_modalities</span>
+<span class="n">governed</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">concept_modalities</span>
+
+<span class="k">if</span> <span class="n">structural</span> <span class="o">!=</span> <span class="n">governed</span><span class="p">:</span>
+    <span class="n">review_episode_modality</span><span class="p">(</span><span class="n">episode</span><span class="o">.</span><span class="n">episode_id</span><span class="p">,</span> <span class="n">structural</span><span class="p">,</span> <span class="n">governed</span><span class="p">)</span>
+</code></pre></div>
+<p>When a caller needs one value, <code>structural_modality</code> and <code>concept_modality</code> apply a deterministic order: radiotherapy, surgery, diagnostic or staging, then SACT. This is a stable tie-break for mixed evidence, not a statement of clinical importance. Use the plural properties when mixed treatment matters to the analysis.</p>
+<div  class="mermaid">flowchart LR
+    RT["Radiotherapy"] --> SUR["Surgery"] --> DX["Diagnostic / Staging"] --> SACT["SACT"]
+</div>
+<p>The single-value properties return the first modality in this order for which the episode has evidence.</p>
+<h3 id="treatment-summaries">Treatment summaries<a class="headerlink" href="#treatment-summaries" title="Permanent link">&para;</a></h3>
+<p><code>sact_exposures</code> contains linked exposures whose concepts belong to the governed SACT set. <code>sact_dose_summaries_by_drug_concept</code> groups them by drug concept; <code>sact_dose_summary</code> provides an all-SACT summary. The summary keeps source units and carries a <code>DoseEvaluability</code> result. Mixed units or missing quantities remain visible instead of being presented as a valid combined dose.</p>
+<p><code>rt_procedures</code> applies the governed radiotherapy procedure set. Site-grouped and whole-episode summaries expose dates, procedure and modifier concepts, counts, quantities, and dose evaluability. OMOP Procedure Occurrence does not provide a universal radiotherapy dose model, so these summaries preserve the available evidence for a site-specific policy rather than inferring one.</p>
+<p><code>OncologyProcedure</code> and <code>OncologyDrugExposure</code> expose the same governed classifications on individual facts. <code>OncologyEpisodeEvent</code> retains resolution diagnostics when a linked event cannot be loaded.</p>
+<h3 id="condition-modifiers-and-preferred-stage">Condition modifiers and preferred stage<a class="headerlink" href="#condition-modifiers-and-preferred-stage" title="Permanent link">&para;</a></h3>
+<p>The oncology package publishes lazy governed concept specifications for T, N,
+M, and group stage, tumour grade, and metastatic disease. Laterality and tumour
+size are exposed as governed scalar accessors. These declarations consume
+<code>omop-semantics</code>; the narrow metastatic-disease descendant group requires
+<code>omop-semantics</code> 0.6.1. Importing the module does not expand a vocabulary or
+contact a database.</p>
+<p>Stage selection is a query policy over an already filtered canonical modifier
+source enriched with <code>modifier_concept_code</code>. By default, pathological codes
+(trimmed, case-insensitive codes beginning with <code>p</code>) rank before clinical codes
+(beginning with <code>c</code>), with unclassified codes retained as fallback. Time and
+canonical modifier identity then break ties deterministically.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.analytics.oncology</span><span class="w"> </span><span class="kn">import</span> <span class="n">preferred_stage_select</span>
+
+<span class="c1"># Earliest pathological, otherwise earliest clinical, otherwise unclassified.</span>
+<span class="n">preferred</span> <span class="o">=</span> <span class="n">preferred_stage_select</span><span class="p">(</span>
+    <span class="n">stage_modifiers</span><span class="p">,</span>
+    <span class="n">concept_code_column</span><span class="o">=</span><span class="s2">&quot;modifier_concept_code&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>The preference is immutable and query-scoped. Override it explicitly rather
+than changing process-global state:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.analytics.oncology</span><span class="w"> </span><span class="kn">import</span> <span class="n">StageSelectionSpec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.modifiers</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModifierSelectionPolicy</span>
+
+<span class="n">clinical_first</span> <span class="o">=</span> <span class="n">preferred_stage_select</span><span class="p">(</span>
+    <span class="n">stage_modifiers</span><span class="p">,</span>
+    <span class="n">spec</span><span class="o">=</span><span class="n">StageSelectionSpec</span><span class="o">.</span><span class="n">clinical_first</span><span class="p">(),</span>
+    <span class="n">concept_code_column</span><span class="o">=</span><span class="s2">&quot;modifier_concept_code&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">chronological</span> <span class="o">=</span> <span class="n">preferred_stage_select</span><span class="p">(</span>
+    <span class="n">stage_modifiers</span><span class="p">,</span>
+    <span class="n">spec</span><span class="o">=</span><span class="n">StageSelectionSpec</span><span class="o">.</span><span class="n">chronological_only</span><span class="p">(),</span>
+<span class="p">)</span>
+
+<span class="n">latest_pathological</span> <span class="o">=</span> <span class="n">preferred_stage_select</span><span class="p">(</span>
+    <span class="n">stage_modifiers</span><span class="p">,</span>
+    <span class="n">spec</span><span class="o">=</span><span class="n">StageSelectionSpec</span><span class="p">(</span>
+        <span class="n">temporal_policy</span><span class="o">=</span><span class="n">ModifierSelectionPolicy</span><span class="o">.</span><span class="n">latest</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">concept_code_column</span><span class="o">=</span><span class="s2">&quot;modifier_concept_code&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Basis-ranked selection requires an enriched source and an explicit
+<code>concept_code_column=</code>. Chronological-only selection does not require the
+enrichment. An empty basis priority disables pathological/clinical preference;
+a non-empty priority must contain every <code>StageBasis</code> exactly once.</p>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="omop_alchemy.toolkit.analytics.oncology.condition_modifiers"></a>
+    <div class="doc doc-contents first">
+
+        <p>Oncology policies for condition modifiers and preferred stage values.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.analytics.oncology.condition_modifiers.StageSelectionSpec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">StageSelectionSpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.analytics.oncology.condition_modifiers.StageSelectionSpec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">StageSelectionSpec</span><span class="p">(</span>
+    <span class="n">basis_priority</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">StageBasis</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">StageBasis</span><span class="o">.</span><span class="n">pathological</span><span class="p">,</span>
+        <span class="n">StageBasis</span><span class="o">.</span><span class="n">clinical</span><span class="p">,</span>
+        <span class="n">StageBasis</span><span class="o">.</span><span class="n">unclassified</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">temporal_policy</span><span class="p">:</span> <span class="n">ModifierSelectionPolicy</span> <span class="o">=</span> <span class="n">ModifierSelectionPolicy</span><span class="o">.</span><span class="n">earliest</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Preferred stage basis followed by temporal tie-breaking policy.</p>
+<p>The default prefers pathological stage, then clinical stage, then values
+whose vocabulary code does not identify a basis. Supply an empty
+<code>basis_priority</code> for chronological-only selection.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.analytics.oncology.condition_modifiers.preferred_stage_select" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">preferred_stage_select</span>
+
+
+<a href="#omop_alchemy.toolkit.analytics.oncology.condition_modifiers.preferred_stage_select" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">preferred_stage_select</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">:</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">StageSelectionSpec</span> <span class="o">=</span> <span class="n">DEFAULT_STAGE_SELECTION</span><span class="p">,</span>
+    <span class="n">concept_code_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Select one preferred stage modifier for every canonical target.</p>
+<p>Basis-ranked selection requires a source enriched with a concept-code
+column. Chronological-only selection does not require that enrichment.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.analytics.oncology.condition_modifiers.stage_basis_expression" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">stage_basis_expression</span>
+
+
+<a href="#omop_alchemy.toolkit.analytics.oncology.condition_modifiers.stage_basis_expression" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">stage_basis_expression</span><span class="p">(</span>
+    <span class="n">concept_code</span><span class="p">:</span> <span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Classify stage codes using the source vocabulary's p/c convention.</p>
+<p>The staging vocabulary does not expose a reliable parent concept that
+separates pathological from clinical staging. The code prefix is therefore
+the intentional source-level contract rather than a synthetic hierarchy.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.analytics.oncology.condition_modifiers.stage_basis_priority_expression" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">stage_basis_priority_expression</span>
+
+
+<a href="#omop_alchemy.toolkit.analytics.oncology.condition_modifiers.stage_basis_priority_expression" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">stage_basis_priority_expression</span><span class="p">(</span>
+    <span class="n">concept_code</span><span class="p">:</span> <span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">StageSelectionSpec</span> <span class="o">=</span> <span class="n">DEFAULT_STAGE_SELECTION</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Render the configured stage-basis preference as a sortable SQL CASE.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-class">
 
@@ -4099,7 +3664,7 @@ audit disagreements.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.primary_episode" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.primary_episode" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">primary_episode</span>
 
 
@@ -4107,7 +3672,7 @@ audit disagreements.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.primary_episode" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.primary_episode" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">primary_episode</span><span class="p">:</span> <span class="n">Self</span>
 </code></pre></div>
 
@@ -4121,7 +3686,7 @@ audit disagreements.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">child_treatment_episodes</span>
 
 
@@ -4130,7 +3695,7 @@ audit disagreements.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">child_treatment_episodes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Self</span><span class="p">]</span>
 </code></pre></div>
 
@@ -4144,7 +3709,7 @@ audit disagreements.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modalities" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modalities" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">structural_modalities</span>
 
 
@@ -4153,7 +3718,7 @@ audit disagreements.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modalities" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modalities" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">structural_modalities</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">OncologyModality</span><span class="p">]</span>
 </code></pre></div>
 
@@ -4172,7 +3737,7 @@ concept membership. Events linked to direct child episodes are included.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modality" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modality" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">structural_modality</span>
 
 
@@ -4181,7 +3746,7 @@ concept membership. Events linked to direct child episodes are included.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modality" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.structural_modality" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">structural_modality</span><span class="p">:</span> <span class="n">OncologyModality</span>
 </code></pre></div>
 
@@ -4198,7 +3763,7 @@ concept membership. Events linked to direct child episodes are included.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modalities" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modalities" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">concept_modalities</span>
 
 
@@ -4207,7 +3772,7 @@ concept membership. Events linked to direct child episodes are included.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modalities" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modalities" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">concept_modalities</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">OncologyModality</span><span class="p">]</span>
 </code></pre></div>
 
@@ -4225,7 +3790,7 @@ disagreements remain visible.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modality" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modality" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">concept_modality</span>
 
 
@@ -4234,7 +3799,7 @@ disagreements remain visible.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modality" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.concept_modality" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">concept_modality</span><span class="p">:</span> <span class="n">OncologyModality</span>
 </code></pre></div>
 
@@ -4251,7 +3816,7 @@ disagreements remain visible.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_modality" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_modality" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">child_treatment_episodes_by_modality</span>
 
 
@@ -4260,7 +3825,7 @@ disagreements remain visible.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_modality" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_modality" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">child_treatment_episodes_by_modality</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span>
     <span class="n">OncologyModality</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">Self</span><span class="p">]</span>
 <span class="p">]</span>
@@ -4276,7 +3841,7 @@ disagreements remain visible.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_concept_modality" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_concept_modality" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">child_treatment_episodes_by_concept_modality</span>
 
 
@@ -4285,7 +3850,7 @@ disagreements remain visible.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_concept_modality" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.child_treatment_episodes_by_concept_modality" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">child_treatment_episodes_by_concept_modality</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span>
     <span class="n">OncologyModality</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">Self</span><span class="p">]</span>
 <span class="p">]</span>
@@ -4303,11 +3868,11 @@ disagreements remain visible.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_disease_episode" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_disease_episode" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">is_disease_episode</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_disease_episode" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_disease_episode" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">is_disease_episode</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
 </code></pre></div>
 
@@ -4321,11 +3886,11 @@ disagreements remain visible.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_overarching" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_overarching" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">is_overarching</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_overarching" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_overarching" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">is_overarching</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
 </code></pre></div>
 
@@ -4339,11 +3904,11 @@ disagreements remain visible.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_episode" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_episode" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">is_treatment_episode</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_episode" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_episode" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">is_treatment_episode</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
 </code></pre></div>
 
@@ -4357,11 +3922,11 @@ disagreements remain visible.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_regimen" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_regimen" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">is_treatment_regimen</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_regimen" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_regimen" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">is_treatment_regimen</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
 </code></pre></div>
 
@@ -4375,11 +3940,11 @@ disagreements remain visible.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_cycle" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_cycle" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">is_treatment_cycle</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_cycle" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.OncologyEpisode.is_treatment_cycle" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">is_treatment_cycle</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
 </code></pre></div>
 
@@ -4436,7 +4001,7 @@ site-specific RT policy can decide what is clinically meaningful.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.RTDoseSummary.from_procedures" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.RTDoseSummary.from_procedures" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">from_procedures</span>
 
 
@@ -4444,7 +4009,7 @@ site-specific RT policy can decide what is clinically meaningful.</p>
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.RTDoseSummary.from_procedures" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.RTDoseSummary.from_procedures" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">from_procedures</span><span class="p">(</span>
     <span class="n">procedures</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">OncologyProcedure</span><span class="p">],</span>
     <span class="o">*</span><span class="p">,</span>
@@ -4514,7 +4079,7 @@ policy to interpret.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.oncology.SACTDoseSummary.from_exposures" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.oncology.SACTDoseSummary.from_exposures" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">from_exposures</span>
 
 
@@ -4522,7 +4087,7 @@ policy to interpret.</p>
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.oncology.SACTDoseSummary.from_exposures" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.oncology.SACTDoseSummary.from_exposures" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">from_exposures</span><span class="p">(</span>
     <span class="n">exposures</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Drug_Exposure</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">group_key</span><span class="p">:</span> <span class="nb">object</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span>
@@ -4546,7 +4111,7 @@ boundary; keeping the inherited input type also preserves substitutability.</p>
 
     </div>
 
-</div><h2 id="body_metrics">body_metrics<a class="headerlink" href="#body_metrics" title="Permanent link">&para;</a></h2>
+</div><h2 id="body-metrics">Body metrics<a class="headerlink" href="#body-metrics" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -4561,11 +4126,11 @@ boundary; keeping the inherited input type also preserves substitutability.</p>
 </tr>
 <tr>
 <td><code>MeasurementSeriesMixin</code></td>
-<td>Resolves normalized measurement series for an episode.</td>
+<td>Resolves normalised measurement series for an episode.</td>
 </tr>
 <tr>
 <td><code>WeightTrajectoryMixin</code></td>
-<td>Exposes normalized weight and height, BMI, BSA, windowed change, trajectories, and a dict-shaped typed summary.</td>
+<td>Exposes normalised weight and height, BMI, BSA, windowed change, trajectories, and a dict-shaped typed summary.</td>
 </tr>
 <tr>
 <td><code>WeightChange</code></td>
@@ -4577,6 +4142,18 @@ boundary; keeping the inherited input type also preserves substitutability.</p>
 </tr>
 </tbody>
 </table>
+<p><code>WeightTrajectoryMixin</code> turns an episode's weight measurements and the person's height measurements into a normalised longitudinal view. Weight is converted to kilograms, height to centimetres, and measurements with missing or unrecognised units are excluded from calculations.</p>
+<p>An episode that includes the mixin can produce a compact, tabular summary:</p>
+<div class="highlight"><pre><span></span><code><span class="n">summary</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">weight_trajectory_summary</span><span class="p">()</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">summary</span><span class="p">[</span><span class="s2">&quot;baseline_weight_kg&quot;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">summary</span><span class="p">[</span><span class="s2">&quot;latest_weight_kg&quot;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">summary</span><span class="p">[</span><span class="s2">&quot;pct_change_from_baseline&quot;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">summary</span><span class="p">[</span><span class="s2">&quot;pct_change_from_baseline_evaluable&quot;</span><span class="p">])</span>
+</code></pre></div>
+<p>The baseline is the first normalised weight in the resolved episode series and the latest weight is the last. Percentage change is negative for weight loss. A result separates its value from evaluability so that missing evidence is not confused with zero change.</p>
+<p><code>pct_change_over(days)</code> compares the latest reading with the earliest reading inside the requested look-back period. <code>pct_change_trajectory()</code> returns every normalised point relative to baseline. <code>sustained_loss()</code> asks whether the final consecutive readings all meet a configurable loss threshold. These are deliberately distinct questions; choose the one that matches the analysis rather than treating them as interchangeable summaries of weight loss.</p>
+<p>Body-metric defaults resolve governed measurement and unit concepts. A deployment that uses local concepts can supply its own <code>BodyMetricRules</code> on the episode class.</p>
 
 
 <div class="doc doc-object doc-class">
@@ -4614,7 +4191,7 @@ boundary; keeping the inherited input type also preserves substitutability.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.MeasurementReading.from_measurement" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.MeasurementReading.from_measurement" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">from_measurement</span>
 
 
@@ -4622,7 +4199,7 @@ boundary; keeping the inherited input type also preserves substitutability.</p>
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.MeasurementReading.from_measurement" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.MeasurementReading.from_measurement" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">from_measurement</span><span class="p">(</span>
     <span class="n">measurement</span><span class="p">:</span> <span class="n">Measurement</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">ReadingSource</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span>
@@ -4680,7 +4257,7 @@ omop-semantics-backed concept IDs.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_readings" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_readings" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">weight_readings</span>
 
 
@@ -4689,7 +4266,7 @@ omop-semantics-backed concept IDs.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_readings" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_readings" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">weight_readings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">MeasurementReading</span><span class="p">]</span>
 </code></pre></div>
 
@@ -4705,7 +4282,7 @@ omop-semantics-backed concept IDs.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_readings_cm" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_readings_cm" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">height_readings_cm</span>
 
 
@@ -4714,7 +4291,7 @@ omop-semantics-backed concept IDs.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_readings_cm" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_readings_cm" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">height_readings_cm</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">MeasurementReading</span><span class="p">]</span>
 </code></pre></div>
 
@@ -4730,7 +4307,7 @@ omop-semantics-backed concept IDs.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_m" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_m" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">height_m</span>
 
 
@@ -4738,11 +4315,13 @@ omop-semantics-backed concept IDs.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_m" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_m" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">height_m</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
+
+        <p>Return the first normalized height as metres, when available.</p>
 
     </div>
 
@@ -4752,7 +4331,7 @@ omop-semantics-backed concept IDs.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_weight" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_weight" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">baseline_weight</span>
 
 
@@ -4760,11 +4339,13 @@ omop-semantics-backed concept IDs.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_weight" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_weight" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">baseline_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MeasurementReading</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
+
+        <p>Return the earliest normalized weight reading in the series.</p>
 
     </div>
 
@@ -4774,7 +4355,7 @@ omop-semantics-backed concept IDs.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.latest_weight" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.latest_weight" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">latest_weight</span>
 
 
@@ -4782,11 +4363,13 @@ omop-semantics-backed concept IDs.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.latest_weight" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.latest_weight" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">latest_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MeasurementReading</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
+
+        <p>Return the latest normalized weight reading in the series.</p>
 
     </div>
 
@@ -4796,7 +4379,7 @@ omop-semantics-backed concept IDs.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bmi" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bmi" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">baseline_bmi</span>
 
 
@@ -4804,11 +4387,13 @@ omop-semantics-backed concept IDs.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bmi" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bmi" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">baseline_bmi</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
+
+        <p>Calculate BMI from the baseline weight and first available height.</p>
 
     </div>
 
@@ -4818,7 +4403,7 @@ omop-semantics-backed concept IDs.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bsa_mosteller_m2" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bsa_mosteller_m2" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">baseline_bsa_mosteller_m2</span>
 
 
@@ -4826,11 +4411,13 @@ omop-semantics-backed concept IDs.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bsa_mosteller_m2" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bsa_mosteller_m2" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">baseline_bsa_mosteller_m2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
+
+        <p>Calculate Mosteller BSA from baseline weight and first height.</p>
 
     </div>
 
@@ -4842,11 +4429,11 @@ omop-semantics-backed concept IDs.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_from_baseline" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_from_baseline" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">pct_change_from_baseline</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_from_baseline" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_from_baseline" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">pct_change_from_baseline</span><span class="p">(</span>
     <span class="n">as_of</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MeasurementReading</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WeightChange</span>
@@ -4854,6 +4441,8 @@ omop-semantics-backed concept IDs.</p>
 
     <div class="doc doc-contents ">
 
+        <p>Compare a target reading with baseline, preserving non-evaluability.</p>
+
 
     </div>
 
@@ -4862,16 +4451,18 @@ omop-semantics-backed concept IDs.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_over" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_over" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">pct_change_over</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_over" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_over" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">pct_change_over</span><span class="p">(</span><span class="n">days</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WeightChange</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
+        <p>Compare latest weight with the earliest reading in the time window.</p>
+
 
     </div>
 
@@ -4880,16 +4471,18 @@ omop-semantics-backed concept IDs.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_trajectory" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_trajectory" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">pct_change_trajectory</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_trajectory" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_trajectory" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">pct_change_trajectory</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">WeightTrajectoryPoint</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
+        <p>Return each valid reading's percentage change from baseline.</p>
+
 
     </div>
 
@@ -4898,11 +4491,11 @@ omop-semantics-backed concept IDs.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.sustained_loss" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.sustained_loss" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">sustained_loss</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.sustained_loss" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.sustained_loss" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">sustained_loss</span><span class="p">(</span>
     <span class="n">threshold_pct</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span> <span class="n">min_consecutive</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
@@ -4910,6 +4503,8 @@ omop-semantics-backed concept IDs.</p>
 
     <div class="doc doc-contents ">
 
+        <p>Test whether recent readings sustain the requested loss threshold.</p>
+
 
     </div>
 
@@ -4918,15 +4513,17 @@ omop-semantics-backed concept IDs.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_trajectory_summary" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_trajectory_summary" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">weight_trajectory_summary</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_trajectory_summary" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.weight_trajectory_summary" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">weight_trajectory_summary</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">WeightTrajectorySummary</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
+
+        <p>Return the stable summary contract used by analytics consumers.</p>
 
 
     </div>
@@ -4939,7 +4536,7 @@ omop-semantics-backed concept IDs.</p>
 
     </div>
 
-</div><h2 id="adverse_events">adverse_events<a class="headerlink" href="#adverse_events" title="Permanent link">&para;</a></h2>
+</div><h2 id="adverse-events">Adverse events<a class="headerlink" href="#adverse-events" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -4962,6 +4559,18 @@ omop-semantics-backed concept IDs.</p>
 </tr>
 </tbody>
 </table>
+<p>The adverse-event functions apply grading policy to an already calculated percentage change and, where available, BMI:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.analytics.adverse_events</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">critical_weight_loss_grade</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">grade</span> <span class="o">=</span> <span class="n">critical_weight_loss_grade</span><span class="p">(</span>
+    <span class="n">pct_change</span><span class="o">=-</span><span class="mf">8.2</span><span class="p">,</span>
+    <span class="n">bmi</span><span class="o">=</span><span class="mf">21.4</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p><code>martin_weight_loss_grade()</code> applies the BMI-adjusted Martin et al. matrix. <code>ctcae_weight_loss_grade()</code> applies the CTCAE v5.0 physiological percentage-loss thresholds but does not infer intervention qualifiers such as hospitalisation, tube feeding, or parenteral nutrition. <code>critical_weight_loss_grade()</code> uses the Martin matrix when both percentage change and BMI are available and otherwise falls back to the percentage-only CTCAE-style grade.</p>
+<p>All three return <code>None</code> when the inputs needed by that policy are unavailable. They do not retrieve measurements or choose a baseline; those decisions remain in the body-metric layer.</p>
 
 
 <div class="doc doc-object doc-module">
@@ -4994,11 +4603,11 @@ omop-semantics-backed concept IDs.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.adverse_events.CTCAEWeightLoss" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.adverse_events.CTCAEWeightLoss" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">CTCAEWeightLoss</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.adverse_events.CTCAEWeightLoss" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.adverse_events.CTCAEWeightLoss" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
@@ -5043,11 +4652,11 @@ are not inferred here.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.analytics.adverse_events.MartinWeightLoss" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.adverse_events.MartinWeightLoss" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">MartinWeightLoss</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.adverse_events.MartinWeightLoss" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.adverse_events.MartinWeightLoss" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
@@ -5096,11 +4705,11 @@ arithmetic itself.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.analytics.adverse_events.critical_weight_loss_grade" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.analytics.adverse_events.critical_weight_loss_grade" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">critical_weight_loss_grade</span>
 
 
-<a href="#omop_alchemy.toolkit.analytics.adverse_events.critical_weight_loss_grade" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.analytics.adverse_events.critical_weight_loss_grade" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">critical_weight_loss_grade</span><span class="p">(</span>
     <span class="n">pct_change</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">bmi</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>

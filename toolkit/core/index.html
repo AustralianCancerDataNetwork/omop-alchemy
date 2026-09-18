@@ -16,7 +16,7 @@
         <link rel="prev" href="../">
       
       
-        <link rel="next" href="../episodes/">
+        <link rel="next" href="../materialized-views/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>core - OMOP Alchemy</title>
+        <title>Core services - OMOP Alchemy</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#core" class="md-skip">
+        <a href="#core-services" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              core
+              Core services
             
           </span>
         </div>
@@ -2559,7 +2559,7 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
   
 
     
@@ -2577,7 +2577,7 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
   
 
     
@@ -2603,10 +2603,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#concept-resolution" class="md-nav__link">
+  <a href="#resolve-source-data-to-concepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Concept resolution
+        Resolve source data to concepts
       
     </span>
   </a>
@@ -2614,10 +2614,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts" class="md-nav__link">
+  <a href="#resolve-concepts-to-standard-concepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        concepts
+        Resolve concepts to standard concepts
       
     </span>
   </a>
@@ -2625,10 +2625,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.CacheStats" class="md-nav__link">
+  <a href="#identify-events-across-cdm-tables" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CacheStats
+        Identify events across CDM tables
       
     </span>
   </a>
@@ -2636,138 +2636,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="md-nav__link">
+  <a href="#resolve-omop-modifiers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ConceptGroupRegistry
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ConceptGroupRegistry">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.register_spec" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        register_spec
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ConceptGroupSpec
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ConceptGroupSpec">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.exact_ids" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        exact_ids
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.excluded_parent_ids" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        excluded_parent_ids
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        expression_for
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.parent_ids" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        parent_ids
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ConceptResolver
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ConceptResolver">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.all_concepts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        all_concepts
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.estimated_bytes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        estimated_bytes
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ConceptResolverRegistry
+        Resolve OMOP modifiers
       
     </span>
   </a>
@@ -2775,10 +2647,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.LookupIndex" class="md-nav__link">
+  <a href="#work-with-a-patient-timeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        LookupIndex
+        Work with a patient timeline
       
     </span>
   </a>
@@ -2786,231 +2658,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.LookupSpec" class="md-nav__link">
+  <a href="#convert-body-measurements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        LookupSpec
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        OMOPConceptSource
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="OMOPConceptSource">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_concepts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        fetch_concepts
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        fetch_synonyms
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ResolvedConceptGroup
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ResolvedConceptGroup">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.estimated_bytes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        estimated_bytes
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        expression
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.build_concept_group" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        build_concept_group
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.clear_concept_group_cache" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        clear_concept_group_cache
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        clear_vocabulary_identity
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.concept_group_cache_stats" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        concept_group_cache_stats
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.concept_group_registry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        concept_group_registry
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.make_concept_resolver" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        make_concept_resolver
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        register_vocabulary_identity
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        resolve_concept_group
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#patient-timelines" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Patient timelines
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#unit-conversion" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Unit conversion
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.units" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        units
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.units.BodySizeUnitConcepts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        BodySizeUnitConcepts
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.units.BodyUnitConversionRules" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        BodyUnitConversionRules
+        Convert body measurements
       
     </span>
   </a>
@@ -3033,6 +2684,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../episodes/" class="md-nav__link">
         
   
@@ -3040,7 +2719,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -3068,35 +2775,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3428,6 +3107,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3462,10 +3169,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#concept-resolution" class="md-nav__link">
+  <a href="#resolve-source-data-to-concepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Concept resolution
+        Resolve source data to concepts
       
     </span>
   </a>
@@ -3473,10 +3180,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts" class="md-nav__link">
+  <a href="#resolve-concepts-to-standard-concepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        concepts
+        Resolve concepts to standard concepts
       
     </span>
   </a>
@@ -3484,10 +3191,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.CacheStats" class="md-nav__link">
+  <a href="#identify-events-across-cdm-tables" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CacheStats
+        Identify events across CDM tables
       
     </span>
   </a>
@@ -3495,138 +3202,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="md-nav__link">
+  <a href="#resolve-omop-modifiers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ConceptGroupRegistry
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ConceptGroupRegistry">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.register_spec" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        register_spec
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ConceptGroupSpec
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ConceptGroupSpec">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.exact_ids" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        exact_ids
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.excluded_parent_ids" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        excluded_parent_ids
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        expression_for
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.parent_ids" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        parent_ids
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ConceptResolver
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ConceptResolver">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.all_concepts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        all_concepts
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.estimated_bytes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        estimated_bytes
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ConceptResolverRegistry
+        Resolve OMOP modifiers
       
     </span>
   </a>
@@ -3634,10 +3213,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.LookupIndex" class="md-nav__link">
+  <a href="#work-with-a-patient-timeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        LookupIndex
+        Work with a patient timeline
       
     </span>
   </a>
@@ -3645,231 +3224,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.LookupSpec" class="md-nav__link">
+  <a href="#convert-body-measurements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        LookupSpec
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        OMOPConceptSource
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="OMOPConceptSource">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_concepts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        fetch_concepts
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        fetch_synonyms
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ResolvedConceptGroup
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ResolvedConceptGroup">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.estimated_bytes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        estimated_bytes
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        expression
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.build_concept_group" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        build_concept_group
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.clear_concept_group_cache" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        clear_concept_group_cache
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        clear_vocabulary_identity
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.concept_group_cache_stats" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        concept_group_cache_stats
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.concept_group_registry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        concept_group_registry
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.make_concept_resolver" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        make_concept_resolver
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        register_vocabulary_identity
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        resolve_concept_group
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#patient-timelines" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Patient timelines
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#unit-conversion" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Unit conversion
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.units" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        units
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.units.BodySizeUnitConcepts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        BodySizeUnitConcepts
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#omop_alchemy.toolkit.core.units.BodyUnitConversionRules" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        BodyUnitConversionRules
+        Convert body measurements
       
     </span>
   </a>
@@ -3944,14 +3302,11 @@
   
 
 
-<h1 id="core">core<a class="headerlink" href="#core" title="Permanent link">&para;</a></h1>
-<p>Foundational services with no clinical-domain assumptions. A concept resolver behaves
-the same whether it is mapping tumour morphology or procedures; a patient timeline is
-the same object whatever populates it. Domain-specific concept sets, thresholds, and
-grading rules belong in <a href="../analytics/"><code>analytics</code></a>, not here.</p>
-<h2 id="concept-resolution">Concept resolution<a class="headerlink" href="#concept-resolution" title="Permanent link">&para;</a></h2>
-<p>Turns a declarative description of <em>which</em> concepts belong in a lookup into a runtime
-resolver that maps free text and source codes to OMOP concept IDs.</p>
+<h1 id="core-services">Core services<a class="headerlink" href="#core-services" title="Permanent link">&para;</a></h1>
+<p>The core package handles problems that have the same meaning in every clinical domain: resolving a source term to an OMOP concept, identifying an event across CDM tables, arranging events on a timeline, and converting measurements to comparable units.</p>
+<p>Generic database lifecycle operations do not belong in the clinical toolkit. Use <a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/"><code>orm-loader</code></a> to define, create, refresh, index, and drop materialised views. OMOP Alchemy owns the OMOP-specific query and row-grain decisions supplied to that infrastructure; a downstream application owns its registry, dependency policy, and deployment orchestration. See <a href="../materialized-views/">Materialised views</a> for the integration boundary.</p>
+<h2 id="resolve-source-data-to-concepts">Resolve source data to concepts<a class="headerlink" href="#resolve-source-data-to-concepts" title="Permanent link">&para;</a></h2>
+<p>Suppose an intake system supplies the text <code>Adenocarcinoma of lung</code> rather than an OMOP concept ID. A resolver limits the eligible vocabulary rows and applies the same text normalisation when it builds its lookup and when it handles an incoming value:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.concepts</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_concept_resolver</span>
 
 <span class="n">resolver</span> <span class="o">=</span> <span class="n">make_concept_resolver</span><span class="p">(</span>
@@ -3959,8 +3314,33 @@ resolver that maps free text and source codes to OMOP concept IDs.</p>
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;condition lookup&quot;</span><span class="p">,</span>
     <span class="n">domain_id</span><span class="o">=</span><span class="s2">&quot;Condition&quot;</span><span class="p">,</span>
 <span class="p">)</span>
+
 <span class="n">concept_id</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="s2">&quot;Adenocarcinoma of lung&quot;</span><span class="p">)</span>
 </code></pre></div>
+<p>Creating the resolver reads the vocabulary tables, so create it once for a mapping workflow and reuse it. <code>LookupSpec</code>, <code>LookupIndex</code>, and <code>ConceptResolver</code> expose the individual stages when you need to control indexed fields, normalisation, or resolver lifetime. <code>ConceptResolverRegistry</code> provides lazy construction and caching when an application maintains several lookups.</p>
+<p>Concept groups answer the complementary question: whether a known concept belongs to a governed set. A resolved group supports both in-memory membership and a SQLAlchemy expression derived from the same specification, so filtering loaded objects and filtering in SQL do not require separate definitions.</p>
+<p>Domain packages can declare module-level governed groups with <code>SemanticUnitRef(value_set, unit)</code>. The reference loads the optional <code>omop-semantics</code> runtime only when its parent, excluded-parent, or exact IDs are read. It always exposes a complete governed unit; narrower group definitions belong in <code>omop-semantics</code>, not in consumer-side adapters.</p>
+<p>Configuration-driven concept sets use <code>RuntimeConceptSetSpec</code>. It records exact and ancestral inclusions and exclusions without touching the database; see <a href="../query-contracts/#runtime-concept-sets">Runtime concept sets</a> for the set semantics and current execution boundary.</p>
+<h2 id="resolve-concepts-to-standard-concepts">Resolve concepts to standard concepts<a class="headerlink" href="#resolve-concepts-to-standard-concepts" title="Permanent link">&para;</a></h2>
+<p>Most source concepts resolve to one standard concept. Some source concepts represent several clinical meanings, however, and OMOP maps those to several standard concepts. <code>standard_concept_mapping_select()</code> therefore returns one row per valid <code>Maps to</code> relationship rather than choosing one target:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.concepts</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">StandardConceptMappingSpec</span><span class="p">,</span>
+    <span class="n">standard_concept_mapping_select</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">mapping_query</span> <span class="o">=</span> <span class="n">standard_concept_mapping_select</span><span class="p">(</span>
+    <span class="n">StandardConceptMappingSpec</span><span class="p">(</span>
+        <span class="n">source_concept_ids</span><span class="o">=</span><span class="p">(</span><span class="n">source_concept_id</span><span class="p">,),</span>
+        <span class="n">valid_on</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2026</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+
+<span class="n">mapping_rows</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">mapping_query</span><span class="p">)</span><span class="o">.</span><span class="n">mappings</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+</code></pre></div>
+<p>Each row carries the source and standard concept identifiers, vocabularies, codes, and names alongside the relationship validity dates. Invalid relationships, invalid targets, non-standard targets, and other relationship types are excluded. A standard concept's <code>Maps to</code> self-map is returned normally.</p>
+<p>Supplying <code>valid_on</code> makes the relationship and target date ranges part of the query, which is useful when a result must be reproducible against a dated vocabulary release. The query does not follow replacement relationships or <code>Maps to value</code>: those relationships answer different questions and should be handled by purpose-specific queries when a toolkit consumer needs them.</p>
 
 
 <div class="doc doc-object doc-module">
@@ -4043,13 +3423,65 @@ registries build on first request.</p>
 
 
 
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.STANDARD_CONCEPT_MAPPING_COLUMNS" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">STANDARD_CONCEPT_MAPPING_COLUMNS</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.STANDARD_CONCEPT_MAPPING_COLUMNS" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">STANDARD_CONCEPT_MAPPING_COLUMNS</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span>
+    <span class="n">StandardConceptMappingColumn</span><span class="p">,</span> <span class="o">...</span>
+<span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">StandardConceptMappingColumn</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Columns exposed by a standard concept mapping query.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.STANDARD_CONCEPT_MAPPING_UNIQUENESS" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">STANDARD_CONCEPT_MAPPING_UNIQUENESS</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.STANDARD_CONCEPT_MAPPING_UNIQUENESS" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">STANDARD_CONCEPT_MAPPING_UNIQUENESS</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span>
+    <span class="n">StandardConceptMappingColumn</span><span class="p">,</span> <span class="o">...</span>
+<span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">source_concept_id</span><span class="p">,</span> <span class="n">standard_concept_id</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Executable uniqueness key of a standard concept mapping result.</p>
+
+    </div>
+
+</div>
+
 
 
 <div class="doc doc-object doc-class">
 
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.CacheStats" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.CacheStats" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">CacheStats</span>
 
 
@@ -4057,7 +3489,7 @@ registries build on first request.</p>
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.core.concepts.CacheStats" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.CacheStats" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">CacheStats</span><span class="p">(</span>
     <span class="n">entries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">cached_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
@@ -4110,11 +3542,59 @@ stays at zero the bound is correct.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.ConceptGroupAnchors" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ConceptGroupAnchors</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupAnchors" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Role-aware anchors consumed by :class:<code>ConceptGroupSpec</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">ConceptGroupRegistry</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">ConceptGroupRegistry</span><span class="p">(</span>
     <span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -4162,11 +3642,11 @@ per engine.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.register_spec" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.register_spec" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">register_spec</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.register_spec" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.register_spec" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">register_spec</span><span class="p">(</span><span class="n">spec</span><span class="p">:</span> <span class="n">ConceptGroupSpec</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
 </code></pre></div>
 
@@ -4191,7 +3671,7 @@ per engine.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">ConceptGroupSpec</span>
 
 
@@ -4199,10 +3679,10 @@ per engine.</p>
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">ConceptGroupSpec</span><span class="p">(</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">unit</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="n">unit</span><span class="p">:</span> <span class="n">ConceptGroupAnchors</span><span class="p">,</span>
     <span class="n">include_descendants</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">require_standard</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">include_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -4252,16 +3732,15 @@ identity rather than a locally invented label.</p>
                 <code>unit</code>
             </td>
             <td>
-                  <code><span title="typing.Any">Any</span></code>
+                  <code><a class="autorefs autorefs-internal" title="ConceptGroupAnchors (omop_alchemy.toolkit.core.concepts.semantics.ConceptGroupAnchors)" href="#omop_alchemy.toolkit.core.concepts.ConceptGroupAnchors">ConceptGroupAnchors</a></code>
             </td>
             <td>
               <div class="doc-md-description">
                 <p>The omop-semantics <code>RuntimeSemanticUnit</code> supplying anchors.  Read
 lazily, so a spec can be declared at module scope without loading the
-semantics runtime.  omop-semantics 0.6.0 put mixed-role composition on
-the semantic unit rather than on <code>RuntimeGroup</code>, which is why this
-takes a unit: <code>parent_ids</code> expand through descendants while
-<code>exact_ids</code> are matched directly.</p>
+semantics runtime. The unit supplies mixed-role anchors:
+<code>parent_ids</code> expand through descendants while <code>exact_ids</code> are
+matched directly.</p>
               </div>
             </td>
             <td>
@@ -4295,10 +3774,9 @@ the anchors themselves are members.</p>
             <td>
               <div class="doc-md-description">
                 <p>Restrict expansion to concepts carrying a standardness flag.  Defaults to
-False, matching the historical oncology behaviour of reading
-<code>concept_ancestor</code> without a standard filter.  Note this is the
-<em>opposite</em> default to <code>OMOPConceptSource.descendants</code>; the difference is
-deliberate and declared here rather than left implicit.</p>
+False, so expansion reads <code>concept_ancestor</code> without a standard
+filter. <code>OMOPConceptSource.descendants</code> defaults to requiring standard
+concepts.</p>
               </div>
             </td>
             <td>
@@ -4351,11 +3829,11 @@ node (ATC, for example) without silently losing it.  Has no effect unless
 <div class="doc doc-object doc-function">
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.exact_ids" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.exact_ids" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">exact_ids</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.exact_ids" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.exact_ids" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">exact_ids</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
 </code></pre></div>
 
@@ -4371,11 +3849,11 @@ node (ATC, for example) without silently losing it.  Has no effect unless
 <div class="doc doc-object doc-function">
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.excluded_parent_ids" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.excluded_parent_ids" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">excluded_parent_ids</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.excluded_parent_ids" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.excluded_parent_ids" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">excluded_parent_ids</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
 </code></pre></div>
 
@@ -4391,11 +3869,11 @@ node (ATC, for example) without silently losing it.  Has no effect unless
 <div class="doc doc-object doc-function">
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">expression_for</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">expression_for</span><span class="p">(</span>
     <span class="n">column</span><span class="p">:</span> <span class="n">SQLColumnExpression</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
@@ -4420,11 +3898,11 @@ plans and can exceed driver parameter limits.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.parent_ids" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.parent_ids" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">parent_ids</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.parent_ids" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.parent_ids" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">parent_ids</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
 </code></pre></div>
 
@@ -4449,11 +3927,11 @@ plans and can exceed driver parameter limits.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.ConceptResolver" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.ConceptResolver" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">ConceptResolver</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">ConceptResolver</span><span class="p">(</span>
     <span class="n">index</span><span class="p">:</span> <span class="n">LookupIndex</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -4577,6 +4055,8 @@ sequence until a match is found.</p>
 <span class="go">123456</span>
 </code></pre></div>
 
+        <p>Bind a materialized index to runtime normalization and corrections.</p>
+
 
 
 
@@ -4599,7 +4079,7 @@ sequence until a match is found.</p>
 
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.ConceptResolver.all_concepts" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptResolver.all_concepts" class="doc doc-heading">
             <span class="doc doc-object-name doc-attribute-name">all_concepts</span>
 
 
@@ -4608,16 +4088,15 @@ sequence until a match is found.</p>
       <small class="doc doc-label doc-label-property"><code>property</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.all_concepts" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.all_concepts" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="n">all_concepts</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
         <p>Every concept ID reachable through this resolver's index.</p>
-<p>Cached: the index is fixed at construction, and callers legitimately
-union several resolvers' sets, which previously rebuilt each one per
-access.  Returned by reference, so treat it as read-only.</p>
+<p>Cached because the index is fixed at construction. Returned by
+reference, so treat it as read-only.</p>
 
     </div>
 
@@ -4629,11 +4108,31 @@ access.  Returned by reference, so treat it as read-only.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.ConceptResolver.estimated_bytes" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptResolver.__contains__" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">__contains__</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.__contains__" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">__contains__</span><span class="p">(</span><span class="n">item</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Test corrected text membership or direct concept-ID membership.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptResolver.estimated_bytes" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">estimated_bytes</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.estimated_bytes" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.estimated_bytes" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimated_bytes</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span>
 </code></pre></div>
 
@@ -4644,6 +4143,46 @@ access.  Returned by reference, so treat it as read-only.</p>
 bare ID set, which is why the cache bound is measured in bytes rather
 than entry counts.  Measured at ~350 bytes per concept for OMOP-length
 names and codes with one synonym each.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptResolver.lookup" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">lookup</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.lookup" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">lookup</span><span class="p">(</span><span class="n">term</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Resolve a term, trying direct lookup before ordered corrections.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptResolver.lookup_exact" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">lookup_exact</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolver.lookup_exact" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">lookup_exact</span><span class="p">(</span><span class="n">term</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Resolve only the normalized input, bypassing correction functions.</p>
 
 
     </div>
@@ -4662,11 +4201,11 @@ names and codes with one synonym each.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">ConceptResolverRegistry</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">ConceptResolverRegistry</span><span class="p">(</span>
     <span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -4718,7 +4257,7 @@ ensuring vocab lookups are built once per database.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.LookupIndex" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.LookupIndex" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">LookupIndex</span>
 
 
@@ -4726,7 +4265,7 @@ ensuring vocab lookups are built once per database.</p>
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.core.concepts.LookupIndex" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.LookupIndex" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">LookupIndex</span><span class="p">(</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">unknown</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
 <span class="p">)</span>
@@ -4815,8 +4354,72 @@ same concept ID (e.g. name + code + synonym).</p>
 
 
 
+<div class="doc doc-object doc-attribute">
 
 
+
+<h5 id="omop_alchemy.toolkit.core.concepts.LookupIndex.all_concepts" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">all_concepts</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.LookupIndex.all_concepts" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">all_concepts</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return the concept IDs represented by this materialized index.</p>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.concepts.LookupIndex.__contains__" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">__contains__</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.LookupIndex.__contains__" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">__contains__</span><span class="p">(</span><span class="n">item</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Test membership by indexed key or by reachable concept ID.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.concepts.LookupIndex.lookup" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">lookup</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.LookupIndex.lookup" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">lookup</span><span class="p">(</span><span class="n">term</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Resolve an already-normalized key, returning the configured fallback.</p>
+
+
+    </div>
+
+</div>
 
 
 
@@ -4830,7 +4433,7 @@ same concept ID (e.g. name + code + synonym).</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.LookupSpec" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.LookupSpec" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">LookupSpec</span>
 
 
@@ -4838,7 +4441,7 @@ same concept ID (e.g. name + code + synonym).</p>
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.core.concepts.LookupSpec" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.LookupSpec" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">LookupSpec</span><span class="p">(</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">unknown</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
@@ -4891,7 +4494,7 @@ versioned independently of runtime resolution logic.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Stable identifier for this lookup specification. </p>
+                <p>Stable identifier for this lookup specification.</p>
               </div>
             </td>
           </tr>
@@ -4914,7 +4517,7 @@ nulls, or to a sentinel concept ID to force closed-world behaviour.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Optional OMOP domain filter </p>
+                <p>Optional OMOP domain filter</p>
               </div>
             </td>
           </tr>
@@ -5101,11 +4704,11 @@ become resolvable inputs.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">OMOPConceptSource</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
@@ -5115,8 +4718,8 @@ become resolvable inputs.</p>
         <p>Concrete ConceptSource backed by OMOP CDM vocabulary tables.</p>
 <p>It is a thin, explicit adapter between SQLAlchemy + OMOP CDM
 and higher-level vocabulary indexing logic.</p>
-<p>Used exclusively to builds a query based on provided parameters (adds<br />
-filter for each non-None parameter, and joins to Concept_Ancestor 
+<p>Used exclusively to builds a query based on provided parameters (adds
+filter for each non-None parameter, and joins to Concept_Ancestor
 if parents are specified).</p>
 
 
@@ -5143,7 +4746,67 @@ if parents are specified).</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_concepts" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource.build_lookup" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">build_lookup</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.build_lookup" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">build_lookup</span><span class="p">(</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">LookupSpec</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LookupIndex</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Materialize one scoped lookup and its optional synonym keys.</p>
+<p>The returned index is intentionally detached from the session. If
+multiple selected representations normalize to the same key, the
+later materialized assignment wins; callers that need collision-free
+semantics should narrow the <code>LookupSpec</code> rather than rely on row
+ordering.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource.descendants" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">descendants</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.descendants" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">descendants</span><span class="p">(</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
+    <span class="n">parents</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">include_non_standard</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return descendant IDs using the source's standardness policy.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_concepts" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">fetch_concepts</span>
 
 
@@ -5151,7 +4814,7 @@ if parents are specified).</p>
       <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_concepts" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_concepts" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">fetch_concepts</span><span class="p">(</span>
     <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -5204,7 +4867,7 @@ OMOP mapping-target rules apply.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">fetch_synonyms</span>
 
 
@@ -5212,7 +4875,7 @@ OMOP mapping-target rules apply.</p>
       <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.OMOPConceptSource.fetch_synonyms" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">fetch_synonyms</span><span class="p">(</span>
     <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -5246,7 +4909,7 @@ load is millions of rows for a lookup covering a handful of domains.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">ResolvedConceptGroup</span>
 
 
@@ -5254,7 +4917,7 @@ load is millions of rows for a lookup covering a handful of domains.</p>
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">ResolvedConceptGroup</span><span class="p">(</span>
     <span class="n">spec</span><span class="p">:</span> <span class="n">ConceptGroupSpec</span><span class="p">,</span> <span class="n">ids</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
 <span class="p">)</span>
@@ -5294,11 +4957,11 @@ exclusion step, matching omop-semantics' composition contract.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.estimated_bytes" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.estimated_bytes" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">estimated_bytes</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.estimated_bytes" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.estimated_bytes" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimated_bytes</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span>
 </code></pre></div>
 
@@ -5317,11 +4980,11 @@ concept IDs: a distinct <code>PyLong</code> each, plus hash-table overhead at a
 <div class="doc doc-object doc-function">
 
 
-<h3 id="omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="doc doc-heading">
+<h5 id="omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">expression</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">expression</span><span class="p">(</span>
     <span class="n">column</span><span class="p">:</span> <span class="n">SQLColumnExpression</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
@@ -5347,15 +5010,269 @@ one place.</p>
 
 </div>
 
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.RuntimeConceptSetSpec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">RuntimeConceptSetSpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.RuntimeConceptSetSpec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">RuntimeConceptSetSpec</span><span class="p">(</span>
+    <span class="n">include_ancestor_ids</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+    <span class="n">include_exact_ids</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+    <span class="n">exclude_ancestor_ids</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+    <span class="n">exclude_exact_ids</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+    <span class="n">require_standard</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">include_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Runtime include/exclude inputs for a database-side concept predicate.</p>
+<p>The intended expression is::</p>
+<div class="highlight"><pre><span></span><code>(included ancestor descendants OR included exact IDs)
+AND NOT (excluded ancestor descendants OR excluded exact IDs)
+</code></pre></div>
+<p>Exclusion therefore wins if the same concept is reached by both sides.
+Empty inclusions describe an always-false set. Constructing the spec is
+side-effect free and preserves no session-bound vocabulary objects.</p>
+<p><code>require_standard</code> and <code>include_classification</code> deliberately match
+<code>ConceptFilter</code> and <code>ConceptGroupSpec</code> for descendant expansion.
+Exact IDs remain explicit inclusions even when the deployed vocabulary has
+de-standardised one of them; configuration validation may report that drift
+without silently changing set membership. Descendant rendering delegates to
+the existing normalised <code>Concept</code> flag expressions.</p>
+<p>IDs are sorted and deduplicated only. Validity rules for configuration or a
+local vocabulary belong at those boundaries, not in this generic spec.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h5 id="omop_alchemy.toolkit.core.concepts.RuntimeConceptSetSpec.has_inclusions" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">has_inclusions</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.RuntimeConceptSetSpec.has_inclusions" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">has_inclusions</span><span class="p">:</span> <span class="nb">bool</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Whether the predicate can match at least one configured input.</p>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.SemanticUnitRef" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">SemanticUnitRef</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.SemanticUnitRef" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">SemanticUnitRef</span><span class="p">(</span><span class="n">value_set</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">unit</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Lazy, immutable reference to one complete governed semantic unit.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.StandardConceptMappingColumn" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">StandardConceptMappingColumn</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.StandardConceptMappingColumn" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>Stable labels emitted by :func:<code>standard_concept_mapping_select</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.StandardConceptMappingSpec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">StandardConceptMappingSpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.concepts.StandardConceptMappingSpec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">StandardConceptMappingSpec</span><span class="p">(</span>
+    <span class="n">source_concept_ids</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+    <span class="n">valid_on</span><span class="p">:</span> <span class="n">date</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Select valid <code>Maps to</code> relationships for the requested source concepts.</p>
+<p>An empty <code>source_concept_ids</code> tuple selects every source. <code>valid_on</code> can
+be supplied when a reproducible historical vocabulary view is required; it
+applies to both the relationship and its standard target. Invalid
+relationships and targets are always excluded.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
 
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.build_concept_group" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.build_concept_group" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">build_concept_group</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.build_concept_group" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.build_concept_group" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">build_concept_group</span><span class="p">(</span>
     <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">ConceptGroupSpec</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ResolvedConceptGroup</span>
@@ -5376,11 +5293,11 @@ through the cache in <code>registry</code> rather than calling this directly.</p
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.clear_concept_group_cache" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.clear_concept_group_cache" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">clear_concept_group_cache</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.clear_concept_group_cache" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.clear_concept_group_cache" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">clear_concept_group_cache</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
 </code></pre></div>
 
@@ -5399,11 +5316,11 @@ hatch for a dataset reloaded in place under an unchanged identity.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">clear_vocabulary_identity</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">clear_vocabulary_identity</span><span class="p">(</span><span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
 </code></pre></div>
 
@@ -5419,11 +5336,11 @@ hatch for a dataset reloaded in place under an unchanged identity.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.concept_group_cache_stats" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.concept_group_cache_stats" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">concept_group_cache_stats</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.concept_group_cache_stats" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.concept_group_cache_stats" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">concept_group_cache_stats</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span>
     <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
 <span class="p">]</span>
@@ -5444,11 +5361,11 @@ raising it or splitting the budget by payload kind.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.concept_group_registry" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.concept_group_registry" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">concept_group_registry</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.concept_group_registry" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.concept_group_registry" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">concept_group_registry</span><span class="p">(</span>
     <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConceptGroupRegistry</span>
@@ -5473,11 +5390,36 @@ sharing would serve one database's concept sets for another.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.make_concept_resolver" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.descendant_concept_select" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">descendant_concept_select</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.descendant_concept_select" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">descendant_concept_select</span><span class="p">(</span>
+    <span class="n">ancestor_ids</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">require_standard</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">include_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Select each descendant ID once for the supplied ancestors.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.make_concept_resolver" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">make_concept_resolver</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.make_concept_resolver" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.make_concept_resolver" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">make_concept_resolver</span><span class="p">(</span>
     <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -5564,7 +5506,7 @@ sharing would serve one database's concept sets for another.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Concept ID to return for unmatched terms. Set to None to preserve nulls, or to 
+                <p>Concept ID to return for unmatched terms. Set to None to preserve nulls, or to
 a sentinel concept ID to force closed-world behaviour.</p>
               </div>
             </td>
@@ -5684,7 +5626,7 @@ by", whereas filtering it out here discards the term entirely.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Optional substring filter applied to concept_code (ILIKE-based). 
+                <p>Optional substring filter applied to concept_code (ILIKE-based).
 Useful for coarse scoping (e.g. AJCC-only codes).</p>
               </div>
             </td>
@@ -5701,7 +5643,7 @@ Useful for coarse scoping (e.g. AJCC-only codes).</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Optional list of ancestor concept IDs from which to expand the lookup 
+                <p>Optional list of ancestor concept IDs from which to expand the lookup
 via the Concept_Ancestor table.</p>
               </div>
             </td>
@@ -5718,7 +5660,7 @@ via the Concept_Ancestor table.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If True, includes non-standard concepts when expanding from parents. Has no 
+                <p>If True, includes non-standard concepts when expanding from parents. Has no
 effect if <code>parents</code> is None.</p>
               </div>
             </td>
@@ -5751,7 +5693,7 @@ effect if <code>parents</code> is None.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Tuple of ConceptRow attribute names to index as keys (e.g. ("concept_name", 
+                <p>Tuple of ConceptRow attribute names to index as keys (e.g. ("concept_name",
 "concept_code")). This controls which textual fields become resolvable inputs.</p>
               </div>
             </td>
@@ -5768,8 +5710,8 @@ effect if <code>parents</code> is None.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Normalisation function applied to all indexed strings at build time. This should<br />
-match (or be compatible with) the normaliser used at resolution time by 
+                <p>Normalisation function applied to all indexed strings at build time. This should
+match (or be compatible with) the normaliser used at resolution time by
 ConceptResolver.</p>
               </div>
             </td>
@@ -5786,8 +5728,8 @@ ConceptResolver.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Optional normalisation function applied to input terms at lookup time. Defaults to 
-<code>normalize_default</code>. This should be compatible with the normaliser used when 
+                <p>Optional normalisation function applied to input terms at lookup time. Defaults to
+<code>normalize_default</code>. This should be compatible with the normaliser used when
 constructing the LookupIndex.</p>
               </div>
             </td>
@@ -5804,7 +5746,7 @@ constructing the LookupIndex.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Optional ordered list of correction functions applied to the raw input term prior 
+                <p>Optional ordered list of correction functions applied to the raw input term prior
 to normalisation and lookup</p>
               </div>
             </td>
@@ -5823,11 +5765,11 @@ to normalisation and lookup</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">register_vocabulary_identity</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">register_vocabulary_identity</span><span class="p">(</span>
     <span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">,</span> <span class="n">identity</span><span class="p">:</span> <span class="nb">str</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
@@ -5855,11 +5797,11 @@ separate databases.  Those correctly fall back to per-engine caching.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">resolve_concept_group</span>
 
 
-<a href="#omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">resolve_concept_group</span><span class="p">(</span>
     <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">ConceptGroupSpec</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ResolvedConceptGroup</span>
@@ -5877,22 +5819,1432 @@ label.</p>
 
 </div>
 
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.runtime_concept_predicate" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">runtime_concept_predicate</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.runtime_concept_predicate" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">runtime_concept_predicate</span><span class="p">(</span>
+    <span class="n">column</span><span class="p">:</span> <span class="n">SQLColumnExpression</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">RuntimeConceptSetSpec</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Render runtime concept membership entirely as database predicates.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.standard_concept_mapping_select" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">standard_concept_mapping_select</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.standard_concept_mapping_select" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">standard_concept_mapping_select</span><span class="p">(</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">StandardConceptMappingSpec</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Select each valid, single-hop <code>Maps to</code> standard-concept mapping.</p>
+<p>Results remain relational because OMOP permits one source concept to map to
+more than one standard concept. Standard-concept self-maps are returned as
+ordinary rows; no recursive traversal is required.</p>
+
+
+    </div>
+
+</div>
+
 
 
   </div>
 
     </div>
 
-</div><h2 id="patient-timelines">Patient timelines<a class="headerlink" href="#patient-timelines" title="Permanent link">&para;</a></h2>
-<p>Projects a person's clinical rows — conditions, measurements, drug exposures — into a
-single time-ordered event stream. This has its own dedicated page, since it predates the
-rest of the toolkit reorg: see <a href="../../advanced/timelines/">Patient Timelines</a>.</p>
-<h2 id="unit-conversion">Unit conversion<a class="headerlink" href="#unit-conversion" title="Permanent link">&para;</a></h2>
-<p>Converts measurement values to canonical units. Kilograms, pounds, centimetres, and
-inches mean the same thing in every clinical domain, so the conversion rules live here
-rather than with any one domain's measurement logic — see
-<a href="../analytics/#body_metrics"><code>analytics.body_metrics</code></a> for where those domain-specific
-measurements are resolved and normalised using these rules.</p>
+</div><h2 id="identify-events-across-cdm-tables">Identify events across CDM tables<a class="headerlink" href="#identify-events-across-cdm-tables" title="Permanent link">&para;</a></h2>
+<p>A Measurement and a Procedure Occurrence may have the same numeric primary key. Code that combines tables must therefore carry the source table as part of event identity:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.events</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClinicalEventIdentity</span>
+
+<span class="n">measurement</span> <span class="o">=</span> <span class="n">ClinicalEventIdentity</span><span class="p">(</span><span class="s2">&quot;measurement&quot;</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+<span class="n">procedure</span> <span class="o">=</span> <span class="n">ClinicalEventIdentity</span><span class="p">(</span><span class="s2">&quot;procedure_occurrence&quot;</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+
+<span class="k">assert</span> <span class="n">measurement</span> <span class="o">!=</span> <span class="n">procedure</span>
+</code></pre></div>
+<p><code>ClinicalEventColumn</code> defines the common labels used when heterogeneous event tables are projected into one result. The required shape includes the person, table-scoped event identity, event date and datetime, clinical concept, and OMOP Field concept that identifies the source ID column. Optional labels cover numeric values, value concepts, and units.</p>
+<p><code>ClinicalEventColumn.required_columns()</code> and <code>optional_columns()</code> expose these
+groups as ordered enum tuples derived from the field-only row contracts.</p>
+<p><code>canonical_event_union()</code> turns supported event models into that shared shape. Measurement and Observation retain numeric values, value concepts and units; Observation string values are outside this projection. Sources without those fields receive typed nulls so every branch of the union remains compatible:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Measurement</span><span class="p">,</span>
+    <span class="n">Observation</span><span class="p">,</span>
+    <span class="n">Procedure_Occurrence</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.events</span><span class="w"> </span><span class="kn">import</span> <span class="n">canonical_event_union</span>
+
+<span class="n">events</span> <span class="o">=</span> <span class="n">canonical_event_union</span><span class="p">(</span>
+    <span class="n">Measurement</span><span class="p">,</span>
+    <span class="n">Observation</span><span class="p">,</span>
+    <span class="n">Procedure_Occurrence</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">events</span><span class="p">)</span><span class="o">.</span><span class="n">mappings</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="s2">&quot;event_source_table&quot;</span><span class="p">],</span> <span class="n">event</span><span class="p">[</span><span class="s2">&quot;event_id&quot;</span><span class="p">],</span> <span class="n">event</span><span class="p">[</span><span class="s2">&quot;event_date&quot;</span><span class="p">])</span>
+</code></pre></div>
+<p>The projection resolves its ID, clinical concept, date, source table, and Field concept through stable CDM event metadata shared with episode-event resolution. Bare <code>Measurement</code>, <code>Observation</code>, and <code>Device_Exposure</code> classes remain lightweight mappings for ETL, while their analytical views provide reference context, domain validation, and episode-event resolution. Importing analytics modules cannot change either the Core projection metadata or the default resolution target. <code>UnsupportedClinicalEventModelError</code> is raised before SQL execution when no supported CDM definition exists.</p>
+<p>The six clinical analytical Views inherit <code>ClinicalEventMixin</code>, which extends
+<code>ModifierTargetMixin</code> with <code>has_complete_metadata()</code> and
+<code>clinical_event_model_spec()</code>. The spec method can validate either the View's
+columns or those of a supplied bare source model. The explicit registry still
+controls event membership: <code>EpisodeView</code> is a modifier target rather than a
+clinical event, and custom modifier sources may combine <code>ModifierSourceMixin</code>
+with <code>ClinicalEventMixin</code> without registering as episode-event targets.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model.clinical</span><span class="w"> </span><span class="kn">import</span> <span class="n">Measurement</span><span class="p">,</span> <span class="n">MeasurementView</span>
+
+<span class="k">assert</span> <span class="n">MeasurementView</span><span class="o">.</span><span class="n">has_complete_metadata</span><span class="p">()</span>
+<span class="n">spec</span> <span class="o">=</span> <span class="n">MeasurementView</span><span class="o">.</span><span class="n">clinical_event_model_spec</span><span class="p">(</span><span class="n">Measurement</span><span class="p">)</span>
+</code></pre></div>
+<div  class="mermaid">flowchart LR
+    M["Measurement<br/>measurement_id"] --> U["canonical_event_union()"]
+    O["Observation<br/>observation_id"] --> U
+    P["Procedure_Occurrence<br/>procedure_occurrence_id"] --> U
+    U --> S["canonical shape<br/>person_id · event_id · event_source_table<br/>event_field_concept_id · event_date · event_concept_id<br/>(+ value / value_concept / unit where supported)"]
+</div>
+<p>Each source model contributes its own ID column and Field concept; branches without a value or unit receive typed nulls so the union stays one consistent shape regardless of which models are combined.</p>
+<p>The <a href="../query-contracts/">query contracts</a> explain how the canonical shape participates in episode attachment.</p>
+<h2 id="resolve-omop-modifiers">Resolve OMOP modifiers<a class="headerlink" href="#resolve-omop-modifiers" title="Permanent link">&para;</a></h2>
+<p>Measurement and Observation both implement the OMOP polymorphic modifier link,
+but use different physical column names. <code>canonical_modifier_projection()</code> and
+<code>canonical_modifier_union()</code> normalize those tables to one shape containing a
+table-scoped modifier identity, a Field-concept-scoped target identity, the
+modifier date and concept, and all four OMOP value representations.</p>
+<p><code>ModifierColumn.required_columns()</code> and <code>value_columns()</code> expose the ordered
+modifier label groups without adding methods to the row Protocols.</p>
+<p>Supported source and target models are declared explicitly in immutable
+metadata. Shared event fields and the six clinical target definitions are
+derived from the clinical-event registry; Episode is the only target extension.
+This keeps imports deterministic without maintaining a second copy of the CDM
+Field concepts and native event columns.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Measurement</span><span class="p">,</span> <span class="n">Observation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.modifiers</span><span class="w"> </span><span class="kn">import</span> <span class="n">canonical_modifier_union</span>
+
+<span class="n">modifiers</span> <span class="o">=</span> <span class="n">canonical_modifier_union</span><span class="p">(</span><span class="n">Measurement</span><span class="p">,</span> <span class="n">Observation</span><span class="p">)</span><span class="o">.</span><span class="n">subquery</span><span class="p">()</span>
+</code></pre></div>
+<p>A numeric modifier ID is unique only inside its source table. Likewise, a
+numeric target ID is meaningful only with <code>target_field_concept_id</code>. Preserve
+both parts of both identities when a query is joined, ranked, or materialized.</p>
+<p>Use <code>modifier_target_queries()</code> before reducing repeated modifiers. The accepted
+link must agree on target ID, target Field concept, and person. Supported targets
+are Condition Occurrence, Measurement, Observation, Procedure Occurrence, Drug
+Exposure, Device Exposure, and Episode. Episode is deliberately a modifier
+target without being added to the clinical-event union.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Condition_Occurrence</span><span class="p">,</span> <span class="n">Measurement</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.modifiers</span><span class="w"> </span><span class="kn">import</span> <span class="n">modifier_target_queries</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">modifier_target_queries</span><span class="p">(</span>
+    <span class="n">Measurement</span><span class="p">,</span>
+    <span class="n">Condition_Occurrence</span><span class="p">,</span>
+    <span class="n">diagnostics</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">valid_modifiers</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">matches</span>
+<span class="n">rejected_links</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">diagnostics</span>
+</code></pre></div>
+<p>Diagnostics distinguish incomplete target identities, unsupported target Field
+concepts, missing target events, and cross-person links. Missing-row diagnostics
+for a caller-supplied filtered target projection are relative to that projection;
+use a complete target model when absence from the CDM itself is the question.</p>
+<p><code>selected_modifier_select()</code> then applies an explicit earliest/latest policy.
+The default partition is <code>(person_id, target_field_concept_id, target_event_id)</code>;
+date, non-null datetime, source table, and modifier ID form its deterministic
+order. Rows without a complete target identity do not participate.</p>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="omop_alchemy.toolkit.core.modifiers"></a>
+    <div class="doc doc-contents first">
+
+        <p>Canonical modifier projections, target validation, and selection.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.InvalidModifierSourceError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">InvalidModifierSourceError</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.InvalidModifierSourceError" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="ValueError">ValueError</span></code></p>
+
+
+
+        <p>Raised when a modifier selection input lacks a required column.</p>
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.InvalidModifierTargetSourceError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">InvalidModifierTargetSourceError</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.InvalidModifierTargetSourceError" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="ValueError">ValueError</span></code></p>
+
+
+
+        <p>Raised when a supplied projection lacks canonical columns.</p>
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierColumn" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierColumn</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierColumn" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>Stable labels emitted by Measurement/Observation modifier projections.</p>
+<p>Native columns such as <code>measurement_event_id</code> and
+<code>observation_event_id</code> converge on these names so downstream query code
+never needs to branch on the physical modifier source.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.modifiers.ModifierColumn.required_columns" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">required_columns</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierColumn.required_columns" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">required_columns</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ModifierColumn</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Required projection labels in row-contract order.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.modifiers.ModifierColumn.value_columns" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">value_columns</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierColumn.value_columns" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">value_columns</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ModifierColumn</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Nullable value labels, excluding inherited required fields.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierIdentity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierIdentity</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierIdentity" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ModifierIdentity</span><span class="p">(</span>
+    <span class="n">modifier_source_table</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">modifier_id</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Source-table-scoped identity of the modifier row itself.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierRow" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierRow</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierRow" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Structural typing contract for the canonical identity and clinical row.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierSelectionPolicy" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierSelectionPolicy</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierSelectionPolicy" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>Supported temporal directions after any caller-supplied priority.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierSelectionSpec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierSelectionSpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierSelectionSpec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ModifierSelectionSpec</span><span class="p">(</span>
+    <span class="n">policy</span><span class="p">:</span> <span class="n">ModifierSelectionPolicy</span> <span class="o">=</span> <span class="n">ModifierSelectionPolicy</span><span class="o">.</span><span class="n">earliest</span><span class="p">,</span>
+    <span class="n">partition_by</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">person_id</span><span class="p">),</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">target_field_concept_id</span><span class="p">),</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">target_event_id</span><span class="p">),</span>
+    <span class="p">),</span>
+    <span class="n">date_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">modifier_date</span><span class="p">),</span>
+    <span class="n">datetime_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span>
+        <span class="n">ModifierColumn</span><span class="o">.</span><span class="n">modifier_datetime</span>
+    <span class="p">),</span>
+    <span class="n">stable_identity_columns</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">modifier_source_table</span><span class="p">),</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">modifier_id</span><span class="p">),</span>
+    <span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Deterministic selection policy within a modifier target partition.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnostic" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierTargetDiagnostic</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnostic" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ModifierTargetDiagnostic</span><span class="p">(</span>
+    <span class="n">diagnostic_code</span><span class="p">:</span> <span class="n">ModifierTargetDiagnosticCode</span><span class="p">,</span>
+    <span class="n">modifier_source_table</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">modifier_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">target_field_concept_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">target_event_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Typed value representation of one target-resolution diagnostic row.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnosticCode" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierTargetDiagnosticCode</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnosticCode" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>Reasons a canonical modifier could not resolve to its supplied target.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnosticColumn" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierTargetDiagnosticColumn</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnosticColumn" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>Stable output labels for advisory target-resolution diagnostics.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierTargetIdentity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierTargetIdentity</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierTargetIdentity" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ModifierTargetIdentity</span><span class="p">(</span>
+    <span class="n">target_field_concept_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">target_event_id</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Field-concept-scoped identity of the row being modified.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierTargetModelSpec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierTargetModelSpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierTargetModelSpec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ModifierTargetModelSpec</span><span class="p">(</span>
+    <span class="n">event_id_attribute</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">event_field_concept_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">event_source_table</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Native target identity and its canonical OMOP Field discriminator.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.UnsupportedModifierSourceModelError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">UnsupportedModifierSourceModelError</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.UnsupportedModifierSourceModelError" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">UnsupportedModifierSourceModelError</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="omop_alchemy.cdm.base.errors.UnsupportedModelError">UnsupportedModelError</span></code></p>
+
+
+
+        <p>Raised when a model cannot provide a canonical modifier projection.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.UnsupportedModifierTargetError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">UnsupportedModifierTargetError</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.UnsupportedModifierTargetError" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">UnsupportedModifierTargetError</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="omop_alchemy.cdm.base.errors.UnsupportedModelError">UnsupportedModelError</span></code></p>
+
+
+
+        <p>Raised when a model cannot be a canonical modifier target.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ValuedModifierRow" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ValuedModifierRow</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ValuedModifierRow" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="ModifierRow (omop_alchemy.toolkit.core.modifiers.contracts.ModifierRow)" href="#omop_alchemy.toolkit.core.modifiers.ModifierRow">ModifierRow</a></code>, <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Canonical modifier row extended with all nullable value representations.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.canonical_modifier_projection" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">canonical_modifier_projection</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.canonical_modifier_projection" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">canonical_modifier_projection</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">include_values</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Project Measurement or Observation into one modifier row shape.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.canonical_modifier_target_projection" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">canonical_modifier_target_projection</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.canonical_modifier_target_projection" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">canonical_modifier_target_projection</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Project a supported clinical event or Episode to target identity columns.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.modifier_order_expressions" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">modifier_order_expressions</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.modifier_order_expressions" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">modifier_order_expressions</span><span class="p">(</span>
+    <span class="n">columns</span><span class="p">:</span> <span class="n">ReadOnlyColumnCollection</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">ModifierSelectionSpec</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return the complete, portable order for a modifier selection policy.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.modifier_row_number" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">modifier_row_number</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.modifier_row_number" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">modifier_row_number</span><span class="p">(</span>
+    <span class="n">columns</span><span class="p">:</span> <span class="n">ReadOnlyColumnCollection</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">ModifierSelectionSpec</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">MODIFIER_RANK</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Build the deterministic window rank for canonical modifier columns.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.modifier_source_model_spec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">modifier_source_model_spec</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.modifier_source_model_spec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">modifier_source_model_spec</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClinicalEventModelSpec</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Resolve and validate metadata for any model declaring the modifier link.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.modifier_target_model_spec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">modifier_target_model_spec</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.modifier_target_model_spec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">modifier_target_model_spec</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ModifierTargetModelSpec</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Resolve and validate immutable metadata for a modifier target model.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.modifier_target_queries" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">modifier_target_queries</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.modifier_target_queries" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">modifier_target_queries</span><span class="p">(</span>
+    <span class="n">modifier_source</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
+    <span class="n">target_source</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">include_unmatched</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">diagnostics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ModifierTargetQueries</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Resolve valid target links and optionally explain rejected modifier rows.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>modifier_source</code>
+            </td>
+            <td>
+                  <code><span title="type">type</span>[<span title="typing.Any">Any</span>] | <span title="sqlalchemy.sql.selectable.FromClause">FromClause</span> | <span title="sqlalchemy.sql.selectable.SelectBase">SelectBase</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A supported modifier model or a selectable exposing the canonical
+modifier columns.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target_source</code>
+            </td>
+            <td>
+                  <code><span title="type">type</span>[<span title="typing.Any">Any</span>] | <span title="sqlalchemy.sql.selectable.FromClause">FromClause</span> | <span title="sqlalchemy.sql.selectable.SelectBase">SelectBase</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A supported ORM target model or a selectable exposing target identity
+columns. Selectables are treated as the caller's supplied scope.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_unmatched</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, retain modifier rows without a valid target in
+<code>matches</code>. Otherwise only valid links are returned.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>diagnostics</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, also build an advisory diagnostic selectable. Building
+the queries does not execute either selectable.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="omop_alchemy.toolkit.core.modifiers.targets.ModifierTargetQueries">ModifierTargetQueries</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>matches</code> contains the modifier columns plus resolved target
+identity columns. <code>diagnostics</code> is <code>None</code> unless requested.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>A link is valid only when target event ID, target Field concept and person
+ID all agree. For an ORM target model, diagnostics can report an
+unsupported target field or a missing target event. For a caller-supplied
+selectable, those absences may be caused by filtering, so only missing
+identity and observed person mismatches are reported.</p>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ranked_modifier_select" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">ranked_modifier_select</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ranked_modifier_select" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ranked_modifier_select</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">:</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">ModifierSelectionSpec</span> <span class="o">=</span> <span class="n">ModifierSelectionSpec</span><span class="p">(),</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
+    <span class="n">rank_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">MODIFIER_RANK</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Rank bound modifiers, with caller priorities preceding temporal policy.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.selected_modifier_select" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">selected_modifier_select</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.selected_modifier_select" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">selected_modifier_select</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">:</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">ModifierSelectionSpec</span> <span class="o">=</span> <span class="n">ModifierSelectionSpec</span><span class="p">(),</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Select the first deterministically ranked modifier in each partition.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="sqlalchemy.sql.selectable.FromClause">FromClause</span> | <span title="sqlalchemy.sql.selectable.SelectBase">SelectBase</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A selectable containing canonical modifier columns and target identity
+columns.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spec</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="ModifierSelectionSpec
+
+
+  
+      dataclass
+   (omop_alchemy.toolkit.core.modifiers.contracts.ModifierSelectionSpec)" href="#omop_alchemy.toolkit.core.modifiers.ModifierSelectionSpec">ModifierSelectionSpec</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Temporal direction, partition columns and stable identity columns used
+to define the selection contract.</p>
+              </div>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="ModifierSelectionSpec
+
+
+  
+      dataclass
+   (omop_alchemy.toolkit.core.modifiers.contracts.ModifierSelectionSpec)" href="#omop_alchemy.toolkit.core.modifiers.ModifierSelectionSpec">ModifierSelectionSpec</a>()</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>priority</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="sqlalchemy.ColumnElement">ColumnElement</span>[<span title="typing.Any">Any</span>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional SQL expressions placed before the temporal policy, such as a
+domain-specific stage preference.</p>
+              </div>
+            </td>
+            <td>
+                  <code>()</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="sqlalchemy.sql.Select">Select</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A selectable containing the source columns, with one row at rank one
+for each target partition. Rows missing either target identity column
+are excluded before selection.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>The final tie-breakers come from <code>spec.stable_identity_columns</code>. This
+keeps the result deterministic when dates, datetimes and caller priorities
+are equal.</p>
+</details>
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="work-with-a-patient-timeline">Work with a patient timeline<a class="headerlink" href="#work-with-a-patient-timeline" title="Permanent link">&para;</a></h2>
+<p>The timeline adapter presents conditions, measurements, observations, and drug exposures as a single ordered sequence while retaining each row's source identity and value semantics. Use it when an application needs to display or serialise a patient's chronology rather than build a set-based analytical query.</p>
+<p>The timeline has a dedicated guide with session requirements, event mappings, and extension points: <a href="../../advanced/timelines/">Patient timelines</a>.</p>
+<h2 id="convert-body-measurements">Convert body measurements<a class="headerlink" href="#convert-body-measurements" title="Permanent link">&para;</a></h2>
+<p>Body-size calculations require weights and heights to use consistent units. The default conversion rules use the unit concept recorded on each measurement:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">default_body_unit_conversion_rules</span>
+
+<span class="n">rules</span> <span class="o">=</span> <span class="n">default_body_unit_conversion_rules</span><span class="p">()</span>
+<span class="n">weight_kg</span> <span class="o">=</span> <span class="n">rules</span><span class="o">.</span><span class="n">normalize_weight_kg</span><span class="p">(</span><span class="mf">180.0</span><span class="p">,</span> <span class="n">rules</span><span class="o">.</span><span class="n">units</span><span class="o">.</span><span class="n">lb</span><span class="p">)</span>
+<span class="n">height_cm</span> <span class="o">=</span> <span class="n">rules</span><span class="o">.</span><span class="n">normalize_height_cm</span><span class="p">(</span><span class="mf">70.0</span><span class="p">,</span> <span class="n">rules</span><span class="o">.</span><span class="n">units</span><span class="o">.</span><span class="n">inch</span><span class="p">)</span>
+</code></pre></div>
+<p>An unknown unit, a missing unit, or a missing value produces <code>None</code>; values are never passed through as though they were already normalised. Deployments with local unit concepts can construct <code>BodyUnitConversionRules</code> with their own <code>BodySizeUnitConcepts</code> mapping.</p>
+<p>Clinical choices built on those conversions, including which measurements constitute baseline weight and how change is graded, belong to <a href="../analytics/#body-metrics"><code>analytics.body_metrics</code></a> and <a href="../analytics/#adverse-events"><code>analytics.adverse_events</code></a>.</p>
 
 
 <div class="doc doc-object doc-module">
@@ -5940,7 +7292,7 @@ disguised as a valid one.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.core.units.BodySizeUnitConcepts" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.units.BodySizeUnitConcepts" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">BodySizeUnitConcepts</span>
 
 
@@ -5948,7 +7300,7 @@ disguised as a valid one.</p>
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.core.units.BodySizeUnitConcepts" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.units.BodySizeUnitConcepts" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">BodySizeUnitConcepts</span><span class="p">(</span>
     <span class="n">kg</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">lb</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">cm</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">inch</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">m2</span><span class="p">:</span> <span class="nb">int</span>
 <span class="p">)</span>
@@ -5996,7 +7348,7 @@ lives here rather than with any one domain's measurement logic.</p>
 
 
 
-<h2 id="omop_alchemy.toolkit.core.units.BodyUnitConversionRules" class="doc doc-heading">
+<h4 id="omop_alchemy.toolkit.core.units.BodyUnitConversionRules" class="doc doc-heading">
             <span class="doc doc-object-name doc-class-name">BodyUnitConversionRules</span>
 
 
@@ -6004,7 +7356,7 @@ lives here rather than with any one domain's measurement logic.</p>
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.core.units.BodyUnitConversionRules" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#omop_alchemy.toolkit.core.units.BodyUnitConversionRules" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">BodyUnitConversionRules</span><span class="p">(</span><span class="n">units</span><span class="p">:</span> <span class="n">BodySizeUnitConcepts</span><span class="p">)</span>
 </code></pre></div>
 

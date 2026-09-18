@@ -2774,7 +2774,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2802,7 +2830,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2830,35 +2886,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3190,6 +3218,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3469,22 +3525,13 @@
 
 
 <h1 id="maintenance-cli">Maintenance CLI<a class="headerlink" href="#maintenance-cli" title="Permanent link">&para;</a></h1>
-<p>The <code>omop-alchemy</code> maintenance CLI handles everything you need to operate an OMOP CDM
-database: creating tables, loading Athena vocabularies, managing indexes and foreign key
-enforcement, running health checks, and taking backups. It talks directly to a SQLAlchemy
-engine, so all connection details are controlled by the same engine URL configuration you
-use for the ORM.</p>
-<blockquote>
-<p><strong>Alpha status</strong>
-Treat this CLI as alpha operational tooling. Interfaces and behavior may still change.</p>
-</blockquote>
+<p>The <code>omop-alchemy</code> maintenance CLI handles everything you need to operate an OMOP CDM database: creating tables, loading Athena vocabularies, managing indexes and foreign key enforcement, running health checks, and taking backups. It talks directly to a SQLAlchemy engine, so all connection details are controlled by the same engine URL configuration you use for the ORM.</p>
 <hr />
 <h2 id="connection-setup">Connection setup<a class="headerlink" href="#connection-setup" title="Permanent link">&para;</a></h2>
 <p>Database connection and CDM schema come from <a href="../configuration/">oa_configurator</a> — no per-command flags needed. Run <code>omop-config configure omop_alchemy</code> once to create <code>~/.config/omop/config.toml</code>, then every <code>omop-alchemy</code> command picks it up automatically.</p>
 <hr />
 <h2 id="backend-support">Backend support<a class="headerlink" href="#backend-support" title="Permanent link">&para;</a></h2>
-<p>Some commands depend on PostgreSQL-specific features and will return a clear error
-if you run them against SQLite.</p>
+<p>Some commands depend on PostgreSQL-specific features and will return an error if you run them against an unsupported backend.</p>
 <table>
 <thead>
 <tr>
@@ -3544,8 +3591,7 @@ if you run them against SQLite.</p>
 <hr />
 <h2 id="workflow-guides">Workflow guides<a class="headerlink" href="#workflow-guides" title="Permanent link">&para;</a></h2>
 <h3 id="fresh-database-setup">Fresh database setup<a class="headerlink" href="#fresh-database-setup" title="Permanent link">&para;</a></h3>
-<p>Use this when you are starting with an empty database and want to get an OMOP schema
-populated from scratch.</p>
+<p>Use this when you are starting with an empty database and want to get an OMOP schema populated from scratch.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># 1. Create any OMOP tables that don&#39;t exist yet (safe to run on an existing DB)</span>
 omop-alchemy<span class="w"> </span>create-missing-tables<span class="w"> </span>--dry-run<span class="w">  </span><span class="c1"># preview first</span>
 omop-alchemy<span class="w"> </span>create-missing-tables
@@ -3556,11 +3602,8 @@ omop-alchemy<span class="w"> </span>load-vocab-source<span class="w"> </span>--a
 <span class="c1"># 3. Reset sequences so new clinical inserts start above vocabulary IDs (PostgreSQL)</span>
 omop-alchemy<span class="w"> </span>reset-sequences
 </code></pre></div>
-<p>The <code>create-missing-tables</code> command compares ORM metadata against the live schema and
-creates only what is missing. It is idempotent — running it again on a populated database
-does nothing.</p>
-<p><code>load-vocab-source</code> automatically creates any missing vocabulary tables before loading,
-so you can run it immediately after step 1 or even skip step 1 for vocabulary-only setups.</p>
+<p>The <code>create-missing-tables</code> command compares ORM metadata against the live schema and creates only what is missing. It is idempotent — running it again on a populated database does nothing.</p>
+<p><code>load-vocab-source</code> automatically creates any missing vocabulary tables before loading, so you can run it immediately after step 1 or even skip step 1 for vocabulary-only setups.</p>
 <hr />
 <h3 id="full-vocabulary-reload">Full vocabulary reload<a class="headerlink" href="#full-vocabulary-reload" title="Permanent link">&para;</a></h3>
 <p>Run this when you download a new Athena export and want to replace the existing vocabulary.</p>
@@ -3582,29 +3625,16 @@ omop-alchemy<span class="w"> </span>foreign-keys<span class="w"> </span><span cl
 omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 </code></pre></div>
 <p><strong>About <code>--bulk-mode</code> (default on PostgreSQL):</strong>
-<code>load-vocab-source</code> disables FK triggers and drops vocabulary indexes once before the
-load loop, then rebuilds them once at the end. This is much faster than the alternative
-of toggling per table — for a full Athena export the difference can be 10–20×. SQLite
-ignores this flag. Pass <code>--no-bulk-mode</code> if you need per-table rollback safety.</p>
+<code>load-vocab-source</code> disables FK triggers and drops vocabulary indexes once before the load loop, then rebuilds them once at the end. This is much faster than the alternative of toggling per table — for a full Athena export the difference can be 10–20×. SQLite ignores this flag. Pass <code>--no-bulk-mode</code> if you need per-table rollback safety.</p>
 <p><strong>About <code>--merge-strategy replace</code>:</strong>
-<code>replace</code> overwrites rows whose primary keys occur in the CSV; it does not delete rows
-that are absent from the source. The explicit <code>truncate-tables</code> step above is therefore
-required when the database must exactly mirror a new Athena export. Use <code>upsert</code> for
-incremental vocabulary patches that must preserve existing conflicting rows. Use
-<code>insert_if_empty</code> as the fastest path when the target tables are guaranteed empty.</p>
+<code>replace</code> overwrites rows whose primary keys occur in the CSV; it does not delete rows that are absent from the source. The explicit <code>truncate-tables</code> step above is therefore required when the database must exactly mirror a new Athena export. Use <code>upsert</code> for incremental vocabulary patches that must preserve existing conflicting rows. Use <code>insert_if_empty</code> as the fastest path when the target tables are guaranteed empty.</p>
 <p><strong>About <code>--quote-mode by_delimiter</code>:</strong>
-The default preserves double-quotes as data in tab-delimited Athena exports and uses
-RFC-4180 quoting for comma-delimited files. Use <code>--quote-mode csv</code> only when the source
-genuinely wraps fields in CSV quotes; <code>--quote-mode literal</code> forces quotes to remain data.
-The <code>auto</code> mode samples content and is less predictable for large Athena files.</p>
+The default preserves double-quotes as data in tab-delimited Athena exports and uses RFC-4180 quoting for comma-delimited files. Use <code>--quote-mode csv</code> only when the source genuinely wraps fields in CSV quotes; <code>--quote-mode literal</code> forces quotes to remain data. The <code>auto</code> mode samples content and may be less predictable for large files.</p>
 <p><strong>About <code>--strict</code> on <code>foreign-keys enable</code>:</strong>
-<code>--strict</code> validates all FK relationships before re-enabling RI triggers. If violations
-are found, no triggers are re-enabled and you get a report of the problematic rows.
-Omit <code>--strict</code> to re-enable unconditionally.</p>
+<code>--strict</code> validates all FK relationships before re-enabling RI triggers. If violations are found, no triggers are re-enabled and you get a report of the problematic rows. Omit <code>--strict</code> to re-enable unconditionally.</p>
 <hr />
 <h3 id="etl-bulk-load-cycle">ETL bulk load cycle<a class="headerlink" href="#etl-bulk-load-cycle" title="Permanent link">&para;</a></h3>
-<p>Use this before and after a large clinical data load to avoid the overhead of FK and
-index maintenance during insertion.</p>
+<p>Use this before and after a large clinical data load to avoid the overhead of FK and index maintenance during insertion.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Before your ETL runs: suspend enforcement and remove indexes</span>
 omop-alchemy<span class="w"> </span>foreign-keys<span class="w"> </span>disable
 omop-alchemy<span class="w"> </span>indexes<span class="w"> </span>disable
@@ -3617,33 +3647,22 @@ omop-alchemy<span class="w"> </span>indexes<span class="w"> </span><span class="
 omop-alchemy<span class="w"> </span>foreign-keys<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--strict
 omop-alchemy<span class="w"> </span>analyze-tables<span class="w"> </span>--scope<span class="w"> </span>clinical
 </code></pre></div>
-<p><code>analyze-tables</code> refreshes planner statistics after a large load so query plans don't
-degrade. <code>--scope clinical</code> targets only clinical tables; omit <code>--scope</code> to analyze
-everything.</p>
-<p><code>reset-sequences</code> ensures that any auto-increment columns are positioned above the
-maximum key value present in the table. This matters when your ETL inserts explicit IDs
-(common in OMOP) — without a reset, the next ORM insert would try to reuse an ID that
-already exists.</p>
+<p><code>analyze-tables</code> refreshes planner statistics after a large load so query plans don't degrade. <code>--scope clinical</code> targets only clinical tables; omit <code>--scope</code> to analyze everything.</p>
+<p><code>reset-sequences</code> ensures that any auto-increment columns are positioned above the maximum key value present in the table. This matters when your ETL inserts explicit IDs (common in OMOP) — without a reset, the next ORM insert would try to reuse an ID that already exists.</p>
 <hr />
 <h3 id="health-checks">Health checks<a class="headerlink" href="#health-checks" title="Permanent link">&para;</a></h3>
 <p><strong>Quick read-only check:</strong></p>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>doctor
 </code></pre></div>
-<p>Runs a fast, non-destructive pass over connection readiness, schema drift, and FK
-trigger status. The output tells you what is wrong and what to do about it.</p>
+<p>Runs a fast, non-destructive pass over connection readiness, schema drift, and FK trigger status. The output tells you what is wrong and what to do about it.</p>
 <p><strong>Deep FK validation (PostgreSQL):</strong></p>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>doctor<span class="w"> </span>--deep
 </code></pre></div>
-<p>Adds a full FK constraint scan — it actually queries the data to find rows that violate
-declared FK relationships. On large databases this can be slow; use it when you suspect
-data integrity issues after an ETL or vocabulary patch.</p>
+<p>Adds a full FK constraint scan — it actually queries the data to find rows that violate declared FK relationships. On large databases this can be slow; use it when you suspect data integrity issues after an ETL or vocabulary patch.</p>
 <p><strong>Full environment introspection:</strong></p>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>info
 </code></pre></div>
-<p>Shows the active engine URL, installed backend driver, OMOP Alchemy version, optional
-dependency state (orm-loader, psycopg2/psycopg, etc.), and which maintenance commands
-are available given the current backend. Run this first when diagnosing "why doesn't
-this command work".</p>
+<p>Shows the active engine URL, installed backend driver, OMOP Alchemy version, optional dependency state (orm-loader, psycopg2/psycopg, etc.), and which maintenance commands are available given the current backend. Run this first when diagnosing "why doesn't this command work".</p>
 <p><strong>When doctor reports a problem:</strong></p>
 <table>
 <thead>
@@ -3678,8 +3697,7 @@ this command work".</p>
 </table>
 <hr />
 <h3 id="schema-drift">Schema drift<a class="headerlink" href="#schema-drift" title="Permanent link">&para;</a></h3>
-<p>The <code>reconcile-schema</code> command compares your ORM metadata against the live database and
-reports what it finds:</p>
+<p>The <code>reconcile-schema</code> command compares your ORM metadata against the live database and reports what it finds:</p>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>reconcile-schema
 omop-alchemy<span class="w"> </span>reconcile-schema<span class="w"> </span>--dry-run<span class="w">  </span><span class="c1"># same output, no changes</span>
 </code></pre></div>
@@ -3690,32 +3708,25 @@ omop-alchemy<span class="w"> </span>reconcile-schema<span class="w"> </span>--dr
 <li><strong>matched</strong> — table exists in both and metadata is consistent.</li>
 <li><strong>drifted</strong> — table exists in both but column definitions differ (types, nullability, defaults). The CLI does not auto-migrate; you need to handle schema migrations manually.</li>
 </ul>
-<p>For safe deployment: run <code>reconcile-schema</code> first, then <code>create-missing-tables --dry-run</code>,
-then <code>create-missing-tables</code>.</p>
+<p>For safe deployment: run <code>reconcile-schema</code> first, then <code>create-missing-tables --dry-run</code>, then <code>create-missing-tables</code>.</p>
 <hr />
 <h3 id="full-text-search-sidecars">Full-text search sidecars<a class="headerlink" href="#full-text-search-sidecars" title="Permanent link">&para;</a></h3>
-<p>Full-text search support adds <code>tsvector</code> sidecar columns (and <code>GIN</code> indexes) to the
-<code>concept</code> and <code>concept_synonym</code> tables, enabling fast text search over vocabulary.</p>
+<p>Full-text search support adds <code>tsvector</code> sidecar columns (and <code>GIN</code> indexes) to the <code>concept</code> and <code>concept_synonym</code> tables, enabling fast text search over vocabulary.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Install the sidecar columns and indexes (once, after vocabulary tables exist)</span>
 omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>install
 
 <span class="c1"># Populate sidecar vectors from current vocabulary data</span>
 omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 </code></pre></div>
-<p><strong>You must rerun <code>fulltext populate</code> after every vocabulary reload.</strong> Sidecar vectors
-do not auto-refresh when the underlying concept data changes.</p>
+<p><strong>You must rerun <code>fulltext populate</code> after every vocabulary reload.</strong> Sidecar vectors do not auto-refresh when the underlying concept data changes.</p>
 <p>To remove the sidecars:</p>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>drop
 </code></pre></div>
-<p>The <code>--regconfig</code> option controls the PostgreSQL text search configuration
-(default <code>english</code>). For multilingual vocabularies, use a suitable config such as
-<code>simple</code>.</p>
-<p>For query-side usage and optional ORM metadata registration, see
-<a href="../../advanced/fulltext/">PostgreSQL Full-Text Search</a>.</p>
+<p>The <code>--regconfig</code> option controls the PostgreSQL text search configuration (default <code>english</code>). For multilingual vocabularies, use a suitable config such as <code>simple</code>.</p>
+<p>For query-side usage and optional ORM metadata registration, see <a href="../../advanced/fulltext/">PostgreSQL Full-Text Search</a>.</p>
 <hr />
 <h3 id="backup-and-restore">Backup and restore<a class="headerlink" href="#backup-and-restore" title="Permanent link">&para;</a></h3>
-<p>These commands wrap <code>pg_dump</code> and <code>pg_restore</code> / <code>psql</code>. PostgreSQL client tools must
-be installed and on <code>PATH</code>.</p>
+<p>These commands wrap <code>pg_dump</code> and <code>pg_restore</code> / <code>psql</code>. PostgreSQL client tools must be installed and on <code>PATH</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Create a backup (custom format is recommended — smaller and restorable in parallel)</span>
 omop-alchemy<span class="w"> </span>backup-database<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--output-path<span class="w"> </span>./cdm-backup.dump<span class="w"> </span><span class="se">\</span>
@@ -3754,14 +3765,11 @@ omop-alchemy<span class="w"> </span>restore-database<span class="w"> </span>./cd
 - The target database must already exist. The CLI does not create or drop databases.
 - For <code>plain</code> format, the schema is embedded in the SQL dump; no selective schema restore is possible.
 - For <code>custom</code> format, <code>pg_restore</code> can be invoked manually with <code>-n &lt;schema&gt;</code> for selective schema restore.</p>
-<p>Use <code>--dry-run</code> on <code>backup-database</code> to see the <code>pg_dump</code> command that would be run
-without executing it.</p>
+<p>Use <code>--dry-run</code> on <code>backup-database</code> to see the <code>pg_dump</code> command that would be run without executing it.</p>
 <hr />
 <h2 id="recovery-when-things-go-wrong">Recovery: when things go wrong<a class="headerlink" href="#recovery-when-things-go-wrong" title="Permanent link">&para;</a></h2>
 <h3 id="bulk-load-or-vocabulary-reload-fails-mid-way">Bulk load or vocabulary reload fails mid-way<a class="headerlink" href="#bulk-load-or-vocabulary-reload-fails-mid-way" title="Permanent link">&para;</a></h3>
-<p>If <code>load-vocab-source</code> (with <code>--bulk-mode</code>) or your ETL process fails after FK triggers
-and indexes have been disabled, they stay disabled. The database continues to accept
-writes but does not enforce FK constraints, and queries may use slow sequential scans.</p>
+<p>If <code>load-vocab-source</code> (with <code>--bulk-mode</code>) or your ETL process fails after FK triggers and indexes have been disabled, they stay disabled. The database continues to accept writes but does not enforce FK constraints, and queries may use slow sequential scans.</p>
 <p>To recover:</p>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>indexes<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--vocab<span class="w">   </span><span class="c1"># or without --vocab if you disabled all indexes</span>
 omop-alchemy<span class="w"> </span>foreign-keys<span class="w"> </span><span class="nb">enable</span>
@@ -3774,17 +3782,14 @@ omop-alchemy<span class="w"> </span>foreign-keys<span class="w"> </span><span cl
 <h3 id="fk-validation-fails-after-enable-strict">FK validation fails after <code>enable --strict</code><a class="headerlink" href="#fk-validation-fails-after-enable-strict" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>foreign-keys<span class="w"> </span>validate
 </code></pre></div>
-<p>This reports exactly which tables have violations, which constraints are affected, and
-how many rows fail. Fix the data, then retry <code>foreign-keys enable --strict</code>.</p>
-<p>If you need to re-enable FK triggers despite the violations (for example, to allow the
-application to run while you investigate), use <code>foreign-keys enable</code> without <code>--strict</code>.</p>
+<p>This reports exactly which tables have violations, which constraints are affected, and how many rows fail. Fix the data, then retry <code>foreign-keys enable --strict</code>.</p>
+<p>If you need to re-enable FK triggers despite the violations (for example, to allow the application to run while you investigate), use <code>foreign-keys enable</code> without <code>--strict</code>.</p>
 <h3 id="sequences-are-out-of-sync-after-a-bulk-insert">Sequences are out of sync after a bulk insert<a class="headerlink" href="#sequences-are-out-of-sync-after-a-bulk-insert" title="Permanent link">&para;</a></h3>
 <p>After any load that inserts explicit primary key values:</p>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>reset-sequences<span class="w">          </span><span class="c1"># all managed tables</span>
 omop-alchemy<span class="w"> </span>reset-sequences<span class="w"> </span>--vocab<span class="w">  </span><span class="c1"># vocabulary tables only</span>
 </code></pre></div>
-<p><code>reset-sequences</code> sets each owned sequence to <code>MAX(pk) + 1</code>. It reports every table
-it touches and the old/new sequence positions.</p>
+<p><code>reset-sequences</code> sets each owned sequence to <code>MAX(pk) + 1</code>. It reports every table it touches and the old/new sequence positions.</p>
 <hr />
 <h2 id="command-reference">Command reference<a class="headerlink" href="#command-reference" title="Permanent link">&para;</a></h2>
 <table>

@@ -2708,7 +2708,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2736,7 +2764,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2764,35 +2820,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3124,6 +3152,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3338,15 +3394,13 @@
 
 <h1 id="relationships-reference-contexts">Relationships &amp; Reference Contexts<a class="headerlink" href="#relationships-reference-contexts" title="Permanent link">&para;</a></h1>
 <p>OMOP Alchemy takes a <strong>deliberately conservative approach to ORM relationships</strong>.</p>
-<p>Rather than eagerly wiring every foreign key into a bidirectional relationship,
-it distinguishes between:</p>
+<p>Rather than eagerly wiring every foreign key into a bidirectional relationship, it distinguishes between:</p>
 <ul>
 <li><strong>structural foreign keys</strong> (always present in tables)</li>
 <li><strong>reference lookups</strong> (read-only joins for navigation)</li>
 <li><strong>analytical relationships</strong> (used in views, not ETL)</li>
 </ul>
-<p>This separation keeps core tables simple, predictable, and fast to load,
-while still enabling rich, expressive navigation when you need it.</p>
+<p>This separation keeps core tables simple, predictable, and fast to load, while still enabling rich, expressive navigation when you need it.</p>
 <hr />
 <h2 id="why-relationships-are-handled-carefully">Why relationships are handled carefully<a class="headerlink" href="#why-relationships-are-handled-carefully" title="Permanent link">&para;</a></h2>
 <p>The OMOP CDM has several characteristics that make naïve ORM relationships risky:</p>
@@ -3375,27 +3429,11 @@ while still enabling rich, expressive navigation when you need it.</p>
 
 
 
-        <p><code>ReferenceContext</code> </p>
-<p>A helper base class for defining <strong>read-only reference relationships</strong>.</p>
-<p>This class is purely structural: it resolves foreign keys
-into reference tables (Domain, Vocabulary, ConceptClass, etc.)
-with explicit join conditions.</p>
-<p>These relationships are:</p>
-<ul>
-<li><code>viewonly=True</code></li>
-<li>explicitly joined</li>
-<li>loaded using <code>selectin</code> (batched eager loading)</li>
-<li>defined outside the core table</li>
-<li>deterministic projections of foreign keys</li>
-</ul>
-<p>They are intended for:</p>
-<ul>
-<li>inspection</li>
-<li>analytics</li>
-<li>debugging</li>
-<li>view-level navigation
-— <strong>not</strong> for ETL or mutation.</li>
-</ul>
+        <p>Read-only reference relationships for inspection and analytics.</p>
+<p>Analytical contexts define these relationships outside the bare ETL table.
+Explicit joins resolve local references to single-column target identity,
+with viewonly=True and selectin loading for batched navigation. Assigning
+a related object does not mutate or populate the local reference column.</p>
 
 
 
@@ -3426,8 +3464,7 @@ with explicit join conditions.</p>
 
 </div><hr />
 <h2 id="the-core-idea">The core idea<a class="headerlink" href="#the-core-idea" title="Permanent link">&para;</a></h2>
-<p>Instead of defining relationships directly on a table class,
-OMOP Alchemy encourages a <strong>three-layer pattern</strong>:</p>
+<p>Instead of defining relationships directly on a table class, OMOP Alchemy encourages a <strong>three-layer pattern</strong>:</p>
 <ol>
 <li><strong>Table</strong> – structural definition only</li>
 <li><strong>Context</strong> – reference relationships</li>
@@ -3523,8 +3560,7 @@ OMOP Alchemy encourages a <strong>three-layer pattern</strong>:</p>
 <li>stable</li>
 <li>not owned by fact tables</li>
 </ul>
-<p>Allowing mutation through ORM relationships would blur those boundaries
-and make ETL behavior harder to reason about.</p>
+<p>Allowing mutation through ORM relationships would blur those boundaries and make ETL behavior harder to reason about.</p>
 <h3 id="performance-considerations">Performance considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h3>
 <p>Reference relationships use <code>lazy="selectin"</code></p>
 <p>This provides a good balance:</p>

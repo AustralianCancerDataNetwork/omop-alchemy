@@ -2663,7 +2663,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2691,7 +2719,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2719,35 +2775,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3079,6 +3107,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3247,10 +3303,8 @@
 
 
 <h1 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
-<p>This section documents the <strong>core authoring primitives</strong> used to define
-OMOP CDM models in OMOP Alchemy.</p>
-<p>These APIs are intentionally <strong>low-level, explicit, and composable</strong>.
-They are designed for <em>model authors</em>, not end-users or analysts.</p>
+<p>This section documents the <strong>core authoring primitives</strong> used to define OMOP CDM models in OMOP Alchemy.</p>
+<p>These APIs are intentionally <strong>low-level, explicit, and composable</strong>. They are designed for <em>model authors</em>, not end-users or analysts.</p>
 <p>If you are:</p>
 <ul>
 <li>defining new OMOP CDM tables or views</li>
@@ -3304,20 +3358,20 @@ They are designed for <em>model authors</em>, not end-users or analysts.</p>
   All modules are import-safe and side-effect free.</p>
 </li>
 </ul>
-<p>This makes the API suitable for:
-- schema inspection
-- validation tooling
-- static analysis
-- documentation generation
-- interactive exploration</p>
+<p>This makes the API suitable for:</p>
+<ul>
+<li>schema inspection</li>
+<li>validation tooling</li>
+<li>static analysis</li>
+<li>documentation generation</li>
+<li>interactive exploration</li>
+</ul>
 <hr />
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
 <p>Layered architecture specification is described in <a href="architecture/">Architecture</a></p>
 <h2 id="base-table-infrastructure">Base table infrastructure<a class="headerlink" href="#base-table-infrastructure" title="Permanent link">&para;</a></h2>
-<p>At the core of OMOP Alchemy is a small number of base classes that define
-what it means to be a CDM table.</p>
-<p>These classes integrate with lower-level infrastructure (i.e.
-<code>orm-loader</code>) but remain OMOP-specific.</p>
+<p>At the core of OMOP Alchemy is a small number of base classes that define what it means to be a CDM table.</p>
+<p>These classes integrate with lower-level infrastructure (i.e. <code>orm-loader</code>) but remain OMOP-specific.</p>
 <p><strong><a href="base/">Base tables</a></strong></p>
 <hr />
 <h2 id="column-helpers">Column helpers<a class="headerlink" href="#column-helpers" title="Permanent link">&para;</a></h2>
@@ -3326,34 +3380,35 @@ what it means to be a CDM table.</p>
 <p><strong><a href="columns/">Column helpers</a></strong></p>
 <hr />
 <h2 id="structural-mixins">Structural mixins<a class="headerlink" href="#structural-mixins" title="Permanent link">&para;</a></h2>
-<p>Many OMOP tables share structural semantics:</p>
+<p>Many OMOP tables share structural semantics for example:</p>
 <ul>
 <li>person-scoped records</li>
 <li>dated events</li>
 <li>value-typed observations</li>
 <li>unit concepts</li>
 <li>health system attribution</li>
+<li>accepted modifiable targets / sources</li>
 </ul>
-<p>Mixins encode these patterns once, and make them reusable and inspectable.</p>
+<p>Don't define this behaviour directly unless it is truly a new pattern - instead you should use the available mixins, which encode these patterns once, and make them reusable and inspectable.</p>
 <p><strong><a href="columns/">Column mixins</a></strong></p>
 <hr />
 <h2 id="typing-and-semantic-contracts">Typing and semantic contracts<a class="headerlink" href="#typing-and-semantic-contracts" title="Permanent link">&para;</a></h2>
-<p>OMOP Alchemy makes heavy use of Python typing to express
-<em>semantic expectations</em>:</p>
+<p>OMOP Alchemy makes heavy use of Python typing to express <em>semantic expectations</em>:</p>
 <ul>
 <li>“this object has a concept_id”</li>
 <li>“this table participates in domain validation”</li>
 <li>“this is a clinical event”</li>
 </ul>
-<p>These protocols support:
-- static type checking
-- IDE assistance
-- tooling and validation layers</p>
+<p>These protocols support:</p>
+<ul>
+<li>static type checking</li>
+<li>IDE assistance</li>
+<li>tooling and validation layers</li>
+</ul>
 <p><strong><a href="typing/">Typing protocols</a></strong></p>
 <hr />
 <h2 id="relationship-to-other-layers">Relationship to other layers<a class="headerlink" href="#relationship-to-other-layers" title="Permanent link">&para;</a></h2>
-<p>This API layer sits <em>above</em> generic ORM infrastructure
-and <em>below</em> analytical or validation tooling.</p>
+<p>This API layer sits <em>above</em> generic ORM infrastructure and <em>below</em> analytical or validation tooling.</p>
 <table>
 <thead>
 <tr>
@@ -3371,16 +3426,16 @@ and <em>below</em> analytical or validation tooling.</p>
 <td>Generic table loading, serialization</td>
 </tr>
 <tr>
-<td>OMOP Alchemy API</td>
-<td>OMOP-specific structure &amp; semantics</td>
+<td><strong>OMOP Alchemy API</strong></td>
+<td><strong>OMOP-specific structure &amp; semantics</strong></td>
+</tr>
+<tr>
+<td><strong>OMOP Alchemy Toolkit</strong></td>
+<td><strong>Standard, generalisable queries, composition, exploration</strong></td>
 </tr>
 <tr>
 <td>Validation</td>
 <td>Domain and semantic checks</td>
-</tr>
-<tr>
-<td>Analytics</td>
-<td>Queries, cohorts, exploration</td>
 </tr>
 </tbody>
 </table>

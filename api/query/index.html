@@ -2630,7 +2630,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2658,7 +2686,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2686,35 +2742,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3046,6 +3074,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3181,14 +3237,8 @@
 
 
 <h1 id="query-filtering">Query Filtering<a class="headerlink" href="#query-filtering" title="Permanent link">&para;</a></h1>
-<p><code>omop_alchemy.cdm.query</code> provides <code>ConceptFilter</code>, a shared, reusable way to
-filter CDM <code>concept</code>-table queries by domain, vocabulary, concept ID, and
-standard/active status, with an optional row-count limit.</p>
-<p>It exists so that packages consuming OMOP Alchemy (e.g. <code>omop-emb</code>, <code>omop-graph</code>)
-don't each need to reimplement the same filtering logic against their own copy
-of <code>Concept</code>'s column names — since this package owns the <code>Concept</code> model
-directly, the filter can reference real columns rather than duck-typing against
-an opaquely-imported table.</p>
+<p><code>omop_alchemy.cdm.query</code> provides <code>ConceptFilter</code>, a shared, reusable way to filter CDM <code>concept</code>-table queries by domain, vocabulary, concept ID, and standard/active status, with an optional row-count limit.</p>
+<p>It exists so that downstream packages do not each need to reimplement the same filtering logic against their own copy of <code>Concept</code>'s column names. Since this package owns the <code>Concept</code> model directly, the filter can reference real columns rather than duck-typing against an opaquely imported table.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">select</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model.vocabulary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Concept</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.query</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConceptFilter</span>
@@ -3346,7 +3396,7 @@ returned.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Apply filter constraints to a Select already targeting Concept.</p>
+        <p>Apply filter constraints to a Select whose FROM clause includes Concept.</p>
 
 
     </div>

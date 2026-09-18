@@ -2647,7 +2647,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2675,7 +2703,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2703,35 +2759,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3063,6 +3091,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3216,8 +3272,7 @@
 
 <h1 id="layered-architecture">Layered Architecture<a class="headerlink" href="#layered-architecture" title="Permanent link">&para;</a></h1>
 <p>OMOP Alchemy is built as a <strong>deliberately layered system</strong>.</p>
-<p>Each layer adds capability while preserving the guarantees of the layer below it.
-Responsibilities flow <em>downward</em>; semantic intent flows <em>upward</em>.</p>
+<p>Each layer adds capability while preserving the guarantees of the layers beneath it. The core layers build upward from generic infrastructure to OMOP-aware views; Toolkit and Semantic Validation build on those views independently.</p>
 <p>The result is a system that is:</p>
 <ul>
 <li>composable</li>
@@ -3227,137 +3282,122 @@ Responsibilities flow <em>downward</em>; semantic intent flows <em>upward</em>.<
 <hr />
 <h2 id="the-layer-stack">The Layer Stack<a class="headerlink" href="#the-layer-stack" title="Permanent link">&para;</a></h2>
 <div  class="mermaid">
-flowchart TD
+flowchart BT
     subgraph L0["orm-loader"]
         L0a["CSVLoadableTableInterface"]
         L0b["SerialisableTableInterface"]
         L0c["Bulk load & casting helpers"]
+        L0d["Materialized-view lifecycle"]
     end
 
-    subgraph L1["cdm.base"]
-        L1a["CDMTableBase"]
-        L1b["Column helpers"]
-        L1c["Structural mixins"]
-        L1d["ReferenceContext"]
-        L1e["DomainValidation primitives"]
+    subgraph CDM["omop_alchemy.cdm"]
+        direction BT
+        subgraph L1["cdm.base"]
+            L1a["CDMTableBase"]
+            L1b["Column helpers"]
+            L1c["Structural mixins"]
+            L1d["ReferenceContext"]
+            L1e["DomainValidation primitives"]
+        end
+
+        subgraph L2["cdm.models"]
+            L2a["Concrete CDM tables"]
+            L2b["@cdm_table"]
+            L2c["OMOP-compliant schemas"]
+        end
+
+        subgraph L3["Views & Contexts"]
+            L3a["Reference contexts"]
+            L3b["Derived properties"]
+            L3c["Hybrid expressions"]
+        end
     end
 
-    subgraph L2["cdm.models"]
-        L2a["Concrete CDM tables"]
-        L2b["@cdm_table"]
-        L2c["OMOP-compliant schemas"]
+    subgraph L4["Toolkit"]
+        L4a["Standard queries, composition & exploration"]
     end
 
-    subgraph L3["Views & Contexts"]
-        L3a["Reference contexts"]
-        L3b["Derived properties"]
-        L3c["Hybrid expressions"]
+    subgraph L5["Semantic Validation"]
+        L5a["ExpectedDomain"]
+        L5b["DomainRule"]
+        L5c["Runtime domain checks"]
     end
 
-    subgraph L4["Semantic Validation"]
-        L4a["ExpectedDomain"]
-        L4b["DomainRule"]
-        L4c["Runtime domain checks"]
-    end
+    L0 -->|infrastructure| L1
+    L1 -->|OMOP structure| L2
+    L2 -->|views & navigation| L3
+    L3 -->|reusable queries| L4
+    L3 -->|semantic checks| L5
 
-    L0 --> L1
-    L1 --> L2
-    L2 --> L3
-    L3 --> L4
+    classDef infrastructure fill:#e8f1fb,stroke:#2b6cb0,stroke-width:1.5px,color:#17324d
+    classDef cdmLayer fill:#eaf6ef,stroke:#2f855a,stroke-width:1.5px,color:#193b29
+    classDef toolkitLayer fill:#fff6df,stroke:#b7791f,stroke-width:1.5px,color:#4a3210
+    classDef validationLayer fill:#f3eaff,stroke:#805ad5,stroke-width:1.5px,color:#33224d
+
+    class L0a,L0b,L0c,L0d infrastructure
+    class L1a,L1b,L1c,L1d,L1e,L2a,L2b,L2c,L3a,L3b,L3c cdmLayer
+    class L4a toolkitLayer
+    class L5a,L5b,L5c validationLayer
+
+    style CDM fill:#f8fafc,stroke:#64748b,stroke-width:2px,stroke-dasharray:5 5
+    style L0 fill:#f5faff,stroke:#2b6cb0,stroke-width:1.5px
+    style L1 fill:#f3fbf5,stroke:#2f855a,stroke-width:1.5px
+    style L2 fill:#f3fbf5,stroke:#2f855a,stroke-width:1.5px
+    style L3 fill:#f3fbf5,stroke:#2f855a,stroke-width:1.5px
+    style L4 fill:#fffaf0,stroke:#b7791f,stroke-width:1.5px
+    style L5 fill:#faf7ff,stroke:#805ad5,stroke-width:1.5px
 </div>
 <h3 id="layer-responsibilities">Layer responsibilities<a class="headerlink" href="#layer-responsibilities" title="Permanent link">&para;</a></h3>
-<h4 id="orm-loader-l0">orm-loader (L0)<a class="headerlink" href="#orm-loader-l0" title="Permanent link">&para;</a></h4>
-<p>Purpose: ingestion and infrastructure</p>
-<p>This layer provides:</p>
-<ul>
-<li>CSV loading</li>
-<li>bulk inserts</li>
-<li>type casting</li>
-<li>serialization helpers</li>
-</ul>
-<p>It is deliberately domain-agnostic.</p>
-<p>If something understands OMOP concepts, vocabularies, or clinical meaning, it does not belong here.</p>
-<p>Examples:</p>
-<ul>
-<li><a href="https://australiancancerdatanetwork.github.io/orm-loader/loaders/">CSVLoadableTableInterface</a></li>
-<li><a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/serialisable_table/">SerialisableTableInterface</a></li>
-</ul>
-<h4 id="cdmbase-l1">cdm.base (L1)<a class="headerlink" href="#cdmbase-l1" title="Permanent link">&para;</a></h4>
-<p>Purpose: structural OMOP semantics</p>
-<p>This layer encodes:</p>
-<ul>
-<li>common OMOP table structure</li>
-<li>column patterns (required vs optional)</li>
-<li>reusable mixins</li>
-<li>reference relationship mechanics</li>
-<li>domain validation primitives</li>
-</ul>
-<p>This is where OMOP’s shape lives, but not its analytical meaning.</p>
-<p>Examples:</p>
-<ul>
-<li><a href="../base/">CDMTableBase</a></li>
-<li><a href="../columns/">PersonScoped</a></li>
-<li><a href="../relationships/">ReferenceContext</a></li>
-</ul>
-<p>This layer answers:</p>
-<p>“What does a valid OMOP table look like?”</p>
-<h4 id="cdmmodels-l2">cdm.models (L2)<a class="headerlink" href="#cdmmodels-l2" title="Permanent link">&para;</a></h4>
-<p>Purpose: concrete OMOP tables</p>
-<p>This layer defines:</p>
-<ul>
-<li>actual CDM tables</li>
-<li>exact column layouts</li>
-<li>primary keys and foreign keys</li>
-<li>official OMOP schemas</li>
-</ul>
-<p>Classes in this layer:</p>
-<ul>
-<li>are safe for ETL</li>
-<li>are safe for bulk loading</li>
-<li>avoid eager relationships</li>
-<li>avoid analytical helpers</li>
-</ul>
-<p>Examples:</p>
-<p><a href="../../models/clinical/person/">Person</a></p>
-<h4 id="views-contexts-l3">Views &amp; Contexts (L3)<a class="headerlink" href="#views-contexts-l3" title="Permanent link">&para;</a></h4>
-<p>Purpose: navigation and analysis</p>
-<p>This layer adds:</p>
-<ul>
-<li>reference relationships</li>
-<li>derived properties</li>
-<li>hybrid expressions</li>
-<li>query-friendly helpers</li>
-</ul>
-<p>Examples:</p>
-<p><a href="../../models/clinical/person/">PersonContext</a>
-<a href="../../models/clinical/person/">PersonView</a></p>
-<p>Views are designed for interactive use, not ingestion.</p>
-<blockquote>
-<p><em>Tables are for pipelines. Views are for people.</em></p>
-</blockquote>
-<h4 id="semantic-validation-l4">Semantic Validation (L4)<a class="headerlink" href="#semantic-validation-l4" title="Permanent link">&para;</a></h4>
-<p>Purpose: make semantic expectations explicit</p>
-<p>This layer introduces:</p>
-<ul>
-<li>declared domain expectations</li>
-<li>inspectable rules</li>
-<li>runtime, advisory checks</li>
-</ul>
-<p>Examples:</p>
-<p><a href="../../validation/">ExpectedDomain</a></p>
-<p>This layer answers:</p>
-<blockquote>
-<p>“Does this object reference the kinds of concepts I think it does?”</p>
-</blockquote>
-<p>Validation here is:</p>
-<ul>
-<li>non-blocking</li>
-<li>non-mutating</li>
-<li>safe to skip</li>
-<li>safe to run interactively</li>
-</ul>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Purpose</th>
+<th>Responsibilities</th>
+<th>Boundary and examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>orm-loader (L0)</strong></td>
+<td>Ingestion and infrastructure</td>
+<td>CSV loading; bulk inserts; type casting; serialization; materialized-view definition and lifecycle operations</td>
+<td>Domain-agnostic: it does not understand OMOP concepts, vocabularies, or clinical meaning. OMOP Alchemy may provide a selectable and logical row identity, while applications own view collections, dependency policy, and deployment. <a href="https://australiancancerdatanetwork.github.io/orm-loader/loaders/">CSVLoadableTableInterface</a><br><a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/serialisable_table/">SerialisableTableInterface</a><br><a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/">Materialized views</a></td>
+</tr>
+<tr>
+<td><strong>cdm.base (L1)</strong></td>
+<td>Structural OMOP semantics</td>
+<td>Common table structure; required and optional column patterns; reusable mixins; reference relationship mechanics; domain validation primitives</td>
+<td>Defines OMOP’s shape, not its analytical meaning. Answers: “What does a valid OMOP table look like?” <a href="../base/">CDMTableBase</a>; <a href="../columns/">PersonScoped</a>; <a href="../relationships/">ReferenceContext</a></td>
+</tr>
+<tr>
+<td><strong>cdm.models (L2)</strong></td>
+<td>Concrete OMOP tables</td>
+<td>Actual CDM tables; exact column layouts; primary and foreign keys; official OMOP schemas</td>
+<td>Safe for ETL and bulk loading; avoids eager relationships and analytical helpers. Example: <a href="../../models/clinical/person/">Person</a></td>
+</tr>
+<tr>
+<td><strong>Views &amp; Contexts (L3)</strong></td>
+<td>Navigation and analysis</td>
+<td>Reference relationships; derived properties; hybrid expressions; query-friendly helpers</td>
+<td>Designed for interactive use, not ingestion: <em>tables are for pipelines; views are for people.</em> <a href="../../models/clinical/person/">PersonContext</a>; <a href="../../models/clinical/person/">PersonView</a></td>
+</tr>
+<tr>
+<td><strong>Toolkit (L4)</strong></td>
+<td>Reusable clinical queries and composition</td>
+<td>Standard query contracts; vocabulary and concept resolution; event and episode composition; reusable analytical projections</td>
+<td>Consumes CDM models and views, adding interpretation and retrieval rules without replacing models or hiding database access. <a href="../../toolkit/">Toolkit overview</a>; <a href="../../toolkit/query-contracts/">Query contracts</a></td>
+</tr>
+<tr>
+<td><strong>Semantic Validation (L5)</strong></td>
+<td>Explicit semantic expectations</td>
+<td>Declared domain expectations; inspectable rules; runtime advisory checks</td>
+<td>Non-blocking and non-mutating; safe to skip or run interactively. Answers: “Does this object reference the kinds of concepts I think it does?” <a href="../../validation/">ExpectedDomain</a></td>
+</tr>
+</tbody>
+</table>
 <h3 id="directional-guarantees">Directional guarantees<a class="headerlink" href="#directional-guarantees" title="Permanent link">&para;</a></h3>
-<p>The stack is intentionally one-directional:</p>
+<p>The dependency direction is intentionally one-way: higher layers may use lower layers, but lower layers never import higher layers. In the diagram, arrows show capability building upward from the foundation; Toolkit and Semantic Validation are peers rather than dependencies of one another.</p>
 <ul>
 <li>lower layers never import higher layers</li>
 <li>ETL code never depends on analytical helpers</li>

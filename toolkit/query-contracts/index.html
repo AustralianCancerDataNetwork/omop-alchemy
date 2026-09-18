@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://AustralianCancerDataNetwork.github.io/OMOP_Alchemy/toolkit/episodes/">
+        <link rel="canonical" href="https://AustralianCancerDataNetwork.github.io/OMOP_Alchemy/toolkit/query-contracts/">
       
       
-        <link rel="prev" href="../materialized-views/">
+        <link rel="prev" href="../episodes/">
       
       
-        <link rel="next" href="../query-contracts/">
+        <link rel="next" href="../analytics/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Episodes - OMOP Alchemy</title>
+        <title>Query contracts - OMOP Alchemy</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#episodes" class="md-skip">
+        <a href="#query-contracts" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Episodes
+              Query contracts
             
           </span>
         </div>
@@ -2596,6 +2596,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../episodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -2615,7 +2643,7 @@
   <span class="md-ellipsis">
     
   
-    Episodes
+    Query contracts
   
 
     
@@ -2633,7 +2661,7 @@
   <span class="md-ellipsis">
     
   
-    Episodes
+    Query contracts
   
 
     
@@ -2659,10 +2687,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#retrieve-facts-from-an-episode" class="md-nav__link">
+  <a href="#start-with-event-identity" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Retrieve facts from an episode
+        Start with event identity
       
     </span>
   </a>
@@ -2670,10 +2698,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#explicit-links-and-date-windows" class="md-nav__link">
+  <a href="#attach-an-event-to-an-episode" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Explicit links and date windows
+        Attach an event to an episode
       
     </span>
   </a>
@@ -2681,10 +2709,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#understand-unresolved-episode-links" class="md-nav__link">
+  <a href="#rank-fallback-candidates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Understand unresolved episode links
+        Rank fallback candidates
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rank fallback candidates">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#date-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Date boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#select-one-repeated-observation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Select one repeated observation
       
     </span>
   </a>
@@ -2692,10 +2748,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#traverse-an-episode-hierarchy" class="md-nav__link">
+  <a href="#runtime-concept-sets" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Traverse an episode hierarchy
+        Runtime concept sets
       
     </span>
   </a>
@@ -2703,10 +2759,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#describe-episode-attachment-policy" class="md-nav__link">
+  <a href="#canonical-modifier-queries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Describe episode attachment policy
+        Canonical modifier queries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API reference
       
     </span>
   </a>
@@ -2717,34 +2784,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../query-contracts/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Query contracts
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -3158,10 +3197,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#retrieve-facts-from-an-episode" class="md-nav__link">
+  <a href="#start-with-event-identity" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Retrieve facts from an episode
+        Start with event identity
       
     </span>
   </a>
@@ -3169,10 +3208,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#explicit-links-and-date-windows" class="md-nav__link">
+  <a href="#attach-an-event-to-an-episode" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Explicit links and date windows
+        Attach an event to an episode
       
     </span>
   </a>
@@ -3180,10 +3219,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#understand-unresolved-episode-links" class="md-nav__link">
+  <a href="#rank-fallback-candidates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Understand unresolved episode links
+        Rank fallback candidates
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rank fallback candidates">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#date-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Date boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#select-one-repeated-observation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Select one repeated observation
       
     </span>
   </a>
@@ -3191,10 +3258,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#traverse-an-episode-hierarchy" class="md-nav__link">
+  <a href="#runtime-concept-sets" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Traverse an episode hierarchy
+        Runtime concept sets
       
     </span>
   </a>
@@ -3202,10 +3269,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#describe-episode-attachment-policy" class="md-nav__link">
+  <a href="#canonical-modifier-queries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Describe episode attachment policy
+        Canonical modifier queries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API reference
       
     </span>
   </a>
@@ -3280,106 +3358,461 @@
   
 
 
-<h1 id="episodes">Episodes<a class="headerlink" href="#episodes" title="Permanent link">&para;</a></h1>
-<p>Episode APIs answer two related questions: how episodes relate to one another, and which clinical facts belong to an episode. They do not assume a specialty. Oncology-specific episode types compose these APIs with governed oncology concepts in the <a href="../analytics/#oncology">analytics package</a>.</p>
-<h2 id="retrieve-facts-from-an-episode">Retrieve facts from an episode<a class="headerlink" href="#retrieve-facts-from-an-episode" title="Permanent link">&para;</a></h2>
-<p>For a treatment episode, a common first task is to retrieve its linked drug exposures and group them by drug concept:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model.structural</span><span class="w"> </span><span class="kn">import</span> <span class="n">EpisodeView</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.handling</span><span class="w"> </span><span class="kn">import</span> <span class="n">DrugEpisodeMixin</span>
+<h1 id="query-contracts">Query contracts<a class="headerlink" href="#query-contracts" title="Permanent link">&para;</a></h1>
+<p>Consider a procedure recorded on the same day as two overlapping treatment episodes. The procedure may already have a valid <code>Episode_Event</code> link, or it may need to be assigned from dates alone. A reliable query has to answer several questions explicitly: what identifies the procedure, whether an explicit link takes precedence, whether fallback may attach it to one or both episodes, and how equally plausible candidates are ordered.</p>
+<p>The contracts on this page provide a common vocabulary for those decisions. They are small, immutable values that can be shared by query-building code, configuration, and tests. Projection and predicate helpers translate the contracts into SQLAlchemy statements without opening a database connection.</p>
+<div class="admonition note">
+<p class="admonition-title">Construction and execution</p>
+<p>Creating a contract, statement, CTE, or predicate is side-effect free. Database access begins only when the resulting statement is executed through a connection or session. The toolkit supplies projection, attachment, hierarchy, temporal, concept-set, mapping, and observation builders.</p>
+</div>
+<h2 id="start-with-event-identity">Start with event identity<a class="headerlink" href="#start-with-event-identity" title="Permanent link">&para;</a></h2>
+<p>OMOP primary keys are scoped to their source tables. These three rows represent three different events even though they all use event ID 7:</p>
+<table>
+<thead>
+<tr>
+<th>Source table</th>
+<th style="text-align: right;">Event ID</th>
+<th style="text-align: right;">Person</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Measurement</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">101</td>
+<td>20 January 2026</td>
+</tr>
+<tr>
+<td>Procedure Occurrence</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">101</td>
+<td>20 January 2026</td>
+</tr>
+<tr>
+<td>Observation</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">202</td>
+<td>20 January 2026</td>
+</tr>
+</tbody>
+</table>
+<p><code>ClinicalEventIdentity</code> keeps the table and numeric ID together:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.events</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClinicalEventIdentity</span>
 
+<span class="n">measurement</span> <span class="o">=</span> <span class="n">ClinicalEventIdentity</span><span class="p">(</span><span class="s2">&quot;measurement&quot;</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+<span class="n">procedure</span> <span class="o">=</span> <span class="n">ClinicalEventIdentity</span><span class="p">(</span><span class="s2">&quot;procedure_occurrence&quot;</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+<span class="n">observation</span> <span class="o">=</span> <span class="n">ClinicalEventIdentity</span><span class="p">(</span><span class="s2">&quot;observation&quot;</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
 
-<span class="k">class</span><span class="w"> </span><span class="nc">TreatmentEpisode</span><span class="p">(</span><span class="n">DrugEpisodeMixin</span><span class="p">,</span> <span class="n">EpisodeView</span><span class="p">):</span>
-    <span class="n">_drug_concept_ids</span> <span class="o">=</span> <span class="n">treatment_drug_concept_ids</span>
-
-
-<span class="n">episode</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">TreatmentEpisode</span><span class="p">,</span> <span class="n">episode_id</span><span class="p">)</span>
-<span class="k">if</span> <span class="n">episode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="k">raise</span> <span class="ne">LookupError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown episode: </span><span class="si">{</span><span class="n">episode_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-<span class="n">exposures</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">drug_exposures</span>
-<span class="n">summaries</span> <span class="o">=</span> <span class="n">episode</span><span class="o">.</span><span class="n">drug_exposure_summaries_by</span><span class="p">()</span>
+<span class="k">assert</span> <span class="nb">len</span><span class="p">({</span><span class="n">measurement</span><span class="p">,</span> <span class="n">procedure</span><span class="p">,</span> <span class="n">observation</span><span class="p">})</span> <span class="o">==</span> <span class="mi">3</span>
 </code></pre></div>
-<p><code>drug_exposures</code> uses explicit <code>Episode_Event</code> links by default. <code>_drug_concept_ids</code> limits the rows to the concepts meaningful for this episode type, and <code>drug_exposure_summaries_by()</code> groups the selected rows by <code>drug_concept_id</code>. Pass a key function when another grouping, such as ingredient or regimen member, is more useful.</p>
-<p>If rows have already been selected elsewhere, construct or group summaries directly:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.handling</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">DrugExposureSummary</span><span class="p">,</span>
-    <span class="n">summarize_drug_exposures_by</span><span class="p">,</span>
+<p>A cross-table projection needs more than an identity. <code>ClinicalEventColumn.required_columns()</code> defines the labels a consumer can rely on:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>person_id</code></td>
+<td>Person who owns the source event</td>
+</tr>
+<tr>
+<td><code>event_id</code></td>
+<td>Primary key in the source table</td>
+</tr>
+<tr>
+<td><code>event_source_table</code></td>
+<td>Table that scopes <code>event_id</code></td>
+</tr>
+<tr>
+<td><code>event_field_concept_id</code></td>
+<td>OMOP Field concept naming the source table's ID column</td>
+</tr>
+<tr>
+<td><code>event_date</code></td>
+<td>Date used for temporal selection</td>
+</tr>
+<tr>
+<td><code>event_datetime</code></td>
+<td>Source datetime when one is available</td>
+</tr>
+<tr>
+<td><code>event_concept_id</code></td>
+<td>Primary clinical concept carried by the event</td>
+</tr>
+</tbody>
+</table>
+<p>Numeric value, value concept, and unit labels are available through <code>ClinicalEventColumn.optional_columns()</code> when a source table supports them.</p>
+<p>The Field concept is not interchangeable with the event's clinical concept. For example, a Procedure Occurrence projection uses the Field concept for <code>procedure_occurrence.procedure_occurrence_id</code> as its discriminator and the row's <code>procedure_concept_id</code> as its clinical concept.</p>
+<p>Build one shared event stream by passing the source models to <code>canonical_event_union()</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Measurement</span><span class="p">,</span> <span class="n">Observation</span><span class="p">,</span> <span class="n">Procedure_Occurrence</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.events</span><span class="w"> </span><span class="kn">import</span> <span class="n">canonical_event_union</span>
+
+<span class="n">events</span> <span class="o">=</span> <span class="n">canonical_event_union</span><span class="p">(</span>
+    <span class="n">Measurement</span><span class="p">,</span>
+    <span class="n">Observation</span><span class="p">,</span>
+    <span class="n">Procedure_Occurrence</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">subquery</span><span class="p">(</span><span class="s2">&quot;clinical_events&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>All branches expose the same labels. The source table and Field concept are literals derived from model metadata, so they remain available after the tables are combined.</p>
+<h2 id="attach-an-event-to-an-episode">Attach an event to an episode<a class="headerlink" href="#attach-an-event-to-an-episode" title="Permanent link">&para;</a></h2>
+<p>A complete attachment key adds the episode ID to the table-scoped event identity:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="n">EpisodeAttachmentIdentity</span>
+
+<span class="n">attachment</span> <span class="o">=</span> <span class="n">EpisodeAttachmentIdentity</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span>
+    <span class="n">procedure</span><span class="p">,</span>
+    <span class="n">episode_id</span><span class="o">=</span><span class="mi">1002</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">regimen_summary</span> <span class="o">=</span> <span class="n">DrugExposureSummary</span><span class="o">.</span><span class="n">from_exposures</span><span class="p">(</span>
-    <span class="n">regimen_exposures</span><span class="p">,</span>
-    <span class="n">group_key</span><span class="o">=</span><span class="s2">&quot;regimen-a&quot;</span><span class="p">,</span>
+<span class="k">assert</span> <span class="n">attachment</span><span class="o">.</span><span class="n">event</span> <span class="o">==</span> <span class="n">procedure</span>
+</code></pre></div>
+<p>Before accepting an explicit link, the query confirms that the event ID and Field concept identify a row in the supplied projection and that the event and episode belong to the same person. A link carrying another table's Field concept is outside that projection's scope. This is important because event IDs are unique only within their OMOP table: a Procedure Occurrence 7 link says nothing about Measurement 7, even when both numbers happen to be present.</p>
+<p>Attachment diagnostics therefore do not infer a discriminator error or missing target from non-matching rows. An arbitrary event projection may intentionally be filtered, so absence from it does not prove anything about the underlying OMOP table. <code>ResolvedEpisodeEvent.event_resolution_diagnostics</code> checks the target table named by the Field concept and reports unsupported fields or <code>dangling_event</code> when the row truly does not exist. A link that names an existing row but is clinically incorrect cannot be identified from the linkage columns alone.</p>
+<p>Once valid, an explicit link takes precedence under either explicit-first policy. Suppose Procedure Occurrence 7 is linked to episode 1002, while its date also falls inside the windows of episodes 1001 and 1002. The result is only <code>(procedure_occurrence, 7, 1002)</code>: fallback must not add episode 1001 or duplicate episode 1002.</p>
+<p><code>EpisodeAttachmentPolicy</code> controls what happens when no valid explicit link exists:</p>
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Fallback behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>explicit_only</code></td>
+<td>Leave the event unattached</td>
+</tr>
+<tr>
+<td><code>explicit_first_ranked</code></td>
+<td>Select one date-eligible episode using a separate ranking specification</td>
+</tr>
+<tr>
+<td><code>explicit_first_all_in_window</code></td>
+<td>Retain every date-eligible episode</td>
+</tr>
+</tbody>
+</table>
+<div  class="mermaid">flowchart TD
+    Start["Event from canonical projection"] --> Valid{"Valid explicit<br/>Episode_Event link?"}
+    Valid -- "yes" --> Explicit["Attach via the explicit link<br/>(precedence; fallback is not applied)"]
+    Valid -- "no" --> Policy{"EpisodeAttachmentPolicy"}
+    Policy -- "explicit_only" --> Unattached["Leave unattached"]
+    Policy -- "explicit_first_ranked" --> Ranked["Rank date-eligible episodes<br/>(TemporalRankingSpec)"] --> One["Attach to one episode"]
+    Policy -- "explicit_first_all_in_window" --> Window["Every date-eligible episode<br/>in the window"] --> Many["Attach to each eligible episode"]
+</div>
+<p>Choosing between ranked and all-in-window fallback is a statement about result grain. Ranked fallback produces at most one episode per event. All-in-window fallback intentionally allows one event to appear against several overlapping episodes.</p>
+<p><code>episode_attachment_queries()</code> applies the complete precedence rule. It accepts a canonical event statement or one supported event model, validates explicit links against <code>Episode_Event</code>, and applies fallback only to events that have no valid explicit link:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">EpisodeAttachmentPolicy</span><span class="p">,</span>
+    <span class="n">EpisodeAttachmentDiagnostic</span><span class="p">,</span>
+    <span class="n">TemporalRankingSpec</span><span class="p">,</span>
+    <span class="n">TemporalSelectionPolicy</span><span class="p">,</span>
+    <span class="n">episode_attachment_queries</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">by_drug</span> <span class="o">=</span> <span class="n">summarize_drug_exposures_by</span><span class="p">(</span>
-    <span class="n">regimen_exposures</span><span class="p">,</span>
-    <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">exposure</span><span class="p">:</span> <span class="n">exposure</span><span class="o">.</span><span class="n">drug_concept_id</span><span class="p">,</span>
+<span class="n">attachment_queries</span> <span class="o">=</span> <span class="n">episode_attachment_queries</span><span class="p">(</span>
+    <span class="n">events</span><span class="p">,</span>
+    <span class="n">policy</span><span class="o">=</span><span class="n">EpisodeAttachmentPolicy</span><span class="o">.</span><span class="n">explicit_first_ranked</span><span class="p">,</span>
+    <span class="n">ranking</span><span class="o">=</span><span class="n">TemporalRankingSpec</span><span class="p">(</span>
+        <span class="n">policy</span><span class="o">=</span><span class="n">TemporalSelectionPolicy</span><span class="o">.</span><span class="n">nearest</span><span class="p">,</span>
+        <span class="n">stable_id_column</span><span class="o">=</span><span class="s2">&quot;episode_id&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">include_diagnostics</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">attachments</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">attachment_queries</span><span class="o">.</span><span class="n">attachments</span><span class="p">)</span><span class="o">.</span><span class="n">mappings</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">attachment_queries</span><span class="o">.</span><span class="n">diagnostics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+<span class="n">diagnostics</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">attachment_queries</span><span class="o">.</span><span class="n">diagnostics</span><span class="p">)</span><span class="o">.</span><span class="n">mappings</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+<span class="n">typed_diagnostics</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">EpisodeAttachmentDiagnostic</span><span class="o">.</span><span class="n">from_mapping</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">diagnostics</span>
+<span class="p">]</span>
+</code></pre></div>
+<p>The attachment result preserves the event projection and adds <code>episode_id</code> and <code>attachment_method</code>. Its uniqueness key is <code>(event_source_table, event_id, episode_id)</code>. A valid explicit link may legitimately connect an event to more than one episode; each relationship remains a separate attachment under that key.</p>
+<p>Diagnostics are advisory rows and do not change the attachments. They identify cross-person links, fallback ambiguity, and events for which no valid explicit link or fallback candidate exists. <code>EpisodeAttachmentDiagnostic.from_mapping()</code> converts a raw SQLAlchemy mapping into a typed value carrying the event identity, projected and linked Field concepts, episode, candidate count, and message.</p>
+<h2 id="rank-fallback-candidates">Rank fallback candidates<a class="headerlink" href="#rank-fallback-candidates" title="Permanent link">&para;</a></h2>
+<p>Ranking has two independent parts: which side of the anchor date should be considered first, and how candidates on that side should be ordered. Keeping them separate supports both symmetric nearest-date matching and the common preference for an episode that had already started when the event occurred.</p>
+<p>For an event on 20 January, consider these episode starts:</p>
+<table>
+<thead>
+<tr>
+<th>Episode</th>
+<th>Start date</th>
+<th style="text-align: right;">Absolute distance</th>
+<th>State on 20 January</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1001</td>
+<td>15 January</td>
+<td style="text-align: right;">5 days</td>
+<td>Already started</td>
+</tr>
+<tr>
+<td>1003</td>
+<td>21 January</td>
+<td style="text-align: right;">1 day</td>
+<td>Not yet started</td>
+</tr>
+</tbody>
+</table>
+<p>A side-neutral nearest policy selects episode 1003:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">TemporalRankingSpec</span><span class="p">,</span>
+    <span class="n">TemporalSelectionPolicy</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">absolute_nearest</span> <span class="o">=</span> <span class="n">TemporalRankingSpec</span><span class="p">(</span>
+    <span class="n">policy</span><span class="o">=</span><span class="n">TemporalSelectionPolicy</span><span class="o">.</span><span class="n">nearest</span><span class="p">,</span>
+    <span class="n">stable_id_column</span><span class="o">=</span><span class="s2">&quot;episode_id&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
-<p>The generic summary reports counts, dates, source units, concepts, and a raw quantity total. A total is only clinically comparable when the source quantities have compatible meaning and units. Domain-specific summaries can attach <code>DoseEvaluability</code> to make that judgement explicit, as the oncology SACT and radiotherapy summaries do.</p>
-<h2 id="explicit-links-and-date-windows">Explicit links and date windows<a class="headerlink" href="#explicit-links-and-date-windows" title="Permanent link">&para;</a></h2>
-<p>An <code>Episode_Event</code> row is the strongest statement that a fact belongs to an episode, so linked facts are always retained. Some datasets do not populate these links consistently. A caller can opt into bounded date-window retrieval for drug exposures by setting <code>_include_window_drug_exposures = True</code> on its mixin class.</p>
-<p>Window retrieval must be paired with a meaningful concept filter. Without one, every same-person drug exposure inside the dates is eligible. The generic helper deliberately defaults to explicit links only.</p>
-<p><code>episode_attachment_window()</code> provides a related bounded window for episode-attributable facts. Its lower bound is a configurable number of days before the episode start. Its upper bound is the recorded episode end, or a finite fallback after the start when the episode is open-ended. The finite fallback prevents an incomplete episode from absorbing the rest of a person's record.</p>
-<h2 id="understand-unresolved-episode-links">Understand unresolved episode links<a class="headerlink" href="#understand-unresolved-episode-links" title="Permanent link">&para;</a></h2>
-<p><code>Episode_EventView.resolved_event</code> returns the linked analytical ORM row when the field concept and target row can be resolved, otherwise <code>None</code>. Measurement, Observation, and Device Exposure links resolve to <code>MeasurementView</code>, <code>ObservationView</code>, and <code>Device_ExposureView</code>; their bare table mappings remain available for lightweight ETL. The target map uses the same stable CDM metadata as canonical event projections, so importing domain-specific analytics cannot change the default target. <code>ResolvedEpisodeEvent</code> preserves the resolution behaviour and adds a diagnostic that distinguishes three cases:</p>
-<ul>
-<li>the field concept is not a recognised <code>ModifierFieldConcepts</code> value;</li>
-<li>the field concept is recognised but no ORM target class is registered for it; or</li>
-<li>the target row does not exist.</li>
-</ul>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.handling</span><span class="w"> </span><span class="kn">import</span> <span class="n">ResolvedEpisodeEvent</span>
+<p>If the analysis should prefer an episode that was underway when the event happened, apply a side preference before distance:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="n">TemporalSidePreference</span>
 
-<span class="n">link</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-    <span class="n">ResolvedEpisodeEvent</span><span class="p">,</span>
-    <span class="p">(</span><span class="n">episode_id</span><span class="p">,</span> <span class="n">event_id</span><span class="p">,</span> <span class="n">field_concept_id</span><span class="p">),</span>
+<span class="n">already_started_first</span> <span class="o">=</span> <span class="n">TemporalRankingSpec</span><span class="p">(</span>
+    <span class="n">policy</span><span class="o">=</span><span class="n">TemporalSelectionPolicy</span><span class="o">.</span><span class="n">nearest</span><span class="p">,</span>
+    <span class="n">stable_id_column</span><span class="o">=</span><span class="s2">&quot;episode_id&quot;</span><span class="p">,</span>
+    <span class="n">side_preference</span><span class="o">=</span><span class="n">TemporalSidePreference</span><span class="o">.</span><span class="n">on_or_before_anchor</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<div  class="mermaid">flowchart TD
+    A["Event on 20 January"] --> N{"policy = nearest"}
+    A --> S{"policy = nearest,<br/>side_preference =<br/>on_or_before_anchor"}
+    N -->|"closest by absolute distance"| E1003["Episode 1003<br/>starts 21 Jan · 1 day away"]
+    S -->|"already-started side considered first"| E1001["Episode 1001<br/>starts 15 Jan · 5 days away"]
+</div>
+<p>This policy selects episode 1001. Absolute distance still orders episodes within the preferred side; it simply does not allow a closer future episode to outrank every episode that had already started. <code>on_or_after_anchor</code> expresses the corresponding future-first rule.</p>
+<p>Apply the policy to SQLAlchemy columns with <code>temporal_order_expressions()</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model.structural</span><span class="w"> </span><span class="kn">import</span> <span class="n">Episode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="n">temporal_order_expressions</span>
+
+<span class="n">ordering</span> <span class="o">=</span> <span class="n">temporal_order_expressions</span><span class="p">(</span>
+    <span class="n">Episode</span><span class="o">.</span><span class="n">episode_start_date</span><span class="p">,</span>
+    <span class="n">events</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">event_date</span><span class="p">,</span>
+    <span class="n">Episode</span><span class="o">.</span><span class="n">episode_id</span><span class="p">,</span>
+    <span class="n">already_started_first</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="k">if</span> <span class="n">link</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">link</span><span class="o">.</span><span class="n">resolved_event</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="k">for</span> <span class="n">diagnostic</span> <span class="ow">in</span> <span class="n">link</span><span class="o">.</span><span class="n">event_resolution_diagnostics</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">diagnostic</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span> <span class="n">diagnostic</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+<span class="n">candidate_episodes</span> <span class="o">=</span> <span class="n">candidate_episodes</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="o">*</span><span class="n">ordering</span><span class="p">)</span>
 </code></pre></div>
-<p>Use <code>ResolvedEpisodeEventMixin</code> on an episode view when diagnostics should be available through <code>episode.episode_events</code> rather than through a separate query.</p>
+<p><code>earliest</code> and <code>latest</code> are available when chronological position, rather than distance from the anchor, defines the result. Every policy ends with the named stable ID column in ascending order. If episodes 1001 and 1002 are otherwise tied, 1001 wins consistently rather than relying on database return order.</p>
+<h3 id="date-boundaries">Date boundaries<a class="headerlink" href="#date-boundaries" title="Permanent link">&para;</a></h3>
+<p>Lower and upper bounds are inclusive by default and can be changed independently through <code>EpisodeWindowSpec</code>. For an episode starting 15 January 2026 with a 90-day prior window, 17 October 2025 lies exactly on the lower boundary and is included under the default. If the episode ends on 5 February, that date is included while 6 February is not.</p>
+<p>Window admission and candidate ranking are separate decisions. <code>EpisodeWindowSpec</code> owns the finite interval and its open or closed boundaries. <code>TemporalRankingSpec</code> is accepted only by ranked fallback and describes how already-admitted candidates are ordered.</p>
+<p><code>episode_window_predicate()</code> uses the same finite defaults as the in-memory episode window. It honours a recorded episode end and substitutes a bounded post-start end only when the end is missing:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">EpisodeWindowSpec</span><span class="p">,</span>
+    <span class="n">episode_window_predicate</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">window</span> <span class="o">=</span> <span class="n">EpisodeWindowSpec</span><span class="p">(</span>
+    <span class="n">days_prior</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span>
+    <span class="n">open_end_fallback_days</span><span class="o">=</span><span class="mi">365</span><span class="p">,</span>
+    <span class="n">include_lower_bound</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_upper_bound</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">inside_episode_window</span> <span class="o">=</span> <span class="n">episode_window_predicate</span><span class="p">(</span>
+    <span class="n">events</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">event_date</span><span class="p">,</span>
+    <span class="n">Episode</span><span class="o">.</span><span class="n">episode_start_date</span><span class="p">,</span>
+    <span class="n">Episode</span><span class="o">.</span><span class="n">episode_end_date</span><span class="p">,</span>
+    <span class="n">window</span><span class="o">=</span><span class="n">window</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<h2 id="select-one-repeated-observation">Select one repeated observation<a class="headerlink" href="#select-one-repeated-observation" title="Permanent link">&para;</a></h2>
+<p>Repeated observations need the same explicit treatment of direction, grouping, and ties. For an anchor date of 20 January, suppose a person has these rows:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Observation ID</th>
+<th>Date</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">21</td>
+<td>1 January</td>
+<td>earlier</td>
+</tr>
+<tr>
+<td style="text-align: right;">22</td>
+<td>20 January</td>
+<td>anchor-a</td>
+</tr>
+<tr>
+<td style="text-align: right;">23</td>
+<td>20 January</td>
+<td>anchor-b</td>
+</tr>
+<tr>
+<td style="text-align: right;">24</td>
+<td>21 January</td>
+<td>after-anchor</td>
+</tr>
+</tbody>
+</table>
+<p>The following specification chooses the latest observation on or before the anchor, grouping rows by person and observation concept:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ObservationSelectionPolicy</span><span class="p">,</span>
+    <span class="n">ObservationSelectionSpec</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">selection</span> <span class="o">=</span> <span class="n">ObservationSelectionSpec</span><span class="p">(</span>
+    <span class="n">policy</span><span class="o">=</span><span class="n">ObservationSelectionPolicy</span><span class="o">.</span><span class="n">latest_on_or_before_anchor</span><span class="p">,</span>
+    <span class="n">partition_by</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;person_id&quot;</span><span class="p">,</span> <span class="s2">&quot;observation_concept_id&quot;</span><span class="p">),</span>
+    <span class="n">stable_id_column</span><span class="o">=</span><span class="s2">&quot;observation_id&quot;</span><span class="p">,</span>
+    <span class="n">include_anchor_date</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Use <code>ranked_observation_select()</code> to apply the anchor filter before calculating row numbers:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">literal</span><span class="p">,</span> <span class="n">select</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Observation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="n">ranked_observation_select</span>
+
+<span class="n">ranked</span> <span class="o">=</span> <span class="n">ranked_observation_select</span><span class="p">(</span>
+    <span class="n">Observation</span><span class="o">.</span><span class="n">__table__</span><span class="p">,</span>
+    <span class="n">selection</span><span class="p">,</span>
+    <span class="n">anchor_date</span><span class="o">=</span><span class="n">literal</span><span class="p">(</span><span class="n">date</span><span class="p">(</span><span class="mi">2026</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">20</span><span class="p">)),</span>
+<span class="p">)</span><span class="o">.</span><span class="n">subquery</span><span class="p">(</span><span class="s2">&quot;ranked_observations&quot;</span><span class="p">)</span>
+
+<span class="n">selected</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">ranked</span><span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">ranked</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">observation_rank</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+</code></pre></div>
+<p>Observation 24 is after the anchor and is therefore excluded. Observations 22 and 23 tie on date, so the stable ID selects 22. That tie-break creates reproducible output; it does not claim that one same-day clinical value is more correct. If every same-day value is meaningful, retain them by choosing a result grain that includes the observation ID instead of reducing the group to one row.</p>
+<p>Add <code>episode_id</code> or another field to <code>partition_by</code> when selection must occur separately within those groups. The partition is part of the clinical meaning of the result, not merely an optimisation detail.</p>
+<h2 id="runtime-concept-sets">Runtime concept sets<a class="headerlink" href="#runtime-concept-sets" title="Permanent link">&para;</a></h2>
+<p>Applications often receive concept selection as configuration rather than as a compile-time governed unit. <code>RuntimeConceptSetSpec</code> records four inputs: exact concepts and descendants to include, and exact concepts and descendants to exclude.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.concepts</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeConceptSetSpec</span>
+
+<span class="n">concepts</span> <span class="o">=</span> <span class="n">RuntimeConceptSetSpec</span><span class="p">(</span>
+    <span class="n">include_ancestor_ids</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,),</span>
+    <span class="n">include_exact_ids</span><span class="o">=</span><span class="p">(</span><span class="mi">900</span><span class="p">,),</span>
+    <span class="n">exclude_ancestor_ids</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,),</span>
+    <span class="n">exclude_exact_ids</span><span class="o">=</span><span class="p">(</span><span class="mi">901</span><span class="p">,),</span>
+    <span class="n">require_standard</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_classification</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>The intended set is:</p>
+<div class="highlight"><pre><span></span><code>(descendants of 100 OR exact concept 900)
+AND NOT (descendants of 400 OR exact concept 901)
+</code></pre></div>
+<p>Exclusion wins when a concept is reached from both sides. With no inclusion, the set matches nothing. IDs are sorted and deduplicated when the specification is created.</p>
+<p><code>require_standard</code> and <code>include_classification</code> apply while expanding ancestor descendants. Exact IDs are explicit configuration and are not removed if the deployed vocabulary is temporarily out of step with the configuration source, including after a concept has been de-standardised. The specification does not decide whether an exact numeric ID is present, active, standard, or classification in a particular vocabulary; validate and report those expectations at the configuration boundary without changing membership silently.</p>
+<p><code>runtime_concept_predicate()</code> translates the specification into database-side <code>concept_ancestor</code> and <code>concept</code> predicates:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">select</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Procedure_Occurrence</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.concepts</span><span class="w"> </span><span class="kn">import</span> <span class="n">runtime_concept_predicate</span>
+
+<span class="n">matching_procedures</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">Procedure_Occurrence</span><span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+    <span class="n">runtime_concept_predicate</span><span class="p">(</span>
+        <span class="n">Procedure_Occurrence</span><span class="o">.</span><span class="n">procedure_concept_id</span><span class="p">,</span>
+        <span class="n">concepts</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Constructing the specification or predicate performs no hierarchy expansion and no database access. Descendants are resolved by the database when the surrounding statement is executed. Exact IDs are rendered as parameters, so very large externally supplied lists should be staged as rows and joined rather than pushed through a single <code>IN</code> predicate.</p>
+<p>Some applications compose positive and negative rules independently rather than collecting them into one runtime set. <code>descendant_concept_select()</code> provides the lower-level hierarchy operation for that case and returns each matching descendant once:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.concepts</span><span class="w"> </span><span class="kn">import</span> <span class="n">descendant_concept_select</span>
+
+<span class="n">matching_procedures</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">Procedure_Occurrence</span><span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+    <span class="n">Procedure_Occurrence</span><span class="o">.</span><span class="n">procedure_concept_id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span>
+        <span class="n">descendant_concept_select</span><span class="p">((</span><span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">))</span>
+    <span class="p">),</span>
+    <span class="n">Procedure_Occurrence</span><span class="o">.</span><span class="n">procedure_concept_id</span><span class="o">.</span><span class="n">not_in</span><span class="p">(</span>
+        <span class="n">descendant_concept_select</span><span class="p">((</span><span class="mi">400</span><span class="p">,))</span>
+    <span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Use <code>RuntimeConceptSetSpec</code> when the inclusions and exclusions form one configured set with exclusion precedence. Use <code>descendant_concept_select()</code> when the surrounding query or rule model owns how separate predicates are combined.</p>
+<h2 id="canonical-modifier-queries">Canonical modifier queries<a class="headerlink" href="#canonical-modifier-queries" title="Permanent link">&para;</a></h2>
+<p><code>ModifierIdentity(modifier_source_table, modifier_id)</code> and
+<code>ModifierTargetIdentity(target_field_concept_id, target_event_id)</code> make both
+table scopes explicit. The canonical source columns are:</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Columns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source identity</td>
+<td><code>modifier_source_table</code>, <code>modifier_id</code></td>
+</tr>
+<tr>
+<td>Target identity</td>
+<td><code>target_field_concept_id</code>, <code>target_event_id</code></td>
+</tr>
+<tr>
+<td>Clinical row</td>
+<td><code>person_id</code>, <code>modifier_date</code>, <code>modifier_datetime</code>, <code>modifier_concept_id</code></td>
+</tr>
+<tr>
+<td>Nullable values</td>
+<td><code>value_as_number</code>, <code>value_as_concept_id</code>, <code>unit_concept_id</code>, <code>value_as_string</code></td>
+</tr>
+</tbody>
+</table>
+<p>Target validation is intentionally performed before selection. A valid link
+matches target Field concept, target ID, and person. This prevents a modifier
+for Condition Occurrence 7 from competing with one for Procedure Occurrence 7,
+and prevents a malformed cross-person link from replacing valid evidence.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Condition_Occurrence</span><span class="p">,</span> <span class="n">Measurement</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.modifiers</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ModifierSelectionPolicy</span><span class="p">,</span>
+    <span class="n">ModifierSelectionSpec</span><span class="p">,</span>
+    <span class="n">modifier_target_queries</span><span class="p">,</span>
+    <span class="n">selected_modifier_select</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">resolved</span> <span class="o">=</span> <span class="n">modifier_target_queries</span><span class="p">(</span><span class="n">Measurement</span><span class="p">,</span> <span class="n">Condition_Occurrence</span><span class="p">)</span>
+<span class="n">selected</span> <span class="o">=</span> <span class="n">selected_modifier_select</span><span class="p">(</span>
+    <span class="n">resolved</span><span class="o">.</span><span class="n">matches</span><span class="p">,</span>
+    <span class="n">spec</span><span class="o">=</span><span class="n">ModifierSelectionSpec</span><span class="p">(</span><span class="n">policy</span><span class="o">=</span><span class="n">ModifierSelectionPolicy</span><span class="o">.</span><span class="n">earliest</span><span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>The default selection partition includes person and both target identity columns. If one input contains several modifier categories and selection should occur separately for each, filter to one category before ranking or add that category discriminator to <code>partition_by</code>. Incomplete target identities are excluded. The stable source table and modifier ID are always the final tie-breakers under the default contract.</p>
+<p><code>modifier_target_queries(..., diagnostics=True)</code> returns a second advisory query covering <code>missing_target_identity</code>, <code>unsupported_target_field</code>, <code>missing_target_event</code>, and <code>person_mismatch</code>. Diagnostics do not change the valid result. For a caller-supplied selectable, only missing identity and observed person mismatches are reported: a filtered result cannot prove that an event is absent from the underlying table or that its Field is unsupported.</p>
+<p>Diagnostics support inspection and validation independently of selection. Consume SQLAlchemy mappings directly, or convert them with the thin typed adapters. The adapters do not execute queries or alter the valid matches:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.modifiers</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModifierTargetDiagnostic</span>
+
+<span class="n">checked</span> <span class="o">=</span> <span class="n">modifier_target_queries</span><span class="p">(</span>
+    <span class="n">Measurement</span><span class="p">,</span> <span class="n">Condition_Occurrence</span><span class="p">,</span> <span class="n">diagnostics</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">assert</span> <span class="n">checked</span><span class="o">.</span><span class="n">diagnostics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+<span class="n">diagnostic_rows</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">checked</span><span class="o">.</span><span class="n">diagnostics</span><span class="p">)</span><span class="o">.</span><span class="n">mappings</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+<span class="n">typed_diagnostics</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">ModifierTargetDiagnostic</span><span class="o">.</span><span class="n">from_mapping</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">diagnostic_rows</span>
+<span class="p">]</span>
+</code></pre></div>
+<p><code>EpisodeAttachmentDiagnostic</code> provides the corresponding convenience for attachment diagnostics, as shown above. These are exported downstream validation contracts; their presence does not imply an in-package workflow or a scheduled consumer integration.</p>
+<p>Oncology stage preference composes with this generic selector. Its public default is pathological, clinical, then unclassified, followed by earliest time. <code>StageSelectionSpec.clinical_first()</code>, <code>StageSelectionSpec.chronological_only()</code>, and a <code>latest</code> temporal policy are explicit query-scoped alternatives.</p>
+<h2 id="api-reference">API reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
 
 
 <div class="doc doc-object doc-module">
 
 
 
-<a id="omop_alchemy.toolkit.episodes.handling"></a>
+<a id="omop_alchemy.toolkit.core.events"></a>
     <div class="doc doc-contents first">
 
-        <p>Retrieve and summarise the clinical facts an episode contains.</p>
-<p>Once an episode exists, the recurring question is what belongs to it.
-Some facts are linked explicitly through <code>Episode_Event</code>; others fall
-inside the episode's dates but were never linked.  This module resolves
-both, and is explicit about which rule admitted each row.</p>
-<p>Explicit <code>Episode_Event</code> links are always honoured.  A bounded
-date-based fallback can be enabled per caller for sources that do not
-populate episode links reliably, and <code>episode_attachment_window</code> defines
-the window used.  Open-ended episodes are handled without letting the
-window run unbounded.</p>
-<p><code>DrugEpisodeMixin</code> adds linked-drug retrieval to any episode view.
-Subclasses supply the concept filter and grouping key::</p>
-<div class="highlight"><pre><span></span><code>class MyEpisode(DrugEpisodeMixin, EpisodeView):
-    _drug_concept_ids = my_concept_ids
-
-episode.drug_exposures                  # resolved rows
-episode.drug_exposure_summaries_by()    # grouped summaries
-</code></pre></div>
-<p>Summaries group exposures by any key the caller chooses — drug concept,
-ingredient, or regimen member — via <code>DrugExposureSummary</code> and
-<code>summarize_drug_exposures_by</code>.</p>
-<p>Dose quantities are frequently not comparable across agents, because
-source units and quantities arrive unnormalised.  <code>DoseEvaluability</code>
-carries that judgement alongside the number, so a summary that cannot be
-interpreted as a dose says so rather than presenting a misleading total.</p>
-<p>An explicit <code>Episode_Event</code> link can still fail to resolve — a miscoded
-field concept, a target class not yet registered, a dangling reference.
-<code>ResolvedEpisodeEvent</code> reports which of those applied instead of
-silently returning <code>None</code>; mix <code>ResolvedEpisodeEventMixin</code> into an
-episode view to reach it through ordinary <code>episode.episode_events</code>
-traversal.</p>
+        <p>Canonical, domain-neutral clinical-event identities and row shapes.</p>
+<p>Event tables use different native column names, but cross-table analytical
+queries need one stable vocabulary. This area provides both the shared row
+contracts and SQLAlchemy projections. Building a projection is side-effect free;
+the database is accessed only when a caller executes the returned statement.</p>
 
 
 
@@ -3404,140 +3837,20 @@ traversal.</p>
 
 
 
-<h4 id="omop_alchemy.toolkit.episodes.handling.DoseEvaluability" class="doc doc-heading">
-            <span class="doc doc-object-name doc-class-name">DoseEvaluability</span>
+<h4 id="omop_alchemy.toolkit.core.events.ClinicalEventColumn" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ClinicalEventColumn</span>
 
 
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
-  </span>
-
-<a href="#omop_alchemy.toolkit.episodes.handling.DoseEvaluability" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">DoseEvaluability</span><span class="p">(</span>
-    <span class="n">evaluable</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-
-
-        <p>Whether a dose-like summary can be interpreted as a dose quantity.</p>
-<p>Drug exposure rows often carry source units and quantities without enough
-normalization to compare across agents or regimens. Domain-specific dosing
-modules should use this as a small shared vocabulary instead of silently
-treating missing or mixed units as comparable.</p>
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h4 id="omop_alchemy.toolkit.episodes.handling.DrugEpisodeMixin" class="doc doc-heading">
-            <span class="doc doc-object-name doc-class-name">DrugEpisodeMixin</span>
-
-
-<a href="#omop_alchemy.toolkit.episodes.handling.DrugEpisodeMixin" class="headerlink" title="Permanent link">&para;</a></h4>
+<a href="#omop_alchemy.toolkit.core.events.ClinicalEventColumn" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
 
 
 
-        <p>Episode mixin for generic linked-drug retrieval and summary.</p>
-<p>Domain-specific subclasses can supply concept filters, grouping keys, and
-dose validity rules. This base layer only knows how to find and summarise
-drug exposure rows.</p>
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h4 id="omop_alchemy.toolkit.episodes.handling.DrugExposureSummary" class="doc doc-heading">
-            <span class="doc doc-object-name doc-class-name">DrugExposureSummary</span>
-
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
-  </span>
-
-<a href="#omop_alchemy.toolkit.episodes.handling.DrugExposureSummary" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">DrugExposureSummary</span><span class="p">(</span>
-    <span class="n">group_key</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
-    <span class="n">n_exposures</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="n">first_start_date</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">date</span><span class="p">],</span>
-    <span class="n">last_start_date</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">date</span><span class="p">],</span>
-    <span class="n">total_quantity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
-    <span class="n">dose_unit_source_values</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-    <span class="n">drug_concept_ids</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
-<span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-
-
-        <p>Small generic summary of drug exposures grouped by a caller-chosen key.</p>
-<p>The grouping key can be a drug concept, ingredient concept, regimen member,
-or any downstream classifier. This type deliberately does not encode SACT or
-any other clinical programme-specific policy.</p>
+        <p>Canonical labels emitted by a cross-table clinical-event projection.</p>
 
 
 
@@ -3563,23 +3876,45 @@ any other clinical programme-specific policy.</p>
 <div class="doc doc-object doc-function">
 
 
-<h5 id="omop_alchemy.toolkit.episodes.handling.DrugExposureSummary.from_exposures" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">from_exposures</span>
+<h5 id="omop_alchemy.toolkit.core.events.ClinicalEventColumn.optional_columns" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">optional_columns</span>
 
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.episodes.handling.DrugExposureSummary.from_exposures" class="headerlink" title="Permanent link">&para;</a></h5>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">from_exposures</span><span class="p">(</span>
-    <span class="n">exposures</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Drug_Exposure</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">group_key</span><span class="p">:</span> <span class="nb">object</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span>
+<a href="#omop_alchemy.toolkit.core.events.ClinicalEventColumn.optional_columns" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">optional_columns</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ClinicalEventColumn</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Summarize drug exposure rows for one grouping key.</p>
+        <p>Nullable value labels, excluding inherited required fields.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.events.ClinicalEventColumn.required_columns" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">required_columns</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.events.ClinicalEventColumn.required_columns" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">required_columns</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ClinicalEventColumn</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Required projection labels in row-contract order.</p>
 
 
     </div>
@@ -3598,20 +3933,633 @@ any other clinical programme-specific policy.</p>
 
 
 
-<h4 id="omop_alchemy.toolkit.episodes.handling.EpisodeEventResolutionDiagnostic" class="doc doc-heading">
-            <span class="doc doc-object-name doc-class-name">EpisodeEventResolutionDiagnostic</span>
+<h4 id="omop_alchemy.toolkit.core.events.ClinicalEventIdentity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ClinicalEventIdentity</span>
 
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
   </span>
 
-<a href="#omop_alchemy.toolkit.episodes.handling.EpisodeEventResolutionDiagnostic" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">EpisodeEventResolutionDiagnostic</span><span class="p">(</span>
-    <span class="n">kind</span><span class="p">:</span> <span class="n">ResolutionDiagnosticKind</span><span class="p">,</span>
-    <span class="n">episode_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="n">event_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="n">episode_event_field_concept_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<a href="#omop_alchemy.toolkit.core.events.ClinicalEventIdentity" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ClinicalEventIdentity</span><span class="p">(</span>
+    <span class="n">event_source_table</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">event_id</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Cross-table event identity.</p>
+<p>OMOP event IDs are unique only within their source table. A Measurement and
+a Procedure Occurrence may legitimately have the same numeric ID, so the
+table is a mandatory part of identity.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.events.ClinicalEventRow" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ClinicalEventRow</span>
+
+
+<a href="#omop_alchemy.toolkit.core.events.ClinicalEventRow" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Value-level view of the required canonical event projection.</p>
+<p>SQLAlchemy <code>Row</code> objects and small dataclasses can both satisfy this
+protocol. It describes the output consumed by downstream tools; it does not
+require a session-bound ORM entity.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.events.ValuedClinicalEventRow" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ValuedClinicalEventRow</span>
+
+
+<a href="#omop_alchemy.toolkit.core.events.ValuedClinicalEventRow" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="ClinicalEventRow (omop_alchemy.toolkit.core.events.contracts.ClinicalEventRow)" href="#omop_alchemy.toolkit.core.events.ClinicalEventRow">ClinicalEventRow</a></code>, <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Canonical event row extended with nullable value and unit fields.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.events.canonical_event_projection" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">canonical_event_projection</span>
+
+
+<a href="#omop_alchemy.toolkit.core.events.canonical_event_projection" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">canonical_event_projection</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">include_values</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Project one supported OMOP event model to canonical event columns.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.events.canonical_event_union" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">canonical_event_union</span>
+
+
+<a href="#omop_alchemy.toolkit.core.events.canonical_event_union" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">canonical_event_union</span><span class="p">(</span>
+    <span class="o">*</span><span class="n">models</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">include_values</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">sa</span><span class="o">.</span><span class="n">CompoundSelect</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Combine supported event models into one canonical <code>UNION ALL</code> query.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="omop_alchemy.toolkit.core.modifiers"></a>
+    <div class="doc doc-contents first">
+
+        <p>Canonical modifier projections, target validation, and selection.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.InvalidModifierSourceError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">InvalidModifierSourceError</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.InvalidModifierSourceError" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="ValueError">ValueError</span></code></p>
+
+
+
+        <p>Raised when a modifier selection input lacks a required column.</p>
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.InvalidModifierTargetSourceError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">InvalidModifierTargetSourceError</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.InvalidModifierTargetSourceError" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="ValueError">ValueError</span></code></p>
+
+
+
+        <p>Raised when a supplied projection lacks canonical columns.</p>
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierColumn" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierColumn</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierColumn" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>Stable labels emitted by Measurement/Observation modifier projections.</p>
+<p>Native columns such as <code>measurement_event_id</code> and
+<code>observation_event_id</code> converge on these names so downstream query code
+never needs to branch on the physical modifier source.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.modifiers.ModifierColumn.required_columns" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">required_columns</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierColumn.required_columns" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">required_columns</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ModifierColumn</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Required projection labels in row-contract order.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.modifiers.ModifierColumn.value_columns" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">value_columns</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierColumn.value_columns" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">value_columns</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ModifierColumn</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Nullable value labels, excluding inherited required fields.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierIdentity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierIdentity</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierIdentity" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ModifierIdentity</span><span class="p">(</span>
+    <span class="n">modifier_source_table</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">modifier_id</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Source-table-scoped identity of the modifier row itself.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierRow" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierRow</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierRow" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Structural typing contract for the canonical identity and clinical row.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierSelectionPolicy" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierSelectionPolicy</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierSelectionPolicy" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>Supported temporal directions after any caller-supplied priority.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierSelectionSpec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierSelectionSpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierSelectionSpec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ModifierSelectionSpec</span><span class="p">(</span>
+    <span class="n">policy</span><span class="p">:</span> <span class="n">ModifierSelectionPolicy</span> <span class="o">=</span> <span class="n">ModifierSelectionPolicy</span><span class="o">.</span><span class="n">earliest</span><span class="p">,</span>
+    <span class="n">partition_by</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">person_id</span><span class="p">),</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">target_field_concept_id</span><span class="p">),</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">target_event_id</span><span class="p">),</span>
+    <span class="p">),</span>
+    <span class="n">date_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">modifier_date</span><span class="p">),</span>
+    <span class="n">datetime_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span>
+        <span class="n">ModifierColumn</span><span class="o">.</span><span class="n">modifier_datetime</span>
+    <span class="p">),</span>
+    <span class="n">stable_identity_columns</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">modifier_source_table</span><span class="p">),</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">ModifierColumn</span><span class="o">.</span><span class="n">modifier_id</span><span class="p">),</span>
+    <span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Deterministic selection policy within a modifier target partition.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnostic" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierTargetDiagnostic</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnostic" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ModifierTargetDiagnostic</span><span class="p">(</span>
+    <span class="n">diagnostic_code</span><span class="p">:</span> <span class="n">ModifierTargetDiagnosticCode</span><span class="p">,</span>
+    <span class="n">modifier_source_table</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">modifier_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">target_field_concept_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">target_event_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -3620,11 +4568,7 @@ any other clinical programme-specific policy.</p>
 
 
 
-        <p>Advisory detail for an episode_event row whose target cannot be resolved.</p>
-<p>Resolution remains best-effort: unresolved rows still return <code>None</code> from
-<code>resolved_event</code>. These diagnostics give maintenance and QA code enough
-information to distinguish miscoded field concepts from harmless ORM
-coverage gaps and genuine dangling event references.</p>
+        <p>Typed value representation of one target-resolution diagnostic row.</p>
 
 
 
@@ -3659,28 +4603,20 @@ coverage gaps and genuine dangling event references.</p>
 
 
 
-<h4 id="omop_alchemy.toolkit.episodes.handling.ResolvedEpisodeEvent" class="doc doc-heading">
-            <span class="doc doc-object-name doc-class-name">ResolvedEpisodeEvent</span>
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnosticCode" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierTargetDiagnosticCode</span>
 
 
-<a href="#omop_alchemy.toolkit.episodes.handling.ResolvedEpisodeEvent" class="headerlink" title="Permanent link">&para;</a></h4>
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnosticCode" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><span title="omop_alchemy.cdm.model.structural.episode_event.Episode_EventView">Episode_EventView</span></code></p>
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
 
 
 
-        <p>Episode-event view that explains why a link did not resolve.</p>
-<p><code>Episode_EventView.resolved_event</code> already resolves best-effort and
-returns <code>None</code> on failure. <code>event_resolution_diagnostics</code> names which
-of three reasons applied: the field concept is not a recognised
-<code>ModifierFieldConcepts</code> value, it is recognised but no registered ORM
-class declares it, or the target row itself is missing.</p>
-<p>Query this class directly for diagnostics on a known episode_event, or
-mix <code>ResolvedEpisodeEventMixin</code> into an episode view to reach it
-through ordinary <code>episode.episode_events</code> traversal.</p>
+        <p>Reasons a canonical modifier could not resolve to its supplied target.</p>
 
 
 
@@ -3715,23 +4651,276 @@ through ordinary <code>episode.episode_events</code> traversal.</p>
 
 
 
-<h4 id="omop_alchemy.toolkit.episodes.handling.ResolvedEpisodeEventMixin" class="doc doc-heading">
-            <span class="doc doc-object-name doc-class-name">ResolvedEpisodeEventMixin</span>
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnosticColumn" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierTargetDiagnosticColumn</span>
 
 
-<a href="#omop_alchemy.toolkit.episodes.handling.ResolvedEpisodeEventMixin" class="headerlink" title="Permanent link">&para;</a></h4>
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierTargetDiagnosticColumn" class="headerlink" title="Permanent link">&para;</a></h4>
 
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>Stable output labels for advisory target-resolution diagnostics.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierTargetIdentity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierTargetIdentity</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierTargetIdentity" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ModifierTargetIdentity</span><span class="p">(</span>
+    <span class="n">target_field_concept_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">target_event_id</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span>
+</code></pre></div>
 
     <div class="doc doc-contents ">
 
 
 
-        <p>Relationship override so episode views can traverse to resolution diagnostics.</p>
-<p>Mix into an <code>EpisodeContext</code>-derived view to have <code>episode_events</code>
-load <code>ResolvedEpisodeEvent</code> rows instead of the bare
-<code>Episode_EventView</code>, making
-<code>episode.episode_events[0].event_resolution_diagnostics</code> reachable
-through ordinary traversal rather than a direct query.</p>
+        <p>Field-concept-scoped identity of the row being modified.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ModifierTargetModelSpec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ModifierTargetModelSpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ModifierTargetModelSpec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ModifierTargetModelSpec</span><span class="p">(</span>
+    <span class="n">event_id_attribute</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">event_field_concept_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">event_source_table</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Native target identity and its canonical OMOP Field discriminator.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.UnsupportedModifierSourceModelError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">UnsupportedModifierSourceModelError</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.UnsupportedModifierSourceModelError" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">UnsupportedModifierSourceModelError</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="omop_alchemy.cdm.base.errors.UnsupportedModelError">UnsupportedModelError</span></code></p>
+
+
+
+        <p>Raised when a model cannot provide a canonical modifier projection.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.UnsupportedModifierTargetError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">UnsupportedModifierTargetError</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.UnsupportedModifierTargetError" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">UnsupportedModifierTargetError</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="omop_alchemy.cdm.base.errors.UnsupportedModelError">UnsupportedModelError</span></code></p>
+
+
+
+        <p>Raised when a model cannot be a canonical modifier target.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ValuedModifierRow" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ValuedModifierRow</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ValuedModifierRow" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="ModifierRow (omop_alchemy.toolkit.core.modifiers.contracts.ModifierRow)" href="#omop_alchemy.toolkit.core.modifiers.ModifierRow">ModifierRow</a></code>, <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>Canonical modifier row extended with all nullable value representations.</p>
 
 
 
@@ -3766,28 +4955,19 @@ through ordinary traversal rather than a direct query.</p>
 <div class="doc doc-object doc-function">
 
 
-<h4 id="omop_alchemy.toolkit.episodes.handling.episode_attachment_window" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">episode_attachment_window</span>
+<h4 id="omop_alchemy.toolkit.core.modifiers.canonical_modifier_projection" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">canonical_modifier_projection</span>
 
 
-<a href="#omop_alchemy.toolkit.episodes.handling.episode_attachment_window" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">episode_attachment_window</span><span class="p">(</span>
-    <span class="n">episode</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">days_prior</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_EPISODE_WINDOW_DAYS_PRIOR</span><span class="p">,</span>
-    <span class="n">open_end_fallback_days</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_EPISODE_OPEN_END_FALLBACK_DAYS</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">date</span><span class="p">,</span> <span class="n">date</span><span class="p">]</span>
+<a href="#omop_alchemy.toolkit.core.modifiers.canonical_modifier_projection" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">canonical_modifier_projection</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">include_values</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Date window used for episode-attributable facts admitted by date rather
-than by an explicit <code>Episode_Event</code> link.</p>
-<p>Time-varying facts such as body measurements use a bounded
-episode-relative window. An explicit <code>episode_end_date</code> is always
-honoured, however long the episode ran. Only open-ended episodes fall back
-to a finite post-start window, so a missing end date cannot absorb a
-person's entire future history.</p>
+        <p>Project Measurement or Observation into one modifier row shape.</p>
 
 
     </div>
@@ -3797,28 +4977,416 @@ person's entire future history.</p>
 <div class="doc doc-object doc-function">
 
 
-<h4 id="omop_alchemy.toolkit.episodes.handling.resolve_drug_exposure_series" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">resolve_drug_exposure_series</span>
+<h4 id="omop_alchemy.toolkit.core.modifiers.canonical_modifier_target_projection" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">canonical_modifier_target_projection</span>
 
 
-<a href="#omop_alchemy.toolkit.episodes.handling.resolve_drug_exposure_series" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">resolve_drug_exposure_series</span><span class="p">(</span>
-    <span class="n">episode</span><span class="p">,</span>
-    <span class="n">concept_ids</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">include_window</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Drug_Exposure</span><span class="p">]</span>
+<a href="#omop_alchemy.toolkit.core.modifiers.canonical_modifier_target_projection" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">canonical_modifier_target_projection</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Resolve drug exposures linked to an episode.</p>
-<p>Explicit <code>Episode_Event</code> links are always honoured. A bounded episode-date
-fallback can be enabled by callers that have a meaningful concept set and
-want to recover unlinked rows. The default stays explicit-only to avoid
-accidentally attributing unrelated same-person medications to a drug
-episode.</p>
+        <p>Project a supported clinical event or Episode to target identity columns.</p>
 
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.modifier_order_expressions" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">modifier_order_expressions</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.modifier_order_expressions" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">modifier_order_expressions</span><span class="p">(</span>
+    <span class="n">columns</span><span class="p">:</span> <span class="n">ReadOnlyColumnCollection</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">ModifierSelectionSpec</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return the complete, portable order for a modifier selection policy.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.modifier_row_number" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">modifier_row_number</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.modifier_row_number" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">modifier_row_number</span><span class="p">(</span>
+    <span class="n">columns</span><span class="p">:</span> <span class="n">ReadOnlyColumnCollection</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">ModifierSelectionSpec</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">MODIFIER_RANK</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Build the deterministic window rank for canonical modifier columns.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.modifier_source_model_spec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">modifier_source_model_spec</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.modifier_source_model_spec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">modifier_source_model_spec</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClinicalEventModelSpec</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Resolve and validate metadata for any model declaring the modifier link.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.modifier_target_model_spec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">modifier_target_model_spec</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.modifier_target_model_spec" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">modifier_target_model_spec</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ModifierTargetModelSpec</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Resolve and validate immutable metadata for a modifier target model.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.modifier_target_queries" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">modifier_target_queries</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.modifier_target_queries" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">modifier_target_queries</span><span class="p">(</span>
+    <span class="n">modifier_source</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
+    <span class="n">target_source</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">include_unmatched</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">diagnostics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ModifierTargetQueries</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Resolve valid target links and optionally explain rejected modifier rows.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>modifier_source</code>
+            </td>
+            <td>
+                  <code><span title="type">type</span>[<span title="typing.Any">Any</span>] | <span title="sqlalchemy.sql.selectable.FromClause">FromClause</span> | <span title="sqlalchemy.sql.selectable.SelectBase">SelectBase</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A supported modifier model or a selectable exposing the canonical
+modifier columns.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target_source</code>
+            </td>
+            <td>
+                  <code><span title="type">type</span>[<span title="typing.Any">Any</span>] | <span title="sqlalchemy.sql.selectable.FromClause">FromClause</span> | <span title="sqlalchemy.sql.selectable.SelectBase">SelectBase</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A supported ORM target model or a selectable exposing target identity
+columns. Selectables are treated as the caller's supplied scope.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_unmatched</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, retain modifier rows without a valid target in
+<code>matches</code>. Otherwise only valid links are returned.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>diagnostics</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, also build an advisory diagnostic selectable. Building
+the queries does not execute either selectable.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="omop_alchemy.toolkit.core.modifiers.targets.ModifierTargetQueries">ModifierTargetQueries</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>matches</code> contains the modifier columns plus resolved target
+identity columns. <code>diagnostics</code> is <code>None</code> unless requested.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>A link is valid only when target event ID, target Field concept and person
+ID all agree. For an ORM target model, diagnostics can report an
+unsupported target field or a missing target event. For a caller-supplied
+selectable, those absences may be caused by filtering, so only missing
+identity and observed person mismatches are reported.</p>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.ranked_modifier_select" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">ranked_modifier_select</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.ranked_modifier_select" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ranked_modifier_select</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">:</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">ModifierSelectionSpec</span> <span class="o">=</span> <span class="n">ModifierSelectionSpec</span><span class="p">(),</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
+    <span class="n">rank_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">MODIFIER_RANK</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Rank bound modifiers, with caller priorities preceding temporal policy.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.modifiers.selected_modifier_select" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">selected_modifier_select</span>
+
+
+<a href="#omop_alchemy.toolkit.core.modifiers.selected_modifier_select" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">selected_modifier_select</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">:</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
+    <span class="n">spec</span><span class="p">:</span> <span class="n">ModifierSelectionSpec</span> <span class="o">=</span> <span class="n">ModifierSelectionSpec</span><span class="p">(),</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ColumnElement</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">Select</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Select the first deterministically ranked modifier in each partition.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="sqlalchemy.sql.selectable.FromClause">FromClause</span> | <span title="sqlalchemy.sql.selectable.SelectBase">SelectBase</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A selectable containing canonical modifier columns and target identity
+columns.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spec</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="ModifierSelectionSpec
+
+
+  
+      dataclass
+   (omop_alchemy.toolkit.core.modifiers.contracts.ModifierSelectionSpec)" href="#omop_alchemy.toolkit.core.modifiers.ModifierSelectionSpec">ModifierSelectionSpec</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Temporal direction, partition columns and stable identity columns used
+to define the selection contract.</p>
+              </div>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="ModifierSelectionSpec
+
+
+  
+      dataclass
+   (omop_alchemy.toolkit.core.modifiers.contracts.ModifierSelectionSpec)" href="#omop_alchemy.toolkit.core.modifiers.ModifierSelectionSpec">ModifierSelectionSpec</a>()</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>priority</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="sqlalchemy.ColumnElement">ColumnElement</span>[<span title="typing.Any">Any</span>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional SQL expressions placed before the temporal policy, such as a
+domain-specific stage preference.</p>
+              </div>
+            </td>
+            <td>
+                  <code>()</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="sqlalchemy.sql.Select">Select</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A selectable containing the source columns, with one row at rank one
+for each target partition. Rows missing either target identity column
+are excluded before selection.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>The final tie-breakers come from <code>spec.stable_identity_columns</code>. This
+keeps the result deterministic when dates, datetimes and caller priorities
+are equal.</p>
+</details>
 
     </div>
 
@@ -3830,61 +5398,7 @@ episode.</p>
 
     </div>
 
-</div><h2 id="traverse-an-episode-hierarchy">Traverse an episode hierarchy<a class="headerlink" href="#traverse-an-episode-hierarchy" title="Permanent link">&para;</a></h2>
-<p><code>canonical_episode_projection()</code> selects the stable structural fields without joining vocabulary tables. Pass <code>include_concept_label=True</code> when a result intended for inspection or presentation also needs <code>episode_concept_name</code>. The vocabulary lookup is optional: an episode remains in the result with a null label when its concept is zero, absent, or unavailable in a subset vocabulary.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="n">canonical_episode_projection</span>
-
-<span class="n">episodes</span> <span class="o">=</span> <span class="n">canonical_episode_projection</span><span class="p">(</span><span class="n">include_concept_label</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</code></pre></div>
-<p>For a parent episode, <code>episode_descendants()</code> returns a recursive CTE containing the root at depth zero and each descendant at its distance from that root:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">select</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="n">episode_descendants</span>
-
-<span class="n">hierarchy</span> <span class="o">=</span> <span class="n">episode_descendants</span><span class="p">(</span><span class="n">root_episode_id</span><span class="o">=</span><span class="n">episode_id</span><span class="p">)</span>
-<span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span>
-    <span class="n">hierarchy</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">episode_id</span><span class="p">,</span>
-    <span class="n">hierarchy</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">episode_parent_id</span><span class="p">,</span>
-    <span class="n">hierarchy</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">depth</span><span class="p">,</span>
-<span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">hierarchy</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">depth</span><span class="p">,</span> <span class="n">hierarchy</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">episode_id</span><span class="p">)</span>
-
-<span class="n">rows</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span><span class="o">.</span><span class="n">mappings</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-</code></pre></div>
-<p>Traversal follows parent IDs only within the same person and stops at a configurable maximum depth, which bounds malformed cyclic data. Set <code>include_root=False</code> when only descendants are needed. <code>direct_episode_relationship_projection()</code> provides a non-recursive parent-child result for callers that need one level only.</p>
-<p><code>episode_event_hierarchy_projection()</code> joins the hierarchy to <code>Episode_Event</code> and retains the root episode, the episode that owns the link, and its depth. This lets a caller include child-linked evidence without encoding a specialty-specific number of child levels:</p>
-<div  class="mermaid">flowchart TD
-    Root["Episode 1000 (root)<br/>depth 0"] --> C1["Episode 1001<br/>depth 1"]
-    Root --> C2["Episode 1002<br/>depth 1"]
-    C1 --> GC1["Episode 1010<br/>depth 2"]
-    C2 --> GC2["Episode 1011<br/>depth 2"]
-    Ev(["Procedure_Occurrence 7<br/>Episode_Event link"]) -. "joined via<br/>episode_event_hierarchy_projection()" .-> GC1
 </div>
-<p>The link at depth 2 is visible to code operating on the root at depth 0, without the caller having to know how many levels separate them.</p>
-<h2 id="describe-episode-attachment-policy">Describe episode attachment policy<a class="headerlink" href="#describe-episode-attachment-policy" title="Permanent link">&para;</a></h2>
-<p>The derivation package provides declarative types for code that assigns events to episodes. The types keep four choices visible: whether explicit links take precedence, whether fallback may return one or several episodes, which side of an anchor date is preferred, and how candidates within that preference are ranked.</p>
-<p>For example, the following policy honours a valid explicit link and otherwise chooses one episode. Episodes that had started by the event date are considered before future episodes, and the nearest start date wins within that group:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">EpisodeAttachmentPolicy</span><span class="p">,</span>
-    <span class="n">EpisodeWindowSpec</span><span class="p">,</span>
-    <span class="n">TemporalRankingSpec</span><span class="p">,</span>
-    <span class="n">TemporalSelectionPolicy</span><span class="p">,</span>
-    <span class="n">TemporalSidePreference</span><span class="p">,</span>
-<span class="p">)</span>
-
-<span class="n">attachment</span> <span class="o">=</span> <span class="n">EpisodeAttachmentPolicy</span><span class="o">.</span><span class="n">explicit_first_ranked</span>
-<span class="n">window</span> <span class="o">=</span> <span class="n">EpisodeWindowSpec</span><span class="p">(</span>
-    <span class="n">days_prior</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span>
-    <span class="n">open_end_fallback_days</span><span class="o">=</span><span class="mi">365</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="n">ranking</span> <span class="o">=</span> <span class="n">TemporalRankingSpec</span><span class="p">(</span>
-    <span class="n">policy</span><span class="o">=</span><span class="n">TemporalSelectionPolicy</span><span class="o">.</span><span class="n">nearest</span><span class="p">,</span>
-    <span class="n">stable_id_column</span><span class="o">=</span><span class="s2">&quot;episode_id&quot;</span><span class="p">,</span>
-    <span class="n">side_preference</span><span class="o">=</span><span class="n">TemporalSidePreference</span><span class="o">.</span><span class="n">on_or_before_anchor</span><span class="p">,</span>
-<span class="p">)</span>
-</code></pre></div>
-<p>Pass the policy, window, and—only for ranked fallback—ranking to <code>episode_attachment_queries()</code> with a canonical event projection. The builder validates explicit links by event ID, Field-concept discriminator, episode ID, and person; suppresses fallback only after a valid link; and returns deterministic attachments plus optional diagnostics. All-in-window fallback accepts the window but rejects a ranking because it deliberately retains every admitted episode. <code>episode_window_predicate()</code>, <code>temporal_order_expressions()</code>, and <code>temporal_row_number()</code> remain available when a query needs the individual portable SQL pieces. Date arithmetic is implemented for PostgreSQL and SQLite; compiling it for another dialect fails rather than assuming PostgreSQL syntax.</p>
-<p>See <a href="../query-contracts/">Query contracts</a> for the complete result shape, attachment example, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.</p>
-
 
 <div class="doc doc-object doc-module">
 

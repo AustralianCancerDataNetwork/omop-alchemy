@@ -2652,7 +2652,35 @@
   <span class="md-ellipsis">
     
   
-    core
+    Core services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/materialized-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materialized views
   
 
     
@@ -2680,7 +2708,35 @@
   <span class="md-ellipsis">
     
   
-    episodes
+    Episodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../toolkit/query-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Query contracts
   
 
     
@@ -2708,35 +2764,7 @@
   <span class="md-ellipsis">
     
   
-    analytics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../toolkit/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    integrations
+    Clinical analytics
   
 
     
@@ -3068,6 +3096,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/vocabulary_load_performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vocabulary Load Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3225,18 +3281,15 @@
 
 
 <h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
-<p>OMOP_Alchemy reads all database connection and schema settings from
-<a href="https://github.com/AustralianCancerDataNetwork/oa-configurator">oa_configurator</a> — no
-<code>.env</code> files or <code>ENGINE</code> environment variables needed.</p>
+<p>OMOP_Alchemy reads all database connection and schema settings from <a href="https://github.com/AustralianCancerDataNetwork/oa-configurator">oa_configurator</a></p>
 <h2 id="minimal-config">Minimal config<a class="headerlink" href="#minimal-config" title="Permanent link">&para;</a></h2>
-<p>Run the interactive configure command to set up the CDM database connection and write
-<code>~/.config/omop/config.toml</code>:</p>
+<p>Run the interactive configure command to set up the CDM database connection and write <code>~/.config/omop/config.toml</code>:</p>
 <div class="highlight"><pre><span></span><code>omop-config<span class="w"> </span>configure<span class="w"> </span>omop_alchemy
 </code></pre></div>
-<p>This prompts for connection details (host, dialect, credentials) and schema name, then
-saves them under the canonical database name <code>cdm_db</code> that all OMOP stack packages
-recognise.</p>
-<p>The resulting TOML looks like:</p>
+<p>This prompts for connection details (host, dialect, credentials) and schema name, then saves them under the canonical database name <code>cdm_db</code> that all OMOP stack packages recognise.</p>
+<p>The default location for this file is <code>~/.config/omop/config.toml</code></p>
+<p><img alt="configure" src="../../assets/images/oa-configure.png" /></p>
+<p>The resulting TOML will look like:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[connections.cdm]</span>
 <span class="n">dialect</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;postgresql+psycopg&quot;</span>
 <span class="n">host</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;localhost&quot;</span>
@@ -3244,6 +3297,7 @@ recognise.</p>
 <span class="n">user</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;omop&quot;</span>
 <span class="n">password</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;changeme&quot;</span>
 <span class="n">database_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;omop_cdm&quot;</span>
+<span class="n">test_only</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 
 <span class="k">[databases.cdm_db]</span>
 <span class="n">kind</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cdm&quot;</span>
@@ -3253,30 +3307,25 @@ recognise.</p>
 <span class="k">[tools.omop_alchemy]</span>
 <span class="n">cdm_db</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cdm_db&quot;</span>
 </code></pre></div>
-<p>You can also write or edit this file manually.</p>
+<p>You can also write or edit this file manually. It follows the <code>oa-configurator</code> pattern of [physical]-&gt;[logical] resource definition, where one connection may serve multiple databases, and each application may define its own database resource, or choose to cross reference an existing one that will be resolved upon connection in the consuming application.</p>
 <h2 id="vocabulary-loading">Vocabulary loading<a class="headerlink" href="#vocabulary-loading" title="Permanent link">&para;</a></h2>
 <p>If you plan to load OMOP vocabulary from Athena CSV files, add the path to <code>[tools.omop_alchemy]</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[tools.omop_alchemy]</span>
 <span class="n">cdm_db</span><span class="w">             </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cdm_db&quot;</span>
 <span class="n">athena_source_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/athena/csvs&quot;</span>
 </code></pre></div>
-<p>Or set it interactively:</p>
-<div class="highlight"><pre><span></span><code>omop-config<span class="w"> </span>configure<span class="w"> </span>omop_alchemy
-</code></pre></div>
+<p>This may be edited directly, set interactively in the <code>omop-config configure omop_alchemy</code> process, or set directly using the CLI.</p>
 <h2 id="verify">Verify<a class="headerlink" href="#verify" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>info
 </code></pre></div>
-<p>This prints the resolved config file path, connection details, and schema. A successful
-run confirms that OMOP_Alchemy can reach your database.</p>
+<p>This prints the resolved config file path, connection details, and schema. A successful run confirms that OMOP_Alchemy can reach your database.</p>
+<p><img alt="info" src="../../assets/images/oa-info.png" /></p>
 <h2 id="multiple-instances">Multiple instances<a class="headerlink" href="#multiple-instances" title="Permanent link">&para;</a></h2>
-<p>To configure a second CDM database (e.g. for production), create it under its own name
-and point the field's own flag at it:</p>
+<p>Note that postgres integration tests in this library and others following the <code>oa-configurator</code> utility may perform destructive actions and therefore require their own test-enabled configuration. This is typically only required for development use-cases. Test database configuration is separate to the inclusion of multiple CDM database connections (e.g. for staging/production). To configure a second CDM database, create it under its own name and point the field's own flag at it:</p>
 <div class="highlight"><pre><span></span><code>omop-config<span class="w"> </span>databases<span class="w"> </span>add<span class="w"> </span>cdm_db_prod<span class="w"> </span>--kind<span class="w"> </span>cdm<span class="w"> </span>--connection<span class="w"> </span>cdm_prod
 omop-config<span class="w"> </span>configure<span class="w"> </span>omop_alchemy<span class="w"> </span>--cdm-db<span class="w"> </span>cdm_db_prod
 </code></pre></div>
-<p>This creates <code>cdm_db_prod</code> without touching the existing <code>cdm_db</code>. There is no "default"
-toggle to flip afterward; each deployment's <code>configure</code> call names the entry it wants
-directly.</p>
+<p>This creates <code>cdm_db_prod</code> without touching the existing <code>cdm_db</code>. There is no "default" toggle to flip afterward; each deployment's <code>configure</code> call names the entry it wants directly.</p>
 <p>See the <a href="https://AustralianCancerDataNetwork.github.io/oa-configurator/integration/#multiple-environments">oa-configurator integration guide</a> for the full multi-environment guide.</p>
 <h2 id="further-reading">Further reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
 <ul>
