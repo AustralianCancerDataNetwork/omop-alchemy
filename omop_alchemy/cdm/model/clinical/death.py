@@ -38,9 +38,9 @@ class Death(CDMTableBase, Base):
 
 
 class DeathContext(ReferenceContext):
-    person: so.Mapped["Person"] = ReferenceContext._reference_relationship(target="Person",local_fk="person_id",remote_pk="person_id")  # type: ignore[assignment]
-    death_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="death_type_concept_id", remote_pk="concept_id")  # type: ignore[assignment]
-    cause_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="cause_concept_id", remote_pk="concept_id")  # type: ignore[assignment]
+    person: so.Mapped["Person"] = ReferenceContext._reference_relationship(target="Person",local_fk="person_id")  # type: ignore[assignment]
+    death_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="death_type_concept_id")  # type: ignore[assignment]
+    cause_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="cause_concept_id")  # type: ignore[assignment]
 
 class DeathView(Death, DeathContext, DomainValidationMixin):
     __tablename__ = "death"

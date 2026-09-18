@@ -107,9 +107,9 @@ class ConceptContext(ReferenceContext):
     foreign keys into reference tables and hierarchy navigation.
     """
     
-    domain: so.Mapped["Domain"] = ReferenceContext._reference_relationship(target="Domain",local_fk="domain_id",remote_pk="domain_id") # type: ignore[assignment]
-    vocabulary: so.Mapped["Vocabulary"] = ReferenceContext._reference_relationship(target="Vocabulary",local_fk="vocabulary_id",remote_pk="vocabulary_id") # type: ignore[assignment]
-    concept_class: so.Mapped["Concept_Class"] = ReferenceContext._reference_relationship(target="Concept_Class",local_fk="concept_class_id",remote_pk="concept_class_id") # type: ignore[assignment]
+    domain: so.Mapped["Domain"] = ReferenceContext._reference_relationship(target="Domain",local_fk="domain_id") # type: ignore[assignment]
+    vocabulary: so.Mapped["Vocabulary"] = ReferenceContext._reference_relationship(target="Vocabulary",local_fk="vocabulary_id") # type: ignore[assignment]
+    concept_class: so.Mapped["Concept_Class"] = ReferenceContext._reference_relationship(target="Concept_Class",local_fk="concept_class_id") # type: ignore[assignment]
 
     @declared_attr
     def outgoing_relationships(cls) -> so.Mapped[List["Concept_Relationship"]]:

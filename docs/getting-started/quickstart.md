@@ -1,10 +1,5 @@
 # Quickstart
 
-`OMOP_Alchemy` itself makes no assumptions about how PostgreSQL is provisioned: any
-reachable instance works, local or otherwise. Docker orchestration for the OMOP stack
-is handled at the workspace root (compose files there bring up every package's
-containers as peers), not by a per-package `docker-compose.yaml` in this repo.
-
 ## Prerequisites
 
 - A running PostgreSQL instance (any version supported by `omop_alchemy`'s SQLAlchemy dialects)

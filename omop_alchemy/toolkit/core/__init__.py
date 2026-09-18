@@ -9,6 +9,14 @@ patient timeline is the same object whatever populates it.
     Map free text and source codes to OMOP concept IDs, and hold the
     normalisation rules that make those mappings reproducible.
 
+``events``
+    Canonical cross-table event identities and projection row shapes shared by
+    timelines and episode builders.
+
+``modifiers``
+    Canonical Measurement/Observation modifier rows, polymorphic target
+    validation, diagnostics, and deterministic selection.
+
 ``timeline``
     Project heterogeneous clinical rows into a single ordered sequence of
     events for one person.
@@ -18,5 +26,7 @@ patient timeline is the same object whatever populates it.
 
 Nothing in core imports from ``episodes``, ``analytics``, or
 ``integrations``.  Domain-specific concept sets, thresholds, and grading
-rules belong with their domain under ``analytics``, not here.
+rules belong with their domain under ``analytics``, not here. Generic database
+lifecycle mechanics, including materialized-view creation and refresh, belong
+to ``orm-loader``.
 """

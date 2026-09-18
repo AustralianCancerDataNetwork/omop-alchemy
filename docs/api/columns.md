@@ -1,7 +1,6 @@
 # Columns & Structural Mixins
 
-OMOP Alchemy provides a small set of **column helpers and mixins**
-that encode recurring OMOP CDM patterns directly into ORM structure.
+OMOP Alchemy provides a small set of **column helpers and mixins** that encode recurring OMOP CDM patterns directly into ORM structure.
 
 These utilities exist to:
 
@@ -10,23 +9,19 @@ These utilities exist to:
 - keep table definitions readable
 - align ORM structure with CDM specifications
 
-They are **structural**, not analytical:
-they describe *how data is shaped*, not *what it means*.
+They are **structural**, not analytical: they describe *how data is shaped*, not *what it means*.
 
 ---
 
 ## Column helper functions
 
-Column helpers wrap common OMOP column patterns into
-small, intention-revealing factory functions.
+Column helpers wrap common OMOP column patterns into small, intention-revealing factory functions.
 
-They are thin wrappers around `sqlalchemy.orm.mapped_column`
-with defaults chosen to match the CDM Field-Level specifications.
+They are thin wrappers around `sqlalchemy.orm.mapped_column` with defaults chosen to match the CDM Field-Level specifications.
 
 ### Concept foreign keys
 
-OMOP relies heavily on concept identifiers, with specific semantics
-around nullability and unknown values.
+OMOP relies heavily on concept identifiers, with specific semantics around nullability and unknown values.
 
 ::: omop_alchemy.cdm.base.column_helpers.required_concept_fk
     options:
@@ -40,8 +35,7 @@ around nullability and unknown values.
 
 ### Convenience wrappers
 
-These helpers exist primarily for consistency and readability
-when defining large tables with many fields.
+These helpers exist primarily for consistency and readability when defining large tables with many fields.
 
 ::: omop_alchemy.cdm.base.column_helpers.optional_fk
     options:
@@ -59,8 +53,7 @@ when defining large tables with many fields.
 
 ## Structural mixins
 
-Structural mixins encode **table-level OMOP patterns** that recur
-across multiple CDM tables.
+Structural mixins encode **table-level OMOP patterns** that recur across multiple CDM tables.
 
 ::: omop_alchemy.cdm.base.column_mixins.PersonScoped
     options:

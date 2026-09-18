@@ -25,19 +25,29 @@ jobs:
     uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-postgres-v2.yml@main
     with:
       ty-src: omop_alchemy
-      postgres-db: test_db
+      postgres-db: omop_alchemy_ci
       setup-commands: |
-        uv run omop-config connections add pg_test \
+        uv run omop-config connections add ci_pg \
           --dialect postgresql+psycopg \
           --host localhost \
           --port 5432 \
           --user test \
           --password test \
-          --database-name test_db \
+          --database-name omop_alchemy_ci \
+          --test-only false
+        uv run omop-config connections add ci_pg_test \
+          --dialect postgresql+psycopg \
+          --host localhost \
+          --port 5432 \
+          --user test \
+          --password test \
+          --database-name omop_alchemy_test_ci \
           --test-only true
-        uv run omop-config databases add test_cdm_db \
-          --kind cdm \
-          --connection pg_test \
-          --schema-name public
+        uv run omop-config databases add cdm cdm_db \
+          --connection ci_pg \
+          --cdm-schema public
+        uv run omop-config databases add cdm test_cdm_db \
+          --connection ci_pg_test \
+          --cdm-schema public
         uv run omop-config configure omop_alchemy \
           --test-cdm-db-pg test_cdm_db

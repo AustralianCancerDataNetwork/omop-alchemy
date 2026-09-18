@@ -1,7 +1,6 @@
 # Typing
 
-OMOP Alchemy exposes a set of **Protocols and typed containers** for code that needs to
-interact with CDM classes without coupling to specific ORM implementations.
+OMOP Alchemy exposes a set of **Protocols and typed containers** for code that needs to interact with CDM classes without coupling to specific ORM implementations.
 
 These live in two modules:
 
@@ -52,9 +51,7 @@ Satisfied by any object with an integer `episode_id` attribute.
 
 ### `DomainSemanticTable`
 
-Structural protocol for CDM ORM classes that participate in domain validation. A class
-satisfies this protocol if it has `__tablename__`, `__mapper__`, `__expected_domains__`,
-and a `collect_domain_rules()` classmethod.
+Structural protocol for CDM ORM classes that participate in domain validation. A class satisfies this protocol if it has `__tablename__`, `__mapper__`, `__expected_domains__`, and a `collect_domain_rules()` classmethod.
 
 ::: omop_alchemy.cdm.base.typing.DomainSemanticTable
     options:
@@ -68,8 +65,7 @@ and a `collect_domain_rules()` classmethod.
 
 ### `ConceptRow`
 
-A frozen dataclass representing the core fields of a concept lookup row. Used where a
-lightweight, hashable concept record is preferable to a full ORM object.
+A frozen dataclass representing the core fields of a concept lookup row. Used where a lightweight, hashable concept record is preferable to a full ORM object.
 
 ::: omop_alchemy.cdm.model.typing.ConceptRow
     options:

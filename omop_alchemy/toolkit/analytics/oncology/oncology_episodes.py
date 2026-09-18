@@ -6,6 +6,7 @@ from functools import cached_property
 from typing import Self, cast
 
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import object_session
@@ -71,6 +72,11 @@ class OncologyEpisode(
     concept evidence, such as SACT-classified drug concepts, so callers can
     audit disagreements.
     """
+
+    __tablename__ = "episode"
+    # Must match EpisodeView's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
+    __mapper_args__ = {"concrete": False}
 
     @declared_attr
     @classmethod

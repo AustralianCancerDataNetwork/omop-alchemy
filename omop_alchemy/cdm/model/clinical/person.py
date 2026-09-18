@@ -68,12 +68,12 @@ class Person(CDMTableBase,Base,HealthSystemContext):
         return f"<Person {self.person_id}>"
 
 class PersonContext(ReferenceContext):
-    gender: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="gender_concept_id",remote_pk="concept_id")  # type: ignore[assignment]
-    race: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="race_concept_id",remote_pk="concept_id")  # type: ignore[assignment]
-    ethnicity: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="ethnicity_concept_id",remote_pk="concept_id")  # type: ignore[assignment]
-    location: so.Mapped["Location"] = ReferenceContext._reference_relationship(target="Location",local_fk="location_id",remote_pk="location_id")  # type: ignore[assignment]   
-    provider: so.Mapped["Provider"] = ReferenceContext._reference_relationship(target="Provider",local_fk="provider_id",remote_pk="provider_id")  # type: ignore[assignment]
-    care_site: so.Mapped["Care_Site"] = ReferenceContext._reference_relationship(target="Care_Site",local_fk="care_site_id",remote_pk="care_site_id")  # type: ignore[assignment]
+    gender: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="gender_concept_id")  # type: ignore[assignment]
+    race: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="race_concept_id")  # type: ignore[assignment]
+    ethnicity: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="ethnicity_concept_id")  # type: ignore[assignment]
+    location: so.Mapped["Location"] = ReferenceContext._reference_relationship(target="Location",local_fk="location_id")  # type: ignore[assignment]
+    provider: so.Mapped["Provider"] = ReferenceContext._reference_relationship(target="Provider",local_fk="provider_id")  # type: ignore[assignment]
+    care_site: so.Mapped["Care_Site"] = ReferenceContext._reference_relationship(target="Care_Site",local_fk="care_site_id")  # type: ignore[assignment]
 
     @declared_attr
     def death(cls) -> so.Mapped[Optional["Death"]]:

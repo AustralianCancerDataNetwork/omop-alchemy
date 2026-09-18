@@ -1,8 +1,19 @@
+import warnings
+from typing_extensions import deprecated
+
 from sqlalchemy import select, union_all, literal
 from .condition_occurrence import Condition_Occurrence
-#from .drug_exposure import Drug_Exposure
+# from .drug_exposure import Drug_Exposure
 
 from orm_loader.helpers import Base
+
+warnings.warn(
+    "omop_alchemy.cdm.model.clinical.clinical_event_union is deprecated; "
+    "use omop_alchemy.toolkit.core.events.canonical_event_union instead. "
+    "The compatibility module will be removed in omop-alchemy 2.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 clinical_event_union = union_all(
     select(
@@ -30,6 +41,12 @@ clinical_event_union = union_all(
     # procedure...
 ).subquery("clinical_event")
 
+
+@deprecated(
+    "Use omop_alchemy.toolkit.core.events.canonical_event_union instead. "
+    "ClinicalEventView will be removed in omop-alchemy 2.0.",
+    category=None,
+)
 class ClinicalEventView(Base):
     __table__ = clinical_event_union
     __mapper_args__ = {

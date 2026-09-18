@@ -89,4 +89,4 @@ concept.is_standard
 
 ### Status
 
-OMOP Alchemy is currently beta. The core model surface is stabilising; feedback is welcome.
+OMOP Alchemy is beta. Toolkit APIs are experimental and carry no compatibility guarantees; feedback is welcome.

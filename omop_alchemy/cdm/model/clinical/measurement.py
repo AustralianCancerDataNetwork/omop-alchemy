@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from sqlalchemy.ext.hybrid import hybrid_property
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
 from oa_configurator import Role
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     CDMTableBase,
+    DomainValidationMixin,
+    ExpectedDomain,
+    ModifierFieldConcepts,
+    ModifierSourceMixin,
+    ClinicalEventMixin,
+    ReferenceContext,
     cdm_table,
     optional_concept_fk,
     role_fk,
@@ -17,8 +22,14 @@ from omop_alchemy.cdm.base import (
     omop_index,
 )
 
+if TYPE_CHECKING:
+    from ..health_system import Provider, Visit_Detail, Visit_Occurrence
+    from ..vocabulary import Concept
+    from .person import Person
+
+
 @cdm_table
-class Measurement(Base, CDMTableBase, ValueMixin):
+class Measurement(Base, CDMTableBase, ValueMixin, ModifierSourceMixin):
     __tablename__ = "measurement"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},
@@ -55,10 +66,81 @@ class Measurement(Base, CDMTableBase, ValueMixin):
     measurement_event_id: so.Mapped[Optional[int]]
     meas_event_field_concept_id: so.Mapped[Optional[int]] = optional_concept_fk(doc="Identifies which OMOP table measurement_event_id refers to")
 
-    @hybrid_property
-    def modifier_of_event_id(self) -> Optional[int]:
-        return self.measurement_event_id
+    __modifier_event_id_col__ = "measurement_event_id"
+    __modifier_field_concept_id_col__ = "meas_event_field_concept_id"
 
-    @hybrid_property
-    def modifier_of_field_concept_id(self) -> Optional[int]:
-        return self.meas_event_field_concept_id
+
+class MeasurementContext(ReferenceContext):
+    """Read-only analytical relationships for a Measurement row."""
+
+    person: so.Mapped["Person"] = ReferenceContext._reference_relationship(
+        target="Person", local_fk="person_id"
+    )  # type: ignore[assignment]
+    measurement_concept: so.Mapped["Concept"] = (
+        ReferenceContext._reference_relationship(
+            target="Concept", local_fk="measurement_concept_id"
+        )
+    )  # type: ignore[assignment]
+    measurement_type_concept: so.Mapped["Concept"] = (
+        ReferenceContext._reference_relationship(
+            target="Concept",
+            local_fk="measurement_type_concept_id",
+        )
+    )  # type: ignore[assignment]
+    unit_concept: so.Mapped[Optional["Concept"]] = (
+        ReferenceContext._reference_relationship(
+            target="Concept", local_fk="unit_concept_id"
+        )
+    )  # type: ignore[assignment]
+    unit_source_concept: so.Mapped[Optional["Concept"]] = (
+        ReferenceContext._reference_relationship(
+            target="Concept",
+            local_fk="unit_source_concept_id",
+        )
+    )  # type: ignore[assignment]
+    provider: so.Mapped[Optional["Provider"]] = (
+        ReferenceContext._reference_relationship(
+            target="Provider", local_fk="provider_id"
+        )
+    )  # type: ignore[assignment]
+    visit_occurrence: so.Mapped[Optional["Visit_Occurrence"]] = (
+        ReferenceContext._reference_relationship(
+            target="Visit_Occurrence",
+            local_fk="visit_occurrence_id",
+        )
+    )  # type: ignore[assignment]
+    visit_detail: so.Mapped[Optional["Visit_Detail"]] = (
+        ReferenceContext._reference_relationship(
+            target="Visit_Detail",
+            local_fk="visit_detail_id",
+        )
+    )  # type: ignore[assignment]
+
+
+class MeasurementView(
+    Measurement,
+    MeasurementContext,
+    DomainValidationMixin,
+    ClinicalEventMixin,
+):
+    """Analytical Measurement mapping with event metadata and reference context."""
+
+    __tablename__ = "measurement"
+    # Must match Measurement's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
+    __mapper_args__ = {"concrete": False}
+    __event_id_col__ = "measurement_id"
+    __concept_id_col__ = "measurement_concept_id"
+    __start_date_col__ = "measurement_date"
+    # One date column: the target API aliases it; interval metadata treats
+    # equal start/end declarations as a point with no independent endpoint.
+    __end_date_col__ = "measurement_date"
+    __type_concept_id_col__ = "measurement_type_concept_id"
+    __expected_domains__ = {
+        "measurement_concept_id": ExpectedDomain("Measurement"),
+        "measurement_type_concept_id": ExpectedDomain("Type Concept"),
+    }
+
+    @classmethod
+    def modifier_field_concept_id(cls) -> int:
+        return ModifierFieldConcepts.MEASUREMENT
