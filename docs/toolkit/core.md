@@ -123,6 +123,32 @@ Each source model contributes its own ID column and Field concept; branches with
 
 The [query contracts](query-contracts.md) explain how the canonical shape participates in episode attachment.
 
+## Resolve relationships between facts
+
+`FactIdentity` extends table-scoped event identity with the OMOP Domain concept required by `Fact_Relationship`. The initial registry supports Condition-to-Condition etiology relationships and reuses the canonical clinical-event projection for endpoint metadata; it does not introduce a second event abstraction.
+
+The relationship registry contains six inverse-aware Concept definitions but exposes three canonical writable meanings. Inject governed Concept IDs with `condition_etiology_registry()` until those IDs are available from the optional `omop-semantics` defaults. `canonical_fact_relationship_values()` emits only the canonical forward row, and `fact_relationship_queries()` resolves endpoints, enforces same-person links, and can provide advisory diagnostics.
+
+```python
+from omop_alchemy.cdm.model import Condition_Occurrence
+from omop_alchemy.toolkit.core.facts import (
+    FactRelationshipKind,
+    fact_relationship_queries,
+)
+
+result = fact_relationship_queries(
+    Condition_Occurrence,
+    Condition_Occurrence,
+    relationship=FactRelationshipKind.primary_etiology,
+    registry=fact_relationships,
+    diagnostics=True,
+)
+```
+
+Narrow the first source for an outbound lookup or the second for an inbound lookup. This keeps direction in the projections rather than adding a flag that could contradict them. See [Query contracts](query-contracts.md#resolve-relationships-between-facts) for registry construction, result semantics, and the completeness rule for missing-endpoint diagnostics.
+
+::: omop_alchemy.toolkit.core.facts
+
 ## Resolve OMOP modifiers
 
 Measurement and Observation both implement the OMOP polymorphic modifier link,

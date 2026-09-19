@@ -60,6 +60,69 @@ events = canonical_event_union(
 
 All branches expose the same labels. The source table and Field concept are literals derived from model metadata, so they remain available after the tables are combined.
 
+## Resolve relationships between facts
+
+`Fact_Relationship` identifies each endpoint with a Domain concept and a row ID. The toolkit preserves that full identity in `FactIdentity`; numeric IDs alone are not safe because two OMOP Domains may both contain row 7.
+
+The initial fact-query registry deliberately supports only the Condition Domain. It reuses `canonical_event_projection()` for person, date, clinical concept, Field concept, and source-table metadata instead of defining another event shape. Expanding to another Domain therefore requires an explicit registry entry backed by an existing clinical-event model specification.
+
+Relationship vocabulary is also explicit. The Condition pilot has six Concept definitions arranged as three inverse pairs, but stores and queries only these three canonical directions:
+
+| Kind | Canonical meaning |
+|---|---|
+| `primary_etiology` | Condition is the primary etiology of another Condition |
+| `contributing_etiology` | Condition is a contributing etiology of another Condition |
+| `non_contributing` | Condition is explicitly non-contributing to another Condition |
+
+Governed production Concept IDs are not yet published by `omop-semantics`. The toolkit does not substitute temporary IDs. Until governance is complete, construct an immutable registry at the application boundary and inject it into both write and query helpers:
+
+```python
+from omop_alchemy.toolkit.core.facts import (
+    FactIdentity,
+    FactRelationshipKind,
+    canonical_fact_relationship_values,
+    condition_etiology_registry,
+)
+
+fact_relationships = condition_etiology_registry(
+    primary_etiology_of=primary_etiology_of_concept_id,
+    has_primary_etiology=has_primary_etiology_concept_id,
+    contributing_etiology_of=contributing_etiology_of_concept_id,
+    has_contributing_etiology=has_contributing_etiology_concept_id,
+    non_contributing_to=non_contributing_to_concept_id,
+    has_non_contributing_condition=has_non_contributing_condition_concept_id,
+)
+
+row = canonical_fact_relationship_values(
+    FactIdentity(19, cause_condition_id),
+    FactIdentity(19, effect_condition_id),
+    relationship=FactRelationshipKind.primary_etiology,
+    registry=fact_relationships,
+)
+```
+
+The row helper always emits the forward Concept. Applications should not also persist the inverse row; OMOP's table key cannot prevent that semantic duplicate.
+
+Use `fact_relationship_queries()` to resolve stored rows to their endpoint events. Direction is expressed by the two projections rather than a separate flag: narrow `from_facts` for an outbound query or narrow `to_facts` for an inbound query.
+
+```python
+from omop_alchemy.cdm.model import Condition_Occurrence
+from omop_alchemy.toolkit.core.facts import fact_relationship_queries
+
+queries = fact_relationship_queries(
+    Condition_Occurrence,
+    Condition_Occurrence,
+    relationship=FactRelationshipKind.primary_etiology,
+    registry=fact_relationships,
+    diagnostics=True,
+)
+
+matches = session.execute(queries.matches).mappings().all()
+diagnostics = session.execute(queries.diagnostics).mappings().all()
+```
+
+A match requires both endpoints to exist and to belong to the same person. Diagnostics can report missing endpoints only when the corresponding source is a complete ORM table (or is explicitly declared complete with `fact_source(..., complete=True)`). Absence from an ordinary selectable may be caused by filtering, so it is not labelled as bad data. An observed person mismatch remains reportable for either source kind.
+
 ## Attach an event to an episode
 
 A complete attachment key adds the episode ID to the table-scoped event identity:

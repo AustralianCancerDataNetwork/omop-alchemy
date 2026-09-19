@@ -58,3 +58,17 @@ def _require_columns(
     missing = tuple(sorted(set(required) - set(available)))
     if missing:
         raise error_type(f"{role} is missing required columns: {', '.join(missing)}")
+
+
+def _diagnostic_literal_columns(
+    code: str,
+    *,
+    code_label: str,
+    message: str,
+    message_label: str,
+) -> tuple[sa.ColumnElement[Any], sa.ColumnElement[Any]]:
+    """Build the common code and message columns used by diagnostic queries."""
+    return (
+        sa.literal(code).label(code_label),
+        sa.literal(message).label(message_label),
+    )

@@ -9,7 +9,11 @@ import sqlalchemy as sa
 from sqlalchemy.sql.selectable import FromClause, SelectBase
 
 from omop_alchemy.cdm.model.structural import Episode, Episode_Event
-from omop_alchemy.toolkit._utils import _as_from_clause, _require_columns
+from omop_alchemy.toolkit._utils import (
+    _as_from_clause,
+    _diagnostic_literal_columns,
+    _require_columns,
+)
 from omop_alchemy.toolkit.core.events import (
     ClinicalEventColumn,
     canonical_event_projection,
@@ -122,10 +126,14 @@ def _attachment_diagnostics(
         candidate_count: sa.ColumnElement[Any],
         message: str,
     ) -> tuple[sa.ColumnElement[Any], ...]:
+        diagnostic_code, diagnostic_message = _diagnostic_literal_columns(
+            str(code),
+            code_label=str(AttachmentDiagnosticColumn.diagnostic_code),
+            message=message,
+            message_label=str(AttachmentDiagnosticColumn.message),
+        )
         return (
-            sa.literal(str(code)).label(
-                str(AttachmentDiagnosticColumn.diagnostic_code)
-            ),
+            diagnostic_code,
             events.c[source_table].label(source_table),
             events.c[event_id].label(event_id),
             events.c[event_field].label(event_field),
@@ -134,7 +142,7 @@ def _attachment_diagnostics(
             ),
             linked_episode_id.label(episode_id),
             candidate_count.label(str(AttachmentDiagnosticColumn.candidate_count)),
-            sa.literal(message).label(str(AttachmentDiagnosticColumn.message)),
+            diagnostic_message,
         )
 
     null_integer = sa.cast(sa.null(), sa.Integer())
