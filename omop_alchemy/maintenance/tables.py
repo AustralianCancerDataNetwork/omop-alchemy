@@ -5,8 +5,7 @@ from enum import StrEnum
 from typing import Iterable
 
 import sqlalchemy as sa
-from oa_configurator import Role, schema_of
-from orm_loader.helpers import role_of_table
+from oa_configurator import Role, role_of_table, schema_of
 
 
 class TableCategory(StrEnum):

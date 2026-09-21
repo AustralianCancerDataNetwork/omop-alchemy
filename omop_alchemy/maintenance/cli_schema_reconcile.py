@@ -5,7 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
-from oa_configurator import ResolvedDatabase, Role, find_table_in_other_schemas, supports_schemas
+from oa_configurator import (
+    ResolvedDatabase,
+    Role,
+    find_table_in_other_schemas,
+    role_of_table,
+    supports_schemas
+)
 from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, ReflectedIndex
 
 from ..backends import Backend, backend_supports, resolve_backend
@@ -67,15 +73,6 @@ class SchemaReconciliationReport:
     issues: tuple[ReconciliationIssue, ...]
 
 
-def _role_from_schema_tag(schema_tag: str | None) -> Role:
-    """Map a table's declared .schema tag (None/"vocab"/"results") to its Role."""
-    if schema_tag == Role.VOCAB.value:
-        return Role.VOCAB
-    if schema_tag == Role.RESULTS.value:
-        return Role.RESULTS
-    return Role.PRIMARY
-
-
 def _effective_schema(
     resolved: ResolvedDatabase | None, role: Role, db_schema: str | None
 ) -> str | None:
@@ -106,7 +103,7 @@ def _schema_qualified_tables(
 
     def _referred_schema(_table: sa.Table, _to_schema, _constraint, referred_schema: str | None):
         # None means "unchanged" to to_metadata(); BLANK_SCHEMA is what actually clears a schema tag.
-        target = _effective_schema(resolved, _role_from_schema_tag(referred_schema), db_schema)
+        target = _effective_schema(resolved, Role(referred_schema), db_schema)
         return target if target is not None else sa.BLANK_SCHEMA
 
     return {
@@ -114,7 +111,7 @@ def _schema_qualified_tables(
             metadata,
             # SQLAlchemy's own stub omits None from schema's declared type,
             # despite accepting and correctly handling it at runtime
-            schema=_effective_schema(resolved, _role_from_schema_tag(table.schema), db_schema),  # ty: ignore[invalid-argument-type]
+            schema=_effective_schema(resolved, role_of_table(table), db_schema),  # ty: ignore[invalid-argument-type]
             referred_schema_fn=_referred_schema,
         )
         for table in Base.metadata.tables.values()
@@ -252,7 +249,7 @@ def reconcile_schema(
     with engine.connect() as connection:
         for maintenance_table in selected_tables:
             table_issues: list[ReconciliationIssue] = []
-            table_role = _role_from_schema_tag(maintenance_table.table.schema)
+            table_role = role_of_table(maintenance_table.table)
             table_schema = _effective_schema(resolved, table_role, db_schema)
             exists = inspector.has_table(maintenance_table.table_name, schema=table_schema)
             if not exists:
@@ -413,7 +410,7 @@ def reconcile_schema(
                     if (
                         not _cross_schema_fk_supported
                         and raw_constraint is not None
-                        and _role_from_schema_tag(raw_constraint.referred_table.schema) != table_role
+                        and role_of_table(raw_constraint.referred_table) != table_role
                     ):
                         # SQLite can never create an inline FK crossing a schema boundary.
                         continue

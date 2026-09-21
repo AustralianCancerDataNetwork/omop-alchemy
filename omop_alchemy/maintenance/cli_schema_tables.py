@@ -128,6 +128,7 @@ def create_missing_tables(
                 engine.begin() as connection,
                 guard_schema_provenance(connection, resolved, role=Role.PRIMARY),
                 guard_schema_provenance(connection, resolved, role=Role.RESULTS),
+                guard_schema_provenance(connection, resolved, role=Role.VOCAB),
             ):
                 Base.metadata.create_all(
                     bind=connection, tables=all_tables, checkfirst=True

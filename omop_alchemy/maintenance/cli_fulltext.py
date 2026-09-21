@@ -9,8 +9,7 @@ from typing import cast
 import typer
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
-from oa_configurator import Role
-from orm_loader.helpers import role_of_table
+from oa_configurator import Role, role_of_table
 
 from ..backends import backend_support_note as _backend_support_note
 from ..backends import resolve_backend, require_backend_support
