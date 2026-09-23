@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 import typer
 
-from oa_configurator import ResolvedCDMDatabase, Role, autocommit_connection, guard_schema_provenance_for, qualified, schema_of
+from oa_configurator import ResolvedCDMDatabase, Role, autocommit_connection, guard_schema_provenance_for, qualified, physical_schema_of
 from ..backends import resolve_backend, require_backend_support, backend_support_note
 from ._cli_utils import Status, dry_label, dry_status, omop_command, resolve_selection
 from .tables import (
@@ -70,7 +70,7 @@ def analyze_tables(
 
     with connection_factory as connection:
         for maintenance_table in selected_tables:
-            table_schema = schema_of(engine, schema_tag=maintenance_table.schema_tag)
+            table_schema = physical_schema_of(engine, schema_tag=maintenance_table.schema_tag)
             if not inspector.has_table(maintenance_table.table_name, schema=table_schema):
                 results.append(
                     AnalyzeTableResult(
@@ -134,7 +134,7 @@ def _blocking_foreign_key_references(
     blockers: dict[str, set[str]] = {}
 
     for role in Role:
-        role_schema = schema_of(engine, schema_tag=role)
+        role_schema = physical_schema_of(engine, schema_tag=role)
         for table_name in inspector.get_table_names(schema=role_schema):
             if table_name in selected_table_names:
                 continue
@@ -193,7 +193,7 @@ def truncate_tables(
     with engine.begin() as connection:
         for maintenance_table in selected_tables:
             if not inspector.has_table(
-                maintenance_table.table_name, schema=schema_of(engine, schema_tag=maintenance_table.schema_tag)
+                maintenance_table.table_name, schema=physical_schema_of(engine, schema_tag=maintenance_table.schema_tag)
             ):
                 results.append(
                     TruncateTableResult(
@@ -209,7 +209,7 @@ def truncate_tables(
 
             row_count = int(
                 connection.exec_driver_sql(
-                    f"SELECT COUNT(*) FROM {qualified(connection, maintenance_table.table_name, physical_schema=schema_of(connection, schema_tag=maintenance_table.schema_tag))}"
+                    f"SELECT COUNT(*) FROM {qualified(connection, maintenance_table.table_name, physical_schema=physical_schema_of(connection, schema_tag=maintenance_table.schema_tag))}"
                 ).scalar_one()
             )
             existing_tables.append(maintenance_table.table_name)
@@ -324,7 +324,7 @@ def reset_model_sequences(
 
     with engine.begin() as connection:
         for target in targets:
-            if not inspector.has_table(target.table_name, schema=schema_of(engine, schema_tag=target.schema_tag)):
+            if not inspector.has_table(target.table_name, schema=physical_schema_of(engine, schema_tag=target.schema_tag)):
                 continue
 
             sequence_name = backend.find_sequence_name(
@@ -347,7 +347,7 @@ def reset_model_sequences(
                 continue
 
             fully_qualified = qualified(
-                connection, target.table_name, physical_schema=schema_of(connection, schema_tag=target.schema_tag)
+                connection, target.table_name, physical_schema=physical_schema_of(connection, schema_tag=target.schema_tag)
             )
             current_max = connection.execute(
                 sa.text(

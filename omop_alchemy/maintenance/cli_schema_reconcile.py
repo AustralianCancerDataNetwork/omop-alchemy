@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from oa_configurator import (
     ResolvedDatabase,
     find_table_in_other_schemas,
-    schema_of,
+    physical_schema_of,
     supports_schemas,
     validate_schema_tag,
 )
@@ -79,13 +79,13 @@ def _effective_schema(
     schema_tag: str | None,
     db_schema: str | None,
 ) -> str | None:
-    """schema_of(engine, schema_tag=schema_tag) when resolved is given, else db_schema.
+    """physical_schema_of(engine, schema_tag=schema_tag) when resolved is given, else db_schema.
 
-    Uses schema_of against engine to accommodate bare schema_tags.
+    Uses physical_schema_of against engine to accommodate bare schema_tags.
     """
     if resolved is None:
         return db_schema
-    return schema_of(engine, schema_tag=schema_tag)
+    return physical_schema_of(engine, schema_tag=schema_tag)
 
 
 def _schema_qualified_tables(
@@ -258,7 +258,7 @@ def reconcile_schema(
             exists = inspector.has_table(maintenance_table.table_name, schema=table_schema)
             if not exists:
                 relocated_to = find_table_in_other_schemas(
-                    engine, maintenance_table.table_name, expected_schema=table_schema
+                    engine, maintenance_table.table_name, physical_schema=table_schema
                 )
                 if relocated_to:
                     detail = (

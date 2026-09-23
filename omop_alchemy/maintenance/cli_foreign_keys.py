@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 import typer
 
-from oa_configurator import schema_of
+from oa_configurator import physical_schema_of
 from ..backends import Backend, resolve_backend, require_backend_support, backend_support_note
 from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .tables import (
@@ -106,7 +106,7 @@ def _collect_fk_info(
 
     for table_name in selected_names:
         foreign_keys = inspector.get_foreign_keys(
-            table_name, schema=schema_of(engine, schema_tag=tables_by_name[table_name].schema_tag)
+            table_name, schema=physical_schema_of(engine, schema_tag=tables_by_name[table_name].schema_tag)
         )
         relevant_foreign_keys = [
             foreign_key
@@ -166,7 +166,7 @@ def _collect_strict_validation_failures(
     for table_name in sorted(selected_names):
         source_schema_tag = tables_by_name[table_name].schema_tag
         for foreign_key in inspector.get_foreign_keys(
-            table_name, schema=schema_of(connection, schema_tag=source_schema_tag)
+            table_name, schema=physical_schema_of(connection, schema_tag=source_schema_tag)
         ):
             referred_table = foreign_key.get("referred_table")
             constrained_columns = foreign_key.get("constrained_columns") or []

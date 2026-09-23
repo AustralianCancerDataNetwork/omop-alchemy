@@ -1,10 +1,10 @@
 """Non-default-schema Postgres coverage for the backends/ signature refactor (Phase 3.2).
 
 Every other maintenance-CLI test runs against the default schema, where
-``schema_of(conn)`` returning ``None`` and the old ``db_schema=None``
+``physical_schema_of(conn)`` returning ``None`` and the old ``db_schema=None``
 parameter are indistinguishable. The refactor that dropped explicit
 ``db_schema`` threading through ``backends/`` (deriving it internally via
-``schema_of(conn)`` instead) could pass every existing test while still
+``physical_schema_of(conn)`` instead) could pass every existing test while still
 being broken for a real non-default schema. This exercises a representative
 subset of the refactored surface (FK trigger toggle, index create/drop,
 full-text install, sequence reset) against a genuine non-default Postgres

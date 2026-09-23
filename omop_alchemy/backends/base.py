@@ -159,7 +159,7 @@ class Backend(ABC):
         """Cheap, catalog-based row-count estimate per table in schema.
 
         Unlike most Backend methods, schema is explicit rather than read via
-        schema_of(conn): a caller previewing an orphan schema is inspecting a
+        physical_schema_of(conn): a caller previewing an orphan schema is inspecting a
         schema other than the connection's own configured one.
         """
         raise FeatureNotSupportedError("Approximate row counts", self)

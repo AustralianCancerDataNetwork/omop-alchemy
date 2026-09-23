@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 
-from oa_configurator import ResolvedCDMDatabase, Role, ensure_schema, guard_schema_provenance_for, schema_of
+from oa_configurator import ResolvedCDMDatabase, Role, ensure_schema, guard_schema_provenance_for, physical_schema_of
 from orm_loader.helpers import Base
 from ._cli_utils import Status, dry_label, dry_status
 from .tables import (
@@ -76,7 +76,7 @@ def create_missing_tables(
     """
     vocab_engine = vocab_engine if vocab_engine is not None else engine
     if not dry_run:
-        ensure_schema(engine, schema_of(engine, schema_tag=Role.PRIMARY))
+        ensure_schema(engine, physical_schema_of(engine, schema_tag=Role.PRIMARY))
         # create_all() would fail for non-existing vocab/results schemas on a fresh database
         if resolved is not None:
             ensure_schema(engine, resolved.schema_for_role(Role.RESULTS))
@@ -89,7 +89,7 @@ def create_missing_tables(
     # Checking only primary schema would hide existing vocab/results tables, wrongly blocking dependents.
     existing_table_names: set[str] = set()
     for role in Role:
-        existing_table_names |= set(inspector.get_table_names(schema=schema_of(engine, schema_tag=role)))
+        existing_table_names |= set(inspector.get_table_names(schema=physical_schema_of(engine, schema_tag=role)))
     missing_table_names = {table.table_name for table in missing_tables}
 
     blocked_dependencies: dict[str, tuple[str, ...]] = {}

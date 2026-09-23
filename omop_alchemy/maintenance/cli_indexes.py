@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from sqlalchemy.exc import DBAPIError, IntegrityError
 import typer
 
-from oa_configurator import ResolvedCDMDatabase, ensure_schema, guard_schema_provenance_for, schema_of, supports_schemas
+from oa_configurator import ResolvedCDMDatabase, ensure_schema, guard_schema_provenance_for, physical_schema_of, supports_schemas
 
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY
 
@@ -624,7 +624,7 @@ def collect_index_targets(
 
     targets: list[IndexTarget] = []
     for table in selected_tables:
-        table_schema = schema_of(engine, schema_tag=table.schema_tag)
+        table_schema = physical_schema_of(engine, schema_tag=table.schema_tag)
         if not inspector.has_table(table.table_name, schema=table_schema):
             continue
 
@@ -713,7 +713,7 @@ def manage_indexes(
                 )
 
         for table in selected_tables:
-            db_schema = schema_of(engine, schema_tag=table.schema_tag)
+            db_schema = physical_schema_of(engine, schema_tag=table.schema_tag)
             if not inspector.has_table(table.table_name, schema=db_schema):
                 continue
 
@@ -1089,7 +1089,7 @@ def cluster_tables_command(
     results: list[IndexManagementResult] = []
 
     for table in selected_tables:
-        table_schema = schema_of(engine, schema_tag=table.schema_tag)
+        table_schema = physical_schema_of(engine, schema_tag=table.schema_tag)
         if not inspector.has_table(table.table_name, schema=table_schema):
             continue
 

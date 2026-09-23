@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Iterable
 
 import sqlalchemy as sa
-from oa_configurator import schema_of, validate_schema_tag
+from oa_configurator import physical_schema_of, validate_schema_tag
 
 
 class TableCategory(StrEnum):
@@ -262,7 +262,7 @@ def existing_maintenance_tables(
     bindable : sqlalchemy.Engine or sqlalchemy.Connection
         Used both to inspect the database and, via its schema_translate_map,
         to resolve each table's own schema tag to a physical schema
-        (``schema_of(bindable, schema_tag=table.schema_tag)``) -- a blanket
+        (``physical_schema_of(bindable, schema_tag=table.schema_tag)``) -- a blanket
         schema passed in once would silently misclassify every vocab/results
         table checked against a database with a genuine primary/vocab/
         results split.
@@ -274,7 +274,7 @@ def existing_maintenance_tables(
             vocabulary_included=vocabulary_included,
             require_single_integer_primary_key=require_single_integer_primary_key,
         )
-        if inspector.has_table(table.table_name, schema=schema_of(bindable, schema_tag=table.schema_tag))
+        if inspector.has_table(table.table_name, schema=physical_schema_of(bindable, schema_tag=table.schema_tag))
     ]
 
 
@@ -292,5 +292,5 @@ def missing_maintenance_tables(
     return [
         table
         for table in select_omop_tables(vocabulary_included=vocabulary_included)
-        if not inspector.has_table(table.table_name, schema=schema_of(bindable, schema_tag=table.schema_tag))
+        if not inspector.has_table(table.table_name, schema=physical_schema_of(bindable, schema_tag=table.schema_tag))
     ]

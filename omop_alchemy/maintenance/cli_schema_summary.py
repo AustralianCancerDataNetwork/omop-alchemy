@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 
-from oa_configurator import qualified, schema_of
+from oa_configurator import qualified, physical_schema_of
 from .tables import TableCategory, select_omop_tables
 
 
@@ -36,7 +36,7 @@ def collect_data_summary(
     results: list[TableSummaryResult] = []
     with engine.connect() as connection:
         for table in tables:
-            exists = inspector.has_table(table.table_name, schema=schema_of(engine, schema_tag=table.schema_tag))
+            exists = inspector.has_table(table.table_name, schema=physical_schema_of(engine, schema_tag=table.schema_tag))
             if not exists and existing_only:
                 continue
 
@@ -45,7 +45,7 @@ def collect_data_summary(
                 row_count = int(
                     connection.execute(
                         sa.text(
-                            f"SELECT COUNT(*) FROM {qualified(connection, table.table_name, physical_schema=schema_of(connection, schema_tag=table.schema_tag))}"
+                            f"SELECT COUNT(*) FROM {qualified(connection, table.table_name, physical_schema=physical_schema_of(connection, schema_tag=table.schema_tag))}"
                         )
                     ).scalar_one()
                 )
