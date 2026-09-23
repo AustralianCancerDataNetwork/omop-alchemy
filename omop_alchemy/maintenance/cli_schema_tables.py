@@ -120,9 +120,9 @@ def create_missing_tables(
             # One call: create_all's dependency sort and FK-deferral must see every table together.
             with (
                 engine.begin() as connection,
-                guard_schema_provenance_for(connection, resolved, role=Role.PRIMARY, tables=tables_by_role[Role.PRIMARY]),
-                guard_schema_provenance_for(connection, resolved, role=Role.RESULTS, tables=tables_by_role[Role.RESULTS]),
-                guard_schema_provenance_for(connection, resolved, role=Role.VOCAB, tables=tables_by_role[Role.VOCAB]),
+                guard_schema_provenance_for(connection, resolved, schema_tag=Role.PRIMARY, tables=tables_by_role[Role.PRIMARY]),
+                guard_schema_provenance_for(connection, resolved, schema_tag=Role.RESULTS, tables=tables_by_role[Role.RESULTS]),
+                guard_schema_provenance_for(connection, resolved, schema_tag=Role.VOCAB, tables=tables_by_role[Role.VOCAB]),
             ):
                 Base.metadata.create_all(
                     bind=connection, tables=all_tables, checkfirst=True
@@ -135,8 +135,8 @@ def create_missing_tables(
             if other_tables:
                 with (
                     engine.begin() as connection,
-                    guard_schema_provenance_for(connection, resolved, role=Role.PRIMARY, tables=tables_by_role[Role.PRIMARY]),
-                    guard_schema_provenance_for(connection, resolved, role=Role.RESULTS, tables=tables_by_role[Role.RESULTS]),
+                    guard_schema_provenance_for(connection, resolved, schema_tag=Role.PRIMARY, tables=tables_by_role[Role.PRIMARY]),
+                    guard_schema_provenance_for(connection, resolved, schema_tag=Role.RESULTS, tables=tables_by_role[Role.RESULTS]),
                 ):
                     Base.metadata.create_all(
                         bind=connection, tables=other_tables, checkfirst=True
@@ -144,7 +144,7 @@ def create_missing_tables(
             if vocab_tables:
                 with (
                     vocab_engine.begin() as vocab_connection,
-                    guard_schema_provenance_for(vocab_connection, resolved, role=Role.VOCAB, tables=vocab_tables),
+                    guard_schema_provenance_for(vocab_connection, resolved, schema_tag=Role.VOCAB, tables=vocab_tables),
                 ):
                     Base.metadata.create_all(
                         bind=vocab_connection, tables=vocab_tables, checkfirst=True

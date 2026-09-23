@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
@@ -9,7 +10,7 @@ from typing import cast
 import typer
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
-from oa_configurator import ResolvedCDMDatabase, Role, guard_schema_provenance_for, validate_schema_tag
+from oa_configurator import ResolvedCDMDatabase, guard_schema_provenance_for, validate_schema_tag
 
 from ..backends import backend_support_note as _backend_support_note
 from ..backends import resolve_backend, require_backend_support
@@ -89,11 +90,13 @@ def install_fulltext_columns(
             for cfg in targets:
                 tag = _schema_tag_for_target(cfg.table_name)
                 tables_by_schema_tag.setdefault(tag, []).append(_FULLTEXT_TARGET_TABLES[cfg.table_name])
-            with engine.begin() as connection:
+            # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
+            with engine.begin() as connection, ExitStack() as guard_stack:
                 for schema_tag, tables in tables_by_schema_tag.items():
                     # A same-named column/index could already exist under a drifted schema, attached to an unrelated table.
-                    with guard_schema_provenance_for(connection, resolved, role=Role(schema_tag), tables=tables):
-                        pass
+                    guard_stack.enter_context(
+                        guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag, tables=tables)
+                    )
                 for cfg in targets:
                     backend.install_fulltext_on_table(
                         connection,

@@ -237,27 +237,22 @@ def truncate_tables(
                 raise RuntimeError(_format_blocking_reference_error(blockers))
 
         if existing_tables and not dry_run:
-            # One TRUNCATE per schema tag: truncate_table_batch qualifies every
-            # name in its list with a single tag, so a selection spanning more
-            # than one tag (category and schema_tag are independent axes --
-            # see MaintenanceTable.schema_tag) is split into one batch per tag
-            # rather than misqualifying some of the names.
+            # One TRUNCATE batch per schema_tag, since truncate_table_batch qualifies its whole list with a single tag.
             for schema_tag, table_names_for_tag in existing_table_names_by_schema_tag.items():
                 # A same-named table could already exist under a drifted schema, so truncate could hit unrelated data.
                 with guard_schema_provenance_for(
                     connection,
                     resolved,
-                    role=Role(schema_tag),
+                    schema_tag=schema_tag,
                     tables=[tables_by_name[name].table for name in table_names_for_tag],
                 ):
-                    pass
-                backend.truncate_table_batch(
-                    connection,
-                    table_names_for_tag,
-                    restart_identities=restart_identities,
-                    cascade=cascade,
-                    schema_tag=schema_tag,
-                )
+                    backend.truncate_table_batch(
+                        connection,
+                        table_names_for_tag,
+                        restart_identities=restart_identities,
+                        cascade=cascade,
+                        schema_tag=schema_tag,
+                    )
 
     return results
 

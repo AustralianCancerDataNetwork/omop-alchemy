@@ -20,7 +20,7 @@ class TableCategory(StrEnum):
     Notes
     -----
     This logical grouping is independent of the physical schema in
-    which the table's data is stored (``oa_configurator.Role``).
+    which the table's data is stored (its own ``schema_tag``).
 
     Parameters
     ----------
