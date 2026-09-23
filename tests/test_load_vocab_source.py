@@ -201,6 +201,7 @@ def test_load_vocab_source_cli_uses_configured_athena_source(monkeypatch, tmp_pa
         bulk_mode: bool = True,
         merge_batch_size: int = 1_000_000,
         progress_callback=None,
+        resolved: object = None,  # noqa: ARG001
     ):
         calls["source_path"] = str(source_path)
         calls["dry_run"] = dry_run

@@ -149,21 +149,6 @@ class Backend(ABC):
         """
         raise FeatureNotSupportedError("Functional-index expression normalization", self)
 
-    # ── Row counts ───────────────────────────────────────────────────────────
-
-    def approximate_row_counts(
-        self,
-        conn: sa.Connection,
-        schema: str,
-    ) -> dict[str, int]:
-        """Cheap, catalog-based row-count estimate per table in schema.
-
-        Unlike most Backend methods, schema is explicit rather than read via
-        physical_schema_of(conn): a caller previewing an orphan schema is inspecting a
-        schema other than the connection's own configured one.
-        """
-        raise FeatureNotSupportedError("Approximate row counts", self)
-
     # ── Table operations ─────────────────────────────────────────────────────
 
     @abstractmethod

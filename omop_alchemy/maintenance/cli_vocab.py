@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, TypeAlias, cast
@@ -12,7 +13,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from sqlalchemy.exc import OperationalError
 import typer
-from oa_configurator import ensure_schema
+from oa_configurator import ResolvedCDMDatabase, ensure_schema, guard_schema_provenance_for
 from orm_loader.backends import STAGING_SCHEMA, resolve_backend
 from orm_loader.helpers import Base
 from orm_loader.tables.typing import CSVTableProtocol
@@ -241,6 +242,7 @@ def _create_missing_vocabulary_tables(
     connection: sa.Connection,
     *,
     db_schema: str | None,
+    resolved: ResolvedCDMDatabase | None = None,
 ) -> int:
     """Create any vocabulary-category ORM tables that are absent from the target database. Returns the count created."""
     vocab_tables = select_maintenance_tables(
@@ -255,11 +257,21 @@ def _create_missing_vocabulary_tables(
     if not missing_tables:
         return 0
 
-    Base.metadata.create_all(
-        bind=connection,
-        tables=[table.table for table in missing_tables],
-        checkfirst=True,
-    )
+    tables_by_schema_tag: dict[str, list[sa.Table]] = {}
+    for table in missing_tables:
+        tables_by_schema_tag.setdefault(table.schema_tag, []).append(table.table)
+
+    with ExitStack() as guard_stack:
+        # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
+        for schema_tag, tables in tables_by_schema_tag.items():
+            guard_stack.enter_context(
+                guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag, tables=tables)
+            )
+        Base.metadata.create_all(
+            bind=connection,
+            tables=[table.table for table in missing_tables],
+            checkfirst=True,
+        )
     return len(missing_tables)
 
 
@@ -278,6 +290,7 @@ def load_vocab_source(
     bulk_mode: bool = True,
     merge_batch_size: int | None = None,
     progress_callback: VocabularyLoadProgressCallback | None = None,
+    resolved: ResolvedCDMDatabase | None = None,
 ) -> VocabularyLoadReport:
     """
     Load Athena vocabulary CSVs from source_path into the target database.
@@ -302,6 +315,10 @@ def load_vocab_source(
     vocab_schema : str, optional
         Schema vocab-tagged tables live in, for the table-existence check
         against ``vocab_engine``. Defaults to ``db_schema``.
+    resolved : ResolvedCDMDatabase, optional
+        Enables the schema-provenance guard around any missing vocabulary
+        table creation. Omitted by direct test/programmatic callers with no
+        resolved config behind their engine, in which case the guard no-ops.
     """
     vocab_engine = vocab_engine if vocab_engine is not None else engine
     vocab_schema = vocab_schema if vocab_schema is not None else db_schema
@@ -408,7 +425,7 @@ def load_vocab_source(
     if not dry_run:
         with vocab_engine.connect() as pre_conn:
             created_table_count = _create_missing_vocabulary_tables(
-                pre_conn, db_schema=vocab_schema
+                pre_conn, db_schema=vocab_schema, resolved=resolved
             )
             pre_conn.commit()
 
@@ -719,6 +736,7 @@ def load_vocab_source_command(
                 bulk_mode=bulk_mode,
                 merge_batch_size=merge_batch_size,
                 progress_callback=_update_progress,
+                resolved=conn.resolved,
             )
             progress.update(
                 task_id, completed=100.0, description="Athena vocabulary load complete"

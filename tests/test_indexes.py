@@ -384,6 +384,7 @@ def test_disable_indexes_cli_invokes_management(monkeypatch):
         db_schema: str | None = None,
         vocabulary_included: bool = False,
         dry_run: bool = False,
+        resolved: object = None,
     ) -> list[IndexManagementResult]:
         calls["engine"] = engine
         calls["enable"] = enable

@@ -700,7 +700,7 @@ def manage_indexes(
     results: list[IndexManagementResult] = []
 
     with ExitStack() as guard_stack:
-        if enable and not dry_run:
+        if not dry_run:
             tables_by_schema_tag: dict[str, list[sa.Table]] = {}
             for table in selected_tables:
                 tables_by_schema_tag.setdefault(table.schema_tag, []).append(table.table)
@@ -1015,6 +1015,7 @@ def disable_indexes_command(
             enable=False,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
+            resolved=conn.resolved,
         )
     console.print(render_index_results(results))
     console.print(render_index_summary(results, dry_run=dry_run))
@@ -1088,47 +1089,60 @@ def cluster_tables_command(
     selected_tables = select_omop_tables(vocabulary_included=vocabulary_included)
     results: list[IndexManagementResult] = []
 
-    for table in selected_tables:
-        table_schema = physical_schema_of(engine, schema_tag=table.schema_tag)
-        if not inspector.has_table(table.table_name, schema=table_schema):
-            continue
-
-        cluster_index_name = _cluster_target_name(table)
-        if cluster_index_name is None:
-            continue
-
-        cluster_columns = _cluster_column_names(table, cluster_index_name)
-        existing_indexes = inspector.get_indexes(table.table_name, schema=table_schema)
-        physical_cluster_name = _resolve_physical_cluster_name(
-            existing_indexes,
-            cluster_index_name,
-            cluster_columns,
-        )
-
+    with ExitStack() as guard_stack:
         if not dry_run:
-            with engine.begin() as connection:
-                backend.cluster_table(
-                    connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
+            tables_by_schema_tag: dict[str, list[sa.Table]] = {}
+            for table in selected_tables:
+                tables_by_schema_tag.setdefault(table.schema_tag, []).append(table.table)
+            guard_connection = guard_stack.enter_context(engine.begin())
+            # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
+            for schema_tag, tables in tables_by_schema_tag.items():
+                # CLUSTER physically rewrites the table's heap: guard against a drifted schema the same as any other DDL.
+                guard_stack.enter_context(
+                    guard_schema_provenance_for(guard_connection, conn.resolved, schema_tag=schema_tag, tables=tables)
                 )
-            with engine.connect() as connection:
-                backend.analyze_table(connection, table.table_name, schema_tag=table.schema_tag)
-                connection.commit()
 
-        results.append(
-            IndexManagementResult(
-                operation="cluster",
-                table_name=table.table_name,
-                category=table.category,
-                schema_tag=table.schema_tag,
-                index_name=physical_cluster_name,
-                column_names=cluster_columns,
-                unique=False,
-                clustered=True,
-                enable=True,
-                status=dry_status(dry_run),
-                detail=dry_label(dry_run, "table would be clustered and analyzed", "table clustered and analyzed"),
+        for table in selected_tables:
+            table_schema = physical_schema_of(engine, schema_tag=table.schema_tag)
+            if not inspector.has_table(table.table_name, schema=table_schema):
+                continue
+
+            cluster_index_name = _cluster_target_name(table)
+            if cluster_index_name is None:
+                continue
+
+            cluster_columns = _cluster_column_names(table, cluster_index_name)
+            existing_indexes = inspector.get_indexes(table.table_name, schema=table_schema)
+            physical_cluster_name = _resolve_physical_cluster_name(
+                existing_indexes,
+                cluster_index_name,
+                cluster_columns,
             )
-        )
+
+            if not dry_run:
+                with engine.begin() as connection:
+                    backend.cluster_table(
+                        connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
+                    )
+                with engine.connect() as connection:
+                    backend.analyze_table(connection, table.table_name, schema_tag=table.schema_tag)
+                    connection.commit()
+
+            results.append(
+                IndexManagementResult(
+                    operation="cluster",
+                    table_name=table.table_name,
+                    category=table.category,
+                    schema_tag=table.schema_tag,
+                    index_name=physical_cluster_name,
+                    column_names=cluster_columns,
+                    unique=False,
+                    clustered=True,
+                    enable=True,
+                    status=dry_status(dry_run),
+                    detail=dry_label(dry_run, "table would be clustered and analyzed", "table clustered and analyzed"),
+                )
+            )
 
     console.print(render_index_results(results))
     console.print(render_index_summary(results, dry_run=dry_run))
