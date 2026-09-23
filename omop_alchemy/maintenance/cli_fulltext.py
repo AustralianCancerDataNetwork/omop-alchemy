@@ -9,7 +9,7 @@ from typing import cast
 import typer
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
-from oa_configurator import Role, role_of_table
+from oa_configurator import ResolvedCDMDatabase, Role, guard_schema_provenance_for, validate_schema_tag
 
 from ..backends import backend_support_note as _backend_support_note
 from ..backends import resolve_backend, require_backend_support
@@ -29,12 +29,15 @@ _FULLTEXT_TARGET_TABLES: dict[str, sa.Table] = {
 }
 
 
-def _role_for_target(table_name: str) -> Role:
-    """The Role a fulltext target table's own declared schema tag names.
-    Resolves via role_of_table() rather than hardcoding Role.VOCAB, 
+def _schema_tag_for_target(table_name: str) -> str:
+    """The schema tag a fulltext target table's own declared schema names.
+    Resolves via validate_schema_tag() rather than hardcoding Role.VOCAB,
     so a future non-vocab fulltext target resolves correctly.
     """
-    return role_of_table(_FULLTEXT_TARGET_TABLES[table_name])
+    tag = validate_schema_tag(_FULLTEXT_TARGET_TABLES[table_name])
+    if tag is None:
+        raise TypeError(f"{table_name}: table has no schema tag.")
+    return tag
 
 
 app = typer.Typer(
@@ -73,6 +76,7 @@ def install_fulltext_columns(
     create_indexes: bool = True,
     fastupdate: bool = False,
     dry_run: bool = False,
+    resolved: ResolvedCDMDatabase | None = None,
 ) -> tuple[FullTextResult, ...]:
     """Install tsvector sidecar columns (and optionally GIN indexes) on OMOP vocabulary tables."""
     backend = resolve_backend(engine)
@@ -81,7 +85,15 @@ def install_fulltext_columns(
 
     try:
         if not dry_run:
+            tables_by_schema_tag: dict[str, list[sa.Table]] = {}
+            for cfg in targets:
+                tag = _schema_tag_for_target(cfg.table_name)
+                tables_by_schema_tag.setdefault(tag, []).append(_FULLTEXT_TARGET_TABLES[cfg.table_name])
             with engine.begin() as connection:
+                for schema_tag, tables in tables_by_schema_tag.items():
+                    # A same-named column/index could already exist under a drifted schema, attached to an unrelated table.
+                    with guard_schema_provenance_for(connection, resolved, role=Role(schema_tag), tables=tables):
+                        pass
                 for cfg in targets:
                     backend.install_fulltext_on_table(
                         connection,
@@ -90,7 +102,7 @@ def install_fulltext_columns(
                         index_name=cfg.index_name,
                         create_indexes=create_indexes,
                         fastupdate=fastupdate,
-                        role=_role_for_target(cfg.table_name),
+                        schema_tag=_schema_tag_for_target(cfg.table_name),
                     )
             backend.register_fulltext_metadata()
     except FullTextError:
@@ -141,7 +153,7 @@ def populate_fulltext_columns(
                         vector_column_name=cfg.vector_column_name,
                         source_column_name=cfg.source_column_name,
                         regconfig=regconfig,
-                        role=_role_for_target(cfg.table_name),
+                        schema_tag=_schema_tag_for_target(cfg.table_name),
                     )
             backend.register_fulltext_metadata()
     except FullTextError:
@@ -188,7 +200,7 @@ def drop_fulltext_columns(
                         vector_column_name=cfg.vector_column_name,
                         index_name=cfg.index_name,
                         drop_indexes=drop_indexes,
-                        role=_role_for_target(cfg.table_name),
+                        schema_tag=_schema_tag_for_target(cfg.table_name),
                     )
             backend.unregister_fulltext_metadata()
     except FullTextError:
@@ -243,6 +255,7 @@ def install_fulltext_command(
             create_indexes=create_indexes,
             fastupdate=fastupdate,
             dry_run=dry_run,
+            resolved=conn.resolved,
         )
     console.print(render_fulltext_results(results))
     console.print(render_fulltext_summary(results, action="install", dry_run=dry_run))

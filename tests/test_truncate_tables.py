@@ -78,6 +78,7 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
         restart_identities: bool = False,
         cascade: bool = False,
         dry_run: bool = False,
+        resolved: object = None,
     ) -> list[TruncateTableResult]:
         calls["engine"] = engine
         calls["scope"] = scope
@@ -89,7 +90,7 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
             TruncateTableResult(
                 table_name="person",
                 category=TableCategory.CLINICAL,
-                role=Role.PRIMARY,
+                schema_tag=Role.PRIMARY.value,
                 row_count=10,
                 status=Status.PLANNED,
                 detail="table would be truncated",

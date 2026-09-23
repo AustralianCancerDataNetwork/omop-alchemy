@@ -61,7 +61,7 @@ def indexed_engine(request):
         bookkeeping_schema = get_bookkeeping_schema(engine)
         inspector = sa.inspect(engine)
         if inspector.has_table(_DROPPED_INDEXES_TABLE_NAME, schema=bookkeeping_schema):
-            table_ref = qualified(engine, _DROPPED_INDEXES_TABLE_NAME, schema=bookkeeping_schema)
+            table_ref = qualified(engine, _DROPPED_INDEXES_TABLE_NAME, physical_schema=bookkeeping_schema)
             with engine.begin() as connection:
                 connection.exec_driver_sql(f"DROP TABLE {table_ref}")
     else:
@@ -201,9 +201,9 @@ def test_manage_indexes_enable_analyzes_tables_with_new_indexes(sqlite_indexed_e
     analyzed_tables: list[str] = []
     original_analyze = SQLiteBackend.analyze_table
 
-    def recording_analyze(self, conn, table_name, *, vacuum=False, role=Role.PRIMARY):
+    def recording_analyze(self, conn, table_name, *, vacuum=False, schema_tag=Role.PRIMARY.value):
         analyzed_tables.append(table_name)
-        return original_analyze(self, conn, table_name, vacuum=vacuum, role=role)
+        return original_analyze(self, conn, table_name, vacuum=vacuum, schema_tag=schema_tag)
 
     monkeypatch.setattr(SQLiteBackend, "analyze_table", recording_analyze)
 
@@ -345,10 +345,10 @@ def test_manage_indexes_enable_clusters_then_analyzes(sqlite_indexed_engine, mon
 
     calls: list[str] = []
 
-    def fake_cluster_table(self, conn, table_name, index_name, *, role=Role.PRIMARY):
+    def fake_cluster_table(self, conn, table_name, index_name, *, schema_tag=Role.PRIMARY.value):
         calls.append(f"cluster:{table_name}")
 
-    def fake_analyze_table(self, conn, table_name, *, vacuum=False, role=Role.PRIMARY):
+    def fake_analyze_table(self, conn, table_name, *, vacuum=False, schema_tag=Role.PRIMARY.value):
         calls.append(f"analyze:{table_name}")
 
     monkeypatch.setattr(SQLiteBackend, "cluster_table", fake_cluster_table)
@@ -395,7 +395,7 @@ def test_disable_indexes_cli_invokes_management(monkeypatch):
                 operation="index",
                 table_name="person",
                 category=TableCategory.CLINICAL,
-                role=Role.PRIMARY,
+                schema_tag=Role.PRIMARY.value,
                 index_name=PERSON_GENDER_INDEX,
                 column_names=("gender_concept_id",),
                 unique=False,
@@ -450,6 +450,7 @@ def test_enable_indexes_cli_no_cluster_flag_passes_through(monkeypatch):
         vocabulary_included: bool = False,
         dry_run: bool = False,
         cluster: bool = True,
+        resolved: object = None,
     ) -> list[IndexManagementResult]:
         calls["enable"] = enable
         calls["vocabulary_included"] = vocabulary_included
@@ -460,7 +461,7 @@ def test_enable_indexes_cli_no_cluster_flag_passes_through(monkeypatch):
                 operation="index",
                 table_name="person",
                 category=TableCategory.CLINICAL,
-                role=Role.PRIMARY,
+                schema_tag=Role.PRIMARY.value,
                 index_name=PERSON_GENDER_INDEX,
                 column_names=("gender_concept_id",),
                 unique=False,
@@ -761,14 +762,14 @@ def test_manage_indexes_enable_cluster_uses_restored_physical_name(sqlite_indexe
 
     calls: list[tuple[str, str]] = []
 
-    def fake_cluster_table(self, conn, table_name, index_name, *, role=Role.PRIMARY):
+    def fake_cluster_table(self, conn, table_name, index_name, *, schema_tag=Role.PRIMARY.value):
         calls.append((table_name, index_name))
 
     monkeypatch.setattr(SQLiteBackend, "cluster_table", fake_cluster_table)
     monkeypatch.setattr(
         SQLiteBackend,
         "analyze_table",
-        lambda self, conn, table_name, *, vacuum=False, role=Role.PRIMARY: None,
+        lambda self, conn, table_name, *, vacuum=False, schema_tag=Role.PRIMARY.value: None,
     )
 
     manage_indexes(engine, enable=True, cluster=True)
@@ -823,7 +824,7 @@ def _dropped_indexes_rows(engine: sa.Engine) -> list[dict[str, object]]:
     inspector = sa.inspect(engine)
     if not inspector.has_table(_DROPPED_INDEXES_TABLE_NAME, schema=bookkeeping_schema):
         return []
-    table_ref = qualified(engine, _DROPPED_INDEXES_TABLE_NAME, schema=bookkeeping_schema)
+    table_ref = qualified(engine, _DROPPED_INDEXES_TABLE_NAME, physical_schema=bookkeeping_schema)
     with engine.connect() as connection:
         rows = connection.exec_driver_sql(
             f"SELECT table_name, index_name FROM {table_ref}"
@@ -845,7 +846,7 @@ def _warning_result() -> IndexManagementResult:
         operation="index",
         table_name="person",
         category=TableCategory.CLINICAL,
-        role=Role.PRIMARY,
+        schema_tag=Role.PRIMARY.value,
         index_name="idx_gender_partial",
         column_names=("gender_concept_id",),
         unique=False,
@@ -867,7 +868,7 @@ def test_render_index_summary_omits_warnings_row_when_none():
         operation="index",
         table_name="person",
         category=TableCategory.CLINICAL,
-        role=Role.PRIMARY,
+        schema_tag=Role.PRIMARY.value,
         index_name=PERSON_GENDER_INDEX,
         column_names=("gender_concept_id",),
         unique=False,

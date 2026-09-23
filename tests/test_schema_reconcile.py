@@ -106,9 +106,9 @@ def test_reconcile_schema_reports_no_drift_on_fresh_database(reconcile_engine):
 def test_reconcile_schema_reports_renamed_for_foreign_named_equivalent_index(reconcile_engine):
     engine, resolved = reconcile_engine
     with engine.begin() as connection:
-        connection.exec_driver_sql(f"DROP INDEX {qualified(connection, PERSON_GENDER_INDEX)}")
+        connection.exec_driver_sql(f"DROP INDEX {qualified(connection, PERSON_GENDER_INDEX, physical_schema=schema_of(connection, schema_tag=Role.PRIMARY))}")
         connection.exec_driver_sql(
-            f"CREATE INDEX idx_gender ON {qualified(connection, 'person')} (gender_concept_id)"
+            f"CREATE INDEX idx_gender ON {qualified(connection, 'person', physical_schema=schema_of(connection, schema_tag=Role.PRIMARY))} (gender_concept_id)"
         )
 
     report = reconcile_schema(engine, resolved=resolved)
@@ -124,9 +124,9 @@ def test_reconcile_schema_reports_renamed_for_foreign_named_equivalent_index(rec
 def test_reconcile_schema_renamed_index_does_not_flip_table_to_drifted(reconcile_engine):
     engine, resolved = reconcile_engine
     with engine.begin() as connection:
-        connection.exec_driver_sql(f"DROP INDEX {qualified(connection, PERSON_GENDER_INDEX)}")
+        connection.exec_driver_sql(f"DROP INDEX {qualified(connection, PERSON_GENDER_INDEX, physical_schema=schema_of(connection, schema_tag=Role.PRIMARY))}")
         connection.exec_driver_sql(
-            f"CREATE INDEX idx_gender ON {qualified(connection, 'person')} (gender_concept_id)"
+            f"CREATE INDEX idx_gender ON {qualified(connection, 'person', physical_schema=schema_of(connection, schema_tag=Role.PRIMARY))} (gender_concept_id)"
         )
 
     report = reconcile_schema(engine, resolved=resolved)
@@ -242,9 +242,9 @@ def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db, pg_
         assert _index_issues(report) == []
 
         with engine.begin() as connection:
-            connection.exec_driver_sql(f'DROP INDEX {qualified(connection, "ix_concept_concept_name_lower")}')
+            connection.exec_driver_sql(f'DROP INDEX {qualified(connection, "ix_concept_concept_name_lower", physical_schema=schema_of(connection, schema_tag=Role.PRIMARY))}')
             connection.exec_driver_sql(
-                f'CREATE INDEX ix_concept_concept_name_lower ON {qualified(connection, "concept")} (upper(concept_name))'
+                f'CREATE INDEX ix_concept_concept_name_lower ON {qualified(connection, "concept", physical_schema=schema_of(connection, schema_tag=Role.PRIMARY))} (upper(concept_name))'
             )
 
         report = reconcile_schema(engine, resolved=resolved, vocabulary_included=True)
@@ -284,7 +284,7 @@ def test_reconcile_schema_cluster_check_reports_renamed_for_foreign_cluster_inde
     monkeypatch.setattr(
         SQLiteBackend,
         "get_clustered_index_name",
-        lambda self, conn, table_name, role=None: (
+        lambda self, conn, table_name, schema_tag=None: (
             "idx_episode_person" if table_name == "episode" else None
         ),
     )
@@ -311,7 +311,7 @@ def test_reconcile_schema_cluster_check_still_reports_real_mismatch(fresh_reconc
     monkeypatch.setattr(
         SQLiteBackend,
         "get_clustered_index_name",
-        lambda self, conn, table_name, role=None: (
+        lambda self, conn, table_name, schema_tag=None: (
             "some_unrelated_index" if table_name == "episode" else None
         ),
     )
@@ -345,7 +345,7 @@ def test_reconcile_schema_cluster_check_reports_renamed_for_pk_based_cluster_tar
     monkeypatch.setattr(
         SQLiteBackend,
         "get_clustered_index_name",
-        lambda self, conn, table_name, role=None: (
+        lambda self, conn, table_name, schema_tag=None: (
             "idx_person_id" if table_name == "person" else None
         ),
     )

@@ -21,7 +21,7 @@ class SQLiteBackend(Backend):
         conn: sa.Connection,
         index_name: str,
         *,
-        role: Role = Role.PRIMARY,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> bool:
         row = conn.exec_driver_sql(
             "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
@@ -35,7 +35,7 @@ class SQLiteBackend(Backend):
         table_name: str,
         *,
         vacuum: bool = False,
-        role: Role = Role.PRIMARY,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> None:
         if vacuum:
             raise FeatureNotSupportedError("VACUUM ANALYZE", self)

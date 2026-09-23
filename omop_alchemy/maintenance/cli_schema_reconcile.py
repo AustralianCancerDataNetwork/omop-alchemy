@@ -7,10 +7,10 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 from oa_configurator import (
     ResolvedDatabase,
-    Role,
     find_table_in_other_schemas,
-    role_of_table,
-    supports_schemas
+    schema_of,
+    supports_schemas,
+    validate_schema_tag,
 )
 from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, ReflectedIndex
 
@@ -74,26 +74,26 @@ class SchemaReconciliationReport:
 
 
 def _effective_schema(
-    resolved: ResolvedDatabase | None, role: Role, db_schema: str | None
+    engine: sa.Engine,
+    resolved: ResolvedDatabase | None,
+    schema_tag: str | None,
+    db_schema: str | None,
 ) -> str | None:
-    """resolved.schema_for_role(role) when given, else db_schema regardless
-    of role, the fallback for a caller with no resolved object to hand.
+    """schema_of(engine, schema_tag=schema_tag) when resolved is given, else db_schema.
+
+    Uses schema_of against engine to accommodate bare schema_tags.
     """
-    return resolved.schema_for_role(role) if resolved is not None else db_schema
+    if resolved is None:
+        return db_schema
+    return schema_of(engine, schema_tag=schema_tag)
 
 
 def _schema_qualified_tables(
-    resolved: ResolvedDatabase | None, db_schema: str | None
+    engine: sa.Engine, resolved: ResolvedDatabase | None, db_schema: str | None
 ) -> dict[int, sa.Table]:
     """Schema-qualified copy of every table in Base.metadata, keyed by id() of the original.
 
-    Each table is qualified to its own role's schema via resolved, not one
-    blanket value, since a vocab-role table can live in a different physical
-    schema than a clinical one. Copied together into one MetaData() (not per
-    table): to_metadata() never brings a referenced table along on its own,
-    and an FK's target needs its copy already present in the same metadata.
-    Returns the tables unchanged, keyed by their own id, when resolved and
-    db_schema are both None.
+    Copied into one shared MetaData() since to_metadata() won't bring a referenced table's copy along on its own, which FK targets need present.
     """
     from orm_loader.helpers import Base
 
@@ -102,8 +102,10 @@ def _schema_qualified_tables(
     metadata = sa.MetaData()
 
     def _referred_schema(_table: sa.Table, _to_schema, _constraint, referred_schema: str | None):
-        # None means "unchanged" to to_metadata(); BLANK_SCHEMA is what actually clears a schema tag.
-        target = _effective_schema(resolved, Role(referred_schema), db_schema)
+        # to_metadata(): None means "unchanged", BLANK_SCHEMA actually clears the schema.
+        # referred_schema is already validate_schema_tag()-clean (checked below), no
+        # re-validation needed here.
+        target = _effective_schema(engine, resolved, referred_schema, db_schema)
         return target if target is not None else sa.BLANK_SCHEMA
 
     return {
@@ -111,7 +113,7 @@ def _schema_qualified_tables(
             metadata,
             # SQLAlchemy's own stub omits None from schema's declared type,
             # despite accepting and correctly handling it at runtime
-            schema=_effective_schema(resolved, role_of_table(table), db_schema),  # ty: ignore[invalid-argument-type]
+            schema=_effective_schema(engine, resolved, validate_schema_tag(table), db_schema),  # ty: ignore[invalid-argument-type]
             referred_schema_fn=_referred_schema,
         )
         for table in Base.metadata.tables.values()
@@ -221,9 +223,9 @@ def reconcile_schema(
         Engine to inspect. Its dialect selects the backend used for
         cluster-state checks.
     resolved : ResolvedDatabase, optional
-        When given, qualifies each table to its own role's schema
+        When given, qualifies each table to its own schema tag
         (schema_name/vocab_schema/results_schema) instead of applying
-        db_schema to every table regardless of role.
+        db_schema to every table regardless of tag.
     db_schema : str, optional
         Blanket schema applied to every table when resolved is not given.
     vocabulary_included : bool, optional
@@ -241,7 +243,7 @@ def reconcile_schema(
     _backend = resolve_backend(engine)
     _cross_schema_fk_supported = supports_schemas(engine)
     selected_tables = select_maintenance_tables(exclude_categories=excluded_categories)
-    schema_qualified_tables = _schema_qualified_tables(resolved, db_schema)
+    schema_qualified_tables = _schema_qualified_tables(engine, resolved, db_schema)
     inspector = sa.inspect(engine)
     all_issues: list[ReconciliationIssue] = []
     table_results: list[TableReconciliationResult] = []
@@ -249,8 +251,10 @@ def reconcile_schema(
     with engine.connect() as connection:
         for maintenance_table in selected_tables:
             table_issues: list[ReconciliationIssue] = []
-            table_role = role_of_table(maintenance_table.table)
-            table_schema = _effective_schema(resolved, table_role, db_schema)
+            table_schema_tag = validate_schema_tag(maintenance_table.table)
+            if table_schema_tag is None:
+                raise TypeError(f"{maintenance_table.table_name}: table has no schema tag.")
+            table_schema = _effective_schema(engine, resolved, table_schema_tag, db_schema)
             exists = inspector.has_table(maintenance_table.table_name, schema=table_schema)
             if not exists:
                 relocated_to = find_table_in_other_schemas(
@@ -400,8 +404,8 @@ def reconcile_schema(
 
             expected_fks = _expected_foreign_keys(expected_table)
             actual_fks = _actual_foreign_keys(inspector, maintenance_table.table_name, table_schema)
-            # Uses the unqualified table, since two role-tagged tables can collapse to
-            # the same schema (e.g. all-None on SQLite) and hide a genuine cross-role FK.
+            # Uses the unqualified table, since two differently-tagged tables can collapse to
+            # the same schema (e.g. all-None on SQLite) and hide a genuine cross-tag FK.
             raw_expected_fks = _expected_foreign_keys(maintenance_table.table)
 
             for signature, constraint in expected_fks.items():
@@ -410,7 +414,7 @@ def reconcile_schema(
                     if (
                         not _cross_schema_fk_supported
                         and raw_constraint is not None
-                        and role_of_table(raw_constraint.referred_table) != table_role
+                        and validate_schema_tag(raw_constraint.referred_table) != table_schema_tag
                     ):
                         # SQLite can never create an inline FK crossing a schema boundary.
                         continue
@@ -522,7 +526,7 @@ def reconcile_schema(
                 actual_cluster = _backend.get_clustered_index_name(
                     connection,
                     maintenance_table.table_name,
-                    role=table_role,
+                    schema_tag=table_schema_tag,
                 )
                 if expected_cluster != actual_cluster:
                     # May be a rename, not drift, so treat like a renamed index.

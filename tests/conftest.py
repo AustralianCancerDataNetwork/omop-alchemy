@@ -71,7 +71,7 @@ def resolved_cdm_database_from_engine(
 def fresh_engine() -> Iterator[sa.Engine]:
     """Fresh, empty, function-scoped SQLite engine.
 
-    SQLite has no schema concept, so every role maps back to None, matching
+    SQLite has no schema concept, so every schema tag maps back to None, matching
     the flat namespace every caller here has always assumed.
     """
     with isolated_test_database(
@@ -370,9 +370,9 @@ def engine(tmp_path_factory: pytest.TempPathFactory) -> Iterator[sa.Engine]:
         poolclass=sa.pool.StaticPool,
         connect_args={"check_same_thread": False, "timeout": 30},
         # SQLite has no schema concept, and this fixture always represented
-        # a single flat namespace: map every role back to None so the
+        # a single flat namespace: map every schema tag back to None so the
         # vocab/results-tagged tables land in the same place they always
-        # have here, unaffected by schema role tagging.
+        # have here, unaffected by schema tagging.
         execution_options={SCHEMA_TRANSLATE_MAP_KEY: {Role.PRIMARY.value: None, "vocab": None, "results": None}},
     ) as db:
         engine = db.connection.engine
@@ -418,7 +418,7 @@ def pg_engine(pg_db):
     genuine engine-building code paths against (``.connect()``/``.begin()``,
     which a bare ``Connection`` can't stand in for).
 
-    A thin shim over ``pg_db``'s own ``committing_engine``: every role
+    A thin shim over ``pg_db``'s own ``committing_engine``: every schema tag
     (``None``, ``"vocab"``, ``"results"``) folds back to the connection's
     default, matching the single-schema setup ``pg_session`` provides.
     """

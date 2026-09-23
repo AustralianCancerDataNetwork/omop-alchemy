@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 
-from oa_configurator import ResolvedCDMDatabase, Role, ensure_schema, guard_schema_provenance, schema_of
+from oa_configurator import ResolvedCDMDatabase, Role, ensure_schema, guard_schema_provenance_for, schema_of
 from orm_loader.helpers import Base
 from ._cli_utils import Status, dry_label, dry_status
 from .tables import (
@@ -76,14 +76,8 @@ def create_missing_tables(
     """
     vocab_engine = vocab_engine if vocab_engine is not None else engine
     if not dry_run:
-        ensure_schema(engine, schema_of(engine, role=Role.PRIMARY))
-        # Primary alone isn't enough: on a genuinely fresh database,
-        # vocab_schema/results_schema don't exist yet either -- without this,
-        # create_all() below fails "schema does not exist" for every
-        # vocab/results table instead of creating it. ensure_schema() itself
-        # already no-ops for None/already-default/schema-incapable dialects,
-        # so calling it for RESULTS (which usually equals the primary schema)
-        # is safe.
+        ensure_schema(engine, schema_of(engine, schema_tag=Role.PRIMARY))
+        # create_all() would fail for non-existing vocab/results schemas on a fresh database
         if resolved is not None:
             ensure_schema(engine, resolved.schema_for_role(Role.RESULTS))
             ensure_schema(vocab_engine, resolved.schema_for_role(Role.VOCAB))
@@ -92,14 +86,10 @@ def create_missing_tables(
         engine,
         vocabulary_included=vocabulary_included,
     )
-    # Each role's own schema, not just primary: a dependency table can be
-    # vocab- or results-role, and checking only the primary schema here used
-    # to make every already-existing vocab/results table look absent to the
-    # dependency-resolution pass below, incorrectly blocking creation of
-    # clinical tables that reference them.
+    # Checking only primary schema would hide existing vocab/results tables, wrongly blocking dependents.
     existing_table_names: set[str] = set()
     for role in Role:
-        existing_table_names |= set(inspector.get_table_names(schema=schema_of(engine, role=role)))
+        existing_table_names |= set(inspector.get_table_names(schema=schema_of(engine, schema_tag=role)))
     missing_table_names = {table.table_name for table in missing_tables}
 
     blocked_dependencies: dict[str, tuple[str, ...]] = {}
@@ -122,13 +112,17 @@ def create_missing_tables(
     results: list[TableCreationResult] = []
     if creatable_tables and not dry_run:
         all_tables = [table.table for table in creatable_tables]
+        tables_by_role = {
+            role: [table for table in all_tables if table.schema == role.value]
+            for role in Role
+        }
         if vocab_engine is engine:
             # One call: create_all's dependency sort and FK-deferral must see every table together.
             with (
                 engine.begin() as connection,
-                guard_schema_provenance(connection, resolved, role=Role.PRIMARY),
-                guard_schema_provenance(connection, resolved, role=Role.RESULTS),
-                guard_schema_provenance(connection, resolved, role=Role.VOCAB),
+                guard_schema_provenance_for(connection, resolved, role=Role.PRIMARY, tables=tables_by_role[Role.PRIMARY]),
+                guard_schema_provenance_for(connection, resolved, role=Role.RESULTS, tables=tables_by_role[Role.RESULTS]),
+                guard_schema_provenance_for(connection, resolved, role=Role.VOCAB, tables=tables_by_role[Role.VOCAB]),
             ):
                 Base.metadata.create_all(
                     bind=connection, tables=all_tables, checkfirst=True
@@ -136,17 +130,13 @@ def create_missing_tables(
         else:
             # Split physical connections: a cross-boundary FK can't be created here at all;
             # that failure surfaces from create_all itself rather than being masked.
-            vocab_tables = [
-                table for table in all_tables if table.schema == Role.VOCAB.value
-            ]
-            other_tables = [
-                table for table in all_tables if table.schema != Role.VOCAB.value
-            ]
+            vocab_tables = tables_by_role[Role.VOCAB]
+            other_tables = tables_by_role[Role.PRIMARY] + tables_by_role[Role.RESULTS]
             if other_tables:
                 with (
                     engine.begin() as connection,
-                    guard_schema_provenance(connection, resolved, role=Role.PRIMARY),
-                    guard_schema_provenance(connection, resolved, role=Role.RESULTS),
+                    guard_schema_provenance_for(connection, resolved, role=Role.PRIMARY, tables=tables_by_role[Role.PRIMARY]),
+                    guard_schema_provenance_for(connection, resolved, role=Role.RESULTS, tables=tables_by_role[Role.RESULTS]),
                 ):
                     Base.metadata.create_all(
                         bind=connection, tables=other_tables, checkfirst=True
@@ -154,7 +144,7 @@ def create_missing_tables(
             if vocab_tables:
                 with (
                     vocab_engine.begin() as vocab_connection,
-                    guard_schema_provenance(vocab_connection, resolved, role=Role.VOCAB),
+                    guard_schema_provenance_for(vocab_connection, resolved, role=Role.VOCAB, tables=vocab_tables),
                 ):
                     Base.metadata.create_all(
                         bind=vocab_connection, tables=vocab_tables, checkfirst=True

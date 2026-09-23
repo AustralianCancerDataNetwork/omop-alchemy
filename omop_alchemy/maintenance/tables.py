@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Iterable
 
 import sqlalchemy as sa
-from oa_configurator import Role, role_of_table, schema_of
+from oa_configurator import schema_of, validate_schema_tag
 
 
 class TableCategory(StrEnum):
@@ -58,16 +58,19 @@ class MaintenanceTable:
     primary_key_columns: tuple[sa.Column[object], ...]
 
     @property
-    def role(self) -> Role:
-        """The schema_translate_map role this table's data physically lives
-        under (oa_configurator.Role), read off its own declared schema tag.
+    def schema_tag(self) -> str:
+        """The schema_translate_map key this table's data physically lives
+        under, read off its own declared schema tag.
 
         Independent of TableCategory: category is a logical/folder grouping
         (e.g. cohort/cohort_definition are RESULTS-category despite
-        classifying as "derived" in the CDM sense), role is where the
+        classifying as "derived" in the CDM sense), schema_tag is where the
         table's rows physically live.
         """
-        return role_of_table(self.table)
+        tag = validate_schema_tag(self.table)
+        if tag is None:
+            raise TypeError(f"{self.table_name}: table has no schema tag.")
+        return tag
 
     @property
     def is_vocabulary(self) -> bool:
@@ -252,15 +255,15 @@ def existing_maintenance_tables(
     vocabulary_included: bool,
     require_single_integer_primary_key: bool = False,
 ) -> list[MaintenanceTable]:
-    """ORM-managed tables that already exist, each checked against its own role's schema.
+    """ORM-managed tables that already exist, each checked against its own schema tag.
 
     Parameters
     ----------
     bindable : sqlalchemy.Engine or sqlalchemy.Connection
         Used both to inspect the database and, via its schema_translate_map,
-        to resolve each table's own role to a physical schema
-        (``schema_of(bindable, role=table.role)``) -- a blanket schema
-        passed in once would silently misclassify every vocab/results
+        to resolve each table's own schema tag to a physical schema
+        (``schema_of(bindable, schema_tag=table.schema_tag)``) -- a blanket
+        schema passed in once would silently misclassify every vocab/results
         table checked against a database with a genuine primary/vocab/
         results split.
     """
@@ -271,7 +274,7 @@ def existing_maintenance_tables(
             vocabulary_included=vocabulary_included,
             require_single_integer_primary_key=require_single_integer_primary_key,
         )
-        if inspector.has_table(table.table_name, schema=schema_of(bindable, role=table.role))
+        if inspector.has_table(table.table_name, schema=schema_of(bindable, schema_tag=table.schema_tag))
     ]
 
 
@@ -280,7 +283,7 @@ def missing_maintenance_tables(
     *,
     vocabulary_included: bool,
 ) -> list[MaintenanceTable]:
-    """ORM-managed tables that are absent, each checked against its own role's schema.
+    """ORM-managed tables that are absent, each checked against its own schema tag.
 
     See :func:`existing_maintenance_tables` for why *bindable* replaces a
     single ``db_schema`` string.
@@ -289,5 +292,5 @@ def missing_maintenance_tables(
     return [
         table
         for table in select_omop_tables(vocabulary_included=vocabulary_included)
-        if not inspector.has_table(table.table_name, schema=schema_of(bindable, role=table.role))
+        if not inspector.has_table(table.table_name, schema=schema_of(bindable, schema_tag=table.schema_tag))
     ]

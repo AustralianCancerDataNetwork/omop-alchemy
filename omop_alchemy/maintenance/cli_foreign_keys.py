@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 import typer
 
-from oa_configurator import Role, schema_of
+from oa_configurator import schema_of
 from ..backends import Backend, resolve_backend, require_backend_support, backend_support_note
 from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .tables import (
@@ -33,7 +33,7 @@ class ForeignKeyBase:
 
     table_name: str
     category: TableCategory
-    role: Role
+    schema_tag: str
 
 
 @dataclass(frozen=True)
@@ -106,7 +106,7 @@ def _collect_fk_info(
 
     for table_name in selected_names:
         foreign_keys = inspector.get_foreign_keys(
-            table_name, schema=schema_of(engine, role=tables_by_name[table_name].role)
+            table_name, schema=schema_of(engine, schema_tag=tables_by_name[table_name].schema_tag)
         )
         relevant_foreign_keys = [
             foreign_key
@@ -131,7 +131,7 @@ def _collect_fk_info(
             _FKTableInfo(
                 table_name=table.table_name,
                 category=table.category,
-                role=table.role,
+                schema_tag=table.schema_tag,
                 outgoing_constraint_count=outgoing_count,
                 incoming_constraint_count=incoming_count,
             )
@@ -164,9 +164,9 @@ def _collect_strict_validation_failures(
     }
 
     for table_name in sorted(selected_names):
-        source_role = tables_by_name[table_name].role
+        source_schema_tag = tables_by_name[table_name].schema_tag
         for foreign_key in inspector.get_foreign_keys(
-            table_name, schema=schema_of(connection, role=source_role)
+            table_name, schema=schema_of(connection, schema_tag=source_schema_tag)
         ):
             referred_table = foreign_key.get("referred_table")
             constrained_columns = foreign_key.get("constrained_columns") or []
@@ -185,8 +185,8 @@ def _collect_strict_validation_failures(
                 str(referred_table),
                 list(constrained_columns),
                 list(referred_columns),
-                source_role=source_role,
-                referred_role=tables_by_name[str(referred_table)].role,
+                source_schema_tag=source_schema_tag,
+                referred_schema_tag=tables_by_name[str(referred_table)].schema_tag,
             )
 
             if violation_count == 0:
@@ -257,7 +257,7 @@ def validate_foreign_key_constraints(
             ForeignKeyValidationResult(
                 table_name=target.table_name,
                 category=target.category,
-                role=target.role,
+                schema_tag=target.schema_tag,
                 outgoing_constraint_count=target.outgoing_constraint_count,
                 incoming_constraint_count=target.incoming_constraint_count,
                 violating_constraint_count=violating_constraint_count,
@@ -313,7 +313,7 @@ def manage_foreign_key_triggers(
                         ForeignKeyManagementResult(
                             table_name=target.table_name,
                             category=target.category,
-                            role=target.role,
+                            schema_tag=target.schema_tag,
                             outgoing_constraint_count=target.outgoing_constraint_count,
                             incoming_constraint_count=target.incoming_constraint_count,
                             enable=enable,
@@ -336,14 +336,14 @@ def manage_foreign_key_triggers(
         for target in targets:
             if not dry_run:
                 backend.toggle_fk_triggers(
-                    connection, target.table_name, enable=enable, role=target.role
+                    connection, target.table_name, enable=enable, schema_tag=target.schema_tag
                 )
 
             results.append(
                 ForeignKeyManagementResult(
                     table_name=target.table_name,
                     category=target.category,
-                    role=target.role,
+                    schema_tag=target.schema_tag,
                     outgoing_constraint_count=target.outgoing_constraint_count,
                     incoming_constraint_count=target.incoming_constraint_count,
                     enable=enable,
@@ -373,13 +373,13 @@ def collect_foreign_key_trigger_status(
     with engine.connect() as connection:
         for target in targets:
             disabled_count, enabled_count = backend.get_fk_trigger_counts(
-                connection, target.table_name, role=target.role
+                connection, target.table_name, schema_tag=target.schema_tag
             )
             results.append(
                 ForeignKeyStatusResult(
                     table_name=target.table_name,
                     category=target.category,
-                    role=target.role,
+                    schema_tag=target.schema_tag,
                     disabled_trigger_count=disabled_count,
                     enabled_trigger_count=enabled_count,
                     outgoing_constraint_count=target.outgoing_constraint_count,

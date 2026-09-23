@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.exc import DBAPIError, IntegrityError
 import typer
 
-from oa_configurator import Role, ensure_schema, schema_of, supports_schemas
+from oa_configurator import ResolvedCDMDatabase, Role, ensure_schema, guard_schema_provenance_for, schema_of, supports_schemas
 
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY
 
@@ -36,7 +36,7 @@ class IndexTarget:
 
     table_name: str
     category: TableCategory
-    role: Role
+    schema_tag: str
     index_name: str
     column_names: tuple[str, ...]
     unique: bool
@@ -623,7 +623,7 @@ def collect_index_targets(
 
     targets: list[IndexTarget] = []
     for table in selected_tables:
-        table_schema = schema_of(engine, role=table.role)
+        table_schema = schema_of(engine, schema_tag=table.schema_tag)
         if not inspector.has_table(table.table_name, schema=table_schema):
             continue
 
@@ -645,7 +645,7 @@ def collect_index_targets(
                 IndexTarget(
                     table_name=table.table_name,
                     category=table.category,
-                    role=table.role,
+                    schema_tag=table.schema_tag,
                     index_name=physical_name,
                     column_names=column_names,
                     unique=unique,
@@ -687,6 +687,7 @@ def manage_indexes(
     vocabulary_included: bool = False,
     dry_run: bool = False,
     cluster: bool = True,
+    resolved: ResolvedCDMDatabase | None = None,
 ) -> list[IndexManagementResult]:
     """Create or drop all ORM-defined indexes. CLUSTERs tables when enabling and cluster=True."""
     backend = resolve_backend(engine)
@@ -695,10 +696,22 @@ def manage_indexes(
     metadata_indexes = _schema_metadata_indexes(selected_tables)
     clustering_supported = backend_supports(backend, "cluster_table")
 
+    if enable and not dry_run:
+        tables_by_schema_tag: dict[str, list[sa.Table]] = {}
+        for table in selected_tables:
+            tables_by_schema_tag.setdefault(table.schema_tag, []).append(table.table)
+        with engine.begin() as guard_connection:
+            for schema_tag, tables in tables_by_schema_tag.items():
+                # A same-named index could already exist under a drifted schema, attached to an unrelated table.
+                with guard_schema_provenance_for(
+                    guard_connection, resolved, role=Role(schema_tag), tables=tables
+                ):
+                    pass
+
     results: list[IndexManagementResult] = []
 
     for table in selected_tables:
-        db_schema = schema_of(engine, role=table.role)
+        db_schema = schema_of(engine, schema_tag=table.schema_tag)
         if not inspector.has_table(table.table_name, schema=db_schema):
             continue
 
@@ -747,7 +760,7 @@ def manage_indexes(
                 if not enable:
                     if not dry_run:
                         existed_before_drop = backend.index_exists(
-                            connection, index_name, role=table.role
+                            connection, index_name, schema_tag=table.schema_tag
                         )
                     else:
                         existed_before_drop = exists
@@ -772,7 +785,7 @@ def manage_indexes(
                             if captured:
                                 if not dry_run:
                                     backend.drop_index_if_exists(
-                                        connection, equivalent_name, role=table.role
+                                        connection, equivalent_name, schema_tag=table.schema_tag
                                     )
                                 outcome = _IndexOutcome(
                                     status=dry_status(dry_run, Status.CAPTURED),
@@ -825,7 +838,7 @@ def manage_indexes(
                                     physical_name=index_name,
                                 )
                     elif not dry_run:
-                        backend.drop_index_if_exists(connection, index_name, role=table.role)
+                        backend.drop_index_if_exists(connection, index_name, schema_tag=table.schema_tag)
                         # outcome stays default: applied / "metadata-defined index dropped"
                     # dry-run, existed_before_drop True: outcome stays default ("would be dropped")
                 else:
@@ -891,7 +904,7 @@ def manage_indexes(
                     operation="index",
                     table_name=table.table_name,
                     category=table.category,
-                    role=table.role,
+                    schema_tag=table.schema_tag,
                     index_name=physical_name,
                     column_names=column_names,
                     unique=unique,
@@ -929,7 +942,7 @@ def manage_indexes(
                             operation="cluster",
                             table_name=table.table_name,
                             category=table.category,
-                            role=table.role,
+                            schema_tag=table.schema_tag,
                             index_name=physical_cluster_name,
                             column_names=cluster_columns,
                             unique=False,
@@ -947,7 +960,7 @@ def manage_indexes(
                     if not dry_run:
                         with engine.begin() as connection:
                             backend.cluster_table(
-                                connection, table.table_name, physical_cluster_name, role=table.role
+                                connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
                             )
                         clustered_now = True
 
@@ -956,7 +969,7 @@ def manage_indexes(
                             operation="cluster",
                             table_name=table.table_name,
                             category=table.category,
-                            role=table.role,
+                            schema_tag=table.schema_tag,
                             index_name=physical_cluster_name,
                             column_names=cluster_columns,
                             unique=False,
@@ -969,7 +982,7 @@ def manage_indexes(
 
         if not dry_run and (created_any or clustered_now):
             with engine.connect() as connection:
-                backend.analyze_table(connection, table.table_name, role=table.role)
+                backend.analyze_table(connection, table.table_name, schema_tag=table.schema_tag)
                 connection.commit()
 
     return results
@@ -1036,6 +1049,7 @@ def enable_indexes_command(
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
             cluster=cluster,
+            resolved=conn.resolved,
         )
     console.print(render_index_results(results))
     console.print(render_index_summary(results, dry_run=dry_run))
@@ -1073,7 +1087,7 @@ def cluster_tables_command(
     results: list[IndexManagementResult] = []
 
     for table in selected_tables:
-        table_schema = schema_of(engine, role=table.role)
+        table_schema = schema_of(engine, schema_tag=table.schema_tag)
         if not inspector.has_table(table.table_name, schema=table_schema):
             continue
 
@@ -1092,10 +1106,10 @@ def cluster_tables_command(
         if not dry_run:
             with engine.begin() as connection:
                 backend.cluster_table(
-                    connection, table.table_name, physical_cluster_name, role=table.role
+                    connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
                 )
             with engine.connect() as connection:
-                backend.analyze_table(connection, table.table_name, role=table.role)
+                backend.analyze_table(connection, table.table_name, schema_tag=table.schema_tag)
                 connection.commit()
 
         results.append(
@@ -1103,7 +1117,7 @@ def cluster_tables_command(
                 operation="cluster",
                 table_name=table.table_name,
                 category=table.category,
-                role=table.role,
+                schema_tag=table.schema_tag,
                 index_name=physical_cluster_name,
                 column_names=cluster_columns,
                 unique=False,

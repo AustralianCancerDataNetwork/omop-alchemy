@@ -100,10 +100,10 @@ def _make_fake_backend():
         def dialect(self) -> str:
             return "postgresql"
 
-        def analyze_table(self, conn, table_name, *, vacuum=False, role=None) -> None:
+        def analyze_table(self, conn, table_name, *, vacuum=False, schema_tag=None) -> None:
             pass
 
-        def toggle_fk_triggers(self, conn, table_name, *, enable: bool, role=None) -> None:
+        def toggle_fk_triggers(self, conn, table_name, *, enable: bool, schema_tag=None) -> None:
             action = "ENABLE" if enable else "DISABLE"
             conn.exec_driver_sql(f"ALTER TABLE {table_name} {action} TRIGGER ALL")
 
@@ -142,7 +142,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
             type("Target", (), {
                 "table_name": "person",
                 "category": "clinical",
-                "role": Role.PRIMARY,
+                "schema_tag": Role.PRIMARY.value,
                 "model_name": "Person",
                 "model_module": "omop_alchemy.cdm.model.clinical.person",
                 "outgoing_constraint_count": 1,
@@ -151,7 +151,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
             type("Target", (), {
                 "table_name": "visit_occurrence",
                 "category": "health_system",
-                "role": Role.PRIMARY,
+                "schema_tag": Role.PRIMARY.value,
                 "model_name": "VisitOccurrence",
                 "model_module": "omop_alchemy.cdm.model.health_system.visit_occurrence",
                 "outgoing_constraint_count": 2,
@@ -214,7 +214,7 @@ def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(monke
             type("Target", (), {
                 "table_name": "person",
                 "category": "clinical",
-                "role": Role.PRIMARY,
+                "schema_tag": Role.PRIMARY.value,
                 "model_name": "Person",
                 "model_module": "omop_alchemy.cdm.model.clinical.person",
                 "outgoing_constraint_count": 1,
@@ -312,7 +312,7 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch):
             type("Target", (), {
                 "table_name": "person",
                 "category": "clinical",
-                "role": Role.PRIMARY,
+                "schema_tag": Role.PRIMARY.value,
                 "model_name": "Person",
                 "model_module": "omop_alchemy.cdm.model.clinical.person",
                 "outgoing_constraint_count": 1,
@@ -321,7 +321,7 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch):
             type("Target", (), {
                 "table_name": "visit_occurrence",
                 "category": "health_system",
-                "role": Role.PRIMARY,
+                "schema_tag": Role.PRIMARY.value,
                 "model_name": "VisitOccurrence",
                 "model_module": "omop_alchemy.cdm.model.health_system.visit_occurrence",
                 "outgoing_constraint_count": 2,
@@ -391,7 +391,7 @@ def test_foreign_keys_validate_cli_invokes_validation(monkeypatch):
                 ForeignKeyValidationResult(
                     table_name="visit_occurrence",
                     category=TableCategory.HEALTH_SYSTEM,
-                    role=Role.PRIMARY,
+                    schema_tag=Role.PRIMARY.value,
                     outgoing_constraint_count=2,
                     incoming_constraint_count=0,
                     violating_constraint_count=1,

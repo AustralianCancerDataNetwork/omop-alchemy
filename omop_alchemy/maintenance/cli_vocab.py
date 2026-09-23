@@ -298,9 +298,9 @@ def load_vocab_source(
         Engine to create vocabulary tables on, when ``vocab_connection`` names
         a physically different server than ``engine``. Defaults to ``engine``.
         CSV loading itself still runs entirely against ``engine``; this only
-        affects where vocab-role tables get created.
+        affects where vocab-tagged tables get created.
     vocab_schema : str, optional
-        Schema vocab-role tables live in, for the table-existence check
+        Schema vocab-tagged tables live in, for the table-existence check
         against ``vocab_engine``. Defaults to ``db_schema``.
     """
     vocab_engine = vocab_engine if vocab_engine is not None else engine

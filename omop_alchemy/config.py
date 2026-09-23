@@ -126,7 +126,7 @@ def vocabulary_identity(resolved: ResolvedCDMDatabase) -> str | None:
     
     Both fall back to per-engine caching instead of being wrong.
     """
-    vocab_target = resolved.connection_target(Role.VOCAB)
+    vocab_target = resolved.connection_for_role(Role.VOCAB)
 
     if (
         vocab_target.safe_url != resolved.connection.safe_url

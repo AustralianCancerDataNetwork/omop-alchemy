@@ -232,6 +232,7 @@ def test_fulltext_install_cli_passes_options(monkeypatch):
         create_indexes: bool = True,
         fastupdate: bool = False,
         dry_run: bool = False,
+        resolved: object = None,
     ):
         calls["engine"] = engine
         calls["create_indexes"] = create_indexes
