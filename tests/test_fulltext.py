@@ -1,7 +1,9 @@
 import sqlalchemy as sa
 import pytest
+from sqlalchemy.dialects import postgresql
 from typer.testing import CliRunner
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, SCHEMA_TRANSLATE_MAP_KEY, StackConfig
+from oa_configurator import Role as SchemaRole
 
 from omop_alchemy.backends import (
     CONCEPT_NAME_TSVECTOR_COLUMN,
@@ -35,9 +37,20 @@ class _FakeResult:
 
 
 class _FakeConnection:
-    def __init__(self, *, rowcount: int = 7):
+    def __init__(self, *, rowcount: int = 7, db_schema: str | None = "public"):
         self.calls: list[tuple[str, str, dict[str, object] | None]] = []
         self.rowcount = rowcount
+        self.dialect = postgresql.dialect()
+        self._db_schema = db_schema
+
+    def get_execution_options(self) -> dict[str, object]:
+        return {
+            SCHEMA_TRANSLATE_MAP_KEY: {
+                SchemaRole.PRIMARY.value: self._db_schema,
+                SchemaRole.VOCAB.value: self._db_schema,
+                SchemaRole.RESULTS.value: self._db_schema,
+            }
+        }
 
     def exec_driver_sql(
         self,
@@ -70,8 +83,8 @@ class _FakeBegin:
 class _FakeEngine:
     dialect = _FakeDialect()
 
-    def __init__(self, *, rowcount: int = 7):
-        self.connection = _FakeConnection(rowcount=rowcount)
+    def __init__(self, *, rowcount: int = 7, db_schema: str | None = "public"):
+        self.connection = _FakeConnection(rowcount=rowcount, db_schema=db_schema)
 
     def begin(self) -> _FakeBegin:
         return _FakeBegin(self.connection)
@@ -113,7 +126,6 @@ def test_install_fulltext_columns_builds_postgresql_ddl_and_registers_metadata()
 
     results = install_fulltext_columns(
         engine,  # type: ignore[arg-type]
-        db_schema="public",
         create_indexes=True,
         fastupdate=True,
     )
@@ -122,7 +134,7 @@ def test_install_fulltext_columns_builds_postgresql_ddl_and_registers_metadata()
     assert all(result.status == "applied" for result in results)
     statements = [call[1] for call in engine.connection.calls]
     assert any(
-        'ALTER TABLE "public"."concept" ADD COLUMN IF NOT EXISTS concept_name_tsvector tsvector' in statement
+        'ALTER TABLE public.concept ADD COLUMN IF NOT EXISTS concept_name_tsvector tsvector' in statement
         for statement in statements
     )
     assert any(
@@ -140,15 +152,14 @@ def test_populate_fulltext_columns_issues_update_with_regconfig_and_row_counts()
 
     results = populate_fulltext_columns(
         engine,  # type: ignore[arg-type]
-        db_schema="public",
         regconfig="simple",
     )
 
     assert all(result.status == "applied" for result in results)
     assert [result.row_count for result in results] == [11, 11]
     execute_calls = [call for call in engine.connection.calls if call[0] == "execute"]
-    assert any('UPDATE "public"."concept"' in call[1] for call in execute_calls)
-    assert any("CAST(:regconfig AS regconfig)" in call[1] for call in execute_calls)
+    assert any('UPDATE public.concept' in call[1] for call in execute_calls)
+    assert any("CAST(:regconfig AS REGCONFIG)" in call[1] for call in execute_calls)
     assert all(call[2] == {"regconfig": "simple"} for call in execute_calls)
     _postgres.unregister_fulltext_metadata()
 
@@ -160,16 +171,15 @@ def test_drop_fulltext_columns_drops_schema_objects_and_unregisters_metadata():
 
     results = drop_fulltext_columns(
         engine,  # type: ignore[arg-type]
-        db_schema="public",
         drop_indexes=True,
     )
 
     assert [result.action for result in results] == [FullTextAction.DROP, FullTextAction.DROP]
     assert all(result.status == "applied" for result in results)
     statements = [call[1] for call in engine.connection.calls]
-    assert any('DROP INDEX IF EXISTS "public"."idx_gin_concept_name_tsvector"' in statement for statement in statements)
+    assert any('DROP INDEX IF EXISTS public.idx_gin_concept_name_tsvector' in statement for statement in statements)
     assert any(
-        'ALTER TABLE "public"."concept" DROP COLUMN IF EXISTS concept_name_tsvector' in statement
+        'ALTER TABLE public.concept DROP COLUMN IF EXISTS concept_name_tsvector' in statement
         for statement in statements
     )
     assert CONCEPT_NAME_TSVECTOR_COLUMN not in Concept.__table__.c
@@ -183,9 +193,9 @@ def test_drop_fulltext_columns_drops_schema_objects_and_unregisters_metadata():
         "drop_fulltext_columns",
     ],
 )
-def test_fulltext_management_requires_postgresql(tmp_path, fn_name):
+def test_fulltext_management_requires_postgresql(fresh_engine, fn_name):
     """Fulltext management APIs reject non-PostgreSQL engines."""
-    engine = sa.create_engine(f"sqlite:///{tmp_path / 'fulltext.db'}", future=True)
+    engine = fresh_engine
     fn = {
         "install_fulltext_columns": install_fulltext_columns,
         "populate_fulltext_columns": populate_fulltext_columns,
@@ -204,8 +214,12 @@ def test_fulltext_install_cli_passes_options(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
-        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="public")},
+        connections={
+            "db": ConnectionConfig(
+                dialect="postgresql+psycopg", host="localhost", database_name="db"
+            )
+        },
+        databases={"cdm_db": CDMDatabaseConfig(connection="db", cdm_schema="public")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -215,13 +229,12 @@ def test_fulltext_install_cli_passes_options(monkeypatch):
     def fake_install_fulltext_columns(
         engine: object,
         *,
-        db_schema: str | None = None,
         create_indexes: bool = True,
         fastupdate: bool = False,
         dry_run: bool = False,
+        resolved: object = None,
     ):
         calls["engine"] = engine
-        calls["db_schema"] = db_schema
         calls["create_indexes"] = create_indexes
         calls["fastupdate"] = fastupdate
         calls["dry_run"] = dry_run
@@ -254,7 +267,6 @@ def test_fulltext_install_cli_passes_options(monkeypatch):
     )
 
     assert result.exit_code == 0
-    assert calls["db_schema"] == "public"
     assert calls["fastupdate"] is True
     assert calls["dry_run"] is True
     assert "fulltext install" in result.stdout

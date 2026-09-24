@@ -104,9 +104,9 @@ def test_oncology_episode_does_not_expose_generic_drug_episode_interface():
 
 
 @pytest.fixture
-def oncology_session(tmp_path) -> Iterator[so.Session]:
+def oncology_session(fresh_engine) -> Iterator[so.Session]:
     """Committed oncology graph so vocabulary-cache sessions see its closure."""
-    engine = sa.create_engine(f"sqlite:///{tmp_path / 'oncology.db'}")
+    engine = fresh_engine
     bootstrap(engine, create=True)
 
     rt_concept_id = 9_100_001

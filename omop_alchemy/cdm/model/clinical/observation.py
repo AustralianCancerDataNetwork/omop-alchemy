@@ -4,6 +4,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
+from oa_configurator import Role
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     CDMTableBase,
@@ -14,6 +15,8 @@ from omop_alchemy.cdm.base import (
     ClinicalEventMixin,
     ReferenceContext,
     cdm_table,
+    optional_concept_fk,
+    role_fk,
     ValueMixin,
     merge_table_args,
     omop_index,
@@ -29,6 +32,7 @@ if TYPE_CHECKING:
 class Observation(Base, CDMTableBase, ValueMixin, ModifierSourceMixin):
     __tablename__ = "observation"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "observation_concept_id"),
         omop_index(__tablename__, "visit_occurrence_id"),
@@ -36,46 +40,26 @@ class Observation(Base, CDMTableBase, ValueMixin, ModifierSourceMixin):
     )
 
     observation_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    person_id: so.Mapped[int] = so.mapped_column(
-        sa.ForeignKey("person.person_id"), nullable=False
-    )
-    observation_concept_id: so.Mapped[int] = so.mapped_column(
-        sa.ForeignKey("concept.concept_id"), nullable=False
-    )
+    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
+    observation_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
     observation_date: so.Mapped[date] = so.mapped_column(nullable=False)
     observation_datetime: so.Mapped[Optional[datetime]]
-    observation_type_concept_id: so.Mapped[int] = so.mapped_column(
-        sa.ForeignKey("concept.concept_id"), nullable=False
-    )
-    # value_as_number: so.Mapped[Optional[float]]
+    observation_type_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
+    #value_as_number: so.Mapped[Optional[float]]
     value_as_string: so.Mapped[Optional[str]]
-    # value_as_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("concept.concept_id"))
-    qualifier_concept_id: so.Mapped[Optional[int]] = so.mapped_column(
-        sa.ForeignKey("concept.concept_id")
-    )
-    unit_concept_id: so.Mapped[Optional[int]] = so.mapped_column(
-        sa.ForeignKey("concept.concept_id")
-    )
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(
-        sa.ForeignKey("provider.provider_id")
-    )
-    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(
-        sa.ForeignKey("visit_occurrence.visit_occurrence_id")
-    )
-    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(
-        sa.ForeignKey("visit_detail.visit_detail_id")
-    )
+    #value_as_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    qualifier_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    unit_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")))
+    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")))
+    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id")))
     observation_source_value: so.Mapped[Optional[str]]
-    observation_source_concept_id: so.Mapped[Optional[int]] = so.mapped_column(
-        sa.ForeignKey("concept.concept_id")
-    )
+    observation_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     unit_source_value: so.Mapped[Optional[str]]
     qualifier_source_value: so.Mapped[Optional[str]]
     value_source_value: so.Mapped[Optional[str]]
     observation_event_id: so.Mapped[Optional[int]]
-    obs_event_field_concept_id: so.Mapped[Optional[int]] = so.mapped_column(
-        sa.ForeignKey("concept.concept_id")
-    )
+    obs_event_field_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
 
     __modifier_event_id_col__ = "observation_event_id"
     __modifier_field_concept_id_col__ = "obs_event_field_concept_id"
@@ -131,6 +115,8 @@ class ObservationView(
     """Analytical Observation mapping with event metadata and reference context."""
 
     __tablename__ = "observation"
+    # Must match Observation's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
     __event_id_col__ = "observation_id"
     __concept_id_col__ = "observation_concept_id"

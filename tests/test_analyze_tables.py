@@ -1,4 +1,3 @@
-import sqlalchemy as sa
 import pytest
 from typer.testing import CliRunner
 
@@ -9,18 +8,12 @@ from omop_alchemy.maintenance.tables import TableCategory
 runner = CliRunner()
 
 
-def _engine(tmp_path):
-    """Create an isolated SQLite engine for analyze-table tests."""
-    return sa.create_engine(f"sqlite:///{tmp_path / 'analyze.db'}", future=True)
-
-
-def test_analyze_tables_runs_on_sqlite(tmp_path):
+def test_analyze_tables_runs_on_sqlite(fresh_engine):
     """Analyze applies successfully on SQLite for selected OMOP tables."""
-    engine = _engine(tmp_path)
-    create_missing_tables(engine, vocabulary_included=True)
+    create_missing_tables(fresh_engine, vocabulary_included=True)
 
     results = analyze_tables(
-        engine,
+        fresh_engine,
         scope=TableCategory.CLINICAL,
         dry_run=False,
     )
@@ -31,13 +24,11 @@ def test_analyze_tables_runs_on_sqlite(tmp_path):
     )
 
 
-def test_analyze_tables_rejects_vacuum_on_sqlite(tmp_path):
+def test_analyze_tables_rejects_vacuum_on_sqlite(fresh_engine):
     """VACUUM ANALYZE is rejected on SQLite with a clear runtime error."""
-    engine = _engine(tmp_path)
-    create_missing_tables(engine, vocabulary_included=True)
+    create_missing_tables(fresh_engine, vocabulary_included=True)
 
     with pytest.raises(RuntimeError) as exc_info:
-        analyze_tables(engine, scope=TableCategory.CLINICAL, vacuum=True)
+        analyze_tables(fresh_engine, scope=TableCategory.CLINICAL, vacuum=True)
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
-

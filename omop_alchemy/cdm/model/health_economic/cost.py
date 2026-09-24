@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from typing import Optional
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
@@ -15,6 +16,7 @@ from omop_alchemy.cdm.base import (
 class Cost(CDMTableBase, Base):
     __tablename__ = "cost"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "cost_event_id"),
         omop_index(__tablename__, "cost_type_concept_id"),
     )

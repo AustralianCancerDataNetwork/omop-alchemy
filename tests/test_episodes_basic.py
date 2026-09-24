@@ -1,3 +1,4 @@
+from oa_configurator import Role
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.structural import (
     EpisodeView,
@@ -19,6 +20,7 @@ class DiagnosticEpisode(ResolvedEpisodeEventMixin, EpisodeView):
     """Non-oncology episode view used to verify the generic extension point."""
 
     __tablename__ = "episode"
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
 
 

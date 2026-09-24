@@ -12,7 +12,7 @@ from .base import (
 )
 from .postgres import PostgresBackend
 from .sqlite import SQLiteBackend
-from .resolve import resolve_backend, SupportedDialect
+from .resolve import resolve_backend
 
 __all__ = [
     "Backend",
@@ -28,5 +28,4 @@ __all__ = [
     "PostgresBackend",
     "SQLiteBackend",
     "resolve_backend",
-    "SupportedDialect",
 ]

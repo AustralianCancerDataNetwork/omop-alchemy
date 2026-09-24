@@ -1,4 +1,3 @@
-import sqlalchemy as sa
 import pytest
 from typer.testing import CliRunner
 
@@ -12,37 +11,31 @@ from omop_alchemy.maintenance.cli_foreign_keys import (
     collect_foreign_key_trigger_status,
     manage_foreign_key_triggers,
 )
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
 
 runner = CliRunner()
 
 
-def _engine(tmp_path):
-    return sa.create_engine(f"sqlite:///{tmp_path / 'foreign_keys.db'}", future=True)
-
-
-def test_collect_fk_info_finds_participating_tables(tmp_path):
+def test_collect_fk_info_finds_participating_tables(fresh_engine):
     """Test _collect_fk_info finds participating tables."""
-    engine = _engine(tmp_path)
-    create_missing_tables(engine)
+    create_missing_tables(fresh_engine)
 
     targets = {
         target.table_name: target
-        for target in _collect_fk_info(engine)
+        for target in _collect_fk_info(fresh_engine)
     }
 
     assert "person" in targets
     assert targets["person"].incoming_constraint_count > 0
 
 
-def test_manage_foreign_key_triggers_supports_dry_run(tmp_path):
+def test_manage_foreign_key_triggers_supports_dry_run(fresh_engine):
     """Test manage foreign key triggers supports dry run."""
-    engine = _engine(tmp_path)
-    create_missing_tables(engine)
+    create_missing_tables(fresh_engine)
 
     with pytest.raises(RuntimeError) as exc_info:
         manage_foreign_key_triggers(
-            engine,
+            fresh_engine,
             enable=False,
             dry_run=True,
         )
@@ -50,24 +43,22 @@ def test_manage_foreign_key_triggers_supports_dry_run(tmp_path):
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
-def test_collect_foreign_key_trigger_status_is_safe_on_sqlite(tmp_path):
+def test_collect_foreign_key_trigger_status_is_safe_on_sqlite(fresh_engine):
     """Test collect foreign key trigger status is safe on sqlite."""
-    engine = _engine(tmp_path)
-    create_missing_tables(engine)
+    create_missing_tables(fresh_engine)
 
     with pytest.raises(RuntimeError) as exc_info:
-        collect_foreign_key_trigger_status(engine)
+        collect_foreign_key_trigger_status(fresh_engine)
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
-def test_validate_foreign_key_constraints_is_safe_on_sqlite(tmp_path):
+def test_validate_foreign_key_constraints_is_safe_on_sqlite(fresh_engine):
     """Test validate foreign key constraints is safe on sqlite."""
-    engine = _engine(tmp_path)
-    create_missing_tables(engine)
+    create_missing_tables(fresh_engine)
 
     with pytest.raises(RuntimeError) as exc_info:
-        validate_foreign_key_constraints(engine)
+        validate_foreign_key_constraints(fresh_engine)
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
@@ -77,7 +68,7 @@ def test_disable_foreign_keys_cli_fails_gracefully_for_sqlite(monkeypatch):
 
     cfg = StackConfig.for_session(
         connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
-        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -109,10 +100,10 @@ def _make_fake_backend():
         def dialect(self) -> str:
             return "postgresql"
 
-        def analyze_table(self, conn, table_name, db_schema, *, vacuum=False) -> None:
+        def analyze_table(self, conn, table_name, *, vacuum=False, schema_tag=None) -> None:
             pass
 
-        def toggle_fk_triggers(self, conn, table_name, db_schema, *, enable: bool) -> None:
+        def toggle_fk_triggers(self, conn, table_name, *, enable: bool, schema_tag=None) -> None:
             action = "ENABLE" if enable else "DISABLE"
             conn.exec_driver_sql(f"ALTER TABLE {table_name} {action} TRIGGER ALL")
 
@@ -147,10 +138,11 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_fk_info",
-        lambda engine, *, db_schema=None, vocabulary_included=False: [
+        lambda engine, *, vocabulary_included=False: [
             type("Target", (), {
                 "table_name": "person",
                 "category": "clinical",
+                "schema_tag": Role.PRIMARY.value,
                 "model_name": "Person",
                 "model_module": "omop_alchemy.cdm.model.clinical.person",
                 "outgoing_constraint_count": 1,
@@ -159,6 +151,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
             type("Target", (), {
                 "table_name": "visit_occurrence",
                 "category": "health_system",
+                "schema_tag": Role.PRIMARY.value,
                 "model_name": "VisitOccurrence",
                 "model_module": "omop_alchemy.cdm.model.health_system.visit_occurrence",
                 "outgoing_constraint_count": 2,
@@ -168,7 +161,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_strict_validation_failures",
-        lambda connection, backend, *, db_schema=None, vocabulary_included=False: {
+        lambda connection, backend, *, vocabulary_included=False: {
             "visit_occurrence": [
                 ForeignKeyConstraintViolation(
                     source_table_name="visit_occurrence",
@@ -217,10 +210,11 @@ def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(monke
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_fk_info",
-        lambda engine, *, db_schema=None, vocabulary_included=False: [
+        lambda engine, *, vocabulary_included=False: [
             type("Target", (), {
                 "table_name": "person",
                 "category": "clinical",
+                "schema_tag": Role.PRIMARY.value,
                 "model_name": "Person",
                 "model_module": "omop_alchemy.cdm.model.clinical.person",
                 "outgoing_constraint_count": 1,
@@ -230,7 +224,7 @@ def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(monke
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_strict_validation_failures",
-        lambda connection, backend, *, db_schema=None, vocabulary_included=False: {},
+        lambda connection, backend, *, vocabulary_included=False: {},
     )
 
     results = manage_foreign_key_triggers(
@@ -251,7 +245,7 @@ def test_enable_foreign_keys_strict_cli_invokes_strict_management(monkeypatch):
 
     cfg = StackConfig.for_session(
         connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
-        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -314,10 +308,11 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch):
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_fk_info",
-        lambda engine, *, db_schema=None, vocabulary_included=False: [
+        lambda engine, *, vocabulary_included=False: [
             type("Target", (), {
                 "table_name": "person",
                 "category": "clinical",
+                "schema_tag": Role.PRIMARY.value,
                 "model_name": "Person",
                 "model_module": "omop_alchemy.cdm.model.clinical.person",
                 "outgoing_constraint_count": 1,
@@ -326,6 +321,7 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch):
             type("Target", (), {
                 "table_name": "visit_occurrence",
                 "category": "health_system",
+                "schema_tag": Role.PRIMARY.value,
                 "model_name": "VisitOccurrence",
                 "model_module": "omop_alchemy.cdm.model.health_system.visit_occurrence",
                 "outgoing_constraint_count": 2,
@@ -335,7 +331,7 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch):
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_strict_validation_failures",
-        lambda connection, backend, *, db_schema=None, vocabulary_included=False: {
+        lambda connection, backend, *, vocabulary_included=False: {
             "visit_occurrence": [
                 ForeignKeyConstraintViolation(
                     source_table_name="visit_occurrence",
@@ -363,7 +359,7 @@ def test_foreign_keys_validate_cli_invokes_validation(monkeypatch):
 
     cfg = StackConfig.for_session(
         connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
-        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -395,6 +391,7 @@ def test_foreign_keys_validate_cli_invokes_validation(monkeypatch):
                 ForeignKeyValidationResult(
                     table_name="visit_occurrence",
                     category=TableCategory.HEALTH_SYSTEM,
+                    schema_tag=Role.PRIMARY.value,
                     outgoing_constraint_count=2,
                     incoming_constraint_count=0,
                     violating_constraint_count=1,

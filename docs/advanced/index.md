@@ -17,3 +17,4 @@ the immutability and interpretability of the underlying CDM tables.
 
 - [Backend Compatibility](backends.md)
 - [PostgreSQL Full-Text Search](fulltext.md)
+- [Vocabulary Load Performance](vocabulary_load_performance.md)

@@ -2,21 +2,44 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import cast
 
 import typer
+import sqlalchemy as sa
 from sqlalchemy.engine import Engine
+from oa_configurator import ResolvedCDMDatabase, guard_schema_provenance_for, validate_schema_tag
 
 from ..backends import backend_support_note as _backend_support_note
 from ..backends import resolve_backend, require_backend_support
 from ..backends.base import FullTextError
-from ._cli_utils import Status, dry_label, dry_status, omop_command, reject_reserved_schema
+from ..cdm.model.vocabulary.concept import Concept
+from ..cdm.model.vocabulary.concept_synonym import Concept_Synonym
+from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .ui import (
     console,
     render_fulltext_results,
     render_fulltext_summary,
 )
+
+_FULLTEXT_TARGET_TABLES: dict[str, sa.Table] = {
+    "concept": cast(sa.Table, Concept.__table__),
+    "concept_synonym": cast(sa.Table, Concept_Synonym.__table__),
+}
+
+
+def _schema_tag_for_target(table_name: str) -> str:
+    """The schema tag a fulltext target table's own declared schema names.
+    Resolves via validate_schema_tag() rather than hardcoding Role.VOCAB,
+    so a future non-vocab fulltext target resolves correctly.
+    """
+    tag = validate_schema_tag(_FULLTEXT_TARGET_TABLES[table_name])
+    if tag is None:
+        raise TypeError(f"{table_name}: table has no schema tag.")
+    return tag
+
 
 app = typer.Typer(
     help=f"Manage full-text search for OMOP vocabulary tables. {_backend_support_note('install_fulltext_on_table')}",
@@ -51,29 +74,38 @@ class FullTextResult:
 def install_fulltext_columns(
     engine: Engine,
     *,
-    db_schema: str | None = None,
     create_indexes: bool = True,
     fastupdate: bool = False,
     dry_run: bool = False,
+    resolved: ResolvedCDMDatabase | None = None,
 ) -> tuple[FullTextResult, ...]:
     """Install tsvector sidecar columns (and optionally GIN indexes) on OMOP vocabulary tables."""
-    reject_reserved_schema(db_schema)
     backend = resolve_backend(engine)
     require_backend_support(backend, "install_fulltext_on_table", "Full-text search")
     targets = backend.fulltext_targets
 
     try:
         if not dry_run:
-            with engine.begin() as connection:
+            tables_by_schema_tag: dict[str, list[sa.Table]] = {}
+            for cfg in targets:
+                tag = _schema_tag_for_target(cfg.table_name)
+                tables_by_schema_tag.setdefault(tag, []).append(_FULLTEXT_TARGET_TABLES[cfg.table_name])
+            # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
+            with engine.begin() as connection, ExitStack() as guard_stack:
+                for schema_tag, tables in tables_by_schema_tag.items():
+                    # A same-named column/index could already exist under a drifted schema, attached to an unrelated table.
+                    guard_stack.enter_context(
+                        guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag, tables=tables)
+                    )
                 for cfg in targets:
                     backend.install_fulltext_on_table(
                         connection,
                         table_name=cfg.table_name,
                         vector_column_name=cfg.vector_column_name,
                         index_name=cfg.index_name,
-                        db_schema=db_schema,
                         create_indexes=create_indexes,
                         fastupdate=fastupdate,
+                        schema_tag=_schema_tag_for_target(cfg.table_name),
                     )
             backend.register_fulltext_metadata()
     except FullTextError:
@@ -105,12 +137,10 @@ def install_fulltext_columns(
 def populate_fulltext_columns(
     engine: Engine,
     *,
-    db_schema: str | None = None,
     regconfig: str = "english",
     dry_run: bool = False,
 ) -> tuple[FullTextResult, ...]:
     """Populate tsvector sidecar columns with pre-computed search vectors."""
-    reject_reserved_schema(db_schema)
     backend = resolve_backend(engine)
     require_backend_support(backend, "populate_fulltext_on_table", "Full-text search")
     targets = backend.fulltext_targets
@@ -125,8 +155,8 @@ def populate_fulltext_columns(
                         table_name=cfg.table_name,
                         vector_column_name=cfg.vector_column_name,
                         source_column_name=cfg.source_column_name,
-                        db_schema=db_schema,
                         regconfig=regconfig,
+                        schema_tag=_schema_tag_for_target(cfg.table_name),
                     )
             backend.register_fulltext_metadata()
     except FullTextError:
@@ -155,12 +185,10 @@ def populate_fulltext_columns(
 def drop_fulltext_columns(
     engine: Engine,
     *,
-    db_schema: str | None = None,
     drop_indexes: bool = True,
     dry_run: bool = False,
 ) -> tuple[FullTextResult, ...]:
     """Remove tsvector sidecar columns and their associated GIN indexes."""
-    reject_reserved_schema(db_schema)
     backend = resolve_backend(engine)
     require_backend_support(backend, "drop_fulltext_on_table", "Full-text search")
     targets = backend.fulltext_targets
@@ -174,8 +202,8 @@ def drop_fulltext_columns(
                         table_name=cfg.table_name,
                         vector_column_name=cfg.vector_column_name,
                         index_name=cfg.index_name,
-                        db_schema=db_schema,
                         drop_indexes=drop_indexes,
+                        schema_tag=_schema_tag_for_target(cfg.table_name),
                     )
             backend.unregister_fulltext_metadata()
     except FullTextError:
@@ -227,10 +255,10 @@ def install_fulltext_command(
     with console.status("Managing PostgreSQL full-text sidecar columns..."):
         results = install_fulltext_columns(
             engine,
-            db_schema=conn.db_schema,
             create_indexes=create_indexes,
             fastupdate=fastupdate,
             dry_run=dry_run,
+            resolved=conn.resolved,
         )
     console.print(render_fulltext_results(results))
     console.print(render_fulltext_summary(results, action="install", dry_run=dry_run))
@@ -251,7 +279,6 @@ def populate_fulltext_command(
     with console.status("Managing PostgreSQL full-text sidecar columns..."):
         results = populate_fulltext_columns(
             engine,
-            db_schema=conn.db_schema,
             regconfig=regconfig,
             dry_run=dry_run,
         )
@@ -275,7 +302,6 @@ def drop_fulltext_command(
     with console.status("Managing PostgreSQL full-text sidecar columns..."):
         results = drop_fulltext_columns(
             engine,
-            db_schema=conn.db_schema,
             drop_indexes=drop_indexes,
             dry_run=dry_run,
         )

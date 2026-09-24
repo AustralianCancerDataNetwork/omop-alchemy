@@ -5,9 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
+from oa_configurator import (
+    ResolvedDatabase,
+    find_table_in_other_schemas,
+    physical_schema_of,
+    supports_schemas,
+    validate_schema_tag,
+)
 from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, ReflectedIndex
 
-from ..backends import backend_supports, resolve_backend
+from ..backends import Backend, backend_supports, resolve_backend
 from ._cli_utils import Severity, Status
 from .cli_indexes import _cluster_column_names, _cluster_target_name, _find_equivalent_index
 from .tables import (
@@ -66,19 +73,51 @@ class SchemaReconciliationReport:
     issues: tuple[ReconciliationIssue, ...]
 
 
-def _schema_table(table: sa.Table, db_schema: str | None) -> sa.Table:
-    """Return table unchanged when db_schema is None, or a schema-qualified copy when a schema is specified."""
-    if db_schema is None:
-        return table
+def _effective_schema(
+    engine: sa.Engine,
+    resolved: ResolvedDatabase | None,
+    schema_tag: str | None,
+    db_schema: str | None,
+) -> str | None:
+    """physical_schema_of(engine, schema_tag=schema_tag) when resolved is given, else db_schema.
 
+    Uses physical_schema_of against engine to accommodate bare schema_tags.
+    """
+    if resolved is None:
+        return db_schema
+    return physical_schema_of(engine, schema_tag=schema_tag)
+
+
+def _schema_qualified_tables(
+    engine: sa.Engine, resolved: ResolvedDatabase | None, db_schema: str | None
+) -> dict[int, sa.Table]:
+    """Schema-qualified copy of every table in Base.metadata, keyed by id() of the original.
+
+    Copied into one shared MetaData() since to_metadata() won't bring a referenced table's copy along on its own, which FK targets need present.
+    """
+    from orm_loader.helpers import Base
+
+    if resolved is None and db_schema is None:
+        return {id(table): table for table in Base.metadata.tables.values()}
     metadata = sa.MetaData()
-    return table.to_metadata(
-        metadata,
-        schema=db_schema,
-        referred_schema_fn=(
-            lambda _table, to_schema, _constraint, _referred_schema: to_schema
-        ),
-    )
+
+    def _referred_schema(_table: sa.Table, _to_schema, _constraint, referred_schema: str | None):
+        # to_metadata(): None means "unchanged", BLANK_SCHEMA actually clears the schema.
+        # referred_schema is already validate_schema_tag()-clean (checked below), no
+        # re-validation needed here.
+        target = _effective_schema(engine, resolved, referred_schema, db_schema)
+        return target if target is not None else sa.BLANK_SCHEMA
+
+    return {
+        id(table): table.to_metadata(
+            metadata,
+            # SQLAlchemy's own stub omits None from schema's declared type,
+            # despite accepting and correctly handling it at runtime
+            schema=_effective_schema(engine, resolved, validate_schema_tag(table), db_schema),  # ty: ignore[invalid-argument-type]
+            referred_schema_fn=_referred_schema,
+        )
+        for table in Base.metadata.tables.values()
+    }
 
 
 def _normalized_type(type_: sa.types.TypeEngine[object], dialect: sa.engine.Dialect) -> str:
@@ -136,18 +175,75 @@ def _actual_indexes(
     }
 
 
+def _expected_index_signature(index: sa.Index, backend: Backend) -> tuple[str, ...]:
+    """Per-position signature for index: a plain column's name, or the
+    normalized compiled SQL text of an expression (e.g. ``func.lower(...)``),
+    matching how the database reflects a functional index back. Expression
+    normalization is dialect-specific (e.g. Postgres's own catalog inserts
+    casts as reflection noise), so it's delegated to backend.
+    """
+    signature = []
+    for expr in index.expressions:
+        if isinstance(expr, sa.Column):
+            signature.append(expr.name)
+        elif isinstance(expr, str):
+            signature.append(backend.normalize_index_expression(expr))
+        else:
+            compiled = str(expr.compile(compile_kwargs={"literal_binds": True}))
+            signature.append(backend.normalize_index_expression(compiled))
+    return tuple(signature)
+
+
+def _actual_index_signature(actual_index: ReflectedIndex, backend: Backend) -> tuple[str, ...]:
+    """Per-position signature for a reflected index, matching
+    :func:`_expected_index_signature`'s shape.
+    """
+    column_names = actual_index.get("column_names") or []
+    if "expressions" not in actual_index:
+        return tuple(name for name in column_names if name is not None)
+    expressions = iter(actual_index.get("expressions") or [])
+    return tuple(
+        name if name is not None else backend.normalize_index_expression(next(expressions))
+        for name in column_names
+    )
+
+
 def reconcile_schema(
     engine: sa.Engine,
     *,
+    resolved: ResolvedDatabase | None = None,
     db_schema: str | None = None,
     vocabulary_included: bool = False,
 ) -> SchemaReconciliationReport:
-    """Compare ORM metadata against the live database schema. Reports missing columns, indexes, FKs, and cluster state."""
+    """Compare ORM metadata against the live database schema.
+
+    Parameters
+    ----------
+    engine : sqlalchemy.Engine
+        Engine to inspect. Its dialect selects the backend used for
+        cluster-state checks.
+    resolved : ResolvedDatabase, optional
+        When given, qualifies each table to its own schema tag
+        (schema_name/vocab_schema/results_schema) instead of applying
+        db_schema to every table regardless of tag.
+    db_schema : str, optional
+        Blanket schema applied to every table when resolved is not given.
+    vocabulary_included : bool, optional
+        Whether vocabulary tables are included in the diff.
+
+    Returns
+    -------
+    SchemaReconciliationReport
+        Per-table status plus every column, index, FK, and cluster issue
+        found.
+    """
     excluded_categories: tuple[TableCategory, ...] = (
         () if vocabulary_included else (TableCategory.VOCABULARY,)
     )
     _backend = resolve_backend(engine)
+    _cross_schema_fk_supported = supports_schemas(engine)
     selected_tables = select_maintenance_tables(exclude_categories=excluded_categories)
+    schema_qualified_tables = _schema_qualified_tables(engine, resolved, db_schema)
     inspector = sa.inspect(engine)
     all_issues: list[ReconciliationIssue] = []
     table_results: list[TableReconciliationResult] = []
@@ -155,8 +251,43 @@ def reconcile_schema(
     with engine.connect() as connection:
         for maintenance_table in selected_tables:
             table_issues: list[ReconciliationIssue] = []
-            exists = inspector.has_table(maintenance_table.table_name, schema=db_schema)
+            table_schema_tag = validate_schema_tag(maintenance_table.table)
+            if table_schema_tag is None:
+                raise TypeError(f"{maintenance_table.table_name}: table has no schema tag.")
+            table_schema = _effective_schema(engine, resolved, table_schema_tag, db_schema)
+            exists = inspector.has_table(maintenance_table.table_name, schema=table_schema)
             if not exists:
+                relocated_to = find_table_in_other_schemas(
+                    engine, maintenance_table.table_name, physical_schema=table_schema
+                )
+                if relocated_to:
+                    detail = (
+                        f"Table is absent from schema {table_schema!r} but found in "
+                        f"{', '.join(sorted(relocated_to))!r}."
+                    )
+                    table_issues.append(
+                        ReconciliationIssue(
+                            table_name=maintenance_table.table_name,
+                            category=maintenance_table.category,
+                            component="table",
+                            object_name=maintenance_table.table_name,
+                            status=Status.RELOCATED,
+                            expected=table_schema,
+                            actual=", ".join(sorted(relocated_to)),
+                            detail=detail,
+                        )
+                    )
+                    table_results.append(
+                        TableReconciliationResult(
+                            table_name=maintenance_table.table_name,
+                            category=maintenance_table.category,
+                            status=Status.RELOCATED,
+                            issue_count=1,
+                            detail=detail,
+                        )
+                    )
+                    all_issues.extend(table_issues)
+                    continue
                 table_issues.append(
                     ReconciliationIssue(
                         table_name=maintenance_table.table_name,
@@ -181,14 +312,14 @@ def reconcile_schema(
                 all_issues.extend(table_issues)
                 continue
 
-            expected_table = _schema_table(maintenance_table.table, db_schema)
+            expected_table = schema_qualified_tables[id(maintenance_table.table)]
             expected_columns = {column.name: column for column in expected_table.columns}
             actual_columns = {
                 str(column["name"]): column
-                for column in inspector.get_columns(maintenance_table.table_name, schema=db_schema)
+                for column in inspector.get_columns(maintenance_table.table_name, schema=table_schema)
             }
             actual_pk_names = tuple(
-                inspector.get_pk_constraint(maintenance_table.table_name, schema=db_schema).get("constrained_columns") or []
+                inspector.get_pk_constraint(maintenance_table.table_name, schema=table_schema).get("constrained_columns") or []
             )
             expected_pk_names = tuple(column.name for column in expected_table.primary_key.columns)
 
@@ -272,10 +403,21 @@ def reconcile_schema(
                 )
 
             expected_fks = _expected_foreign_keys(expected_table)
-            actual_fks = _actual_foreign_keys(inspector, maintenance_table.table_name, db_schema)
+            actual_fks = _actual_foreign_keys(inspector, maintenance_table.table_name, table_schema)
+            # Uses the unqualified table, since two differently-tagged tables can collapse to
+            # the same schema (e.g. all-None on SQLite) and hide a genuine cross-tag FK.
+            raw_expected_fks = _expected_foreign_keys(maintenance_table.table)
 
             for signature, constraint in expected_fks.items():
                 if signature not in actual_fks:
+                    raw_constraint = raw_expected_fks.get(signature)
+                    if (
+                        not _cross_schema_fk_supported
+                        and raw_constraint is not None
+                        and validate_schema_tag(raw_constraint.referred_table) != table_schema_tag
+                    ):
+                        # SQLite can never create an inline FK crossing a schema boundary.
+                        continue
                     constrained_columns, referred_table, referred_columns = signature
                     table_issues.append(
                         ReconciliationIssue(
@@ -307,7 +449,7 @@ def reconcile_schema(
                     )
 
             expected_idxs = _expected_indexes(expected_table)
-            actual_idxs = _actual_indexes(inspector, maintenance_table.table_name, db_schema)
+            actual_idxs = _actual_indexes(inspector, maintenance_table.table_name, table_schema)
             actual_index_list = list(actual_idxs.values())
             renamed_actual_names: set[str] = set()
 
@@ -350,9 +492,9 @@ def reconcile_schema(
                     continue
 
                 actual_index = actual_idxs[index_name]
-                expected_columns_for_index = tuple(column.name for column in index.columns)
-                actual_columns_for_index = tuple(c for c in (actual_index.get("column_names") or []) if c is not None)
-                if expected_columns_for_index != actual_columns_for_index:
+                expected_signature = _expected_index_signature(index, _backend)
+                actual_signature = _actual_index_signature(actual_index, _backend)
+                if expected_signature != actual_signature:
                     table_issues.append(
                         ReconciliationIssue(
                             table_name=maintenance_table.table_name,
@@ -360,8 +502,8 @@ def reconcile_schema(
                             component="index",
                             object_name=index_name,
                             status=Status.MISMATCH,
-                            expected=", ".join(expected_columns_for_index),
-                            actual=", ".join(actual_columns_for_index) if actual_columns_for_index else None,
+                            expected=", ".join(expected_signature),
+                            actual=", ".join(actual_signature) if actual_signature else None,
                             detail="Index columns differ from ORM metadata.",
                         )
                     )
@@ -384,7 +526,7 @@ def reconcile_schema(
                 actual_cluster = _backend.get_clustered_index_name(
                     connection,
                     maintenance_table.table_name,
-                    db_schema,
+                    schema_tag=table_schema_tag,
                 )
                 if expected_cluster != actual_cluster:
                     # May be a rename, not drift, so treat like a renamed index.

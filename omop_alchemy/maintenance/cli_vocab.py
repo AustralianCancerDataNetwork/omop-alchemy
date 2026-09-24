@@ -4,17 +4,18 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, TypeAlias, cast
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-import sqlalchemy.event as sae
 from sqlalchemy.exc import OperationalError
 import typer
-from sqlalchemy.pool import NullPool
-from orm_loader.backends import resolve_backend
+from oa_configurator import ResolvedCDMDatabase, ensure_schema, guard_schema_provenance_for
+from orm_loader.backends import STAGING_SCHEMA, resolve_backend
+from orm_loader.helpers import Base
 from orm_loader.tables.typing import CSVTableProtocol
 from rich.progress import (
     BarColumn,
@@ -25,7 +26,6 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from ..backends.resolve import SupportedDialect
 from omop_alchemy.cdm.model.vocabulary import (
     Concept,
     Concept_Ancestor,
@@ -39,17 +39,12 @@ from omop_alchemy.cdm.model.vocabulary import (
     Vocabulary,
 )
 
-from ._cli_utils import (
-    ReservedSchema,
-    Status,
-    ensure_schema,
-    omop_command,
-    reject_reserved_schema,
-)
+from ..backends import backend_supports, resolve_backend as resolve_omop_backend
+from ._cli_utils import Status, omop_command
 from .cli_foreign_keys import manage_foreign_key_triggers
 from .cli_indexes import manage_indexes
 from .cli_tables import reset_model_sequences
-from .tables import TableCategory, schema_adjusted_metadata, select_maintenance_tables
+from .tables import TableCategory, select_maintenance_tables
 from .ui import (
     console,
     render_error,
@@ -247,6 +242,7 @@ def _create_missing_vocabulary_tables(
     connection: sa.Connection,
     *,
     db_schema: str | None,
+    resolved: ResolvedCDMDatabase | None = None,
 ) -> int:
     """Create any vocabulary-category ORM tables that are absent from the target database. Returns the count created."""
     vocab_tables = select_maintenance_tables(
@@ -261,21 +257,29 @@ def _create_missing_vocabulary_tables(
     if not missing_tables:
         return 0
 
-    metadata, adjusted_tables = schema_adjusted_metadata(
-        vocab_tables,
-        db_schema=db_schema,
-    )
-    metadata.create_all(
-        bind=connection,
-        tables=[adjusted_tables[table.table_name] for table in missing_tables],
-        checkfirst=True,
-    )
+    tables_by_schema_tag: dict[str, list[sa.Table]] = {}
+    for table in missing_tables:
+        tables_by_schema_tag.setdefault(table.schema_tag, []).append(table.table)
+
+    with ExitStack() as guard_stack:
+        # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
+        for schema_tag, tables in tables_by_schema_tag.items():
+            guard_stack.enter_context(
+                guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag, tables=tables)
+            )
+        Base.metadata.create_all(
+            bind=connection,
+            tables=[table.table for table in missing_tables],
+            checkfirst=True,
+        )
     return len(missing_tables)
 
 
 def load_vocab_source(
     engine: sa.Engine,
     *,
+    vocab_engine: sa.Engine | None = None,
+    vocab_schema: str | None = None,
     source_path: str | Path,
     tables: list[str] | None = None,
     db_schema: str | None = None,
@@ -286,6 +290,7 @@ def load_vocab_source(
     bulk_mode: bool = True,
     merge_batch_size: int | None = None,
     progress_callback: VocabularyLoadProgressCallback | None = None,
+    resolved: ResolvedCDMDatabase | None = None,
 ) -> VocabularyLoadReport:
     """
     Load Athena vocabulary CSVs from source_path into the target database.
@@ -299,7 +304,25 @@ def load_vocab_source(
     With bulk_mode (default on PostgreSQL), secondary indexes and FK triggers
     are toggled globally around the load for speed. Pass --no-bulk-mode when
     loading a single table to avoid the index drop/rebuild overhead.
+
+    Parameters
+    ----------
+    vocab_engine : sqlalchemy.Engine, optional
+        Engine to create vocabulary tables on, when ``vocab_connection`` names
+        a physically different server than ``engine``. Defaults to ``engine``.
+        CSV loading itself still runs entirely against ``engine``; this only
+        affects where vocab-tagged tables get created.
+    vocab_schema : str, optional
+        Schema vocab-tagged tables live in, for the table-existence check
+        against ``vocab_engine``. Defaults to ``db_schema``.
+    resolved : ResolvedCDMDatabase, optional
+        Enables the schema-provenance guard around any missing vocabulary
+        table creation. Omitted by direct test/programmatic callers with no
+        resolved config behind their engine, in which case the guard no-ops.
     """
+    vocab_engine = vocab_engine if vocab_engine is not None else engine
+    vocab_schema = vocab_schema if vocab_schema is not None else db_schema
+
     resolved_source_path = Path(source_path).expanduser().resolve()
     if not resolved_source_path.exists() or not resolved_source_path.is_dir():
         raise RuntimeError(f"Athena source directory not found: {resolved_source_path}")
@@ -333,31 +356,10 @@ def load_vocab_source(
             + ", ".join(sorted(missing))
         )
 
-    reject_reserved_schema(db_schema)
-
     if not dry_run:
         ensure_schema(engine, db_schema)
-        ensure_schema(engine, ReservedSchema.STAGING)
-
-    # NullPool: each session/connection is opened fresh and closed immediately after
-    # use. No stale pooled connections survive between tables, which prevents
-    # "connection in recovery mode" failures on subsequent tables after a heavy load.
-    load_engine = sa.create_engine(engine.url, poolclass=NullPool)
-    if db_schema is not None:
-        # NullPool discards the DBAPI connection on every commit, so a one-time
-        # SET search_path on the first checkout doesn't survive into the next
-        # checkout (e.g. after create_staging_table's commit). Re-apply on every
-        # new connection via an engine-level connect event so COPY and raw-cursor
-        # operations always target the right schema. The staging schema no longer
-        # needs to be on the path because orm-loader now qualifies staging
-        # table identifiers explicitly.
-        _quoted_schema = '"' + db_schema.replace('"', '""') + '"'
-
-        @sae.listens_for(load_engine, "connect")
-        def _set_search_path(dbapi_conn, _record):
-            cur = dbapi_conn.cursor()
-            cur.execute(f"SET search_path TO {_quoted_schema}")
-            cur.close()
+        ensure_schema(engine, STAGING_SCHEMA)
+        ensure_schema(vocab_engine, vocab_schema)
 
     table_count = sum(
         1
@@ -380,7 +382,7 @@ def load_vocab_source(
     )
 
     _use_bulk_mode = (
-        bulk_mode and not dry_run and engine.dialect.name == SupportedDialect.POSTGRESQL
+        bulk_mode and not dry_run and backend_supports(resolve_omop_backend(engine), "toggle_fk_triggers")
     )
     if _use_bulk_mode:
         _emit(
@@ -393,7 +395,6 @@ def load_vocab_source(
             engine,
             enable=False,
             vocabulary_included=True,
-            db_schema=db_schema,
             dry_run=False,
         )
         _emit(
@@ -406,7 +407,6 @@ def load_vocab_source(
             engine,
             enable=False,
             vocabulary_included=True,
-            db_schema=db_schema,
             dry_run=False,
         )
         index_warnings = tuple(
@@ -423,9 +423,9 @@ def load_vocab_source(
             )
 
     if not dry_run:
-        with load_engine.connect() as pre_conn:
+        with vocab_engine.connect() as pre_conn:
             created_table_count = _create_missing_vocabulary_tables(
-                pre_conn, db_schema=db_schema
+                pre_conn, db_schema=vocab_schema, resolved=resolved
             )
             pre_conn.commit()
 
@@ -481,7 +481,7 @@ def load_vocab_source(
             _prev_attempt_was_crash = False
             for attempt in range(3):
                 try:
-                    with so.Session(load_engine) as session:
+                    with so.Session(engine) as session:
                         if (
                             _prev_attempt_was_crash
                             and merge_strategy == "insert_if_empty"
@@ -509,7 +509,7 @@ def load_vocab_source(
                             index_strategy="keep" if _use_bulk_mode else "auto",
                             chunksize=chunksize,
                             merge_batch_size=merge_batch_size,
-                            staging_schema=ReservedSchema.STAGING,
+                            staging_schema=STAGING_SCHEMA,
                         )
                         session.commit()
                     break
@@ -559,7 +559,6 @@ def load_vocab_source(
                 engine,
                 enable=True,
                 vocabulary_included=True,
-                db_schema=db_schema,
                 dry_run=False,
                 cluster=False,
             )
@@ -573,7 +572,6 @@ def load_vocab_source(
                 engine,
                 enable=True,
                 vocabulary_included=True,
-                db_schema=db_schema,
                 dry_run=False,
             )
 
@@ -584,10 +582,9 @@ def load_vocab_source(
         table_count=table_count,
     )
 
-    if not dry_run and engine.dialect.name == SupportedDialect.POSTGRESQL:
+    if not dry_run and backend_supports(resolve_omop_backend(engine), "find_sequence_name"):
         sequence_results = reset_model_sequences(
             engine,
-            db_schema=db_schema,
             vocabulary_included=True,
             dry_run=False,
         )
@@ -654,7 +651,7 @@ def load_vocab_source_command(
     staging_chunk_size: int | None = typer.Option(
         100_000,
         help=(
-            "[Phase 1] Rows per ORM transaction when loading CSV → staging table. "
+            "Staging load: rows per ORM transaction when loading CSV → staging table. "
             "Ignored when the PostgreSQL COPY fast-path is active (the default for "
             "Athena CSVs). Pass 0 to disable chunking entirely."
         ),
@@ -672,7 +669,7 @@ def load_vocab_source_command(
     merge_batch_size: int | None = typer.Option(
         None,
         help=(
-            "[Phase 2] Rows per transaction when merging staging → target table. "
+            "Merge: rows per transaction when merging staging → target table. "
             "Default: None (no pagination — single INSERT per table, fastest for high-RAM systems). "
             "Set to a positive integer to enable paginated commits for memory-constrained systems; "
             "note that pagination adds a COUNT query and an index build on the staging table "
@@ -693,52 +690,60 @@ def load_vocab_source_command(
         )
         raise typer.Exit(code=1)
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(bar_width=None),
-        TaskProgressColumn(),
-        TimeElapsedColumn(),
-        console=console,
-        transient=False,
-    ) as progress:
-        task_id = progress.add_task(
-            "Preparing Athena vocabulary load...", total=100.0, completed=0
-        )
-        completed_tables: list[str] = []
-
-        def _update_progress(event: VocabularyLoadProgress) -> None:
-            progress.update(
-                task_id, completed=event.percent, description=event.description
+    vocab_engine = conn.resolved.vocab_engine_for(engine)
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=None),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task_id = progress.add_task(
+                "Preparing Athena vocabulary load...", total=100.0, completed=0
             )
-            if event.table_done and event.table_name is not None:
-                completed_tables.append(event.table_name)
-                row_info = (
-                    f": [dim]{event.rows_this_table:,} rows[/dim]"
-                    if event.rows_this_table is not None
-                    else ""
-                )
-                progress.console.print(
-                    f"[green]loaded[/green] [bold]{event.table_name}[/bold]{row_info} "
-                    f"({len(completed_tables)}/{event.table_count})"
-                )
+            completed_tables: list[str] = []
 
-        report = load_vocab_source(
-            engine,
-            source_path=effective_athena_source,
-            tables=tables or None,
-            db_schema=conn.db_schema,
-            dry_run=dry_run,
-            merge_strategy=merge_strategy,
-            quote_mode=quote_mode,
-            chunksize=None if staging_chunk_size == 0 else staging_chunk_size,
-            bulk_mode=bulk_mode,
-            merge_batch_size=merge_batch_size,
-            progress_callback=_update_progress,
-        )
-        progress.update(
-            task_id, completed=100.0, description="Athena vocabulary load complete"
-        )
+            def _update_progress(event: VocabularyLoadProgress) -> None:
+                progress.update(
+                    task_id, completed=event.percent, description=event.description
+                )
+                if event.table_done and event.table_name is not None:
+                    completed_tables.append(event.table_name)
+                    row_info = (
+                        f": [dim]{event.rows_this_table:,} rows[/dim]"
+                        if event.rows_this_table is not None
+                        else ""
+                    )
+                    progress.console.print(
+                        f"[green]loaded[/green] [bold]{event.table_name}[/bold]{row_info} "
+                        f"({len(completed_tables)}/{event.table_count})"
+                    )
+
+            report = load_vocab_source(
+                engine,
+                vocab_engine=vocab_engine,
+                vocab_schema=conn.resolved.vocab_schema,
+                source_path=effective_athena_source,
+                tables=tables or None,
+                db_schema=conn.resolved.schema_name,
+                dry_run=dry_run,
+                merge_strategy=merge_strategy,
+                quote_mode=quote_mode,
+                chunksize=None if staging_chunk_size == 0 else staging_chunk_size,
+                bulk_mode=bulk_mode,
+                merge_batch_size=merge_batch_size,
+                progress_callback=_update_progress,
+                resolved=conn.resolved,
+            )
+            progress.update(
+                task_id, completed=100.0, description="Athena vocabulary load complete"
+            )
+    finally:
+        if vocab_engine is not engine:
+            vocab_engine.dispose()
 
     console.print(render_vocab_load_results(report.results))
     console.print(render_vocab_load_summary(report, dry_run=dry_run))

@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ..backends.resolve import _DIALECT_TO_BACKEND_MAP, SupportedDialect as _SupportedDialect
+from ..backends.resolve import backend_label
 
 from .ascii import render_banner
 from .tables import TableCategory
@@ -59,12 +59,6 @@ def _status_style(status: Status) -> str:
             f"_status_style() expected a Status member, got {status!r} ({type(status).__name__})"
         )
     return status.severity.style
-
-def _backend_label(dialect_name: str) -> str:
-    try:
-        return _DIALECT_TO_BACKEND_MAP[_SupportedDialect(dialect_name)].name
-    except (ValueError, KeyError):
-        return dialect_name
 
 
 def _bool_label(value: bool) -> Text:
@@ -173,7 +167,7 @@ def render_info_database(info: MaintenanceInfo) -> Panel:
     grid.add_column(style="bold cyan")
     grid.add_column()
     grid.add_row("Engine URL", info.engine_url or "-")
-    grid.add_row("Backend", _backend_label(info.backend) if info.backend else "-")
+    grid.add_row("Backend", backend_label(info.backend) if info.backend else "-")
     grid.add_row("Engine created", _bool_label(info.engine_created))
     grid.add_row("Connection ready", _bool_label(info.connection_ready))
 
@@ -215,7 +209,7 @@ def render_backup_result(result: BackupResult) -> Panel:
     grid.add_column(style="bold cyan")
     grid.add_column()
     grid.add_row("Status", _status_text(result.status))
-    grid.add_row("Backend", _backend_label(result.backend))
+    grid.add_row("Backend", backend_label(result.backend))
     grid.add_row("Database", result.database_name)
     grid.add_row("Schema", result.schema_name or "all schemas")
     grid.add_row("Format", result.backup_format.value)
@@ -249,7 +243,7 @@ def render_restore_result(result: BackupResult) -> Panel:
     grid.add_column(style="bold cyan")
     grid.add_column()
     grid.add_row("Status", _status_text(result.status))
-    grid.add_row("Backend", _backend_label(result.backend))
+    grid.add_row("Backend", backend_label(result.backend))
     grid.add_row("Database", result.database_name)
     grid.add_row("Schema", result.schema_name or "all schemas")
     grid.add_row("Format", result.backup_format.value)
@@ -348,7 +342,7 @@ def render_reconciliation_summary(report: SchemaReconciliationReport) -> Panel:
     grid = Table.grid(padding=(0, 2))
     grid.add_column(style="bold cyan")
     grid.add_column()
-    grid.add_row("Backend", _backend_label(report.backend))
+    grid.add_row("Backend", backend_label(report.backend))
     grid.add_row("Tables", str(len(report.table_results)))
     if matched:
         grid.add_row(Status.MATCHED.value.capitalize(), str(matched))

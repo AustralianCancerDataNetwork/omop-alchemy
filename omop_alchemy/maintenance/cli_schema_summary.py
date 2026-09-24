@@ -6,7 +6,8 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 
-from .tables import TableCategory, qualified_table_name, select_omop_tables
+from oa_configurator import qualified, physical_schema_of
+from .tables import TableCategory, select_omop_tables
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,7 @@ class TableSummaryResult:
 
     table_name: str
     category: TableCategory
+    schema_tag: str
     model_name: str
     primary_key_columns: tuple[str, ...]
     exists: bool
@@ -24,7 +26,6 @@ class TableSummaryResult:
 def collect_data_summary(
     engine: sa.Engine,
     *,
-    db_schema: str | None = None,
     vocabulary_included: bool = False,
     existing_only: bool = True,
 ) -> list[TableSummaryResult]:
@@ -35,7 +36,7 @@ def collect_data_summary(
     results: list[TableSummaryResult] = []
     with engine.connect() as connection:
         for table in tables:
-            exists = inspector.has_table(table.table_name, schema=db_schema)
+            exists = inspector.has_table(table.table_name, schema=physical_schema_of(engine, schema_tag=table.schema_tag))
             if not exists and existing_only:
                 continue
 
@@ -44,7 +45,7 @@ def collect_data_summary(
                 row_count = int(
                     connection.execute(
                         sa.text(
-                            f"SELECT COUNT(*) FROM {qualified_table_name(table.table_name, db_schema)}"
+                            f"SELECT COUNT(*) FROM {qualified(connection, table.table_name, physical_schema=physical_schema_of(connection, schema_tag=table.schema_tag))}"
                         )
                     ).scalar_one()
                 )
@@ -53,6 +54,7 @@ def collect_data_summary(
                 TableSummaryResult(
                     table_name=table.table_name,
                     category=table.category,
+                    schema_tag=table.schema_tag,
                     model_name=table.model_name,
                     primary_key_columns=table.primary_key_names,
                     exists=exists,

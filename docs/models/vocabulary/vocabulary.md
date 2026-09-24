@@ -1,4 +1,4 @@
-# vocaubulary
+# vocabulary
 
 > Documentation coming soon.
 

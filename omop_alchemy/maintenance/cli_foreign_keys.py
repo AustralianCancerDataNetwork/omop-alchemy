@@ -7,8 +7,9 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 import typer
 
+from oa_configurator import physical_schema_of
 from ..backends import Backend, resolve_backend, require_backend_support, backend_support_note
-from ._cli_utils import Status, dry_label, dry_status, omop_command, reject_reserved_schema
+from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .tables import (
     TableCategory,
     existing_maintenance_tables,
@@ -32,6 +33,7 @@ class ForeignKeyBase:
 
     table_name: str
     category: TableCategory
+    schema_tag: str
 
 
 @dataclass(frozen=True)
@@ -87,24 +89,25 @@ class ForeignKeyValidationReport:
 def _collect_fk_info(
     engine: sa.Engine,
     *,
-    db_schema: str | None = None,
     vocabulary_included: bool = False,
 ) -> list[_FKTableInfo]:
     """Return all ORM-managed tables that participate in at least one FK relationship (outgoing or incoming)."""
     inspector = sa.inspect(engine)
 
     selected_tables = existing_maintenance_tables(
-        inspector,
-        db_schema=db_schema,
+        engine,
         vocabulary_included=vocabulary_included,
     )
-    selected_names = {table.table_name for table in selected_tables}
+    tables_by_name = {table.table_name: table for table in selected_tables}
+    selected_names = set(tables_by_name)
 
     incoming_counts = {name: 0 for name in selected_names}
     outgoing_counts = {name: 0 for name in selected_names}
 
     for table_name in selected_names:
-        foreign_keys = inspector.get_foreign_keys(table_name, schema=db_schema)
+        foreign_keys = inspector.get_foreign_keys(
+            table_name, schema=physical_schema_of(engine, schema_tag=tables_by_name[table_name].schema_tag)
+        )
         relevant_foreign_keys = [
             foreign_key
             for foreign_key in foreign_keys
@@ -128,6 +131,7 @@ def _collect_fk_info(
             _FKTableInfo(
                 table_name=table.table_name,
                 category=table.category,
+                schema_tag=table.schema_tag,
                 outgoing_constraint_count=outgoing_count,
                 incoming_constraint_count=incoming_count,
             )
@@ -140,7 +144,6 @@ def _collect_strict_validation_failures(
     connection: sa.Connection,
     backend: Backend,
     *,
-    db_schema: str | None,
     vocabulary_included: bool,
 ) -> dict[str, list[ForeignKeyConstraintViolation]]:
     """Query every FK constraint across selected tables and return a mapping of table name → violation list.
@@ -150,18 +153,21 @@ def _collect_strict_validation_failures(
     """
     inspector = sa.inspect(connection)
     selected_tables = existing_maintenance_tables(
-        inspector,
-        db_schema=db_schema,
+        connection,
         vocabulary_included=vocabulary_included,
     )
-    selected_names = {table.table_name for table in selected_tables}
+    tables_by_name = {table.table_name: table for table in selected_tables}
+    selected_names = set(tables_by_name)
     failures: dict[str, list[ForeignKeyConstraintViolation]] = {
         table_name: []
         for table_name in selected_names
     }
 
     for table_name in sorted(selected_names):
-        for foreign_key in inspector.get_foreign_keys(table_name, schema=db_schema):
+        source_schema_tag = tables_by_name[table_name].schema_tag
+        for foreign_key in inspector.get_foreign_keys(
+            table_name, schema=physical_schema_of(connection, schema_tag=source_schema_tag)
+        ):
             referred_table = foreign_key.get("referred_table")
             constrained_columns = foreign_key.get("constrained_columns") or []
             referred_columns = foreign_key.get("referred_columns") or []
@@ -179,7 +185,8 @@ def _collect_strict_validation_failures(
                 str(referred_table),
                 list(constrained_columns),
                 list(referred_columns),
-                db_schema,
+                source_schema_tag=source_schema_tag,
+                referred_schema_tag=tables_by_name[str(referred_table)].schema_tag,
             )
 
             if violation_count == 0:
@@ -221,7 +228,6 @@ def _fk_violation_detail(
 def validate_foreign_key_constraints(
     engine: sa.Engine,
     *,
-    db_schema: str | None = None,
     vocabulary_included: bool = False,
 ) -> ForeignKeyValidationReport:
     """Count rows that violate each FK constraint and return a full per-table validation report."""
@@ -230,7 +236,6 @@ def validate_foreign_key_constraints(
 
     targets = _collect_fk_info(
         engine,
-        db_schema=db_schema,
         vocabulary_included=vocabulary_included,
     )
 
@@ -238,7 +243,6 @@ def validate_foreign_key_constraints(
         validation_failures = _collect_strict_validation_failures(
             connection,
             backend,
-            db_schema=db_schema,
             vocabulary_included=vocabulary_included,
         )
 
@@ -253,6 +257,7 @@ def validate_foreign_key_constraints(
             ForeignKeyValidationResult(
                 table_name=target.table_name,
                 category=target.category,
+                schema_tag=target.schema_tag,
                 outgoing_constraint_count=target.outgoing_constraint_count,
                 incoming_constraint_count=target.incoming_constraint_count,
                 violating_constraint_count=violating_constraint_count,
@@ -280,19 +285,16 @@ def manage_foreign_key_triggers(
     engine: sa.Engine,
     *,
     enable: bool = False,
-    db_schema: str | None = None,
     vocabulary_included: bool = False,
     dry_run: bool = False,
     strict: bool = False,
 ) -> list[ForeignKeyManagementResult]:
     """Enable or disable RI trigger enforcement. With strict=True, aborts on any FK violation."""
-    reject_reserved_schema(db_schema)
     backend = resolve_backend(engine)
     require_backend_support(backend, "toggle_fk_triggers", "FK trigger management")
 
     targets = _collect_fk_info(
         engine,
-        db_schema=db_schema,
         vocabulary_included=vocabulary_included,
     )
 
@@ -302,7 +304,6 @@ def manage_foreign_key_triggers(
             validation_failures = _collect_strict_validation_failures(
                 connection,
                 backend,
-                db_schema=db_schema,
                 vocabulary_included=vocabulary_included,
             )
             if validation_failures:
@@ -312,6 +313,7 @@ def manage_foreign_key_triggers(
                         ForeignKeyManagementResult(
                             table_name=target.table_name,
                             category=target.category,
+                            schema_tag=target.schema_tag,
                             outgoing_constraint_count=target.outgoing_constraint_count,
                             incoming_constraint_count=target.incoming_constraint_count,
                             enable=enable,
@@ -333,12 +335,15 @@ def manage_foreign_key_triggers(
         }
         for target in targets:
             if not dry_run:
-                backend.toggle_fk_triggers(connection, target.table_name, db_schema, enable=enable)
+                backend.toggle_fk_triggers(
+                    connection, target.table_name, enable=enable, schema_tag=target.schema_tag
+                )
 
             results.append(
                 ForeignKeyManagementResult(
                     table_name=target.table_name,
                     category=target.category,
+                    schema_tag=target.schema_tag,
                     outgoing_constraint_count=target.outgoing_constraint_count,
                     incoming_constraint_count=target.incoming_constraint_count,
                     enable=enable,
@@ -353,7 +358,6 @@ def manage_foreign_key_triggers(
 def collect_foreign_key_trigger_status(
     engine: sa.Engine,
     *,
-    db_schema: str | None = None,
     vocabulary_included: bool = False,
 ) -> list[ForeignKeyStatusResult]:
     """Query pg_trigger to count disabled vs enabled RI triggers for each participating table."""
@@ -362,7 +366,6 @@ def collect_foreign_key_trigger_status(
 
     targets = _collect_fk_info(
         engine,
-        db_schema=db_schema,
         vocabulary_included=vocabulary_included,
     )
     results: list[ForeignKeyStatusResult] = []
@@ -370,12 +373,13 @@ def collect_foreign_key_trigger_status(
     with engine.connect() as connection:
         for target in targets:
             disabled_count, enabled_count = backend.get_fk_trigger_counts(
-                connection, target.table_name, db_schema
+                connection, target.table_name, schema_tag=target.schema_tag
             )
             results.append(
                 ForeignKeyStatusResult(
                     table_name=target.table_name,
                     category=target.category,
+                    schema_tag=target.schema_tag,
                     disabled_trigger_count=disabled_count,
                     enabled_trigger_count=enabled_count,
                     outgoing_constraint_count=target.outgoing_constraint_count,
@@ -417,7 +421,6 @@ def disable_foreign_keys_command(
         results = manage_foreign_key_triggers(
             engine,
             enable=False,
-            db_schema=conn.db_schema,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
             strict=strict,
@@ -454,7 +457,6 @@ def enable_foreign_keys_command(
         results = manage_foreign_key_triggers(
             engine,
             enable=True,
-            db_schema=conn.db_schema,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
             strict=strict,
@@ -479,7 +481,6 @@ def foreign_key_status_command(
     with console.status("Inspecting foreign key trigger status..."):
         results = collect_foreign_key_trigger_status(
             engine,
-            db_schema=conn.db_schema,
             vocabulary_included=vocabulary_included,
         )
     console.print(render_foreign_key_status_results(results))
@@ -501,7 +502,6 @@ def foreign_key_validate_command(
     with console.status("Validating selected foreign key relationships..."):
         report = validate_foreign_key_constraints(
             engine,
-            db_schema=conn.db_schema,
             vocabulary_included=vocabulary_included,
         )
     console.print(render_foreign_key_validation_results(report.results))

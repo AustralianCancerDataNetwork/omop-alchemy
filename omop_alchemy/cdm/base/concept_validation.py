@@ -8,7 +8,9 @@ class ConceptValidationMixin:
 
     A concept-bearing column is defined as:
       - column name ends with '_concept_id'
-      - value is integer-like
+      - column name does not contain 'source' (excludes *_source_concept_id)
+
+    No type check is performed; matching is by column-name pattern only.
 
     Works for:
       - ORM mapped tables

@@ -352,7 +352,7 @@ def test_diagnostics_explain_person_mismatches_and_fallback_outcomes(session):
     "session_fixture",
     [
         "session",
-        pytest.param("pg_session", marks=pytest.mark.requires_database("test_cdm_db")),
+        pytest.param("pg_session", marks=pytest.mark.db_dialect),
     ],
 )
 @pytest.mark.parametrize("copies", [(2, 1), (1, 2), (2, 2)])
@@ -455,7 +455,6 @@ def test_attachment_builder_accepts_a_supported_event_model():
     )
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_postgresql_executes_collision_and_stable_tie_contracts(pg_session):
     unlinked = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
