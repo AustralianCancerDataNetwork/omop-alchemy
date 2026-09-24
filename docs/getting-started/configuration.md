@@ -51,7 +51,7 @@ categories:
     - `concept`, `concept_ancestor`, `concept_class`, `concept_relationship`, `concept_synonym`, `domain`, `drug_strength`, `relationship`, `source_to_concept_map`, `vocabulary`
     - Controlled by `vocab_schema` in the configuration.
 - **Results/analytics tables** (`Role.RESULTS`):
-    - `cohort`, `cohort_Definition`
+    - `cohort`, `cohort_definition`
     - Controlled by `results_schema` in the configuration.
 
 ![OMOP CDM v5.4](https://ohdsi.github.io/CommonDataModel/man/images/cdm55.png)

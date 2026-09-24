@@ -90,7 +90,7 @@ With the decorator, the function body is all that matters:
 @app.command("my-command")
 @omop_command("my-command")
 def my_command(conn, engine) -> None:
-    results = do_work(engine, db_schema=conn.db_schema)
+    results = do_work(engine, db_schema=conn.resolved.schema_name)
     console.print(render_results(results))
 ```
 
@@ -102,5 +102,5 @@ def my_command(conn, engine) -> None:
 
 | Attribute | Description |
 |---|---|
-| `conn.db_schema` | CDM schema name from the resolved database (e.g. `"omop"`) |
+| `conn.resolved` | The resolved `ResolvedCDMDatabase`; `conn.resolved.schema_name` is the CDM schema name (e.g. `"omop"`) |
 | `conn.athena_source` | Athena vocabulary CSV directory from `[tools.omop_alchemy]`'s `athena_source_path` field; `None` if not configured |

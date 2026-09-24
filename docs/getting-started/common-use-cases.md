@@ -117,7 +117,7 @@ vocab_connection = "vocab"  # <- references your vocabulary DB
     - This is **NEVER** done automatically to preserve data integrity from our end.
 3. Record the new schema as the accepted baseline following the assumptions listed in "Scenario" above:
    ```bash
-   omop-config acknowledge-schema-migration --database my_db --role vocab --new-schema myvocab --reason "moving vocab off the shared schema"
+   omop-config acknowledge-schema-migration --database my_db --schema-tag vocab --new-schema myvocab --reason "moving vocab off the shared schema"
    ```
 4. Once you've confirmed the new schema is correct, clean up the old one:
    ```bash
