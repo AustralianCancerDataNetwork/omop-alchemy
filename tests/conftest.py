@@ -7,7 +7,7 @@ import sqlalchemy as sa
 import typer.rich_utils as _typer_rich_utils
 from orm_loader.helpers import bootstrap
 from oa_configurator.testing import isolated_test_database, isolated_test_schema
-from oa_configurator import SCHEMA_TRANSLATE_MAP_KEY, Role, ResolvedCDMDatabase, ResolvedConnection
+from oa_configurator import ResolvedCDMDatabase, ResolvedConnection, registered_schema_tags
 import sqlalchemy.orm as so
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -71,15 +71,16 @@ def resolved_cdm_database_from_engine(
 def fresh_engine() -> Iterator[sa.Engine]:
     """Fresh, empty, function-scoped SQLite engine.
 
-    SQLite has no schema concept, so every schema tag maps back to None, matching
-    the flat namespace every caller here has always assumed.
+    SQLite has no schema concept, so every schema tag maps back to None,
+    matching the flat namespace every caller here has always assumed.
+    isolated_test_database's own default already folds every registered
+    tag this way when execution_options omits schema_translate_map.
     """
     with isolated_test_database(
         OmopAlchemyConfig,
         "test_cdm_db_sqlite",
         dialect="sqlite",
         future=True,
-        execution_options={SCHEMA_TRANSLATE_MAP_KEY: {Role.PRIMARY.value: None, "vocab": None, "results": None}},
     ) as db:
         yield db.connection.engine
 
@@ -369,11 +370,9 @@ def engine(tmp_path_factory: pytest.TempPathFactory) -> Iterator[sa.Engine]:
         echo=False,
         poolclass=sa.pool.StaticPool,
         connect_args={"check_same_thread": False, "timeout": 30},
-        # SQLite has no schema concept, and this fixture always represented
-        # a single flat namespace: map every schema tag back to None so the
-        # vocab/results-tagged tables land in the same place they always
-        # have here, unaffected by schema tagging.
-        execution_options={SCHEMA_TRANSLATE_MAP_KEY: {Role.PRIMARY.value: None, "vocab": None, "results": None}},
+        # SQLite has no schema concept: isolated_test_database's own default
+        # folds every registered schema tag back to None, matching the flat
+        # namespace this fixture has always assumed.
     ) as db:
         engine = db.connection.engine
         bootstrap(engine, create=True)
@@ -418,12 +417,12 @@ def pg_engine(pg_db):
     genuine engine-building code paths against (``.connect()``/``.begin()``,
     which a bare ``Connection`` can't stand in for).
 
-    A thin shim over ``pg_db``'s own ``committing_engine``: every schema tag
-    (``None``, ``"vocab"``, ``"results"``) folds back to the connection's
-    default, matching the single-schema setup ``pg_session`` provides.
+    A thin shim over ``pg_db``'s own ``committing_engine``: every registered
+    schema tag folds back to the connection's default, matching the
+    single-schema setup ``pg_session`` provides.
     """
     return pg_db.committing_engine.execution_options(
-        schema_translate_map={Role.PRIMARY.value: None, "vocab": None, "results": None}
+        schema_translate_map={tag: None for tag in registered_schema_tags()}
     )
 
 
@@ -493,7 +492,7 @@ def pg_schema_session(pg_db):
     """
     with isolated_test_schema(pg_db.committing_engine, prefix="omop_alchemy") as schema:
         engine = pg_db.committing_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema, "vocab": schema, "results": schema}
+            schema_translate_map={tag: schema for tag in registered_schema_tags()}
         )
         bootstrap(engine, create=True)
         session = so.Session(engine, expire_on_commit=False)

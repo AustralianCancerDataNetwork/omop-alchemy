@@ -7,7 +7,15 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 import typer
 
-from oa_configurator import ResolvedCDMDatabase, Role, autocommit_connection, guard_schema_provenance_for, qualified, physical_schema_of
+from oa_configurator import (
+    SCHEMA_TRANSLATE_MAP_KEY,
+    ResolvedCDMDatabase,
+    Role,
+    autocommit_connection,
+    guard_schema_provenance_for,
+    physical_schema_of,
+    qualified,
+)
 from ..backends import resolve_backend, require_backend_support, backend_support_note
 from ._cli_utils import Status, dry_label, dry_status, omop_command, resolve_selection
 from .tables import (
@@ -119,6 +127,19 @@ class TruncateTableResult:
     detail: str
 
 
+def _known_schema_tags(engine: sa.Engine) -> set[str]:
+    """Schema tags engine's own schema_translate_map actually routes, plus primary.
+
+    Deliberately not oa_configurator.registered_schema_tags(): that's every tag
+    any package anywhere has registered, including ones for a wholly separate
+    database (e.g. omop_emb's "registry") that this engine has no entry for and
+    can't meaningfully resolve -- scanning those would check a schema that not
+    only doesn't exist but was never this engine's concern to begin with.
+    """
+    stm = engine.get_execution_options().get(SCHEMA_TRANSLATE_MAP_KEY) or {}
+    return set(stm) | {Role.PRIMARY.value}
+
+
 def _blocking_foreign_key_references(
     engine: sa.Engine,
     inspector: sa.Inspector,
@@ -127,19 +148,20 @@ def _blocking_foreign_key_references(
 ) -> dict[str, set[str]]:
     """Return tables outside the selection that FK-reference at least one selected table, preventing truncation.
 
-    A blocking table can live under any role's schema (a vocab table can
-    FK-reference a clinical table's PK, or vice versa), so every role's
-    schema is scanned, not just the primary one.
+    A blocking table can live under any schema tag engine itself routes (a
+    vocab table can FK-reference a clinical table's PK, or vice versa;
+    likewise an extension table), so every one of those is scanned, not
+    just the primary one.
     """
     blockers: dict[str, set[str]] = {}
 
-    for role in Role:
-        role_schema = physical_schema_of(engine, schema_tag=role)
-        for table_name in inspector.get_table_names(schema=role_schema):
+    for schema_tag in _known_schema_tags(engine):
+        tag_schema = physical_schema_of(engine, schema_tag=schema_tag)
+        for table_name in inspector.get_table_names(schema=tag_schema):
             if table_name in selected_table_names:
                 continue
 
-            for foreign_key in inspector.get_foreign_keys(table_name, schema=role_schema):
+            for foreign_key in inspector.get_foreign_keys(table_name, schema=tag_schema):
                 referred_table = foreign_key.get("referred_table")
                 if referred_table not in selected_table_names:
                     continue

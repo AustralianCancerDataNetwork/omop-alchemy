@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from contextlib import ExitStack
 from dataclasses import dataclass
 
 import sqlalchemy as sa
 
-from oa_configurator import ResolvedCDMDatabase, Role, ensure_schema, guard_schema_provenance_for, physical_schema_of
+from oa_configurator import (
+    ResolvedCDMDatabase,
+    Role,
+    ensure_schema,
+    guard_schema_provenance_for,
+    physical_schema_of,
+    validate_schema_tag,
+)
 from orm_loader.helpers import Base
 from ._cli_utils import Status, dry_label, dry_status
 from .tables import (
@@ -14,6 +23,11 @@ from .tables import (
     TableCategory,
     missing_maintenance_tables,
 )
+
+
+def _distinct_schema_tags(tables: Iterable[sa.Table]) -> set[str]:
+    """Every distinct schema tag among tables. Skips untagged tables."""
+    return {tag for table in tables if (tag := validate_schema_tag(table)) is not None}
 
 
 @dataclass(frozen=True)
@@ -77,19 +91,24 @@ def create_missing_tables(
     vocab_engine = vocab_engine if vocab_engine is not None else engine
     if not dry_run:
         ensure_schema(engine, physical_schema_of(engine, schema_tag=Role.PRIMARY))
-        # create_all() would fail for non-existing vocab/results schemas on a fresh database
+        # create_all() would fail for a non-existing schema on a fresh database.
         if resolved is not None:
-            ensure_schema(engine, resolved.schema_for_role(Role.RESULTS))
-            ensure_schema(vocab_engine, resolved.schema_for_role(Role.VOCAB))
+            # Ensure schemas in split-engined deployments
+            for schema_tag in _distinct_schema_tags(Base.metadata.tables.values()):
+                # Primary schema is already ensure above
+                if schema_tag == Role.PRIMARY.value:
+                    continue
+                target_engine = vocab_engine if schema_tag == Role.VOCAB.value else engine
+                ensure_schema(target_engine, physical_schema_of(target_engine, schema_tag=schema_tag))
     inspector = sa.inspect(engine)
     missing_tables = collect_missing_tables(
         engine,
         vocabulary_included=vocabulary_included,
     )
-    # Checking only primary schema would hide existing vocab/results tables, wrongly blocking dependents.
+    # Checking only primary schema would hide existing tables elsewhere, wrongly blocking dependents.
     existing_table_names: set[str] = set()
-    for role in Role:
-        existing_table_names |= set(inspector.get_table_names(schema=physical_schema_of(engine, schema_tag=role)))
+    for schema_tag in _distinct_schema_tags(Base.metadata.tables.values()):
+        existing_table_names |= set(inspector.get_table_names(schema=physical_schema_of(engine, schema_tag=schema_tag)))
     missing_table_names = {table.table_name for table in missing_tables}
 
     blocked_dependencies: dict[str, tuple[str, ...]] = {}
@@ -112,32 +131,29 @@ def create_missing_tables(
     results: list[TableCreationResult] = []
     if creatable_tables and not dry_run:
         all_tables = [table.table for table in creatable_tables]
-        tables_by_role = {
-            role: [table for table in all_tables if table.schema == role.value]
-            for role in Role
-        }
+        vocab_tables = [table for table in all_tables if table.schema == Role.VOCAB.value]
+        other_tables = [table for table in all_tables if table.schema != Role.VOCAB.value]
         if vocab_engine is engine:
             # One call: create_all's dependency sort and FK-deferral must see every table together.
-            with (
-                engine.begin() as connection,
-                guard_schema_provenance_for(connection, resolved, schema_tag=Role.PRIMARY, tables=tables_by_role[Role.PRIMARY]),
-                guard_schema_provenance_for(connection, resolved, schema_tag=Role.RESULTS, tables=tables_by_role[Role.RESULTS]),
-                guard_schema_provenance_for(connection, resolved, schema_tag=Role.VOCAB, tables=tables_by_role[Role.VOCAB]),
-            ):
+            with engine.begin() as connection, ExitStack() as guards:
+                for schema_tag in _distinct_schema_tags(all_tables):
+                    tables_for_tag = [table for table in all_tables if table.schema == schema_tag]
+                    guards.enter_context(
+                        guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag, tables=tables_for_tag)
+                    )
                 Base.metadata.create_all(
                     bind=connection, tables=all_tables, checkfirst=True
                 )
         else:
             # Split physical connections: a cross-boundary FK can't be created here at all;
             # that failure surfaces from create_all itself rather than being masked.
-            vocab_tables = tables_by_role[Role.VOCAB]
-            other_tables = tables_by_role[Role.PRIMARY] + tables_by_role[Role.RESULTS]
             if other_tables:
-                with (
-                    engine.begin() as connection,
-                    guard_schema_provenance_for(connection, resolved, schema_tag=Role.PRIMARY, tables=tables_by_role[Role.PRIMARY]),
-                    guard_schema_provenance_for(connection, resolved, schema_tag=Role.RESULTS, tables=tables_by_role[Role.RESULTS]),
-                ):
+                with engine.begin() as connection, ExitStack() as guards:
+                    for schema_tag in _distinct_schema_tags(other_tables):
+                        tables_for_tag = [table for table in other_tables if table.schema == schema_tag]
+                        guards.enter_context(
+                            guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag, tables=tables_for_tag)
+                        )
                     Base.metadata.create_all(
                         bind=connection, tables=other_tables, checkfirst=True
                     )
