@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Iterable
 
 import sqlalchemy as sa
-from oa_configurator import physical_schema_of, validate_schema_tag
+from oa_configurator import ResolvedDatabase, physical_schema_of
 
 
 class TableCategory(StrEnum):
@@ -67,7 +67,7 @@ class MaintenanceTable:
         classifying as "derived" in the CDM sense), schema_tag is where the
         table's rows physically live.
         """
-        tag = validate_schema_tag(self.table)
+        tag = self.table.schema
         if tag is None:
             raise TypeError(f"{self.table_name}: table has no schema tag.")
         return tag
@@ -253,28 +253,48 @@ def existing_maintenance_tables(
     bindable: sa.Engine | sa.Connection,
     *,
     vocabulary_included: bool,
+    vocab_bindable: sa.Engine | sa.Connection,
+    categories: Iterable[TableCategory] | None = None,
     require_single_integer_primary_key: bool = False,
+    resolved: ResolvedDatabase,
 ) -> list[MaintenanceTable]:
     """ORM-managed tables that already exist, each checked against its own schema tag.
 
     Parameters
     ----------
     bindable : sqlalchemy.Engine or sqlalchemy.Connection
-        Used both to inspect the database and, via its schema_translate_map,
-        to resolve each table's own schema tag to a physical schema
-        (``physical_schema_of(bindable, schema_tag=table.schema_tag)``) -- a blanket
-        schema passed in once would silently misclassify every vocab/results
-        table checked against a database with a genuine primary/vocab/
-        results split.
+        Used to inspect and resolve schemas for every non-vocab table.
+    vocab_bindable : sqlalchemy.Engine or sqlalchemy.Connection
+        Used instead of *bindable* for vocab-tagged tables.
+        May be the same phyiscal connection as *bindable* when the CDM and vocabulary tables
+        are on the same server.
+    categories : Iterable[TableCategory], optional
+        When given, selects tables by category via
+        :func:`select_maintenance_tables` instead of the binary
+        *vocabulary_included* flag.
     """
-    inspector = sa.inspect(bindable)
-    return [
-        table
-        for table in select_omop_tables(
+    selected = (
+        select_maintenance_tables(
+            categories=categories, require_single_integer_primary_key=require_single_integer_primary_key
+        )
+        if categories is not None
+        else select_omop_tables(
             vocabulary_included=vocabulary_included,
             require_single_integer_primary_key=require_single_integer_primary_key,
         )
-        if inspector.has_table(table.table_name, schema=physical_schema_of(bindable, schema_tag=table.schema_tag))
+    )
+    return [
+        table
+        for table in selected
+        if sa.inspect(
+            resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_bindable, primary=bindable)
+        ).has_table(
+            table.table_name,
+            schema=physical_schema_of(
+                resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_bindable, primary=bindable),
+                schema_tag=table.schema_tag,
+            ),
+        )
     ]
 
 
@@ -282,15 +302,23 @@ def missing_maintenance_tables(
     bindable: sa.Engine | sa.Connection,
     *,
     vocabulary_included: bool,
+    vocab_bindable: sa.Engine | sa.Connection,
+    resolved: ResolvedDatabase,
 ) -> list[MaintenanceTable]:
     """ORM-managed tables that are absent, each checked against its own schema tag.
 
-    See :func:`existing_maintenance_tables` for why *bindable* replaces a
-    single ``db_schema`` string.
+    See :func:`existing_maintenance_tables` for *vocab_bindable*'s role.
     """
-    inspector = sa.inspect(bindable)
     return [
         table
         for table in select_omop_tables(vocabulary_included=vocabulary_included)
-        if not inspector.has_table(table.table_name, schema=physical_schema_of(bindable, schema_tag=table.schema_tag))
+        if not sa.inspect(
+            resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_bindable, primary=bindable)
+        ).has_table(
+            table.table_name,
+            schema=physical_schema_of(
+                resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_bindable, primary=bindable),
+                schema_tag=table.schema_tag,
+            ),
+        )
     ]

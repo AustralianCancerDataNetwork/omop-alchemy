@@ -11,14 +11,12 @@ from oa_configurator import (
     Resolver,
     ResolvedCDMDatabase,
     Role,
+    SchemaClaim,
     load_stack_config,
-    register_reserved_schema,
 )
+from orm_loader.backends import staging_schema_claim
 
-# Guaranteed to be imported and registered if there is a config
 MAINTENANCE_SCHEMA: str = "omop_alchemy_maintenance"
-
-register_reserved_schema(MAINTENANCE_SCHEMA, owner="omop_alchemy")
 
 
 class OmopAlchemyConfig(PackageConfigBase):
@@ -77,12 +75,14 @@ class OmopAlchemyConfig(PackageConfigBase):
     )
 
 
-def get_cdm_context() -> tuple[OmopAlchemyConfig, ResolvedCDMDatabase]:
+def get_cdm_context(database: str | None = None) -> tuple[OmopAlchemyConfig, ResolvedCDMDatabase]:
     """Return (pkg_config, resolved_cdm_database), loading config once.
 
-    The CDM database is always whatever ``OmopAlchemyConfig.cdm_db`` resolves
-    to -- point a deployment at a second CDM instance via that field's own
-    ``--cdm-db`` flag at configure time, not a call-site override.
+    Parameters
+    ----------
+    database : str, optional
+        Name of a database entry to resolve instead of ``OmopAlchemyConfig.cdm_db``.
+        Omit to use the configured default.
 
     Raises
     ------
@@ -98,7 +98,7 @@ def get_cdm_context() -> tuple[OmopAlchemyConfig, ResolvedCDMDatabase]:
         ) from exc
     resolver = Resolver(stack)
     pkg_config = resolver.resolve_package_config(OmopAlchemyConfig)
-    resolved = resolver.resolve_database(pkg_config.cdm_db)
+    resolved = resolver.resolve_database(database or pkg_config.cdm_db)
     if not isinstance(resolved, ResolvedCDMDatabase):
         raise TypeError(
             f"OmopAlchemyConfig.cdm_db must resolve to a CDM database, got "
@@ -151,8 +151,20 @@ def _is_ephemeral_url(safe_url: str) -> bool:
 
 
 def create_cdm_engine(resolved: ResolvedCDMDatabase) -> sa.Engine:
-    """Create the CDM engine and register its vocabulary cache identity."""
-    engine = resolved.create_engine()
+    """Create the CDM engine, reserve its maintenance schema, and register
+    its vocabulary cache identity."""
+
+    maintenace_schema_claim = SchemaClaim(
+        schema_tag=MAINTENANCE_SCHEMA, 
+        physical_schema=MAINTENANCE_SCHEMA, 
+        reserved=True
+    )
+    engine = resolved.create_engine(
+        schema_claims=[
+            maintenace_schema_claim,
+            staging_schema_claim(),
+        ]
+    )
 
     # Imported here rather than at module scope: toolkit.core.concepts reaches
     # cdm.model, and `import omop_alchemy` runs this module, so a module-level

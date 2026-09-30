@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from contextlib import ExitStack
 from dataclasses import dataclass
 
@@ -11,10 +10,10 @@ import sqlalchemy as sa
 from oa_configurator import (
     ResolvedCDMDatabase,
     Role,
+    declared_schema_tags,
     ensure_schema,
     guard_schema_provenance_for,
     physical_schema_of,
-    validate_schema_tag,
 )
 from orm_loader.helpers import Base
 from ._cli_utils import Status, dry_label, dry_status
@@ -23,11 +22,6 @@ from .tables import (
     TableCategory,
     missing_maintenance_tables,
 )
-
-
-def _distinct_schema_tags(tables: Iterable[sa.Table]) -> set[str]:
-    """Every distinct schema tag among tables. Skips untagged tables."""
-    return {tag for table in tables if (tag := validate_schema_tag(table)) is not None}
 
 
 @dataclass(frozen=True)
@@ -56,59 +50,62 @@ def _table_dependencies(table: MaintenanceTable) -> tuple[str, ...]:
 def collect_missing_tables(
     engine: sa.Engine,
     *,
+    vocab_engine: sa.Engine,
     vocabulary_included: bool = True,
+    resolved: ResolvedCDMDatabase,
 ) -> list[MaintenanceTable]:
     """Return ORM-managed tables that are absent from the target database, each checked against its own role's schema."""
     return missing_maintenance_tables(
         engine,
+        vocab_bindable=vocab_engine,
         vocabulary_included=vocabulary_included,
+        resolved=resolved,
     )
 
 
 def create_missing_tables(
     engine: sa.Engine,
     *,
-    vocab_engine: sa.Engine | None = None,
+    vocab_engine: sa.Engine,
     vocabulary_included: bool = True,
     dry_run: bool = False,
-    resolved: ResolvedCDMDatabase | None = None,
+    resolved: ResolvedCDMDatabase,
 ) -> list[TableCreationResult]:
     """Create any ORM-managed tables missing from the target database. Skips tables with unresolved FK dependencies.
 
     Parameters
     ----------
-    vocab_engine : sqlalchemy.Engine, optional
+    vocab_engine : sqlalchemy.Engine
         Engine for vocab-role tables, when ``vocab_connection`` names a
-        physically different server than ``engine``. Defaults to ``engine``
-        (the common, same-connection case).
-    resolved : ResolvedCDMDatabase, optional
+        physically different server than ``engine``.
+    resolved : ResolvedCDMDatabase
         Enables the schema-provenance guard around each ``create_all()``
-        call. Omitted by direct test/programmatic callers that hand in a
-        bare engine with no resolved config behind it, in which case the
-        guard no-ops. A role whose connection is test_only=true also
-        no-ops, at the guard's own discretion.
+        call, and ensures every non-primary role's schema exists in a
+        split-engined deployment. A role whose connection is
+        test_only=true no-ops the guard, at the guard's own discretion.
     """
-    vocab_engine = vocab_engine if vocab_engine is not None else engine
     if not dry_run:
         ensure_schema(engine, physical_schema_of(engine, schema_tag=Role.PRIMARY))
         # create_all() would fail for a non-existing schema on a fresh database.
-        if resolved is not None:
-            # Ensure schemas in split-engined deployments
-            for schema_tag in _distinct_schema_tags(Base.metadata.tables.values()):
-                # Primary schema is already ensure above
-                if schema_tag == Role.PRIMARY.value:
-                    continue
-                target_engine = vocab_engine if schema_tag == Role.VOCAB.value else engine
-                ensure_schema(target_engine, physical_schema_of(target_engine, schema_tag=schema_tag))
-    inspector = sa.inspect(engine)
+        for schema_tag in declared_schema_tags(Base.metadata.tables.values()):
+            # Primary schema is already ensured above
+            if schema_tag == Role.PRIMARY.value:
+                continue
+            target_engine = resolved.route_for_schema_tag(schema_tag, vocab=vocab_engine, primary=engine)
+            ensure_schema(target_engine, physical_schema_of(target_engine, schema_tag=schema_tag))
     missing_tables = collect_missing_tables(
         engine,
+        vocab_engine=vocab_engine,
         vocabulary_included=vocabulary_included,
+        resolved=resolved,
     )
     # Checking only primary schema would hide existing tables elsewhere, wrongly blocking dependents.
     existing_table_names: set[str] = set()
-    for schema_tag in _distinct_schema_tags(Base.metadata.tables.values()):
-        existing_table_names |= set(inspector.get_table_names(schema=physical_schema_of(engine, schema_tag=schema_tag)))
+    for schema_tag in declared_schema_tags(Base.metadata.tables.values()):
+        target_engine = resolved.route_for_schema_tag(schema_tag, vocab=vocab_engine, primary=engine)
+        existing_table_names |= set(
+            sa.inspect(target_engine).get_table_names(schema=physical_schema_of(target_engine, schema_tag=schema_tag))
+        )
     missing_table_names = {table.table_name for table in missing_tables}
 
     blocked_dependencies: dict[str, tuple[str, ...]] = {}
@@ -131,15 +128,22 @@ def create_missing_tables(
     results: list[TableCreationResult] = []
     if creatable_tables and not dry_run:
         all_tables = [table.table for table in creatable_tables]
-        vocab_tables = [table for table in all_tables if table.schema == Role.VOCAB.value]
-        other_tables = [table for table in all_tables if table.schema != Role.VOCAB.value]
+        vocab_tables = [
+            table for table in all_tables
+            # SQLAlchemy's own stub omits None from schema's declared type,
+            # despite accepting and correctly handling it at runtime.
+            if resolved.route_for_schema_tag(table.schema, vocab=vocab_engine, primary=engine) is vocab_engine  # ty: ignore[invalid-argument-type]
+        ]
+        other_tables = [
+            table for table in all_tables
+            if resolved.route_for_schema_tag(table.schema, vocab=vocab_engine, primary=engine) is not vocab_engine  # ty: ignore[invalid-argument-type]
+        ]
         if vocab_engine is engine:
             # One call: create_all's dependency sort and FK-deferral must see every table together.
             with engine.begin() as connection, ExitStack() as guards:
-                for schema_tag in _distinct_schema_tags(all_tables):
-                    tables_for_tag = [table for table in all_tables if table.schema == schema_tag]
+                for schema_tag in declared_schema_tags(all_tables):
                     guards.enter_context(
-                        guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag, tables=tables_for_tag)
+                        guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag)
                     )
                 Base.metadata.create_all(
                     bind=connection, tables=all_tables, checkfirst=True
@@ -149,10 +153,9 @@ def create_missing_tables(
             # that failure surfaces from create_all itself rather than being masked.
             if other_tables:
                 with engine.begin() as connection, ExitStack() as guards:
-                    for schema_tag in _distinct_schema_tags(other_tables):
-                        tables_for_tag = [table for table in other_tables if table.schema == schema_tag]
+                    for schema_tag in declared_schema_tags(other_tables):
                         guards.enter_context(
-                            guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag, tables=tables_for_tag)
+                            guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag)
                         )
                     Base.metadata.create_all(
                         bind=connection, tables=other_tables, checkfirst=True
@@ -160,7 +163,7 @@ def create_missing_tables(
             if vocab_tables:
                 with (
                     vocab_engine.begin() as vocab_connection,
-                    guard_schema_provenance_for(vocab_connection, resolved, schema_tag=Role.VOCAB, tables=vocab_tables),
+                    guard_schema_provenance_for(vocab_connection, resolved, schema_tag=Role.VOCAB),
                 ):
                     Base.metadata.create_all(
                         bind=vocab_connection, tables=vocab_tables, checkfirst=True

@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 
 import sqlalchemy as sa
 import typer
 
 from oa_configurator import (
-    SCHEMA_TRANSLATE_MAP_KEY,
     ResolvedCDMDatabase,
-    Role,
+    ResolvedDatabase,
     autocommit_connection,
+    claimed_schema_tags,
     guard_schema_provenance_for,
     physical_schema_of,
     qualified,
@@ -21,6 +22,7 @@ from ._cli_utils import Status, dry_label, dry_status, omop_command, resolve_sel
 from .tables import (
     TableCategory,
     resolve_maintenance_tables,
+    select_maintenance_tables,
     select_omop_tables,
 )
 from .ui import (
@@ -127,19 +129,6 @@ class TruncateTableResult:
     detail: str
 
 
-def _known_schema_tags(engine: sa.Engine) -> set[str]:
-    """Schema tags engine's own schema_translate_map actually routes, plus primary.
-
-    Deliberately not oa_configurator.registered_schema_tags(): that's every tag
-    any package anywhere has registered, including ones for a wholly separate
-    database (e.g. omop_emb's "registry") that this engine has no entry for and
-    can't meaningfully resolve -- scanning those would check a schema that not
-    only doesn't exist but was never this engine's concern to begin with.
-    """
-    stm = engine.get_execution_options().get(SCHEMA_TRANSLATE_MAP_KEY) or {}
-    return set(stm) | {Role.PRIMARY.value}
-
-
 def _blocking_foreign_key_references(
     engine: sa.Engine,
     inspector: sa.Inspector,
@@ -155,7 +144,7 @@ def _blocking_foreign_key_references(
     """
     blockers: dict[str, set[str]] = {}
 
-    for schema_tag in _known_schema_tags(engine):
+    for schema_tag in claimed_schema_tags(engine):
         tag_schema = physical_schema_of(engine, schema_tag=schema_tag)
         for table_name in inspector.get_table_names(schema=tag_schema):
             if table_name in selected_table_names:
@@ -190,12 +179,13 @@ def _format_blocking_reference_error(blockers: dict[str, set[str]]) -> str:
 def truncate_tables(
     engine: sa.Engine,
     *,
+    vocab_engine: sa.Engine,
     scope: TableCategory | None = None,
     table_names: tuple[str, ...] | None = None,
     restart_identities: bool = False,
     cascade: bool = False,
     dry_run: bool = False,
-    resolved: ResolvedCDMDatabase | None = None,
+    resolved: ResolvedCDMDatabase,
 ) -> list[TruncateTableResult]:
     """Truncate selected ORM-managed tables. Raises if non-selected tables hold blocking FK references."""
     if scope is not None and table_names is not None:
@@ -206,11 +196,14 @@ def truncate_tables(
     backend = resolve_backend(engine)
     require_backend_support(backend, "truncate_table_batch", "Table truncation")
     selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names)
-    tables_by_name = {table.table_name: table for table in selected_tables}
     inspector = sa.inspect(engine)
     results: list[TruncateTableResult] = []
     existing_tables: list[str] = []
-    existing_table_names_by_schema_tag: dict[str, list[str]] = {}
+    # (schema_tag, table_name) pairs sharing one physical connection, so
+    # PostgreSQL's own multi-schema TRUNCATE syntax can name them together in
+    # one statement -- RESTRICT mode requires referencing and referenced
+    # tables to be named in the same statement, not just the same transaction.
+    existing_tables_by_engine: dict[sa.Engine, list[tuple[str, str]]] = {}
 
     with engine.begin() as connection:
         for maintenance_table in selected_tables:
@@ -235,8 +228,11 @@ def truncate_tables(
                 ).scalar_one()
             )
             existing_tables.append(maintenance_table.table_name)
-            existing_table_names_by_schema_tag.setdefault(maintenance_table.schema_tag, []).append(
-                maintenance_table.table_name
+            table_engine = resolved.route_for_schema_tag(
+                maintenance_table.schema_tag, vocab=vocab_engine, primary=engine
+            )
+            existing_tables_by_engine.setdefault(table_engine, []).append(
+                (maintenance_table.schema_tag, maintenance_table.table_name)
             )
             results.append(
                 TruncateTableResult(
@@ -259,21 +255,32 @@ def truncate_tables(
                 raise RuntimeError(_format_blocking_reference_error(blockers))
 
         if existing_tables and not dry_run:
-            # One TRUNCATE batch per schema_tag, since truncate_table_batch qualifies its whole list with a single tag.
-            for schema_tag, table_names_for_tag in existing_table_names_by_schema_tag.items():
-                # A same-named table could already exist under a drifted schema, so truncate could hit unrelated data.
-                with guard_schema_provenance_for(
-                    connection,
-                    resolved,
-                    schema_tag=schema_tag,
-                    tables=[tables_by_name[name].table for name in table_names_for_tag],
-                ):
-                    backend.truncate_table_batch(
-                        connection,
-                        table_names_for_tag,
+            for table_engine, tables_for_engine in existing_tables_by_engine.items():
+                # table_engine is engine: reuse the already-open connection/transaction
+                # above rather than opening a second one to the same database.
+                truncate_connection = connection if table_engine is engine else None
+                # ExitStack: a variable number of guards, one per distinct
+                # schema_tag mapped to this engine, closed together in order.
+                with ExitStack() as guards:
+                    if truncate_connection is None:
+                        truncate_connection = guards.enter_context(table_engine.begin())
+                    schema_tags_for_engine = {schema_tag for schema_tag, _ in tables_for_engine}
+                    # One provenance guard per schema_tag: a same-named table could
+                    # already exist under a drifted schema, so truncate could hit
+                    # unrelated data.
+                    for schema_tag in schema_tags_for_engine:
+                        guards.enter_context(
+                            guard_schema_provenance_for(
+                                truncate_connection,
+                                resolved,
+                                schema_tag=schema_tag,
+                            )
+                        )
+                    resolve_backend(table_engine).truncate_table_batch(
+                        truncate_connection,
+                        tables_for_engine,
                         restart_identities=restart_identities,
                         cascade=cascade,
-                        schema_tag=schema_tag,
                     )
 
     return results
@@ -310,13 +317,21 @@ class SequenceResetResult:
 def collect_sequence_targets(
     *,
     vocabulary_included: bool = False,
+    vocabulary_only: bool = False,
 ) -> list[SequenceTarget]:
     """Return ORM-managed tables that have a single integer primary key and therefore own a sequence."""
     targets: list[SequenceTarget] = []
-    for table in select_omop_tables(
-        vocabulary_included=vocabulary_included,
-        require_single_integer_primary_key=True,
-    ):
+    selected_tables = (
+        select_maintenance_tables(
+            categories=(TableCategory.VOCABULARY,), require_single_integer_primary_key=True
+        )
+        if vocabulary_only
+        else select_omop_tables(
+            vocabulary_included=vocabulary_included,
+            require_single_integer_primary_key=True,
+        )
+    )
+    for table in selected_tables:
         pk_column_name = table.single_primary_key_name
         if pk_column_name is None:
             continue
@@ -334,66 +349,75 @@ def collect_sequence_targets(
 def reset_model_sequences(
     engine: sa.Engine,
     *,
+    vocab_engine: sa.Engine,
     vocabulary_included: bool = False,
+    vocabulary_only: bool = False,
     dry_run: bool = False,
+    resolved: ResolvedDatabase,
 ) -> list[SequenceResetResult]:
     """Reset each owned sequence to MAX(pk_column) + 1 to prevent insert conflicts after bulk loads."""
-    backend = resolve_backend(engine)
-    require_backend_support(backend, "find_sequence_name", "Sequence reset")
-    inspector = sa.inspect(engine)
-    targets = collect_sequence_targets(vocabulary_included=vocabulary_included)
+    targets = collect_sequence_targets(vocabulary_included=vocabulary_included, vocabulary_only=vocabulary_only)
+    targets_by_engine: dict[sa.Engine, list[SequenceTarget]] = {}
+    for target in targets:
+        target_engine = resolved.route_for_schema_tag(target.schema_tag, vocab=vocab_engine, primary=engine)
+        targets_by_engine.setdefault(target_engine, []).append(target)
+
     results: list[SequenceResetResult] = []
 
-    with engine.begin() as connection:
-        for target in targets:
-            if not inspector.has_table(target.table_name, schema=physical_schema_of(engine, schema_tag=target.schema_tag)):
-                continue
+    for group_engine, group_targets in targets_by_engine.items():
+        backend = resolve_backend(group_engine)
+        require_backend_support(backend, "find_sequence_name", "Sequence reset")
+        inspector = sa.inspect(group_engine)
+        with group_engine.begin() as connection:
+            for target in group_targets:
+                if not inspector.has_table(target.table_name, schema=physical_schema_of(group_engine, schema_tag=target.schema_tag)):
+                    continue
 
-            sequence_name = backend.find_sequence_name(
-                connection, target.table_name, target.pk_column_name, schema_tag=target.schema_tag
-            )
+                sequence_name = backend.find_sequence_name(
+                    connection, target.table_name, target.pk_column_name, schema_tag=target.schema_tag
+                )
 
-            if sequence_name is None:
+                if sequence_name is None:
+                    results.append(
+                        SequenceResetResult(
+                            table_name=target.table_name,
+                            category=target.category,
+                            schema_tag=target.schema_tag,
+                            pk_column_name=target.pk_column_name,
+                            sequence_name=None,
+                            next_value=None,
+                            status=Status.SKIPPED,
+                            detail="no owned PostgreSQL sequence found",
+                        )
+                    )
+                    continue
+
+                fully_qualified = qualified(
+                    connection, target.table_name, physical_schema=physical_schema_of(connection, schema_tag=target.schema_tag)
+                )
+                current_max = connection.execute(
+                    sa.text(
+                        f"SELECT COALESCE(MAX({target.pk_column_name}), 0) "
+                        f"FROM {fully_qualified}"
+                    )
+                ).scalar_one()
+                next_value = int(current_max) + 1
+
+                if not dry_run:
+                    backend.set_sequence_value(connection, sequence_name, next_value)
+
                 results.append(
                     SequenceResetResult(
                         table_name=target.table_name,
                         category=target.category,
                         schema_tag=target.schema_tag,
                         pk_column_name=target.pk_column_name,
-                        sequence_name=None,
-                        next_value=None,
-                        status=Status.SKIPPED,
-                        detail="no owned PostgreSQL sequence found",
+                        sequence_name=sequence_name,
+                        next_value=next_value,
+                        status=dry_status(dry_run, applied=Status.RESET),
+                        detail=dry_label(dry_run, "sequence would be reset from table max + 1", "sequence reset from table max + 1"),
                     )
                 )
-                continue
-
-            fully_qualified = qualified(
-                connection, target.table_name, physical_schema=physical_schema_of(connection, schema_tag=target.schema_tag)
-            )
-            current_max = connection.execute(
-                sa.text(
-                    f"SELECT COALESCE(MAX({target.pk_column_name}), 0) "
-                    f"FROM {fully_qualified}"
-                )
-            ).scalar_one()
-            next_value = int(current_max) + 1
-
-            if not dry_run:
-                backend.set_sequence_value(connection, sequence_name, next_value)
-
-            results.append(
-                SequenceResetResult(
-                    table_name=target.table_name,
-                    category=target.category,
-                    schema_tag=target.schema_tag,
-                    pk_column_name=target.pk_column_name,
-                    sequence_name=sequence_name,
-                    next_value=next_value,
-                    status=dry_status(dry_run, applied=Status.RESET),
-                    detail=dry_label(dry_run, "sequence would be reset from table max + 1", "sequence reset from table max + 1"),
-                )
-            )
 
     return results
 
@@ -450,6 +474,7 @@ def analyze_tables_command(
 def reset_sequences_command(
     conn,
     engine,
+    vocab_engine,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -461,8 +486,10 @@ def reset_sequences_command(
     with console.status("Resetting PostgreSQL sequences..."):
         results = reset_model_sequences(
             engine,
+            vocab_engine=vocab_engine,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
+            resolved=conn.resolved,
         )
     console.print(render_sequence_reset_results(results))
     console.print(render_sequence_reset_summary(results, dry_run=dry_run))
@@ -476,6 +503,7 @@ def reset_sequences_command(
 def truncate_tables_command(
     conn,
     engine,
+    vocab_engine,
     scope: TableCategory | None = typer.Option(
         None,
         "--scope",
@@ -519,6 +547,7 @@ def truncate_tables_command(
     with console.status("Truncating selected tables..."):
         results = truncate_tables(
             engine,
+            vocab_engine=vocab_engine,
             scope=resolved_scope,
             table_names=resolved_tables,
             restart_identities=restart_identities,

@@ -65,6 +65,7 @@ app = typer.Typer(rich_markup_mode="rich")
 def info_command(
     conn,
     engine,
+    vocab_engine,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -73,7 +74,13 @@ def info_command(
 ) -> None:
     """Inspect maintenance CLI readiness, backend compatibility, and current installation state."""
     with console.status("Inspecting maintenance environment..."):
-        info = collect_maintenance_info(vocabulary_included=vocabulary_included)
+        info = collect_maintenance_info(
+            engine=engine,
+            vocab_engine=vocab_engine,
+            resolved=conn.resolved,
+            resource_name=conn.resource_name,
+            vocabulary_included=vocabulary_included,
+        )
     console.print(render_info_environment(info))
     console.print(render_info_database(info))
     console.print(render_info_dependencies(info))
@@ -86,6 +93,7 @@ def info_command(
 def doctor_command(
     conn,
     engine,
+    vocab_engine,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -101,8 +109,8 @@ def doctor_command(
     with console.status("Running maintenance doctor checks..."):
         report = collect_doctor_report(
             engine=engine,
+            vocab_engine=vocab_engine,
             resolved=conn.resolved,
-            db_schema=conn.resolved.schema_name,
             resource_name=conn.resource_name,
             vocabulary_included=vocabulary_included,
             deep=deep,
@@ -121,6 +129,7 @@ def doctor_command(
 def reconcile_schema_command(
     conn,
     engine,
+    vocab_engine,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -129,7 +138,9 @@ def reconcile_schema_command(
 ) -> None:
     """Compare ORM-managed SQLAlchemy metadata against the current target database schema."""
     with console.status("Reconciling ORM metadata against target database schema..."):
-        report = reconcile_schema(engine, resolved=conn.resolved, vocabulary_included=vocabulary_included)
+        report = reconcile_schema(
+            engine, vocab_engine=vocab_engine, resolved=conn.resolved, vocabulary_included=vocabulary_included
+        )
     console.print(render_reconciliation_results(report.table_results))
     console.print(render_reconciliation_issues(report.issues))
     console.print(render_reconciliation_summary(report))
@@ -140,6 +151,7 @@ def reconcile_schema_command(
 def create_missing_tables_command(
     conn,
     engine,
+    vocab_engine,
     vocabulary_included: bool = typer.Option(
         True,
         "--vocab/--no-vocab",
@@ -148,19 +160,14 @@ def create_missing_tables_command(
     dry_run: bool = False,
 ) -> None:
     """Create missing ORM-managed OMOP tables from metadata."""
-    vocab_engine = conn.resolved.vocab_engine_for(engine)
-    try:
-        with console.status("Creating missing tables..."):
-            results = create_missing_tables(
-                engine,
-                vocab_engine=vocab_engine,
-                vocabulary_included=vocabulary_included,
-                dry_run=dry_run,
-                resolved=conn.resolved,
-            )
-    finally:
-        if vocab_engine is not engine:
-            vocab_engine.dispose()
+    with console.status("Creating missing tables..."):
+        results = create_missing_tables(
+            engine,
+            vocab_engine=vocab_engine,
+            vocabulary_included=vocabulary_included,
+            dry_run=dry_run,
+            resolved=conn.resolved,
+        )
     console.print(render_table_creation_results(results))
     console.print(render_table_creation_summary(results, dry_run=dry_run))
 

@@ -11,7 +11,13 @@ import sqlalchemy as sa
 from sqlalchemy.exc import DBAPIError, IntegrityError
 import typer
 
-from oa_configurator import ResolvedCDMDatabase, ensure_schema, guard_schema_provenance_for, physical_schema_of, supports_schemas
+from oa_configurator import (
+    ResolvedCDMDatabase,
+    ensure_schema,
+    guard_schema_provenance_for,
+    physical_schema_of,
+    supports_schemas,
+)
 
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY
 
@@ -21,6 +27,7 @@ from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .tables import (
     MaintenanceTable,
     TableCategory,
+    select_maintenance_tables,
     select_omop_tables,
 )
 from .ui import (
@@ -684,36 +691,54 @@ class _IndexOutcome:
 def manage_indexes(
     engine: sa.Engine,
     *,
+    vocab_engine: sa.Engine,
     enable: bool,
     vocabulary_included: bool = False,
+    vocabulary_only: bool = False,
     dry_run: bool = False,
     cluster: bool = True,
-    resolved: ResolvedCDMDatabase | None = None,
+    resolved: ResolvedCDMDatabase,
 ) -> list[IndexManagementResult]:
     """Create or drop all ORM-defined indexes. CLUSTERs tables when enabling and cluster=True."""
-    backend = resolve_backend(engine)
-    inspector = sa.inspect(engine)
-    selected_tables = select_omop_tables(vocabulary_included=vocabulary_included)
+    selected_tables = (
+        select_maintenance_tables(categories=(TableCategory.VOCABULARY,))
+        if vocabulary_only
+        else select_omop_tables(vocabulary_included=vocabulary_included)
+    )
     metadata_indexes = _schema_metadata_indexes(selected_tables)
-    clustering_supported = backend_supports(backend, "cluster_table")
+    backends_by_engine = {
+        candidate_engine: resolve_backend(candidate_engine)
+        for candidate_engine in ({engine, vocab_engine} if vocab_engine is not engine else (engine,))
+    }
+    clustering_supported = any(
+        backend_supports(candidate_backend, "cluster_table") for candidate_backend in backends_by_engine.values()
+    )
 
     results: list[IndexManagementResult] = []
 
     with ExitStack() as guard_stack:
         if not dry_run:
-            tables_by_schema_tag: dict[str, list[sa.Table]] = {}
+            tables_by_engine_and_schema_tag: dict[sa.Engine, dict[str, list[sa.Table]]] = {}
             for table in selected_tables:
-                tables_by_schema_tag.setdefault(table.schema_tag, []).append(table.table)
-            guard_connection = guard_stack.enter_context(engine.begin())
-            # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
-            for schema_tag, tables in tables_by_schema_tag.items():
-                # A same-named index could already exist under a drifted schema, attached to an unrelated table.
-                guard_stack.enter_context(
-                    guard_schema_provenance_for(guard_connection, resolved, schema_tag=schema_tag, tables=tables)
-                )
+                table_engine = resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
+                tables_by_engine_and_schema_tag.setdefault(table_engine, {}).setdefault(
+                    table.schema_tag, []
+                ).append(table.table)
+            # One provenance guard per (engine, schema_tag)
+            # Count only known at runtime:ExitStack defers every write until the block below succeeds.
+            for table_engine, tables_by_schema_tag in tables_by_engine_and_schema_tag.items():
+                guard_connection = guard_stack.enter_context(table_engine.begin())
+                for schema_tag in tables_by_schema_tag:
+                    # A same-named index could already exist under a drifted schema, attached to an unrelated table.
+                    guard_stack.enter_context(
+                        guard_schema_provenance_for(guard_connection, resolved, schema_tag=schema_tag)
+                    )
 
         for table in selected_tables:
-            db_schema = physical_schema_of(engine, schema_tag=table.schema_tag)
+            table_engine = resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
+            backend = backends_by_engine[table_engine]
+            db_schema = physical_schema_of(table_engine, schema_tag=table.schema_tag)
+            inspector = sa.inspect(table_engine)
             if not inspector.has_table(table.table_name, schema=db_schema):
                 continue
 
@@ -757,7 +782,7 @@ def manage_indexes(
                 # mutating (not dry_run, so WAL is committed and checkpointable
                 # before the next index build begins), a plain read-only
                 # connection when only previewing.
-                connection_factory = engine.begin if not dry_run else engine.connect
+                connection_factory = table_engine.begin if not dry_run else table_engine.connect
                 with connection_factory() as connection:
                     if not enable:
                         if not dry_run:
@@ -960,7 +985,7 @@ def manage_indexes(
                         )
                     else:
                         if not dry_run:
-                            with engine.begin() as connection:
+                            with table_engine.begin() as connection:
                                 backend.cluster_table(
                                     connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
                                 )
@@ -983,7 +1008,7 @@ def manage_indexes(
                         )
 
             if not dry_run and (created_any or clustered_now):
-                with engine.connect() as connection:
+                with table_engine.connect() as connection:
                     backend.analyze_table(connection, table.table_name, schema_tag=table.schema_tag)
                     connection.commit()
 
@@ -1001,6 +1026,7 @@ app = typer.Typer(
 def disable_indexes_command(
     conn,
     engine,
+    vocab_engine,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -1012,6 +1038,7 @@ def disable_indexes_command(
     with console.status("Managing metadata-defined indexes..."):
         results = manage_indexes(
             engine,
+            vocab_engine=vocab_engine,
             enable=False,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
@@ -1027,6 +1054,7 @@ def disable_indexes_command(
 def enable_indexes_command(
     conn,
     engine,
+    vocab_engine,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -1048,6 +1076,7 @@ def enable_indexes_command(
     with console.status("Managing metadata-defined indexes..."):
         results = manage_indexes(
             engine,
+            vocab_engine=vocab_engine,
             enable=True,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
@@ -1064,6 +1093,7 @@ def enable_indexes_command(
 def cluster_tables_command(
     conn,
     engine,
+    vocab_engine,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -1080,30 +1110,40 @@ def cluster_tables_command(
     On Docker, check Docker Desktop → Resources → Virtual Disk Limit before running on
     vocabulary tables (concept_ancestor alone needs ~5 GB free).
     """
-    backend = resolve_backend(engine)
-    if not backend_supports(backend, "cluster_table"):
-        console.print(f"[yellow]Clustering is not supported on {backend.name}.[/yellow]")
+    backends_by_engine = {
+        candidate_engine: resolve_backend(candidate_engine)
+        for candidate_engine in ({engine, vocab_engine} if vocab_engine is not engine else (engine,))
+    }
+    if not any(backend_supports(candidate_backend, "cluster_table") for candidate_backend in backends_by_engine.values()):
+        console.print(f"[yellow]Clustering is not supported on {resolve_backend(engine).name}.[/yellow]")
         raise typer.Exit(0)
 
-    inspector = sa.inspect(engine)
     selected_tables = select_omop_tables(vocabulary_included=vocabulary_included)
     results: list[IndexManagementResult] = []
 
     with ExitStack() as guard_stack:
         if not dry_run:
-            tables_by_schema_tag: dict[str, list[sa.Table]] = {}
+            tables_by_engine_and_schema_tag: dict[sa.Engine, dict[str, list[sa.Table]]] = {}
             for table in selected_tables:
-                tables_by_schema_tag.setdefault(table.schema_tag, []).append(table.table)
-            guard_connection = guard_stack.enter_context(engine.begin())
-            # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
-            for schema_tag, tables in tables_by_schema_tag.items():
-                # CLUSTER physically rewrites the table's heap: guard against a drifted schema the same as any other DDL.
-                guard_stack.enter_context(
-                    guard_schema_provenance_for(guard_connection, conn.resolved, schema_tag=schema_tag, tables=tables)
-                )
+                table_engine = conn.resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
+                tables_by_engine_and_schema_tag.setdefault(table_engine, {}).setdefault(
+                    table.schema_tag, []
+                ).append(table.table)
+            # One provenance guard per (engine, schema_tag)
+            # Count only known at untime: ExitStack defers every write until the block below succeeds.
+            for table_engine, tables_by_schema_tag in tables_by_engine_and_schema_tag.items():
+                guard_connection = guard_stack.enter_context(table_engine.begin())
+                for schema_tag in tables_by_schema_tag:
+                    # CLUSTER physically rewrites the table's heap: guard against a drifted schema the same as any other DDL.
+                    guard_stack.enter_context(
+                        guard_schema_provenance_for(guard_connection, conn.resolved, schema_tag=schema_tag)
+                    )
 
         for table in selected_tables:
-            table_schema = physical_schema_of(engine, schema_tag=table.schema_tag)
+            table_engine = conn.resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
+            backend = backends_by_engine[table_engine]
+            table_schema = physical_schema_of(table_engine, schema_tag=table.schema_tag)
+            inspector = sa.inspect(table_engine)
             if not inspector.has_table(table.table_name, schema=table_schema):
                 continue
 
@@ -1120,11 +1160,11 @@ def cluster_tables_command(
             )
 
             if not dry_run:
-                with engine.begin() as connection:
+                with table_engine.begin() as connection:
                     backend.cluster_table(
                         connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
                     )
-                with engine.connect() as connection:
+                with table_engine.connect() as connection:
                     backend.analyze_table(connection, table.table_name, schema_tag=table.schema_tag)
                     connection.commit()
 

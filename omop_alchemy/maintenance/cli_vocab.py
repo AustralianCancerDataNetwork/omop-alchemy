@@ -242,7 +242,7 @@ def _create_missing_vocabulary_tables(
     connection: sa.Connection,
     *,
     db_schema: str | None,
-    resolved: ResolvedCDMDatabase | None = None,
+    resolved: ResolvedCDMDatabase,
 ) -> int:
     """Create any vocabulary-category ORM tables that are absent from the target database. Returns the count created."""
     vocab_tables = select_maintenance_tables(
@@ -263,9 +263,9 @@ def _create_missing_vocabulary_tables(
 
     with ExitStack() as guard_stack:
         # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
-        for schema_tag, tables in tables_by_schema_tag.items():
+        for schema_tag in tables_by_schema_tag:
             guard_stack.enter_context(
-                guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag, tables=tables)
+                guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag)
             )
         Base.metadata.create_all(
             bind=connection,
@@ -278,7 +278,7 @@ def _create_missing_vocabulary_tables(
 def load_vocab_source(
     engine: sa.Engine,
     *,
-    vocab_engine: sa.Engine | None = None,
+    vocab_engine: sa.Engine,
     vocab_schema: str | None = None,
     source_path: str | Path,
     tables: list[str] | None = None,
@@ -290,7 +290,7 @@ def load_vocab_source(
     bulk_mode: bool = True,
     merge_batch_size: int | None = None,
     progress_callback: VocabularyLoadProgressCallback | None = None,
-    resolved: ResolvedCDMDatabase | None = None,
+    resolved: ResolvedCDMDatabase,
 ) -> VocabularyLoadReport:
     """
     Load Athena vocabulary CSVs from source_path into the target database.
@@ -307,11 +307,11 @@ def load_vocab_source(
 
     Parameters
     ----------
-    vocab_engine : sqlalchemy.Engine, optional
-        Engine to create vocabulary tables on, when ``vocab_connection`` names
-        a physically different server than ``engine``. Defaults to ``engine``.
-        CSV loading itself still runs entirely against ``engine``; this only
-        affects where vocab-tagged tables get created.
+    vocab_engine : sqlalchemy.Engine
+        Engine for vocabulary tables and the load itself, when
+        ``vocab_connection`` names a physically different server than
+        ``engine``. May be the same as ``engine`` when the CDM and vocabulary 
+        tables are on the same physical server.
     vocab_schema : str, optional
         Schema vocab-tagged tables live in, for the table-existence check
         against ``vocab_engine``. Defaults to ``db_schema``.
@@ -320,7 +320,6 @@ def load_vocab_source(
         table creation. Omitted by direct test/programmatic callers with no
         resolved config behind their engine, in which case the guard no-ops.
     """
-    vocab_engine = vocab_engine if vocab_engine is not None else engine
     vocab_schema = vocab_schema if vocab_schema is not None else db_schema
 
     resolved_source_path = Path(source_path).expanduser().resolve()
@@ -382,7 +381,7 @@ def load_vocab_source(
     )
 
     _use_bulk_mode = (
-        bulk_mode and not dry_run and backend_supports(resolve_omop_backend(engine), "toggle_fk_triggers")
+        bulk_mode and not dry_run and backend_supports(resolve_omop_backend(vocab_engine), "toggle_fk_triggers")
     )
     if _use_bulk_mode:
         _emit(
@@ -392,10 +391,12 @@ def load_vocab_source(
             table_count=table_count,
         )
         manage_foreign_key_triggers(
-            engine,
+            vocab_engine,
+            vocab_engine=vocab_engine,
             enable=False,
-            vocabulary_included=True,
+            vocabulary_only=True,
             dry_run=False,
+            resolved=resolved,
         )
         _emit(
             progress_callback,
@@ -404,10 +405,12 @@ def load_vocab_source(
             table_count=table_count,
         )
         disable_results = manage_indexes(
-            engine,
+            vocab_engine,
+            vocab_engine=vocab_engine,
             enable=False,
-            vocabulary_included=True,
+            vocabulary_only=True,
             dry_run=False,
+            resolved=resolved,
         )
         index_warnings = tuple(
             f"{result.table_name}.{result.index_name}: {result.detail}"
@@ -481,7 +484,7 @@ def load_vocab_source(
             _prev_attempt_was_crash = False
             for attempt in range(3):
                 try:
-                    with so.Session(engine) as session:
+                    with so.Session(vocab_engine) as session:
                         if (
                             _prev_attempt_was_crash
                             and merge_strategy == "insert_if_empty"
@@ -492,10 +495,11 @@ def load_vocab_source(
                             # DISABLE TRIGGER ALL on all vocabulary tables, and that state
                             # persists across crash+recovery in pg_trigger.tgenabled.
                             # Schema-qualified explicitly so this targets the CDM table
-                            # regardless of search_path ordering.
+                            # regardless of search_path ordering -- vocab_schema, since
+                            # this session and the table itself both live on vocab_engine.
                             table_ref = (
-                                f'"{db_schema}"."{model.__tablename__}"'
-                                if db_schema
+                                f'"{vocab_schema}"."{model.__tablename__}"'
+                                if vocab_schema
                                 else f'"{model.__tablename__}"'
                             )
                             session.execute(sa.text(f"TRUNCATE TABLE {table_ref}"))
@@ -521,7 +525,7 @@ def load_vocab_source(
                     raise VocabularyLoadError(
                         "Athena vocabulary load failed for "
                         f"table `{model.__tablename__}` from `{csv_path}` "
-                        f"using merge strategy `{merge_strategy}` on backend `{engine.dialect.name}`. "
+                        f"using merge strategy `{merge_strategy}` on backend `{vocab_engine.dialect.name}`. "
                         f"Underlying error: {exc.__class__.__name__}: {exc}"
                         + recovery_hint
                     ) from exc
@@ -556,11 +560,13 @@ def load_vocab_source(
                 table_count=table_count,
             )
             manage_indexes(
-                engine,
+                vocab_engine,
+                vocab_engine=vocab_engine,
                 enable=True,
-                vocabulary_included=True,
+                vocabulary_only=True,
                 dry_run=False,
                 cluster=False,
+                resolved=resolved,
             )
             _emit(
                 progress_callback,
@@ -569,10 +575,12 @@ def load_vocab_source(
                 table_count=table_count,
             )
             manage_foreign_key_triggers(
-                engine,
+                vocab_engine,
+                vocab_engine=vocab_engine,
                 enable=True,
-                vocabulary_included=True,
+                vocabulary_only=True,
                 dry_run=False,
+                resolved=resolved,
             )
 
     _emit(
@@ -582,11 +590,13 @@ def load_vocab_source(
         table_count=table_count,
     )
 
-    if not dry_run and backend_supports(resolve_omop_backend(engine), "find_sequence_name"):
+    if not dry_run and backend_supports(resolve_omop_backend(vocab_engine), "find_sequence_name"):
         sequence_results = reset_model_sequences(
-            engine,
-            vocabulary_included=True,
+            vocab_engine,
+            vocab_engine=vocab_engine,
+            vocabulary_only=True,
             dry_run=False,
+            resolved=resolved,
         )
         sequence_reset_count = sum(
             result.status == Status.RESET for result in sequence_results
@@ -594,7 +604,7 @@ def load_vocab_source(
 
     return VocabularyLoadReport(
         source_path=str(resolved_source_path),
-        backend=engine.dialect.name,
+        backend=vocab_engine.dialect.name,
         db_schema=db_schema,
         merge_strategy=merge_strategy,
         created_table_count=created_table_count,
@@ -615,6 +625,7 @@ app = typer.Typer(rich_markup_mode="rich")
 def load_vocab_source_command(
     conn,
     engine,
+    vocab_engine,
     athena_source: str | None = typer.Option(
         None,
         help="Path to the unzipped Athena vocabulary CSV directory. Falls back to the saved athena-source default.",
@@ -690,60 +701,55 @@ def load_vocab_source_command(
         )
         raise typer.Exit(code=1)
 
-    vocab_engine = conn.resolved.vocab_engine_for(engine)
-    try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[bold cyan]{task.description}"),
-            BarColumn(bar_width=None),
-            TaskProgressColumn(),
-            TimeElapsedColumn(),
-            console=console,
-            transient=False,
-        ) as progress:
-            task_id = progress.add_task(
-                "Preparing Athena vocabulary load...", total=100.0, completed=0
-            )
-            completed_tables: list[str] = []
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(bar_width=None),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        console=console,
+        transient=False,
+    ) as progress:
+        task_id = progress.add_task(
+            "Preparing Athena vocabulary load...", total=100.0, completed=0
+        )
+        completed_tables: list[str] = []
 
-            def _update_progress(event: VocabularyLoadProgress) -> None:
-                progress.update(
-                    task_id, completed=event.percent, description=event.description
-                )
-                if event.table_done and event.table_name is not None:
-                    completed_tables.append(event.table_name)
-                    row_info = (
-                        f": [dim]{event.rows_this_table:,} rows[/dim]"
-                        if event.rows_this_table is not None
-                        else ""
-                    )
-                    progress.console.print(
-                        f"[green]loaded[/green] [bold]{event.table_name}[/bold]{row_info} "
-                        f"({len(completed_tables)}/{event.table_count})"
-                    )
-
-            report = load_vocab_source(
-                engine,
-                vocab_engine=vocab_engine,
-                vocab_schema=conn.resolved.vocab_schema,
-                source_path=effective_athena_source,
-                tables=tables or None,
-                db_schema=conn.resolved.schema_name,
-                dry_run=dry_run,
-                merge_strategy=merge_strategy,
-                quote_mode=quote_mode,
-                chunksize=None if staging_chunk_size == 0 else staging_chunk_size,
-                bulk_mode=bulk_mode,
-                merge_batch_size=merge_batch_size,
-                progress_callback=_update_progress,
-                resolved=conn.resolved,
-            )
+        def _update_progress(event: VocabularyLoadProgress) -> None:
             progress.update(
-                task_id, completed=100.0, description="Athena vocabulary load complete"
+                task_id, completed=event.percent, description=event.description
             )
-    finally:
-        if vocab_engine is not engine:
-            vocab_engine.dispose()
+            if event.table_done and event.table_name is not None:
+                completed_tables.append(event.table_name)
+                row_info = (
+                    f": [dim]{event.rows_this_table:,} rows[/dim]"
+                    if event.rows_this_table is not None
+                    else ""
+                )
+                progress.console.print(
+                    f"[green]loaded[/green] [bold]{event.table_name}[/bold]{row_info} "
+                    f"({len(completed_tables)}/{event.table_count})"
+                )
+
+        report = load_vocab_source(
+            engine,
+            vocab_engine=vocab_engine,
+            vocab_schema=conn.resolved.vocab_schema,
+            source_path=effective_athena_source,
+            tables=tables or None,
+            db_schema=conn.resolved.schema_name,
+            dry_run=dry_run,
+            merge_strategy=merge_strategy,
+            quote_mode=quote_mode,
+            chunksize=None if staging_chunk_size == 0 else staging_chunk_size,
+            bulk_mode=bulk_mode,
+            merge_batch_size=merge_batch_size,
+            progress_callback=_update_progress,
+            resolved=conn.resolved,
+        )
+        progress.update(
+            task_id, completed=100.0, description="Athena vocabulary load complete"
+        )
 
     console.print(render_vocab_load_results(report.results))
     console.print(render_vocab_load_summary(report, dry_run=dry_run))

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
-from oa_configurator import Dialect, ResolvedDatabase
+from oa_configurator import Dialect, ResolvedCDMDatabase
 
 from ..backends import backend_supports, resolve_backend
 from ._cli_utils import Status
@@ -177,9 +177,9 @@ def _build_recommendations(
 def collect_doctor_report(
     *,
     engine: sa.engine.Engine,
-    resolved: ResolvedDatabase | None = None,
-    db_schema: str | None = None,
-    resource_name: str | None = None,
+    vocab_engine: sa.engine.Engine,
+    resolved: ResolvedCDMDatabase,
+    resource_name: str,
     vocabulary_included: bool = True,
     deep: bool = False,
 ) -> DoctorReport:
@@ -188,21 +188,21 @@ def collect_doctor_report(
     Parameters
     ----------
     engine : sa.engine.Engine
-        Already-resolved CDM engine (e.g. from the ``@omop_command`` decorator),
+        Already-resolved CDM engine (from the ``@omop_command`` decorator),
         reused for all database checks instead of re-resolving config. The
         caller retains ownership; this function does not dispose it.
-    resolved : ResolvedDatabase, optional
-        Forwarded to reconcile_schema (--deep only) so vocab/results tables
-        are compared against their own schema, not db_schema uniformly.
-    db_schema : str, optional
-        CDM schema associated with ``engine``. Omit to use its default schema.
-    resource_name : str, optional
-        Configured database resource name. Programmatic callers that construct
-        an engine directly may omit this.
+    vocab_engine : sa.engine.Engine
+        Engine for vocab-role tables.
+    resolved : ResolvedDatabase
+        Forwarded to every check so vocab/results tables are compared
+        against their own schema tag, not one schema uniformly.
+    resource_name : str
+        Configured database resource name.
     """
     info = collect_maintenance_info(
         engine=engine,
-        db_schema=db_schema,
+        vocab_engine=vocab_engine,
+        resolved=resolved,
         resource_name=resource_name,
         vocabulary_included=vocabulary_included,
     )
@@ -214,7 +214,7 @@ def collect_doctor_report(
             detail=(
                 "Target database connection succeeded."
                 if info.connection_ready
-                else info.connection_error or info.engine_error or "Connection could not be established."
+                else info.connection_error or "Connection could not be established."
             ),
         )
     ]
@@ -224,7 +224,6 @@ def collect_doctor_report(
     foreign_key_validation: ForeignKeyValidationReport | None = None
 
     if info.connection_ready:
-        db_schema = info.db_schema
         missing_table_count = info.missing_table_count or 0
         checks.append(
             DoctorCheck(
@@ -241,8 +240,8 @@ def collect_doctor_report(
         if deep:
             reconciliation = reconcile_schema(
                 engine,
+                vocab_engine=vocab_engine,
                 resolved=resolved,
-                db_schema=db_schema,
                 vocabulary_included=vocabulary_included,
             )
             blocking_issue_count = sum(
@@ -277,7 +276,9 @@ def collect_doctor_report(
             foreign_key_status = tuple(
                 collect_foreign_key_trigger_status(
                     engine,
+                    vocab_engine=vocab_engine,
                     vocabulary_included=vocabulary_included,
+                    resolved=resolved,
                 )
             )
             disabled_tables = sum(
@@ -300,7 +301,9 @@ def collect_doctor_report(
             if deep and backend_supports(backend, "count_fk_violations"):
                 foreign_key_validation = validate_foreign_key_constraints(
                     engine,
+                    vocab_engine=vocab_engine,
                     vocabulary_included=vocabulary_included,
+                    resolved=resolved,
                 )
                 violating_tables = sum(
                     result.status == Status.FAILED

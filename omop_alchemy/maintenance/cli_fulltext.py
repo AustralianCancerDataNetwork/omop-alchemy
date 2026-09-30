@@ -10,7 +10,10 @@ from typing import cast
 import typer
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
-from oa_configurator import ResolvedCDMDatabase, guard_schema_provenance_for, validate_schema_tag
+from oa_configurator import (
+    ResolvedCDMDatabase, 
+    guard_schema_provenance_for
+)
 
 from ..backends import backend_support_note as _backend_support_note
 from ..backends import resolve_backend, require_backend_support
@@ -32,10 +35,10 @@ _FULLTEXT_TARGET_TABLES: dict[str, sa.Table] = {
 
 def _schema_tag_for_target(table_name: str) -> str:
     """The schema tag a fulltext target table's own declared schema names.
-    Resolves via validate_schema_tag() rather than hardcoding Role.VOCAB,
-    so a future non-vocab fulltext target resolves correctly.
+    Reads the table's own schema directly rather than hardcoding
+    Role.VOCAB, so a future non-vocab fulltext target resolves correctly.
     """
-    tag = validate_schema_tag(_FULLTEXT_TARGET_TABLES[table_name])
+    tag = _FULLTEXT_TARGET_TABLES[table_name].schema
     if tag is None:
         raise TypeError(f"{table_name}: table has no schema tag.")
     return tag
@@ -77,7 +80,7 @@ def install_fulltext_columns(
     create_indexes: bool = True,
     fastupdate: bool = False,
     dry_run: bool = False,
-    resolved: ResolvedCDMDatabase | None = None,
+    resolved: ResolvedCDMDatabase,
 ) -> tuple[FullTextResult, ...]:
     """Install tsvector sidecar columns (and optionally GIN indexes) on OMOP vocabulary tables."""
     backend = resolve_backend(engine)
@@ -92,10 +95,10 @@ def install_fulltext_columns(
                 tables_by_schema_tag.setdefault(tag, []).append(_FULLTEXT_TARGET_TABLES[cfg.table_name])
             # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
             with engine.begin() as connection, ExitStack() as guard_stack:
-                for schema_tag, tables in tables_by_schema_tag.items():
+                for schema_tag in tables_by_schema_tag:
                     # A same-named column/index could already exist under a drifted schema, attached to an unrelated table.
                     guard_stack.enter_context(
-                        guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag, tables=tables)
+                        guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag)
                     )
                 for cfg in targets:
                     backend.install_fulltext_on_table(

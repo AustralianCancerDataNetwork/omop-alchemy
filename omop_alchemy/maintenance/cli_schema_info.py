@@ -8,11 +8,10 @@ import importlib.util
 import shutil
 
 import sqlalchemy as sa
-from sqlalchemy.exc import ArgumentError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 
-from oa_configurator import Dialect, ResolvedCDMDatabase, Resolver, load_stack_config
+from oa_configurator import Dialect, ResolvedCDMDatabase
 from oa_configurator.loader import DEFAULT_CONFIG_PATH
-from omop_alchemy.config import OmopAlchemyConfig
 
 from ..backends.resolve import backend_label
 from ._cli_utils import Status
@@ -61,8 +60,6 @@ class MaintenanceInfo:
     db_schema: str | None
     engine_url: str | None
     backend: str | None
-    engine_created: bool
-    engine_error: str | None
     connection_ready: bool
     connection_error: str | None
     managed_table_count: int
@@ -99,38 +96,9 @@ def _external_dependency_status(name: str, executable_name: str) -> DependencySt
     )
 
 
-def _command_support_for_unavailable_engine(detail: str) -> tuple[CommandSupport, ...]:
-    """Return a full CommandSupport tuple with every command marked blocked, used when the engine cannot be created."""
-    blocked = Status.BLOCKED
-    return (
-        CommandSupport("doctor", "Any SQLAlchemy backend", blocked, detail),
-        CommandSupport("data-summary", "Any SQLAlchemy backend", blocked, detail),
-        CommandSupport("analyze-tables", "PostgreSQL/SQLite", blocked, detail),
-        CommandSupport("create-missing-tables", "Any SQLAlchemy backend", blocked, detail),
-        CommandSupport("indexes disable", "Any SQLAlchemy backend", blocked, detail),
-        CommandSupport("indexes enable", "Any SQLAlchemy backend", blocked, detail),
-        CommandSupport("reconcile-schema", "Any SQLAlchemy backend", blocked, detail),
-        CommandSupport("load-vocab-source", "SQLite/PostgreSQL + Athena CSV source", blocked, detail),
-        CommandSupport("backup-database", "PostgreSQL + pg_dump", blocked, detail),
-        CommandSupport("restore-database", "PostgreSQL + pg_restore/psql", blocked, detail),
-        CommandSupport("fulltext install", "PostgreSQL", blocked, detail),
-        CommandSupport("fulltext populate", "PostgreSQL", blocked, detail),
-        CommandSupport("fulltext drop", "PostgreSQL", blocked, detail),
-        CommandSupport("reset-sequences", "PostgreSQL", blocked, detail),
-        CommandSupport("truncate-tables", "PostgreSQL", blocked, detail),
-        CommandSupport("foreign-keys disable", "PostgreSQL", blocked, detail),
-        CommandSupport("foreign-keys enable", "PostgreSQL", blocked, detail),
-        CommandSupport("foreign-keys enable --strict", "PostgreSQL", blocked, detail),
-        CommandSupport("foreign-keys status", "PostgreSQL", blocked, detail),
-        CommandSupport("foreign-keys validate", "PostgreSQL", blocked, detail),
-    )
-
-
 def _command_support_for_backend(
     *,
     backend: str,
-    engine_created: bool,
-    engine_error: str | None,
     connection_ready: bool,
     connection_error: str | None,
     pg_dump_path: str | None,
@@ -139,18 +107,11 @@ def _command_support_for_backend(
 ) -> tuple[CommandSupport, ...]:
     """Compute the readiness status of every CLI command given the current backend, connection state, and tool availability."""
     current_backend = backend_label(backend)
-    if not engine_created:
-        blocked_detail = (
-            f"Backend resolved to {current_backend}, but the engine could not be created: {engine_error}"
-            if engine_error
-            else f"Backend resolved to {current_backend}, but the engine could not be created."
-        )
-    else:
-        blocked_detail = (
-            f"Backend resolved to {current_backend}, but the connection test failed: {connection_error}"
-            if connection_error
-            else f"Backend resolved to {current_backend}, but the connection test failed."
-        )
+    blocked_detail = (
+        f"Backend resolved to {current_backend}, but the connection test failed: {connection_error}"
+        if connection_error
+        else f"Backend resolved to {current_backend}, but the connection test failed."
+    )
     portable_status = Status.READY if connection_ready else Status.BLOCKED
     portable_detail = (
         f"Ready on {current_backend}." if connection_ready else blocked_detail
@@ -296,17 +257,13 @@ def _command_support_for_backend(
 
 def collect_maintenance_info(
     *,
-    engine: sa.engine.Engine | None = None,
-    db_schema: str | None = None,
-    resource_name: str | None = None,
+    engine: sa.engine.Engine,
+    vocab_engine: sa.engine.Engine,
+    resolved: ResolvedCDMDatabase,
+    resource_name: str,
     vocabulary_included: bool = True,
 ) -> MaintenanceInfo:
-    """Probe connection readiness and assess per-command support.
-
-    When ``engine`` is omitted, resolve configuration and create an engine as
-    before. When a caller supplies an engine, inspect that engine directly and
-    leave its lifecycle under the caller's control.
-    """
+    """Probe connection readiness and assess per-command support for an already-resolved engine."""
     pg_dump_path = shutil.which("pg_dump")
     pg_restore_path = shutil.which("pg_restore")
     psql_path = shutil.which("psql")
@@ -326,81 +283,38 @@ def collect_maintenance_info(
     )
     cli_path = shutil.which("omop-alchemy")
 
-    engine_url: str | None = None
-    backend: str | None = None
-    owns_engine = engine is None
-    engine_created = False
-    engine_error: str | None = None
+    engine_url = engine.url.render_as_string(hide_password=True)
+    backend = engine.url.get_backend_name()
     connection_ready = False
     connection_error: str | None = None
     existing_table_count: int | None = None
     missing_table_count: int | None = None
 
-    db_name = resource_name or OmopAlchemyConfig.model_fields["cdm_db"].default
-    if engine is not None:
-        db_name = resource_name or "provided engine"
-        engine_url = engine.url.render_as_string(hide_password=True)
-        backend = engine.url.get_backend_name()
-        engine_created = True
-    else:
-        try:
-            stack = load_stack_config()
-            resolver = Resolver(stack)
-            db_name = resolver.resolve_package_config(OmopAlchemyConfig).cdm_db
-            resolved = resolver.resolve_database(db_name)
-            if not isinstance(resolved, ResolvedCDMDatabase):
-                raise ValueError(
-                    f"OmopAlchemyConfig.cdm_db must resolve to a CDM database, got "
-                    f"{type(resolved).__name__}"
-                )
-            db_schema = resolved.schema_name
-            raw_url = sa.engine.make_url(resolved.connection.url)
-            engine_url = raw_url.render_as_string(hide_password=True)
-            backend = raw_url.get_backend_name()
-        except (FileNotFoundError, ValueError, ArgumentError, KeyError) as exc:
-            engine_error = f"Could not resolve engine configuration: {exc}"
-        else:
-            from omop_alchemy.config import create_cdm_engine
-            try:
-                engine = create_cdm_engine(resolved)
-                engine_created = True
-            except RuntimeError as exc:
-                engine_error = str(exc)
-
-    if engine is not None:
-        try:
-            with engine.connect() as connection:
-                connection.exec_driver_sql("SELECT 1")
-            connection_ready = True
-            missing_tables = collect_missing_tables(
-                engine,
-                vocabulary_included=vocabulary_included,
-            )
-            missing_table_count = len(missing_tables)
-            existing_table_count = len(managed_tables) - missing_table_count
-        except SQLAlchemyError as exc:
-            connection_error = f"{exc.__class__.__name__}: {exc}"
-        except Exception as exc:
-            connection_error = str(exc)
-        finally:
-            if owns_engine:
-                engine.dispose()
-
-    if backend is None:
-        command_support = _command_support_for_unavailable_engine(
-            engine_error or "No engine configuration could be resolved."
+    try:
+        with engine.connect() as connection:
+            connection.exec_driver_sql("SELECT 1")
+        connection_ready = True
+        missing_tables = collect_missing_tables(
+            engine,
+            vocab_engine=vocab_engine,
+            vocabulary_included=vocabulary_included,
+            resolved=resolved,
         )
-    else:
-        command_support = _command_support_for_backend(
-            backend=backend,
-            engine_created=engine_created,
-            engine_error=engine_error,
-            connection_ready=connection_ready,
-            connection_error=connection_error,
-            pg_dump_path=pg_dump_path,
-            pg_restore_path=pg_restore_path,
-            psql_path=psql_path,
-        )
+        missing_table_count = len(missing_tables)
+        existing_table_count = len(managed_tables) - missing_table_count
+    except SQLAlchemyError as exc:
+        connection_error = f"{exc.__class__.__name__}: {exc}"
+    except Exception as exc:
+        connection_error = str(exc)
+
+    command_support = _command_support_for_backend(
+        backend=backend,
+        connection_ready=connection_ready,
+        connection_error=connection_error,
+        pg_dump_path=pg_dump_path,
+        pg_restore_path=pg_restore_path,
+        psql_path=psql_path,
+    )
 
     return MaintenanceInfo(
         package_version=_package_version(),
@@ -410,12 +324,10 @@ def collect_maintenance_info(
         psql_path=psql_path,
         config_file=str(config_file),
         config_exists=config_file.exists(),
-        resource_name=db_name,
-        db_schema=db_schema,
+        resource_name=resource_name,
+        db_schema=resolved.schema_name,
         engine_url=engine_url,
         backend=backend,
-        engine_created=engine_created,
-        engine_error=engine_error,
         connection_ready=connection_ready,
         connection_error=connection_error,
         managed_table_count=len(managed_tables),

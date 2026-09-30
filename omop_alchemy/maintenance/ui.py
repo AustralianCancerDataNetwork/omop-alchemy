@@ -168,11 +168,8 @@ def render_info_database(info: MaintenanceInfo) -> Panel:
     grid.add_column()
     grid.add_row("Engine URL", info.engine_url or "-")
     grid.add_row("Backend", backend_label(info.backend) if info.backend else "-")
-    grid.add_row("Engine created", _bool_label(info.engine_created))
     grid.add_row("Connection ready", _bool_label(info.connection_ready))
 
-    if info.engine_error:
-        grid.add_row("Engine detail", Text(info.engine_error, style="yellow"))
     if info.connection_error:
         grid.add_row("Connection detail", Text(info.connection_error, style="yellow"))
 
@@ -211,7 +208,7 @@ def render_backup_result(result: BackupResult) -> Panel:
     grid.add_row("Status", _status_text(result.status))
     grid.add_row("Backend", backend_label(result.backend))
     grid.add_row("Database", result.database_name)
-    grid.add_row("Schema", result.schema_name or "all schemas")
+    grid.add_row("Schemas", ", ".join(result.schema_names))
     grid.add_row("Format", result.backup_format.value)
     grid.add_row("Output", result.file_path)
     grid.add_row("Tool", result.tool_path)
@@ -245,7 +242,7 @@ def render_restore_result(result: BackupResult) -> Panel:
     grid.add_row("Status", _status_text(result.status))
     grid.add_row("Backend", backend_label(result.backend))
     grid.add_row("Database", result.database_name)
-    grid.add_row("Schema", result.schema_name or "all schemas")
+    grid.add_row("Schemas", ", ".join(result.schema_names))
     grid.add_row("Format", result.backup_format.value)
     grid.add_row("Input", result.file_path)
     grid.add_row("Tool", result.tool_path)

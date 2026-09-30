@@ -107,8 +107,8 @@ class _ConnContext:
 
     resource_name and athena_source come from OmopAlchemyConfig, not from
     resolved. Everything else a command needs (schema, vocab/results
-    schema, test_only, a vocab engine) is available via resolved directly,
-    or via resolved.vocab_engine_for(engine), rather than duplicated here.
+    schema, test_only) is available via resolved directly, rather than
+    duplicated here.
     """
     resolved: ResolvedCDMDatabase
     resource_name: str = ""
@@ -124,27 +124,45 @@ def omop_command(
     dry_run: bool = False,
     mode_label: str | None = None,
 ) -> Callable[[_F], _F]:
-    """Decorator that eliminates CLI boilerplate for every omop-alchemy command.
+    """Decorator that eliminates CLI boilerplate for every omop-alchemy command. Changes the 
+    typer signature to remove the connection/engine parameters and add a ``--database`` option.
 
     Resolves the database connection from oa_configurator, calls
     :func:`render_command_header`, and wraps the body in ``try/except handle_error``.
 
-    The decorated function must accept ``(conn, engine, ...)`` as its first two
-    positional parameters. The decorator supplies them.
+    Notes
+    -----
+    The decorated function must accept the following positional parameters in order: 
+    1. ``conn``: a :class:`_ConnContext` object with the resolved database connection 
+    2. ``engine``: the SQLAlchemy engine for the resolved database
+
+    The third positional parameter, ``vocab_engine``, is optional and only provided if
+    the decorated function's signature declares it. The decorator will build and dispose
+    a second engine for the vocabulary schema when needed (useful for split CDM
+    configurations).
+
+    The decorator also adds a ``--database`` option to the command, allowing users to
+    override the default database entry specified in ``OmopAlchemyConfig.cdm_db`` for that
+    invocation.
     """
     def decorator(func: _F) -> _F:
+        orig_params = list(inspect.signature(func).parameters.values())
+        wants_vocab = any(p.name == "vocab_engine" for p in orig_params)
+
         @functools.wraps(func)
         def wrapper(**kwargs: Any) -> Any:
             _dry_run = kwargs.pop("dry_run", False) if dry_run else False
+            _database = kwargs.pop("database", None)
             _vocab = kwargs.get("vocabulary_included", vocabulary_included)
             _mode = mode_label if mode_label is not None else ("dry-run" if _dry_run else "apply")
             try:
                 from ..config import create_cdm_engine, get_cdm_context
-                pkg_config, resolved = get_cdm_context()
+                pkg_config, resolved = get_cdm_context(_database)
                 engine = create_cdm_engine(resolved)
+                vocab_engine = resolved.vocab_engine_for(engine) if wants_vocab else None
                 conn = _ConnContext(
                     resolved=resolved,
-                    resource_name=pkg_config.cdm_db,
+                    resource_name=_database or pkg_config.cdm_db,
                     athena_source=pkg_config.athena_source_path,
                 )
                 console.print(
@@ -157,23 +175,41 @@ def omop_command(
                     )
                 )
                 try:
+                    call_kwargs = dict(kwargs)
+                    if wants_vocab:
+                        call_kwargs["vocab_engine"] = vocab_engine
                     if dry_run:
-                        return func(conn, engine, dry_run=_dry_run, **kwargs)
-                    return func(conn, engine, **kwargs)
+                        call_kwargs["dry_run"] = _dry_run
+                    return func(conn, engine, **call_kwargs)
                 finally:
                     engine.dispose()
+                    if vocab_engine is not None and vocab_engine is not engine:
+                        vocab_engine.dispose()
             except Exception as exc:
                 handle_error(exc)
 
         # Rebuild the Typer-visible signature:
-        # • skip conn/engine (decorator supplies them)
+        # • skip conn/engine/vocab_engine (decorator supplies them)
         # • skip dry_run if the decorator owns it
-        orig_params = list(inspect.signature(func).parameters.values())
+        # • always add --database
         func_params = [
             p for p in orig_params[2:]
             if not (dry_run and p.name == "dry_run")
+            and not (wants_vocab and p.name == "vocab_engine")
         ]
         new_params = func_params[:]
+        new_params.append(
+            inspect.Parameter(
+                "database",
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=typer.Option(
+                    None,
+                    "--database",
+                    help="Database entry to use instead of the configured default.",
+                ),
+                annotation=str | None,
+            )
+        )
         if dry_run:
             new_params.append(
                 inspect.Parameter(

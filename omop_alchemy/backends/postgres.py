@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 
@@ -201,14 +202,17 @@ class PostgresBackend(Backend):
     def truncate_table_batch(
         self,
         conn: sa.Connection,
-        table_names: list[str],
+        tables: list[tuple[str, str]],
         *,
         restart_identities: bool,
         cascade: bool,
-        schema_tag: str = Role.PRIMARY.value,
     ) -> None:
         sql = "TRUNCATE TABLE " + ", ".join(
-            qualified(conn, name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag)) for name in table_names
+            qualified(
+                conn, 
+                table_name, 
+                physical_schema=physical_schema_of(conn, schema_tag=schema_tag)
+            ) for schema_tag, table_name in tables
         )
         if restart_identities:
             sql += " RESTART IDENTITY"
@@ -390,7 +394,7 @@ class PostgresBackend(Backend):
         output_path: str,
         backup_format: str,
         *,
-        schema_tag: str = Role.PRIMARY.value,
+        schemas: Sequence[str],
     ) -> tuple[str, list[str], dict[str, str], str]:
         tool_path = _pg_dump_path()
         url = engine.url
@@ -409,9 +413,8 @@ class PostgresBackend(Backend):
             "--no-owner",
             "--no-privileges",
         ]
-        db_schema = physical_schema_of(engine, schema_tag=schema_tag)
-        if db_schema:
-            command.extend(["--schema", db_schema])
+        for schema in schemas:
+            command.extend(["--schema", schema])
         env = os.environ.copy()
         if url.password:
             env["PGPASSWORD"] = str(url.password)
@@ -423,7 +426,7 @@ class PostgresBackend(Backend):
         input_path: str,
         backup_format: str,
         *,
-        schema_tag: str = Role.PRIMARY.value,
+        schemas: Sequence[str],
     ) -> tuple[str, list[str], dict[str, str], str]:
         url = engine.url
         database_name = url.database
@@ -432,7 +435,6 @@ class PostgresBackend(Backend):
                 "Database restore requires a database name in the configured engine URL."
             )
         connection_uri = _libpq_connection_uri(url)
-        db_schema = physical_schema_of(engine, schema_tag=schema_tag)
 
         if backup_format == "custom":
             tool_path = _pg_restore_path()
@@ -444,8 +446,8 @@ class PostgresBackend(Backend):
                 "--no-privileges",
                 "--exit-on-error",
             ]
-            if db_schema:
-                command.extend(["--schema", db_schema])
+            for schema in schemas:
+                command.extend(["--schema", schema])
             command.append(input_path)
         else:
             tool_path = _psql_path()

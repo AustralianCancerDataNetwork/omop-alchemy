@@ -1,5 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 import sqlalchemy as sa
@@ -196,12 +197,13 @@ class Backend(ABC):
     def truncate_table_batch(
         self,
         conn: sa.Connection,
-        table_names: list[str],
+        tables: list[tuple[str, str]],
         *,
         restart_identities: bool,
         cascade: bool,
-        schema_tag: str = Role.PRIMARY.value,
     ) -> None:
+        """Truncate every (schema_tag, table_name) pair in one statement.
+        """
         raise FeatureNotSupportedError("TRUNCATE with RESTART IDENTITY / CASCADE", self)
 
     # ── Sequence management ──────────────────────────────────────────────────
@@ -296,7 +298,7 @@ class Backend(ABC):
         output_path: str,
         backup_format: str,
         *,
-        schema_tag: str = Role.PRIMARY.value,
+        schemas: Sequence[str],
     ) -> tuple[str, list[str], dict[str, str], str]:
         """Return (tool_path, command, env, database_name). subprocess.run stays in CLI."""
         raise FeatureNotSupportedError("Database backup", self)
@@ -307,7 +309,7 @@ class Backend(ABC):
         input_path: str,
         backup_format: str,
         *,
-        schema_tag: str = Role.PRIMARY.value,
+        schemas: Sequence[str],
     ) -> tuple[str, list[str], dict[str, str], str]:
         """Return (tool_path, command, env, database_name). subprocess.run stays in CLI."""
         raise FeatureNotSupportedError("Database restore", self)

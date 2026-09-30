@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 
 import sqlalchemy as sa
@@ -10,7 +11,6 @@ from oa_configurator import (
     find_table_in_other_schemas,
     physical_schema_of,
     supports_schemas,
-    validate_schema_tag,
 )
 from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, ReflectedIndex
 
@@ -73,39 +73,18 @@ class SchemaReconciliationReport:
     issues: tuple[ReconciliationIssue, ...]
 
 
-def _effective_schema(
-    engine: sa.Engine,
-    resolved: ResolvedDatabase | None,
-    schema_tag: str | None,
-    db_schema: str | None,
-) -> str | None:
-    """physical_schema_of(engine, schema_tag=schema_tag) when resolved is given, else db_schema.
-
-    Uses physical_schema_of against engine to accommodate bare schema_tags.
-    """
-    if resolved is None:
-        return db_schema
-    return physical_schema_of(engine, schema_tag=schema_tag)
-
-
-def _schema_qualified_tables(
-    engine: sa.Engine, resolved: ResolvedDatabase | None, db_schema: str | None
-) -> dict[int, sa.Table]:
+def _schema_qualified_tables(engine: sa.Engine) -> dict[int, sa.Table]:
     """Schema-qualified copy of every table in Base.metadata, keyed by id() of the original.
 
     Copied into one shared MetaData() since to_metadata() won't bring a referenced table's copy along on its own, which FK targets need present.
     """
     from orm_loader.helpers import Base
 
-    if resolved is None and db_schema is None:
-        return {id(table): table for table in Base.metadata.tables.values()}
     metadata = sa.MetaData()
 
     def _referred_schema(_table: sa.Table, _to_schema, _constraint, referred_schema: str | None):
         # to_metadata(): None means "unchanged", BLANK_SCHEMA actually clears the schema.
-        # referred_schema is already validate_schema_tag()-clean (checked below), no
-        # re-validation needed here.
-        target = _effective_schema(engine, resolved, referred_schema, db_schema)
+        target = physical_schema_of(engine, schema_tag=referred_schema)
         return target if target is not None else sa.BLANK_SCHEMA
 
     return {
@@ -113,7 +92,7 @@ def _schema_qualified_tables(
             metadata,
             # SQLAlchemy's own stub omits None from schema's declared type,
             # despite accepting and correctly handling it at runtime
-            schema=_effective_schema(engine, resolved, validate_schema_tag(table), db_schema),  # ty: ignore[invalid-argument-type]
+            schema=physical_schema_of(engine, schema_tag=table.schema),  # ty: ignore[invalid-argument-type]
             referred_schema_fn=_referred_schema,
         )
         for table in Base.metadata.tables.values()
@@ -197,22 +176,25 @@ def _expected_index_signature(index: sa.Index, backend: Backend) -> tuple[str, .
 def _actual_index_signature(actual_index: ReflectedIndex, backend: Backend) -> tuple[str, ...]:
     """Per-position signature for a reflected index, matching
     :func:`_expected_index_signature`'s shape.
+
+    ``expressions`` (when present) is fully positional, parallel to
+    ``column_names``.
     """
     column_names = actual_index.get("column_names") or []
     if "expressions" not in actual_index:
         return tuple(name for name in column_names if name is not None)
-    expressions = iter(actual_index.get("expressions") or [])
+    expressions = actual_index.get("expressions") or []
     return tuple(
-        name if name is not None else backend.normalize_index_expression(next(expressions))
-        for name in column_names
+        name if name is not None else backend.normalize_index_expression(expression)
+        for name, expression in zip(column_names, expressions)
     )
 
 
 def reconcile_schema(
     engine: sa.Engine,
     *,
-    resolved: ResolvedDatabase | None = None,
-    db_schema: str | None = None,
+    vocab_engine: sa.Engine,
+    resolved: ResolvedDatabase,
     vocabulary_included: bool = False,
 ) -> SchemaReconciliationReport:
     """Compare ORM metadata against the live database schema.
@@ -220,14 +202,15 @@ def reconcile_schema(
     Parameters
     ----------
     engine : sqlalchemy.Engine
-        Engine to inspect. Its dialect selects the backend used for
-        cluster-state checks.
-    resolved : ResolvedDatabase, optional
-        When given, qualifies each table to its own schema tag
-        (schema_name/vocab_schema/results_schema) instead of applying
-        db_schema to every table regardless of tag.
-    db_schema : str, optional
-        Blanket schema applied to every table when resolved is not given.
+        Engine to inspect for every non-vocab table. Its dialect selects
+        the backend used for cluster-state checks on those tables.
+    vocab_engine : sqlalchemy.Engine
+        Used instead of *engine* for vocab-tagged tables, including its own
+        dialect's backend for cluster-state checks. Pass *engine* itself
+        when there is no real split.
+    resolved : ResolvedDatabase
+        Qualifies each table to its own schema tag (schema_name/vocab_schema/
+        results_schema).
     vocabulary_included : bool, optional
         Whether vocabulary tables are included in the diff.
 
@@ -240,25 +223,36 @@ def reconcile_schema(
     excluded_categories: tuple[TableCategory, ...] = (
         () if vocabulary_included else (TableCategory.VOCABULARY,)
     )
-    _backend = resolve_backend(engine)
     _cross_schema_fk_supported = supports_schemas(engine)
     selected_tables = select_maintenance_tables(exclude_categories=excluded_categories)
-    schema_qualified_tables = _schema_qualified_tables(engine, resolved, db_schema)
-    inspector = sa.inspect(engine)
+    schema_qualified_tables = _schema_qualified_tables(engine)
     all_issues: list[ReconciliationIssue] = []
     table_results: list[TableReconciliationResult] = []
 
-    with engine.connect() as connection:
+    with ExitStack() as connections:
+        # Collapses to one connection when engine and vocab_engine are the
+        # same object, avoiding a second connection against the same pool.
+        engine_connections = {
+            candidate_engine: connections.enter_context(candidate_engine.connect())
+            for candidate_engine in ({engine, vocab_engine} if vocab_engine is not engine else (engine,))
+        }
+        engine_backends = {
+            candidate_engine: resolve_backend(candidate_engine) for candidate_engine in engine_connections
+        }
         for maintenance_table in selected_tables:
             table_issues: list[ReconciliationIssue] = []
-            table_schema_tag = validate_schema_tag(maintenance_table.table)
+            table_schema_tag = maintenance_table.table.schema
             if table_schema_tag is None:
                 raise TypeError(f"{maintenance_table.table_name}: table has no schema tag.")
-            table_schema = _effective_schema(engine, resolved, table_schema_tag, db_schema)
+            table_engine = resolved.route_for_schema_tag(table_schema_tag, vocab=vocab_engine, primary=engine)
+            connection = engine_connections[table_engine]
+            _backend = engine_backends[table_engine]
+            inspector = sa.inspect(connection)
+            table_schema = physical_schema_of(engine, schema_tag=table_schema_tag)
             exists = inspector.has_table(maintenance_table.table_name, schema=table_schema)
             if not exists:
                 relocated_to = find_table_in_other_schemas(
-                    engine, maintenance_table.table_name, physical_schema=table_schema
+                    connection, maintenance_table.table_name, physical_schema=table_schema
                 )
                 if relocated_to:
                     detail = (
@@ -332,7 +326,7 @@ def reconcile_schema(
                             component="column",
                             object_name=column_name,
                             status=Status.MISSING,
-                            expected=_normalized_type(column.type, engine.dialect),
+                            expected=_normalized_type(column.type, table_engine.dialect),
                             actual=None,
                             detail="Column is defined in ORM metadata but missing from the database.",
                         )
@@ -348,7 +342,7 @@ def reconcile_schema(
                             object_name=column_name,
                             status=Status.UNEXPECTED,
                             expected=None,
-                            actual=_normalized_type(column["type"], engine.dialect),
+                            actual=_normalized_type(column["type"], table_engine.dialect),
                             detail="Column exists in the database but is not defined in ORM metadata.",
                         )
                     )
@@ -356,8 +350,8 @@ def reconcile_schema(
             for column_name in sorted(set(expected_columns).intersection(actual_columns)):
                 expected_column = expected_columns[column_name]
                 actual_column = actual_columns[column_name]
-                expected_type = _normalized_type(expected_column.type, engine.dialect)
-                actual_type = _normalized_type(actual_column["type"], engine.dialect)
+                expected_type = _normalized_type(expected_column.type, table_engine.dialect)
+                actual_type = _normalized_type(actual_column["type"], table_engine.dialect)
                 if expected_type != actual_type:
                     table_issues.append(
                         ReconciliationIssue(
@@ -414,7 +408,7 @@ def reconcile_schema(
                     if (
                         not _cross_schema_fk_supported
                         and raw_constraint is not None
-                        and validate_schema_tag(raw_constraint.referred_table) != table_schema_tag
+                        and raw_constraint.referred_table.schema != table_schema_tag
                     ):
                         # SQLite can never create an inline FK crossing a schema boundary.
                         continue

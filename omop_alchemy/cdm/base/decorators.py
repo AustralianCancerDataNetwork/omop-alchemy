@@ -1,7 +1,5 @@
 from typing import TypeVar
 
-from oa_configurator import validate_schema_tag
-
 from .cdm_table_base import CDMTableBase
 
 T = TypeVar("T", bound=type)
@@ -21,7 +19,7 @@ def cdm_table(cls: T) -> T:
     - Forces __abstract__ = False
     - Ensures __tablename__ is defined
     - Inherits from CDMTableBase
-    - Validates the table's own schema tag (see validate_schema_tag)
+    - Validates the table's own schema tag
     - Used to clearly distinguish real CDM tables from mixins
     """
 
@@ -37,10 +35,7 @@ def cdm_table(cls: T) -> T:
             f"{cls.__name__} must inherit from CDMTableBase "
         )
 
-    try:
-        schema_tag = validate_schema_tag(cls.__table__)  # ty: ignore[unresolved-attribute]
-    except ValueError as exc:
-        raise TypeError(f"@cdm_table on {cls.__name__}: {exc}") from exc
+    schema_tag = cls.__table__.schema  # ty: ignore[unresolved-attribute]
     if schema_tag is None:
         raise TypeError(
             f"@cdm_table on {cls.__name__}: table has no schema tag. "
