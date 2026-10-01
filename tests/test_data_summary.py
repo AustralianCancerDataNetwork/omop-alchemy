@@ -11,9 +11,9 @@ def test_collect_data_summary_can_include_missing_tables(fresh_engine):
     assert any(result.exists is False for result in results)
 
 
-def test_collect_data_summary_reports_row_counts(fresh_engine):
+def test_collect_data_summary_reports_row_counts(fresh_engine, fresh_resolved):
     """Test collect data summary reports row counts."""
-    create_missing_tables(fresh_engine)
+    create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
 
     with fresh_engine.begin() as connection:
         connection.execute(
@@ -29,9 +29,9 @@ def test_collect_data_summary_reports_row_counts(fresh_engine):
     assert results["location"].row_count == 1
 
 
-def test_collect_data_summary_excludes_vocabulary_by_default(fresh_engine):
+def test_collect_data_summary_excludes_vocabulary_by_default(fresh_engine, fresh_resolved):
     """Test collect data summary excludes vocabulary by default."""
-    create_missing_tables(fresh_engine)
+    create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
 
     table_names = {
         result.table_name

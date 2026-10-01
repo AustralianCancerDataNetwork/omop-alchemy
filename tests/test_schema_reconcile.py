@@ -1,11 +1,11 @@
 import dataclasses
-from typing import NamedTuple
+from typing import Iterator, NamedTuple
 
 import pytest
 import sqlalchemy as sa
 
 from oa_configurator import ResolvedCDMDatabase, Role
-from oa_configurator import qualified, physical_schema_of, Dialect
+from oa_configurator import qualified, physical_schema_of
 from oa_configurator.testing import DIALECT_PARAMS, isolated_test_schema
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import omop_index_name
@@ -34,7 +34,7 @@ def _sqlite_resolved(engine: sa.Engine) -> ResolvedCDMDatabase:
 
 
 @pytest.fixture(params=DIALECT_PARAMS)
-def reconcile_engine(request) -> _ReconcileEngine:
+def reconcile_engine(request) -> Iterator[_ReconcileEngine]:
     """Every OMOP table created, indexed, and clustered, on both Postgres and SQLite.
 
     manage_indexes(enable=True) is required on Postgres: create_missing_tables()
@@ -45,28 +45,21 @@ def reconcile_engine(request) -> _ReconcileEngine:
     Notes
     -----
     DIALECT_PARAMS marks each param directly, since the postgresql param's
-    dynamic request.getfixturevalue("pg_schema_session") call is invisible
+    dynamic request.getfixturevalue("pg_scoped_schema") call is invisible
     to pytest's usual fixturenames-based auto-detection.
     """
     if request.param == "postgresql":
-        resolved = request.getfixturevalue("pg_db").resolved
-        engine = request.getfixturevalue("pg_schema_session").get_bind()
-        schema = physical_schema_of(engine)
-        resolved = dataclasses.replace(
-            resolved,
-            schema_name=schema,
-            vocab_schema=schema,
-            results_schema=schema,
-        )
-    else:
-        engine = request.getfixturevalue("fresh_engine")
-        resolved = _sqlite_resolved(engine)
-    create_missing_tables(engine)
-    if request.param == Dialect.POSTGRESQL:
-        manage_indexes(engine, enable=True)
-    else:
-        manage_indexes(engine, enable=True)
-    return _ReconcileEngine(engine, resolved)
+        pg_scoped_schema = request.getfixturevalue("pg_scoped_schema")
+        with pg_scoped_schema("reconcile") as scoped:
+            create_missing_tables(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
+            manage_indexes(scoped.engine, vocab_engine=scoped.engine, enable=True, resolved=scoped.resolved)
+            yield _ReconcileEngine(scoped.engine, scoped.resolved)
+            return
+    engine = request.getfixturevalue("fresh_engine")
+    resolved = _sqlite_resolved(engine)
+    create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
+    manage_indexes(engine, vocab_engine=engine, enable=True, resolved=resolved)
+    yield _ReconcileEngine(engine, resolved)
 
 
 @pytest.fixture
@@ -80,8 +73,9 @@ def fresh_reconcile_engine(fresh_engine) -> _ReconcileEngine:
     operation). Parametrizing these onto Postgres would need a real CLUSTER
     call, not a mock swap, so they stay a separate, SQLite-specific fixture.
     """
-    create_missing_tables(fresh_engine)
-    return _ReconcileEngine(fresh_engine, _sqlite_resolved(fresh_engine))
+    resolved = _sqlite_resolved(fresh_engine)
+    create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=resolved)
+    return _ReconcileEngine(fresh_engine, resolved)
 
 
 def _person_gender_issues(report):
@@ -96,7 +90,7 @@ def _person_gender_issues(report):
 
 def test_reconcile_schema_reports_no_drift_on_fresh_database(reconcile_engine):
     engine, resolved = reconcile_engine
-    report = reconcile_schema(engine, resolved=resolved)
+    report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved)
 
     person_result = next(r for r in report.table_results if r.table_name == "person")
     assert person_result.status == "matched"
@@ -111,7 +105,7 @@ def test_reconcile_schema_reports_renamed_for_foreign_named_equivalent_index(rec
             f"CREATE INDEX idx_gender ON {qualified(connection, 'person', physical_schema=physical_schema_of(connection, schema_tag=Role.PRIMARY))} (gender_concept_id)"
         )
 
-    report = reconcile_schema(engine, resolved=resolved)
+    report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved)
     issues = _person_gender_issues(report)
 
     assert len(issues) == 1
@@ -129,7 +123,7 @@ def test_reconcile_schema_renamed_index_does_not_flip_table_to_drifted(reconcile
             f"CREATE INDEX idx_gender ON {qualified(connection, 'person', physical_schema=physical_schema_of(connection, schema_tag=Role.PRIMARY))} (gender_concept_id)"
         )
 
-    report = reconcile_schema(engine, resolved=resolved)
+    report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved)
     person_result = next(r for r in report.table_results if r.table_name == "person")
 
     assert person_result.status == "matched"
@@ -138,28 +132,23 @@ def test_reconcile_schema_renamed_index_does_not_flip_table_to_drifted(reconcile
 
 @pytest.mark.postgresql
 @pytest.mark.db_dialect
-def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(pg_db, pg_engine):
+def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(pg_engine, pg_scoped_schema):
     """A table missing from its expected schema but physically present under
     a different one reports RELOCATED, not a plain MISSING.
     """
     with (
-        isolated_test_schema(pg_engine, prefix="reconcile_relocated_a") as schema_a,
+        pg_scoped_schema("reconcile_relocated_a") as scoped,
         isolated_test_schema(pg_engine, prefix="reconcile_relocated_b") as schema_b,
     ):
-        resolved = dataclasses.replace(
-            pg_db.resolved, schema_name=schema_a, vocab_schema=schema_a, results_schema=schema_a
-        )
-        engine = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_a, "vocab": schema_a, "results": schema_a}
-        )
+        engine, resolved = scoped.engine, scoped.resolved
         # vocabulary_included defaults to True: person's gender_concept_id FK
         # targets a vocab table, so excluding vocab here would leave that FK
         # unresolved and person itself blocked from creation.
-        create_missing_tables(engine, resolved=resolved)
+        create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
         with engine.begin() as connection:
-            connection.exec_driver_sql(f'ALTER TABLE "{schema_a}".person SET SCHEMA "{schema_b}"')
+            connection.exec_driver_sql(f'ALTER TABLE "{scoped.schema}".person SET SCHEMA "{schema_b}"')
 
-        report = reconcile_schema(engine, resolved=resolved)
+        report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved)
 
         person_result = next(r for r in report.table_results if r.table_name == "person")
         assert person_result.status == "relocated"
@@ -199,10 +188,10 @@ def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_sch
                 Role.PRIMARY.value: primary_schema, "vocab": vocab_schema, "results": results_schema
             }
         )
-        create_missing_tables(engine, resolved=resolved)
-        manage_indexes(engine, enable=True, vocabulary_included=True)
+        create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
+        manage_indexes(engine, vocab_engine=engine, enable=True, vocabulary_included=True, resolved=resolved)
 
-        report = reconcile_schema(engine, resolved=resolved, vocabulary_included=True)
+        report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved, vocabulary_included=True)
 
         checked_components = {"table", "column", "primary_key", "foreign_key", "cluster", "index"}
         for table_name in ("person", "concept", "observation_period"):
@@ -216,20 +205,15 @@ def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_sch
 
 @pytest.mark.postgresql
 @pytest.mark.db_dialect
-def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db, pg_engine):
+def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_scoped_schema):
     """concept's ix_concept_concept_name_lower (a functional index,
     lower(concept_name)) reports no drift when unchanged, and a real
     MISMATCH when its live expression is deliberately altered. Proves the
     normalization process compares signatures rather than just silencing the check.
     """
-    with isolated_test_schema(pg_engine, prefix="reconcile_functional_index") as schema:
-        resolved = dataclasses.replace(
-            pg_db.resolved, schema_name=schema, vocab_schema=schema, results_schema=schema
-        )
-        engine = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema, "vocab": schema, "results": schema}
-        )
-        create_missing_tables(engine, resolved=resolved)
+    with pg_scoped_schema("reconcile_functional_index") as scoped:
+        engine, resolved = scoped.engine, scoped.resolved
+        create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
 
         def _index_issues(report):
             return [
@@ -238,7 +222,7 @@ def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db, pg_
                 if issue.table_name == "concept" and issue.object_name == "ix_concept_concept_name_lower"
             ]
 
-        report = reconcile_schema(engine, resolved=resolved, vocabulary_included=True)
+        report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved, vocabulary_included=True)
         assert _index_issues(report) == []
 
         with engine.begin() as connection:
@@ -247,7 +231,7 @@ def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db, pg_
                 f'CREATE INDEX ix_concept_concept_name_lower ON {qualified(connection, "concept", physical_schema=physical_schema_of(connection, schema_tag=Role.PRIMARY))} (upper(concept_name))'
             )
 
-        report = reconcile_schema(engine, resolved=resolved, vocabulary_included=True)
+        report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved, vocabulary_included=True)
         issues = _index_issues(report)
         assert len(issues) == 1
         assert issues[0].status == "mismatch"
@@ -289,7 +273,7 @@ def test_reconcile_schema_cluster_check_reports_renamed_for_foreign_cluster_inde
         ),
     )
 
-    report = reconcile_schema(engine, resolved=resolved)
+    report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved)
     episode_result = next(r for r in report.table_results if r.table_name == "episode")
     cluster_issues = [
         issue for issue in report.issues
@@ -316,7 +300,7 @@ def test_reconcile_schema_cluster_check_still_reports_real_mismatch(fresh_reconc
         ),
     )
 
-    report = reconcile_schema(engine, resolved=resolved)
+    report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved)
     episode_result = next(r for r in report.table_results if r.table_name == "episode")
     cluster_issues = [
         issue for issue in report.issues
@@ -350,7 +334,7 @@ def test_reconcile_schema_cluster_check_reports_renamed_for_pk_based_cluster_tar
         ),
     )
 
-    report = reconcile_schema(engine, resolved=resolved)
+    report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved)
     person_result = next(r for r in report.table_results if r.table_name == "person")
     person_issues = [issue for issue in report.issues if issue.table_name == "person"]
     cluster_issues = [issue for issue in person_issues if issue.component == "cluster"]

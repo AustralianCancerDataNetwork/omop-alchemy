@@ -119,7 +119,7 @@ def test_concept_name_tsvector_expression_prefers_registered_column():
         _postgres.unregister_fulltext_metadata()
 
 
-def test_install_fulltext_columns_builds_postgresql_ddl_and_registers_metadata():
+def test_install_fulltext_columns_builds_postgresql_ddl_and_registers_metadata(fresh_resolved):
     """Install emits expected PostgreSQL DDL and registers optional metadata columns."""
     _postgres.unregister_fulltext_metadata()
     engine = _FakeEngine()
@@ -128,6 +128,7 @@ def test_install_fulltext_columns_builds_postgresql_ddl_and_registers_metadata()
         engine,  # type: ignore[arg-type]
         create_indexes=True,
         fastupdate=True,
+        resolved=fresh_resolved,
     )
 
     assert [result.action for result in results] == [FullTextAction.INSTALL, FullTextAction.INSTALL]
@@ -193,7 +194,7 @@ def test_drop_fulltext_columns_drops_schema_objects_and_unregisters_metadata():
         "drop_fulltext_columns",
     ],
 )
-def test_fulltext_management_requires_postgresql(fresh_engine, fn_name):
+def test_fulltext_management_requires_postgresql(fresh_engine, fresh_resolved, fn_name):
     """Fulltext management APIs reject non-PostgreSQL engines."""
     engine = fresh_engine
     fn = {
@@ -201,22 +202,38 @@ def test_fulltext_management_requires_postgresql(fresh_engine, fn_name):
         "populate_fulltext_columns": populate_fulltext_columns,
         "drop_fulltext_columns": drop_fulltext_columns,
     }[fn_name]
+    kwargs = {"resolved": fresh_resolved} if fn_name == "install_fulltext_columns" else {}
 
     with pytest.raises(RuntimeError) as exc_info:
-        fn(engine)
+        fn(engine, **kwargs)
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
-def test_fulltext_install_cli_passes_options(monkeypatch):
-    """CLI forwards install options to the fulltext handler implementation."""
+@pytest.mark.postgresql
+@pytest.mark.db_dialect
+def test_fulltext_install_cli_passes_options(monkeypatch, pg_db):
+    """CLI forwards install options to the fulltext handler implementation.
+
+    Needs a genuinely reachable connection: create_cdm_engine() registers/
+    checks schema claims against the real connection as it builds its
+    engine, so a fake "localhost" one fails there before this test's
+    mocked-out install_fulltext_columns is ever reached.
+
+    test_only=False: OmopAlchemyConfig.cdm_db requires is_test=False, and
+    Resolver.resolve_package_config() enforces that it matches the
+    connection's own test_only.
+    """
 
     calls: dict[str, object] = {}
 
+    url = sa.engine.make_url(pg_db.connection.engine.url)
     cfg = StackConfig.for_session(
         connections={
             "db": ConnectionConfig(
-                dialect="postgresql+psycopg", host="localhost", database_name="db"
+                dialect=url.drivername, host=url.host, port=url.port,
+                user=url.username, password=url.password, database_name=url.database,
+                test_only=False,
             )
         },
         databases={"cdm_db": CDMDatabaseConfig(connection="db", cdm_schema="public")},

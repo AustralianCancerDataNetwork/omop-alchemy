@@ -25,8 +25,9 @@ import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
-from oa_configurator import Role
-from oa_configurator.testing import isolated_test_schema
+from oa_configurator import ResolvedCDMDatabase, Role
+from oa_configurator.domains.resources.schema_registry import SchemaRegistry
+from oa_configurator.testing import delete_rows_on_cleanup, isolated_test_schema
 
 from omop_alchemy.cdm.model.clinical import Observation, Person
 from omop_alchemy.cdm.model.derived import Cohort
@@ -44,10 +45,11 @@ class _ThreeSchema(NamedTuple):
     clinical_schema: str
     vocab_schema: str
     results_schema: str
+    resolved: ResolvedCDMDatabase
 
 
 @pytest.fixture()
-def three_schema(pg_engine: sa.Engine) -> Iterator[_ThreeSchema]:
+def three_schema(pg_db, pg_engine: sa.Engine) -> Iterator[_ThreeSchema]:
     with ExitStack() as stack:
         clinical_schema = stack.enter_context(isolated_test_schema(pg_engine, prefix="phase32_clinical"))
         vocab_schema = stack.enter_context(isolated_test_schema(pg_engine, prefix="phase32_vocab"))
@@ -60,11 +62,18 @@ def three_schema(pg_engine: sa.Engine) -> Iterator[_ThreeSchema]:
                 "results": results_schema,
             }
         )
+        resolved = dataclasses.replace(
+            pg_db.resolved,
+            schema_name=clinical_schema,
+            vocab_schema=vocab_schema,
+            results_schema=results_schema,
+        )
         yield _ThreeSchema(
             engine=engine,
             clinical_schema=clinical_schema,
             vocab_schema=vocab_schema,
             results_schema=results_schema,
+            resolved=resolved,
         )
 
 
@@ -118,7 +127,8 @@ def _bootstrap_vocab(engine: sa.Engine, vocab_schema: str) -> None:
 
 def test_tables_land_in_the_schema_their_role_declares(three_schema: _ThreeSchema) -> None:
     create_missing_tables(
-        three_schema.engine, vocabulary_included=True
+        three_schema.engine, vocab_engine=three_schema.engine, vocabulary_included=True,
+        resolved=three_schema.resolved,
     )
 
     inspector = sa.inspect(three_schema.engine)
@@ -138,7 +148,8 @@ def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
     three_schema: _ThreeSchema,
 ) -> None:
     create_missing_tables(
-        three_schema.engine, vocabulary_included=True
+        three_schema.engine, vocab_engine=three_schema.engine, vocabulary_included=True,
+        resolved=three_schema.resolved,
     )
     _bootstrap_vocab(three_schema.engine, three_schema.vocab_schema)
 
@@ -191,16 +202,17 @@ def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_data
     pg_db, pg_engine: sa.Engine, cleanup_after_test
 ) -> None:
     """create_missing_tables() used to call ensure_schema() only for the
-    primary schema, so a genuinely fresh database (where vocab/results
-    schemas don't exist yet either, unlike three_schema's fixture which
-    pre-creates all three) failed "schema does not exist" for every
-    vocab/results table. Deliberately doesn't use isolated_test_schema():
-    that physically creates the schema up front, which is exactly the step
-    under test here.
+    primary schema; a fresh database needed vocab/results schemas created too.
+
+    database_name and all three schema names get a fresh uuid suffix: the
+    provenance guard tracks a baseline per (database_name, schema_tag), so a
+    fixed name would drift against whatever an earlier run registered.
     """
-    clinical_schema = f"phase32_fresh_clinical_{uuid.uuid4().hex[:8]}"
-    vocab_schema = f"phase32_fresh_vocab_{uuid.uuid4().hex[:8]}"
-    results_schema = f"phase32_fresh_results_{uuid.uuid4().hex[:8]}"
+    run_id = uuid.uuid4().hex[:8]
+    database_name = f"fresh_schema_test_{run_id}"
+    clinical_schema = f"phase32_fresh_clinical_{run_id}"
+    vocab_schema = f"phase32_fresh_vocab_{run_id}"
+    results_schema = f"phase32_fresh_results_{run_id}"
 
     def _drop_schemas() -> None:
         with pg_engine.begin() as conn:
@@ -208,27 +220,26 @@ def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_data
                 conn.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
 
     cleanup_after_test(_drop_schemas)
+    schema_registry_table = SchemaRegistry.__table__
+    delete_rows_on_cleanup(
+        cleanup_after_test, pg_engine,
+        schema_registry_table, schema_registry_table.c.database_name == database_name,
+    )
 
     patched_connection = dataclasses.replace(pg_db.resolved.connection, test_only=False)
     resolved = dataclasses.replace(
         pg_db.resolved,
-        name="fresh_schema_test",
+        name=database_name,
         schema_name=clinical_schema,
         vocab_schema=vocab_schema,
         results_schema=results_schema,
         connection=patched_connection,
         vocab_connection=patched_connection,
     )
-    engine = pg_engine.execution_options(
-        schema_translate_map={
-            Role.PRIMARY.value: clinical_schema,
-            "vocab": vocab_schema,
-            "results": results_schema,
-        }
-    )
+    engine = resolved.create_engine()
 
     create_missing_tables(
-        engine,
+        engine, vocab_engine=engine,
         vocabulary_included=True,
         resolved=resolved,
     )

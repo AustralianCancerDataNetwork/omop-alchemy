@@ -79,10 +79,10 @@ def _make_concept_source(
 # ---------------------------------------------------------------------------
 
 
-def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
+def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, pg_resolved, tmp_path):
     """load_vocab_source() completes end-to-end on real Postgres via orm-loader>=0.4.0."""
     source_path = _copy_fixture_source(tmp_path)
-    report = load_vocab_source(pg_engine, source_path=source_path)
+    report = load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_path, resolved=pg_resolved)
 
     assert report.merge_strategy == "replace"
     assert all(r.status == "loaded" for r in report.results if r.required)
@@ -93,7 +93,7 @@ def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
 
 
 def test_default_quote_mode_preserves_literal_quotes_on_postgres(
-    pg_session, pg_engine, tmp_path
+    pg_session, pg_engine, pg_resolved, tmp_path
 ):
     """
     The default by_delimiter mode preserves quotes in tab-delimited Athena data.
@@ -127,7 +127,7 @@ def test_default_quote_mode_preserves_literal_quotes_on_postgres(
         {col: (val,) for col, val in zip(concept_cols, concept_row)},
     )
 
-    load_vocab_source(pg_engine, source_path=source_path)
+    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_path, resolved=pg_resolved)
 
     concept_name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
@@ -136,7 +136,7 @@ def test_default_quote_mode_preserves_literal_quotes_on_postgres(
 
 
 def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
-    pg_session, pg_engine, tmp_path
+    pg_session, pg_engine, pg_resolved, tmp_path
 ):
     """Explicit csv mode keeps support for genuinely RFC-4180-wrapped fields."""
     source_path = tmp_path / "athena_source"
@@ -166,7 +166,7 @@ def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
         {col: (val,) for col, val in zip(concept_cols, concept_row)},
     )
 
-    load_vocab_source(pg_engine, source_path=source_path, quote_mode="csv")
+    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_path, quote_mode="csv", resolved=pg_resolved)
 
     concept_name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
@@ -200,6 +200,7 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
 def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
     pg_session,
     pg_engine,
+    pg_resolved,
     tmp_path,
 ):
     """replace updates matching PKs without deleting rows absent from the next source."""
@@ -217,9 +218,9 @@ def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
         tmp_path / "v2", concept_id=concept_id, concept_name="name_v2"
     )
 
-    load_vocab_source(pg_engine, source_path=source_absent, merge_strategy="replace")
-    load_vocab_source(pg_engine, source_path=source_v1, merge_strategy="replace")
-    load_vocab_source(pg_engine, source_path=source_v2, merge_strategy="replace")
+    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_absent, merge_strategy="replace", resolved=pg_resolved)
+    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_v1, merge_strategy="replace", resolved=pg_resolved)
+    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_v2, merge_strategy="replace", resolved=pg_resolved)
 
     names = dict(
         pg_session.execute(
@@ -234,7 +235,7 @@ def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
     assert names[source_absent_id] == "preserved"
 
 
-def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
+def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, pg_resolved, tmp_path):
     """merge_strategy='upsert' preserves existing rows on second load with same PKs."""
     concept_id = 99998
     source_v1 = _make_concept_source(
@@ -244,8 +245,8 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
         tmp_path / "v2", concept_id=concept_id, concept_name="name_v2"
     )
 
-    load_vocab_source(pg_engine, source_path=source_v1, merge_strategy="upsert")
-    load_vocab_source(pg_engine, source_path=source_v2, merge_strategy="upsert")
+    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_v1, merge_strategy="upsert", resolved=pg_resolved)
+    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_v2, merge_strategy="upsert", resolved=pg_resolved)
 
     name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = :cid"),
@@ -256,7 +257,7 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
     )
 
 
-def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
+def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path):
     """
     load_vocab_source with db_schema creates vocabulary tables in the requested
     PostgreSQL schema and loads data into them correctly.
@@ -285,9 +286,10 @@ def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
 
     try:
         report = load_vocab_source(
-            scoped_engine,
+            scoped_engine, vocab_engine=scoped_engine,
             source_path=source_path,
             db_schema=schema,
+            resolved=pg_resolved,
         )
 
         assert any(r.status == "loaded" for r in report.results if r.required)

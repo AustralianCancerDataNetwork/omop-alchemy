@@ -24,8 +24,8 @@ import uuid
 
 import pytest
 import sqlalchemy as sa
-from oa_configurator import SchemaDriftError, Role
-from oa_configurator.domains.resources.sql import SCHEMA_PROVENANCE_SCHEMA, _schema_provenance_table
+from oa_configurator import SchemaDriftError
+from oa_configurator.domains.resources.schema_registry import SchemaRegistry
 
 from oa_configurator.testing import delete_rows_on_cleanup, isolated_test_schema
 
@@ -61,7 +61,7 @@ def _resolved(pg_db, *, database_name: str, schema: str):
 
 def test_create_missing_tables_guard_fires_on_reconfigured_schema(pg_db, pg_engine, cleanup_after_test):
     database_name = f"guard_wiring_test_db_{uuid.uuid4().hex[:8]}"
-    table = _schema_provenance_table(SCHEMA_PROVENANCE_SCHEMA)
+    table = SchemaRegistry.__table__
     delete_rows_on_cleanup(
         cleanup_after_test, pg_engine, table, table.c.database_name == database_name
     )
@@ -69,22 +69,14 @@ def test_create_missing_tables_guard_fires_on_reconfigured_schema(pg_db, pg_engi
         isolated_test_schema(pg_engine, prefix="guard_wiring_a") as schema_a,
         isolated_test_schema(pg_engine, prefix="guard_wiring_b") as schema_b,
     ):
-        engine_a = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_a, "vocab": schema_a, "results": schema_a}
-        )
-        create_missing_tables(
-            engine_a,
-            resolved=_resolved(pg_db, database_name=database_name, schema=schema_a),
-        )
+        resolved_a = _resolved(pg_db, database_name=database_name, schema=schema_a)
+        engine_a = resolved_a.create_engine()
+        create_missing_tables(engine_a, vocab_engine=engine_a, resolved=resolved_a)
 
-        engine_b = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_b, "vocab": schema_b, "results": schema_b}
-        )
+        resolved_b = _resolved(pg_db, database_name=database_name, schema=schema_b)
+        engine_b = resolved_b.create_engine()
         with pytest.raises(SchemaDriftError):
-            create_missing_tables(
-                engine_b,
-                resolved=_resolved(pg_db, database_name=database_name, schema=schema_b),
-            )
+            create_missing_tables(engine_b, vocab_engine=engine_b, resolved=resolved_b)
 
         # The guard raises before create_all() runs: schema_b must still be empty.
         with engine_b.connect() as conn:
@@ -93,7 +85,7 @@ def test_create_missing_tables_guard_fires_on_reconfigured_schema(pg_db, pg_engi
 
 def test_install_fulltext_columns_guard_fires_on_reconfigured_schema(pg_db, pg_engine, cleanup_after_test):
     database_name = f"guard_wiring_test_db_{uuid.uuid4().hex[:8]}"
-    table = _schema_provenance_table(SCHEMA_PROVENANCE_SCHEMA)
+    table = SchemaRegistry.__table__
     delete_rows_on_cleanup(
         cleanup_after_test, pg_engine, table, table.c.database_name == database_name
     )
@@ -101,26 +93,20 @@ def test_install_fulltext_columns_guard_fires_on_reconfigured_schema(pg_db, pg_e
         isolated_test_schema(pg_engine, prefix="guard_wiring_ft_a") as schema_a,
         isolated_test_schema(pg_engine, prefix="guard_wiring_ft_b") as schema_b,
     ):
-        engine_a = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_a, "vocab": schema_a, "results": schema_a}
-        )
         resolved_a = _resolved(pg_db, database_name=database_name, schema=schema_a)
+        engine_a = resolved_a.create_engine()
         # Guarded create establishes the provenance baseline for schema_a; an
         # unguarded create here would leave install_fulltext_columns's own guard
         # seeing "tables exist but no record", a false first-time-drift positive.
-        create_missing_tables(engine_a, vocabulary_included=True, resolved=resolved_a)
+        create_missing_tables(engine_a, vocab_engine=engine_a, vocabulary_included=True, resolved=resolved_a)
         install_fulltext_columns(engine_a, resolved=resolved_a)
 
-        engine_b = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_b, "vocab": schema_b, "results": schema_b}
-        )
+        resolved_b = _resolved(pg_db, database_name=database_name, schema=schema_b)
+        engine_b = resolved_b.create_engine()
         # install_fulltext_columns wraps every underlying error, including the
         # guard's own SchemaDriftError, in its own FullTextError.
         with pytest.raises(FullTextError) as exc_info:
-            install_fulltext_columns(
-                engine_b,
-                resolved=_resolved(pg_db, database_name=database_name, schema=schema_b),
-            )
+            install_fulltext_columns(engine_b, resolved=resolved_b)
         assert isinstance(exc_info.value.__cause__, SchemaDriftError)
 
         # The guard raises before any ALTER TABLE runs: schema_b's concept table
@@ -133,7 +119,7 @@ def test_install_fulltext_columns_guard_fires_on_reconfigured_schema(pg_db, pg_e
 
 def test_manage_indexes_enable_guard_fires_on_reconfigured_schema(pg_db, pg_engine, cleanup_after_test):
     database_name = f"guard_wiring_test_db_{uuid.uuid4().hex[:8]}"
-    table = _schema_provenance_table(SCHEMA_PROVENANCE_SCHEMA)
+    table = SchemaRegistry.__table__
     delete_rows_on_cleanup(
         cleanup_after_test, pg_engine, table, table.c.database_name == database_name
     )
@@ -141,22 +127,19 @@ def test_manage_indexes_enable_guard_fires_on_reconfigured_schema(pg_db, pg_engi
         isolated_test_schema(pg_engine, prefix="guard_wiring_idx_a") as schema_a,
         isolated_test_schema(pg_engine, prefix="guard_wiring_idx_b") as schema_b,
     ):
-        engine_a = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_a, "vocab": schema_a, "results": schema_a}
-        )
         resolved_a = _resolved(pg_db, database_name=database_name, schema=schema_a)
-        create_missing_tables(engine_a, vocabulary_included=True, resolved=resolved_a)
-        manage_indexes(engine_a, enable=True, cluster=False, resolved=resolved_a)
+        engine_a = resolved_a.create_engine()
+        create_missing_tables(engine_a, vocab_engine=engine_a, vocabulary_included=True, resolved=resolved_a)
+        manage_indexes(engine_a, vocab_engine=engine_a, enable=True, cluster=False, resolved=resolved_a)
 
-        engine_b = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_b, "vocab": schema_b, "results": schema_b}
-        )
+        resolved_b = _resolved(pg_db, database_name=database_name, schema=schema_b)
+        engine_b = resolved_b.create_engine()
         with pytest.raises(SchemaDriftError):
             manage_indexes(
-                engine_b,
+                engine_b, vocab_engine=engine_b,
                 enable=True,
                 cluster=False,
-                resolved=_resolved(pg_db, database_name=database_name, schema=schema_b),
+                resolved=resolved_b,
             )
 
 
@@ -164,7 +147,7 @@ def test_manage_indexes_disable_guard_fires_on_reconfigured_schema(pg_db, pg_eng
     """Regression for the disable path specifically: manage_indexes(enable=False)
     used to build no guard at all, regardless of resolved."""
     database_name = f"guard_wiring_test_db_{uuid.uuid4().hex[:8]}"
-    table = _schema_provenance_table(SCHEMA_PROVENANCE_SCHEMA)
+    table = SchemaRegistry.__table__
     delete_rows_on_cleanup(
         cleanup_after_test, pg_engine, table, table.c.database_name == database_name
     )
@@ -172,28 +155,36 @@ def test_manage_indexes_disable_guard_fires_on_reconfigured_schema(pg_db, pg_eng
         isolated_test_schema(pg_engine, prefix="guard_wiring_idxd_a") as schema_a,
         isolated_test_schema(pg_engine, prefix="guard_wiring_idxd_b") as schema_b,
     ):
-        engine_a = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_a, "vocab": schema_a, "results": schema_a}
-        )
         resolved_a = _resolved(pg_db, database_name=database_name, schema=schema_a)
-        create_missing_tables(engine_a, vocabulary_included=True, resolved=resolved_a)
-        manage_indexes(engine_a, enable=False, resolved=resolved_a)
+        engine_a = resolved_a.create_engine()
+        create_missing_tables(engine_a, vocab_engine=engine_a, vocabulary_included=True, resolved=resolved_a)
+        manage_indexes(engine_a, vocab_engine=engine_a, enable=False, resolved=resolved_a)
 
-        engine_b = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_b, "vocab": schema_b, "results": schema_b}
+        resolved_b = _resolved(pg_db, database_name=database_name, schema=schema_b)
+        engine_b = resolved_b.create_engine()
+        # Registered under its own name first via create_engine(), so schema_b
+        # has a real baseline before create_missing_tables runs below -- an
+        # unregistered schema raises SchemaDriftError same as a real mismatch would.
+        setup_resolved = dataclasses.replace(resolved_b, name=f"{database_name}_setup")
+        delete_rows_on_cleanup(
+            cleanup_after_test, pg_engine, table, table.c.database_name == setup_resolved.name
         )
-        create_missing_tables(engine_b, vocabulary_included=True)
+        setup_resolved.create_engine().dispose()
+        create_missing_tables(
+            engine_b, vocab_engine=engine_b, vocabulary_included=True,
+            resolved=setup_resolved,
+        )
         with pytest.raises(SchemaDriftError):
             manage_indexes(
-                engine_b,
+                engine_b, vocab_engine=engine_b,
                 enable=False,
-                resolved=_resolved(pg_db, database_name=database_name, schema=schema_b),
+                resolved=resolved_b,
             )
 
 
 def test_truncate_tables_guard_fires_on_reconfigured_schema(pg_db, pg_engine, cleanup_after_test):
     database_name = f"guard_wiring_test_db_{uuid.uuid4().hex[:8]}"
-    table = _schema_provenance_table(SCHEMA_PROVENANCE_SCHEMA)
+    table = SchemaRegistry.__table__
     delete_rows_on_cleanup(
         cleanup_after_test, pg_engine, table, table.c.database_name == database_name
     )
@@ -201,21 +192,29 @@ def test_truncate_tables_guard_fires_on_reconfigured_schema(pg_db, pg_engine, cl
         isolated_test_schema(pg_engine, prefix="guard_wiring_trunc_a") as schema_a,
         isolated_test_schema(pg_engine, prefix="guard_wiring_trunc_b") as schema_b,
     ):
-        engine_a = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_a, "vocab": schema_a, "results": schema_a}
-        )
         resolved_a = _resolved(pg_db, database_name=database_name, schema=schema_a)
-        create_missing_tables(engine_a, vocabulary_included=True, resolved=resolved_a)
-        truncate_tables(engine_a, scope=TableCategory.VOCABULARY, cascade=True, resolved=resolved_a)
+        engine_a = resolved_a.create_engine()
+        create_missing_tables(engine_a, vocab_engine=engine_a, vocabulary_included=True, resolved=resolved_a)
+        truncate_tables(engine_a, vocab_engine=engine_a, scope=TableCategory.VOCABULARY, cascade=True, resolved=resolved_a)
 
-        engine_b = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema_b, "vocab": schema_b, "results": schema_b}
+        resolved_b = _resolved(pg_db, database_name=database_name, schema=schema_b)
+        engine_b = resolved_b.create_engine()
+        # See test_manage_indexes_disable_guard_fires_on_reconfigured_schema:
+        # guarded under an unrelated name, registered via create_engine()
+        # first so that name has its own real baseline for schema_b.
+        setup_resolved = dataclasses.replace(resolved_b, name=f"{database_name}_setup")
+        delete_rows_on_cleanup(
+            cleanup_after_test, pg_engine, table, table.c.database_name == setup_resolved.name
         )
-        create_missing_tables(engine_b, vocabulary_included=True)
+        setup_resolved.create_engine().dispose()
+        create_missing_tables(
+            engine_b, vocab_engine=engine_b, vocabulary_included=True,
+            resolved=setup_resolved,
+        )
         with pytest.raises(SchemaDriftError):
             truncate_tables(
-                engine_b,
+                engine_b, vocab_engine=engine_b,
                 scope=TableCategory.VOCABULARY,
                 cascade=True,
-                resolved=_resolved(pg_db, database_name=database_name, schema=schema_b),
+                resolved=resolved_b,
             )

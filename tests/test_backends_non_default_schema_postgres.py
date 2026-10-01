@@ -14,13 +14,13 @@ schema, using ``pg_engine`` the same way ``test_db_schema_search_path_on_postgre
 
 from __future__ import annotations
 
-from typing import Iterator, NamedTuple
+from contextlib import AbstractContextManager
+from typing import Callable, Iterator
 
 import pytest
 import sqlalchemy as sa
-from oa_configurator import Role
 
-from oa_configurator.testing import isolated_test_schema
+from tests.conftest import PgScopedSchema as _Scoped
 
 from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.cli_foreign_keys import (
@@ -35,13 +35,8 @@ from omop_alchemy.maintenance.cli_tables import reset_model_sequences
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
 
-class _Scoped(NamedTuple):
-    engine: sa.Engine
-    schema: str
-
-
 @pytest.fixture()
-def scoped(pg_engine: sa.Engine) -> Iterator[_Scoped]:
+def scoped(pg_scoped_schema: Callable[[str], AbstractContextManager[_Scoped]]) -> Iterator[_Scoped]:
     """``pg_engine`` scoped to a real, non-default, uniquely-named schema.
 
     Single-schema deployment: vocab/results fall back to the same schema as
@@ -49,42 +44,39 @@ def scoped(pg_engine: sa.Engine) -> Iterator[_Scoped]:
     ``vocab_schema``/``results_schema`` aren't configured, the exact case
     that made the vocab/results-role fix safe for unconfigured deployments.
     """
-    with isolated_test_schema(pg_engine, prefix="backends_non_default") as schema:
-        engine = pg_engine.execution_options(
-            schema_translate_map={Role.PRIMARY.value: schema, "vocab": schema, "results": schema}
-        )
-        yield _Scoped(engine=engine, schema=schema)
+    with pg_scoped_schema("backends_non_default") as scoped:
+        yield scoped
 
 
 def test_fk_trigger_toggle_targets_the_configured_schema(scoped: _Scoped) -> None:
-    create_missing_tables(scoped.engine, vocabulary_included=True)
+    create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
 
-    disabled = manage_foreign_key_triggers(scoped.engine, enable=False)
+    disabled = manage_foreign_key_triggers(scoped.engine, vocab_engine=scoped.engine, enable=False, resolved=scoped.resolved)
     assert disabled
     assert all(result.status == Status.APPLIED for result in disabled)
 
     status_after_disable = {
         result.table_name: result
-        for result in collect_foreign_key_trigger_status(scoped.engine)
+        for result in collect_foreign_key_trigger_status(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
     }
     person_status = status_after_disable["person"]
     assert person_status.enabled_trigger_count == 0
     assert person_status.disabled_trigger_count > 0
 
-    enabled = manage_foreign_key_triggers(scoped.engine, enable=True)
+    enabled = manage_foreign_key_triggers(scoped.engine, vocab_engine=scoped.engine, enable=True, resolved=scoped.resolved)
     assert all(result.status == Status.APPLIED for result in enabled)
 
     status_after_enable = {
         result.table_name: result
-        for result in collect_foreign_key_trigger_status(scoped.engine)
+        for result in collect_foreign_key_trigger_status(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
     }
     assert status_after_enable["person"].disabled_trigger_count == 0
 
 
 def test_index_disable_and_enable_targets_the_configured_schema(scoped: _Scoped) -> None:
-    create_missing_tables(scoped.engine, vocabulary_included=True)
+    create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
 
-    disabled = manage_indexes(scoped.engine, enable=False)
+    disabled = manage_indexes(scoped.engine, vocab_engine=scoped.engine, enable=False, resolved=scoped.resolved)
     assert disabled
     assert all(result.status in (Status.APPLIED, Status.SKIPPED) for result in disabled)
 
@@ -93,7 +85,7 @@ def test_index_disable_and_enable_targets_the_configured_schema(scoped: _Scoped)
         idx["name"] for idx in inspector.get_indexes("person", schema=scoped.schema)
     }
 
-    enabled = manage_indexes(scoped.engine, enable=True)
+    enabled = manage_indexes(scoped.engine, vocab_engine=scoped.engine, enable=True, resolved=scoped.resolved)
     assert all(result.status in (Status.APPLIED, Status.SKIPPED) for result in enabled)
 
     inspector = sa.inspect(scoped.engine)
@@ -104,9 +96,9 @@ def test_index_disable_and_enable_targets_the_configured_schema(scoped: _Scoped)
 
 
 def test_fulltext_install_targets_the_configured_schema(scoped: _Scoped) -> None:
-    create_missing_tables(scoped.engine, vocabulary_included=True)
+    create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
 
-    results = install_fulltext_columns(scoped.engine)
+    results = install_fulltext_columns(scoped.engine, resolved=scoped.resolved)
     assert results
     assert all(result.status == Status.APPLIED for result in results)
 
@@ -119,10 +111,10 @@ def test_fulltext_install_targets_the_configured_schema(scoped: _Scoped) -> None
 
 
 def test_sequence_reset_targets_the_configured_schema(scoped: _Scoped) -> None:
-    create_missing_tables(scoped.engine, vocabulary_included=True)
+    create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
 
     results = {
-        r.table_name: r for r in reset_model_sequences(scoped.engine)
+        r.table_name: r for r in reset_model_sequences(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
     }
     person_result = results["person"]
 

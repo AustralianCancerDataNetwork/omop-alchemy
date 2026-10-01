@@ -13,25 +13,25 @@ runner = CliRunner()
 truncate_tables_module = importlib.import_module("omop_alchemy.maintenance.cli_tables")
 
 
-def test_truncate_tables_requires_postgresql(fresh_engine):
+def test_truncate_tables_requires_postgresql(fresh_engine, fresh_resolved):
     """Test truncate tables requires postgresql."""
     engine = fresh_engine
 
     with pytest.raises(RuntimeError) as exc_info:
-        truncate_tables(engine, scope=TableCategory.CLINICAL, dry_run=True)
+        truncate_tables(engine, vocab_engine=engine, scope=TableCategory.CLINICAL, dry_run=True, resolved=fresh_resolved)
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
-def test_truncate_tables_reports_blocking_foreign_key_references(monkeypatch, fresh_engine):
+def test_truncate_tables_reports_blocking_foreign_key_references(monkeypatch, fresh_engine, fresh_resolved):
     """Test truncate tables reports blocking foreign key references."""
     engine = fresh_engine
-    create_missing_tables(engine, vocabulary_included=True)
+    create_missing_tables(engine, vocab_engine=engine, vocabulary_included=True, resolved=fresh_resolved)
 
     monkeypatch.setattr(truncate_tables_module, "require_backend_support", lambda *args, **kwargs: None)
 
     with pytest.raises(RuntimeError) as exc_info:
-        truncate_tables(engine, scope=TableCategory.CLINICAL, dry_run=False)
+        truncate_tables(engine, vocab_engine=engine, scope=TableCategory.CLINICAL, dry_run=False, resolved=fresh_resolved)
 
     message = str(exc_info.value)
     assert "foreign key references from tables outside the current selection" in message
@@ -73,6 +73,7 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
     def fake_truncate_tables(
         engine: object,
         *,
+        vocab_engine: object = None,
         scope: TableCategory | None = None,
         table_names: tuple[str, ...] | None = None,
         restart_identities: bool = False,
