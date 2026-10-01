@@ -12,6 +12,7 @@ from oa_configurator import (
     ResolvedCDMDatabase,
     Role,
     SchemaClaim,
+    is_ephemeral_url,
     load_stack_config,
 )
 from orm_loader.backends import staging_schema_claim
@@ -134,20 +135,10 @@ def vocabulary_identity(resolved: ResolvedCDMDatabase) -> str | None:
     ):
         return None
 
-    if _is_ephemeral_url(vocab_target.safe_url):
+    if is_ephemeral_url(vocab_target.safe_url):
         return None
 
     return f"{vocab_target.safe_url}|{resolved.vocab_schema}"
-
-
-def _is_ephemeral_url(safe_url: str) -> bool:
-    """Whether ``safe_url`` names a database that cannot be shared across engines."""
-    lowered = safe_url.lower()
-    if not lowered.startswith("sqlite"):
-        return False
-    _, _, target = lowered.partition("://")
-    target = target.lstrip("/")
-    return target in ("", ":memory:") or "mode=memory" in lowered
 
 
 def create_cdm_engine(resolved: ResolvedCDMDatabase) -> sa.Engine:
