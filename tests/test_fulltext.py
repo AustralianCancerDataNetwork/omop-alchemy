@@ -8,7 +8,6 @@ from oa_configurator import Role as SchemaRole
 from omop_alchemy.backends import (
     CONCEPT_NAME_TSVECTOR_COLUMN,
     CONCEPT_SYNONYM_NAME_TSVECTOR_COLUMN,
-    PostgresBackend,
 )
 from omop_alchemy.cdm.model.vocabulary.concept import Concept
 from omop_alchemy.cdm.model.vocabulary.concept_synonym import Concept_Synonym
@@ -23,8 +22,6 @@ from omop_alchemy.maintenance.cli_fulltext import (
 )
 
 runner = CliRunner()
-
-_postgres = PostgresBackend()
 
 
 class _FakeDialect:
@@ -90,38 +87,8 @@ class _FakeEngine:
         return _FakeBegin(self.connection)
 
 
-def test_register_and_unregister_fulltext_metadata_toggle_columns():
-    """register/unregister_fulltext_metadata toggle optional tsvector metadata columns."""
-    _postgres.unregister_fulltext_metadata()
-    assert CONCEPT_NAME_TSVECTOR_COLUMN not in Concept.__table__.c
-    assert CONCEPT_SYNONYM_NAME_TSVECTOR_COLUMN not in Concept_Synonym.__table__.c
-
-    _postgres.register_fulltext_metadata()
-    assert CONCEPT_NAME_TSVECTOR_COLUMN in Concept.__table__.c
-    assert CONCEPT_SYNONYM_NAME_TSVECTOR_COLUMN in Concept_Synonym.__table__.c
-
-    _postgres.unregister_fulltext_metadata()
-    assert CONCEPT_NAME_TSVECTOR_COLUMN not in Concept.__table__.c
-    assert CONCEPT_SYNONYM_NAME_TSVECTOR_COLUMN not in Concept_Synonym.__table__.c
-
-
-def test_concept_name_tsvector_expression_prefers_registered_column():
-    """Expression builder falls back to computed SQL unless the stored column is registered."""
-    _postgres.unregister_fulltext_metadata()
-    fallback = _postgres.concept_name_tsvector_expression()
-    assert "to_tsvector" in str(fallback)
-
-    _postgres.register_fulltext_metadata()
-    try:
-        stored = _postgres.concept_name_tsvector_expression()
-        assert stored is Concept.__table__.c[CONCEPT_NAME_TSVECTOR_COLUMN]
-    finally:
-        _postgres.unregister_fulltext_metadata()
-
-
-def test_install_fulltext_columns_builds_postgresql_ddl_and_registers_metadata(fresh_resolved):
-    """Install emits expected PostgreSQL DDL and registers optional metadata columns."""
-    _postgres.unregister_fulltext_metadata()
+def test_install_fulltext_columns_builds_postgresql_ddl_without_touching_orm_metadata(fresh_resolved):
+    """Install emits expected PostgreSQL DDL and leaves the ORM tables unchanged."""
     engine = _FakeEngine()
 
     results = install_fulltext_columns(
@@ -142,13 +109,12 @@ def test_install_fulltext_columns_builds_postgresql_ddl_and_registers_metadata(f
         "CREATE INDEX IF NOT EXISTS idx_gin_concept_name_tsvector" in statement
         for statement in statements
     )
-    assert CONCEPT_NAME_TSVECTOR_COLUMN in Concept.__table__.c
-    _postgres.unregister_fulltext_metadata()
+    assert CONCEPT_NAME_TSVECTOR_COLUMN not in Concept.__table__.c
+    assert CONCEPT_SYNONYM_NAME_TSVECTOR_COLUMN not in Concept_Synonym.__table__.c
 
 
 def test_populate_fulltext_columns_issues_update_with_regconfig_and_row_counts():
     """Populate issues parameterized UPDATE statements and reports row counts."""
-    _postgres.unregister_fulltext_metadata()
     engine = _FakeEngine(rowcount=11)
 
     results = populate_fulltext_columns(
@@ -162,12 +128,10 @@ def test_populate_fulltext_columns_issues_update_with_regconfig_and_row_counts()
     assert any('UPDATE public.concept' in call[1] for call in execute_calls)
     assert any("CAST(:regconfig AS REGCONFIG)" in call[1] for call in execute_calls)
     assert all(call[2] == {"regconfig": "simple"} for call in execute_calls)
-    _postgres.unregister_fulltext_metadata()
 
 
-def test_drop_fulltext_columns_drops_schema_objects_and_unregisters_metadata():
-    """Drop removes fulltext schema objects and unregisters optional metadata columns."""
-    _postgres.register_fulltext_metadata()
+def test_drop_fulltext_columns_drops_schema_objects():
+    """Drop removes fulltext schema objects."""
     engine = _FakeEngine()
 
     results = drop_fulltext_columns(

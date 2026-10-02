@@ -1,19 +1,20 @@
+import dataclasses
+
 import sqlalchemy as sa
 
 from omop_alchemy.maintenance import cli_schema_info
 from omop_alchemy.maintenance.cli_schema_doctor import collect_doctor_report
 
-from tests.conftest import resolved_cdm_database_from_engine
-
 
 def test_doctor_uses_supplied_engine_without_resolving_config_or_disposing(
     fresh_engine,
+    fresh_resolved,
     monkeypatch,
 ) -> None:
     """doctor takes an already-resolved engine/vocab_engine/resolved from its
     caller."""
     engine = fresh_engine
-    resolved = resolved_cdm_database_from_engine(engine, name="manual_cdm", schema_name="analytics")
+    resolved = dataclasses.replace(fresh_resolved, name="manual_cdm", schema_name="analytics")
     disposed_engines: list[sa.engine.Engine] = []
     inspected: dict[str, object] = {}
     original_dispose = sa.engine.Engine.dispose

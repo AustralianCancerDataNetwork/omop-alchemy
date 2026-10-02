@@ -107,10 +107,7 @@ def test_oncology_episode_does_not_expose_generic_drug_episode_interface():
 def oncology_session(fresh_engine, fresh_resolved) -> Iterator[so.Session]:
     """Committed oncology graph so vocabulary-cache sessions see its closure."""
     engine = fresh_engine
-    # bindable is required: fresh_engine is built by oa_configurator.testing's SQLite
-    # strategy, which always provisions its own tempfile and never builds off resolved,
-    # so fresh_resolved can't be trusted to describe the real target.
-    bootstrap(fresh_resolved, create=True, bindable=engine)
+    bootstrap(fresh_resolved, create=True)
 
     rt_concept_id = 9_100_001
     surgery_concept_id = 9_100_002

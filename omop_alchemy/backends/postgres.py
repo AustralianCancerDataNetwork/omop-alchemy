@@ -11,7 +11,7 @@ from oa_configurator import Dialect, Role, qualified, physical_schema_of
 from sqlalchemy.dialects.postgresql import REGCONFIG, TSVECTOR
 from sqlalchemy.sql import func
 
-from .base import Backend, FullTextTargetConfig
+from .base import Backend, FullTextError, FullTextTargetConfig
 
 _STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
 _TEXTLIKE_CAST = re.compile(r"::(?:text|varchar|character varying|bpchar|char)\b", re.IGNORECASE)
@@ -266,48 +266,23 @@ class PostgresBackend(Backend):
             ),
         )
 
-    def register_fulltext_metadata(self) -> None:
-        from typing import cast
-        from ..cdm.model.vocabulary.concept import Concept
-        from ..cdm.model.vocabulary.concept_synonym import Concept_Synonym
-        table_map = {
-            "concept": cast(sa.Table, Concept.__table__),
-            "concept_synonym": cast(sa.Table, Concept_Synonym.__table__),
-        }
-        for cfg in self.fulltext_targets:
-            table = table_map[cfg.table_name]
-            if cfg.vector_column_name not in table.c:
-                table.append_column(sa.Column(cfg.vector_column_name, TSVECTOR, nullable=True))
-
-    def unregister_fulltext_metadata(self) -> None:
-        from typing import cast
-        from ..cdm.model.vocabulary.concept import Concept
-        from ..cdm.model.vocabulary.concept_synonym import Concept_Synonym
-        table_map = {
-            "concept": cast(sa.Table, Concept.__table__),
-            "concept_synonym": cast(sa.Table, Concept_Synonym.__table__),
-        }
-        for cfg in self.fulltext_targets:
-            table = table_map[cfg.table_name]
-            column = table.c.get(cfg.vector_column_name)
-            if column is not None:
-                table._columns.remove(column)
-
-    def concept_name_tsvector_expression(self, *, regconfig: str = "english") -> sa.ColumnElement:
-        from typing import cast
-        from ..cdm.model.vocabulary.concept import Concept
-        col = cast(sa.Table, Concept.__table__).c.get("concept_name_tsvector")
-        if col is not None:
-            return col
-        return func.to_tsvector(regconfig, func.coalesce(Concept.concept_name, ""))
-
-    def concept_synonym_name_tsvector_expression(self, *, regconfig: str = "english") -> sa.ColumnElement:
-        from typing import cast
-        from ..cdm.model.vocabulary.concept_synonym import Concept_Synonym
-        col = cast(sa.Table, Concept_Synonym.__table__).c.get("concept_synonym_name_tsvector")
-        if col is not None:
-            return col
-        return func.to_tsvector(regconfig, func.coalesce(Concept_Synonym.concept_synonym_name, ""))
+    def fulltext_vector_column(
+        self, bindable: sa.Engine | sa.Connection, table: sa.Table
+    ) -> sa.ColumnClause:
+        target = next((cfg for cfg in self.fulltext_targets if cfg.table_name == table.name), None)
+        if target is None:
+            raise FullTextError(f"Table {table.name!r} is not a full-text target.")
+        physical_schema = physical_schema_of(bindable, schema_tag=table.schema)
+        columns = {column["name"] for column in sa.inspect(bindable).get_columns(table.name, schema=physical_schema)}
+        if target.vector_column_name not in columns:
+            raise FullTextError(
+                f"Full-text search column {target.vector_column_name!r} not found in table {table.name!r}. "
+                "Run 'omop-alchemy fulltext install' and 'omop-alchemy fulltext populate' to set it up."
+            )
+        column = sa.column(target.vector_column_name, TSVECTOR)
+        # Bound for qualification and schema translation; table.c stays unchanged.
+        column.table = table
+        return column
 
     def install_fulltext_on_table(
         self,

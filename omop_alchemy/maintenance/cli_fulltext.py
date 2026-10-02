@@ -110,7 +110,6 @@ def install_fulltext_columns(
                         fastupdate=fastupdate,
                         schema_tag=_schema_tag_for_target(cfg.table_name),
                     )
-            backend.register_fulltext_metadata()
     except FullTextError:
         raise
     except Exception as exc:
@@ -161,7 +160,6 @@ def populate_fulltext_columns(
                         regconfig=regconfig,
                         schema_tag=_schema_tag_for_target(cfg.table_name),
                     )
-            backend.register_fulltext_metadata()
     except FullTextError:
         raise
     except Exception as exc:
@@ -208,7 +206,6 @@ def drop_fulltext_columns(
                         drop_indexes=drop_indexes,
                         schema_tag=_schema_tag_for_target(cfg.table_name),
                     )
-            backend.unregister_fulltext_metadata()
     except FullTextError:
         raise
     except Exception as exc:

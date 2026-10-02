@@ -1,19 +1,17 @@
 import copy
-import dataclasses
 import os
-from contextlib import AbstractContextManager, contextmanager
 from datetime import date
 from pathlib import Path
 import pytest
 import sqlalchemy as sa
 import typer.rich_utils as _typer_rich_utils
-from orm_loader.helpers import Base, bootstrap
-from oa_configurator.testing import isolated_test_database, isolated_test_schema
-from oa_configurator import ResolvedCDMDatabase, ResolvedConnection, declared_schema_tags
+from orm_loader.helpers import bootstrap
+from oa_configurator.testing import IsolatedTestDatabase, isolated_test_database, resolve_with_role_schemas, scoped_test_schema
+from oa_configurator import ResolvedCDMDatabase
 import sqlalchemy.orm as so
 from sqlalchemy.orm import Session, sessionmaker
 
-from typing import Any, Callable, Dict, Iterator, NamedTuple, Tuple
+from typing import Any, Dict, Iterator, Tuple
 
 from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance.cli_tables import truncate_tables
@@ -40,66 +38,32 @@ from omop_alchemy.cdm.model.vocabulary import (
 _typer_rich_utils.FORCE_TERMINAL = None
 
 
-def resolved_cdm_database_from_engine(
-    engine: sa.Engine,
-    *,
-    name: str,
-    schema_name: str | None = None,
-    vocab_schema: str | None = None,
-    results_schema: str | None = None,
-) -> ResolvedCDMDatabase:
-    """Build a ResolvedCDMDatabase from an already-live engine's own URL.
-
-    Only for a case with no resolved object to build off at all (e.g. a
-    bare SQLite engine). When one already exists, prefer
-    ``dataclasses.replace(existing.resolved, ...)`` instead.
-
-    test_only=True: every caller passes a throwaway test engine, so the
-    schema-provenance guard should skip rather than look up a registry
-    baseline that was never registered for it.
-    """
-    url = engine.url
-    connection = ResolvedConnection(
-        name=name,
-        url=url.render_as_string(hide_password=False),
-        safe_url=url.render_as_string(hide_password=True),
-        _engine_url=url,
-        test_only=True,
-    )
-    return ResolvedCDMDatabase(
-        name=name,
-        connection=connection,
-        schema_name=schema_name,
-        vocab_connection=connection,
-        vocab_schema=vocab_schema,
-        results_schema=results_schema,
-    )
-
-
 @pytest.fixture
-def fresh_engine() -> Iterator[sa.Engine]:
-    """Fresh, empty, function-scoped SQLite engine.
+def fresh_db() -> Iterator[IsolatedTestDatabase]:
+    """Fresh, empty, function-scoped SQLite database.
 
-    SQLite has no schema concept, so every schema tag maps back to None,
-    matching the flat namespace every caller here has always assumed. The
-    schema_translate_map is set explicitly here  so claimed_schema_tags(engine)
-    sees every tag this fixture's callers can route to, mimicking create_cdm_engine()-built 
-    engine.
+    SQLite has no schema concept, so create_engine() folds every Role tag
+    to None, matching the flat namespace every caller here assumes.
     """
     with isolated_test_database(
         OmopAlchemyConfig,
         "test_cdm_db_sqlite",
         dialect="sqlite",
     ) as db:
-        yield db.connection.engine.execution_options(
-            schema_translate_map={tag: None for tag in declared_schema_tags(Base.metadata.tables.values())}
-        )
+        yield db
 
 
 @pytest.fixture
-def fresh_resolved(fresh_engine: sa.Engine) -> ResolvedCDMDatabase:
-    """ResolvedCDMDatabase paired with fresh_engine, for maintenance functions that require one."""
-    return resolved_cdm_database_from_engine(fresh_engine, name="fresh_engine")
+def fresh_engine(fresh_db: IsolatedTestDatabase) -> sa.Engine:
+    """fresh_db's engine."""
+    return fresh_db.connection.engine
+
+
+@pytest.fixture
+def fresh_resolved(fresh_db: IsolatedTestDatabase) -> ResolvedCDMDatabase:
+    """fresh_db's ResolvedCDMDatabase, for maintenance functions that require one."""
+    assert isinstance(fresh_db.resolved, ResolvedCDMDatabase)
+    return fresh_db.resolved
 
 
 ATHENA_LOAD_ORDER = [
@@ -390,13 +354,8 @@ def engine(tmp_path_factory: pytest.TempPathFactory) -> Iterator[sa.Engine]:
         # namespace this fixture has always assumed.
     ) as db:
         engine = db.connection.engine
-        # bindable is required here: isolated_test_database()'s SQLite strategy always
-        # provisions its own tempfile and never builds its engine off db.resolved, so
-        # resolved can't be trusted to describe the real target. See bootstrap()'s
-        # own docstring on _resolve_binds().
-        resolved = db.resolved
-        assert resolved is not None
-        bootstrap(resolved, create=True, bindable=engine)
+        assert db.resolved is not None
+        bootstrap(db.resolved, create=True)
         _load_fixture_vocabulary(engine, tmp_path_factory.mktemp("omop-alchemy-fixtures"))
 
         with so.Session(engine, expire_on_commit=False) as seed_session:
@@ -416,12 +375,9 @@ def pg_db(request):
     Everything a test does through ``pg_db.connection``/``pg_db.session``
     happens inside one transaction that's rolled back on exit: nothing
     here is ever committed to the shared server, so concurrent test runs
-    can't collide and no manual cleanup is needed.
-
-    New tests should use this directly rather than ``pg_engine``/``pg_session``
-    below, which need a real, genuinely-committing ``Engine`` (for code that
-    calls ``.connect()``/``.begin()`` on what it's given) and are now thin
-    shims over this fixture's own connection.
+    can't collide and no manual cleanup is needed. Prefer it over
+    ``pg_engine``/``pg_session`` unless the code under test needs a
+    committing ``Engine``.
     """
     from oa_configurator.testing import isolated_test_database
     from omop_alchemy.config import OmopAlchemyConfig
@@ -437,24 +393,24 @@ def pg_resolved(pg_db) -> ResolvedCDMDatabase:
 
 
 @pytest.fixture
-def pg_engine(pg_db):
-    """Real, genuinely-committing PostgreSQL engine on the connection's own
-    default schema (``public``). ``pg_session`` resets it clean before and
-    after each test; this fixture just hands back the engine to run
-    genuine engine-building code paths against (``.connect()``/``.begin()``,
-    which a bare ``Connection`` can't stand in for).
-
-    A thin shim over ``pg_db``'s own ``committing_engine``: every schema tag
-    any currently-mapped table uses folds back to the connection's default,
-    matching the single-schema setup ``pg_session`` provides.
-    """
-    return pg_db.committing_engine.execution_options(
-        schema_translate_map={tag: None for tag in declared_schema_tags(Base.metadata.tables.values())}
-    )
+def pg_unscoped_resolved(pg_db) -> ResolvedCDMDatabase:
+    """pg_db.resolved with every role on the connection's own default schema."""
+    return resolve_with_role_schemas(pg_db.resolved, {role: None for role in pg_db.resolved.schema_tags()})
 
 
 @pytest.fixture
-def pg_session(pg_engine, pg_db, cleanup_after_test):
+def pg_engine(pg_unscoped_resolved):
+    """Committing PostgreSQL engine built from ``pg_unscoped_resolved``, so
+    every Role tag maps to the connection's default schema (``public``).
+    ``pg_session`` resets its tables before and after each test.
+    """
+    engine = pg_unscoped_resolved.create_engine()
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture
+def pg_session(pg_engine, pg_unscoped_resolved, cleanup_after_test):
     """Function-scoped PostgreSQL session with every managed table empty for each test.
     Re-uses one persistent database across the whole suite as creating/tearing down 
     a real database per test would be far more expensive. Everything requiring
@@ -484,16 +440,14 @@ def pg_session(pg_engine, pg_db, cleanup_after_test):
         truncate_tables(
             pg_engine, vocab_engine=pg_engine,
             table_names=tuple(table.table_name for table in select_maintenance_tables()),
-            cascade=True, resolved=pg_db.resolved,
+            cascade=True, resolved=pg_unscoped_resolved,
         )
 
     _clear_managed_tables()
     cleanup_after_test(_clear_managed_tables)
 
-    # bootstrap() builds its own engine off resolved. escribe pg_engine's own fold-everything-to-the-
-    # connection's-default-schema behaviour through resolved rather than passing a bindable.
-    unscoped_resolved = dataclasses.replace(pg_db.resolved, schema_name=None, vocab_schema=None, results_schema=None)
-    bootstrap(unscoped_resolved, create=True)
+    # bootstrap() builds its own engine off resolved, on the same default schema as pg_engine.
+    bootstrap(pg_unscoped_resolved, create=True)
 
     session = so.Session(pg_engine, expire_on_commit=False)
     try:
@@ -511,54 +465,14 @@ def pg_schema_session(pg_db):
     schema is dropped at teardown, so separate test processes cannot reset one
     another's objects.
     """
-    with isolated_test_schema(pg_db.committing_engine, prefix="omop_alchemy") as schema:
-        # A dataclasses.replace()'d resolved describing this ad hoc schema, rather than
-        # a raw execution_options override: create_engine() then registers a proper
-        # schema-claim baseline for it through the real, sanctioned path (isolated_test_schema()
-        # only creates the physical schema, it never registers a claim for it on its own).
-        resolved = dataclasses.replace(
-            pg_db.resolved, schema_name=schema, vocab_schema=schema, results_schema=schema
-        )
-        bootstrap(resolved, create=True)
-        engine = resolved.create_engine()
-        session = so.Session(engine, expire_on_commit=False)
+    with scoped_test_schema(pg_db.resolved, prefix="omop_alchemy") as scoped:
+        bootstrap(scoped.resolved, create=True)
+        session = so.Session(scoped.engine, expire_on_commit=False)
         try:
             yield session
         finally:
             session.rollback()
             session.close()
-
-
-class PgScopedSchema(NamedTuple):
-    engine: sa.Engine
-    schema: str
-    resolved: ResolvedCDMDatabase
-
-
-@pytest.fixture
-def pg_scoped_schema(pg_db, pg_engine: sa.Engine) -> Callable[[str], AbstractContextManager[PgScopedSchema]]:
-    """Factory for a throwaway schema shared across all three roles
-    (primary/vocab/results), with the matching engine and resolved.
-
-    Replaces the ``isolated_test_schema`` + ``dataclasses.replace`` block
-    duplicated across several test files. Folds every declared schema tag
-    (not just the hardcoded Role.PRIMARY/vocab/results trio), so a newly
-    declared tag is routed automatically rather than silently left out.
-
-    Usage: ``with pg_scoped_schema("my_prefix") as scoped: ...``
-    """
-
-    @contextmanager
-    def _make(prefix: str = "test") -> Iterator[PgScopedSchema]:
-        with isolated_test_schema(pg_engine, prefix=prefix) as schema:
-            tags = declared_schema_tags(Base.metadata.tables.values())
-            engine = pg_engine.execution_options(schema_translate_map={tag: schema for tag in tags})
-            resolved = dataclasses.replace(
-                pg_db.resolved, schema_name=schema, vocab_schema=schema, results_schema=schema
-            )
-            yield PgScopedSchema(engine=engine, schema=schema, resolved=resolved)
-
-    return _make
 
 
 @pytest.fixture(scope="function")

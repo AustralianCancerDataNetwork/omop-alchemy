@@ -1,15 +1,11 @@
-import dataclasses
-
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from oa_configurator import Role
+from oa_configurator import SchemaClaim
 from orm_loader.helpers import Base
 
 from omop_alchemy.maintenance import cli_schema_tables
 from omop_alchemy.maintenance.cli_schema import collect_missing_tables, create_missing_tables
 from omop_alchemy.maintenance.tables import MaintenanceTable, TableCategory
-
-from tests.conftest import resolved_cdm_database_from_engine
 
 
 def test_collect_missing_tables_on_empty_database(fresh_engine, fresh_resolved):
@@ -60,19 +56,16 @@ def test_create_missing_tables_can_create_vocabulary(fresh_engine, fresh_resolve
     assert inspector.has_table("concept")
 
 
-def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(fresh_engine, monkeypatch):
+def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(fresh_resolved, monkeypatch):
     """A table tagged with a registered schema tag outside Role is created,
     not silently skipped by a Role-only enumeration.
 
     Uses a fake MaintenanceTable: tagging a real CDM table this way needs
     extension-table support, not yet built on this branch.
     """
-    engine = fresh_engine.execution_options(
-        schema_translate_map={Role.PRIMARY.value: None, "vocab": None, "results": None, "synthetic_tag": None}
+    engine = fresh_resolved.create_engine(
+        schema_claims=[SchemaClaim(schema_tag="synthetic_tag", physical_schema=None)]
     )
-    resolved = resolved_cdm_database_from_engine(engine, name="synthetic_tag_test")
-    test_connection = dataclasses.replace(resolved.connection, test_only=True)
-    resolved = dataclasses.replace(resolved, connection=test_connection, vocab_connection=test_connection)
 
     class _SyntheticTagTable(Base):
         __tablename__ = "synthetic_tag_table"
@@ -90,10 +83,11 @@ def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(fresh_e
     monkeypatch.setattr(cli_schema_tables, "collect_missing_tables", lambda *a, **k: [fake_table])
 
     try:
-        results = create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
+        results = create_missing_tables(engine, vocab_engine=engine, resolved=fresh_resolved)
         result_by_name = {result.table_name: result for result in results}
         assert result_by_name["synthetic_tag_table"].status == "created"
         assert sa.inspect(engine).has_table("synthetic_tag_table")
     finally:
+        engine.dispose()
         Base.registry._dispose_cls(_SyntheticTagTable)
         Base.metadata.remove(_SyntheticTagTable.__table__)  # ty: ignore[invalid-argument-type]

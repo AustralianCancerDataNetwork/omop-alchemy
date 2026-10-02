@@ -2,12 +2,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
 import sqlalchemy as sa
 from oa_configurator import Role
-
-if TYPE_CHECKING:
-    from sqlalchemy.sql import ColumnElement
 
 
 # ── Fulltext types ────────────────────────────────────────────────────────────
@@ -233,25 +229,28 @@ class Backend(ABC):
         """Return the fulltext target configs managed by this backend. Empty by default."""
         return ()
 
-    def register_fulltext_metadata(self) -> None:
-        """Append tsvector sidecar columns to SQLAlchemy ORM metadata for this backend's targets."""
-        raise FeatureNotSupportedError("Full-text metadata registration", self)
+    def fulltext_vector_column(
+        self, bindable: sa.Engine | sa.Connection, table: sa.Table
+    ) -> sa.ColumnClause:
+        """Return *table*'s stored tsvector column, bound to *table* without being attached to it.
 
-    def unregister_fulltext_metadata(self) -> None:
-        """Remove tsvector sidecar columns from SQLAlchemy ORM metadata."""
-        raise FeatureNotSupportedError("Full-text metadata unregistration", self)
+        Parameters
+        ----------
+        bindable : sqlalchemy.Engine or sqlalchemy.Connection
+            Carries the schema_translate_map the column's presence is checked under.
+        table : sqlalchemy.Table
+            A fulltext target table, e.g. ``Concept.__table__``.
 
-    def concept_name_tsvector_expression(
-        self, *, regconfig: str = "english"
-    ) -> "ColumnElement[Any]":
-        """Return a SQLAlchemy expression for the concept_name tsvector."""
-        raise FeatureNotSupportedError("Full-text search expression", self)
+        Returns
+        -------
+        sqlalchemy.ColumnClause
 
-    def concept_synonym_name_tsvector_expression(
-        self, *, regconfig: str = "english"
-    ) -> "ColumnElement[Any]":
-        """Return a SQLAlchemy expression for the concept_synonym_name tsvector."""
-        raise FeatureNotSupportedError("Full-text search expression", self)
+        Raises
+        ------
+        FullTextError
+            If *table* is no fulltext target or the column is missing in the database.
+        """
+        raise FeatureNotSupportedError("Full-text search", self)
 
     def install_fulltext_on_table(
         self,

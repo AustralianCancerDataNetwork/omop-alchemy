@@ -15,19 +15,22 @@ split-connection case covered separately in omop-graph's
 
 from __future__ import annotations
 
-import dataclasses
 import uuid
-from contextlib import ExitStack
 from datetime import date
-from typing import Iterator, NamedTuple
+from typing import Iterator
 
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
-from oa_configurator import ResolvedCDMDatabase, Role
-from oa_configurator.domains.resources.schema_registry import SchemaRegistry
-from oa_configurator.testing import delete_rows_on_cleanup, isolated_test_schema
+from oa_configurator import Role
+from oa_configurator.testing import (
+    ScopedTestSchema,
+    guarded_resolver,
+    reset_schema_registry_rows,
+    resolve_with_role_schemas,
+    scoped_test_schema,
+)
 
 from omop_alchemy.cdm.model.clinical import Observation, Person
 from omop_alchemy.cdm.model.derived import Cohort
@@ -40,41 +43,12 @@ _TODAY = date(2020, 1, 1)
 META_CONCEPT_ID = 0
 
 
-class _ThreeSchema(NamedTuple):
-    engine: sa.Engine
-    clinical_schema: str
-    vocab_schema: str
-    results_schema: str
-    resolved: ResolvedCDMDatabase
-
-
 @pytest.fixture()
-def three_schema(pg_db, pg_engine: sa.Engine) -> Iterator[_ThreeSchema]:
-    with ExitStack() as stack:
-        clinical_schema = stack.enter_context(isolated_test_schema(pg_engine, prefix="phase32_clinical"))
-        vocab_schema = stack.enter_context(isolated_test_schema(pg_engine, prefix="phase32_vocab"))
-        results_schema = stack.enter_context(isolated_test_schema(pg_engine, prefix="phase32_results"))
-
-        engine = pg_engine.execution_options(
-            schema_translate_map={
-                Role.PRIMARY.value: clinical_schema,
-                "vocab": vocab_schema,
-                "results": results_schema,
-            }
-        )
-        resolved = dataclasses.replace(
-            pg_db.resolved,
-            schema_name=clinical_schema,
-            vocab_schema=vocab_schema,
-            results_schema=results_schema,
-        )
-        yield _ThreeSchema(
-            engine=engine,
-            clinical_schema=clinical_schema,
-            vocab_schema=vocab_schema,
-            results_schema=results_schema,
-            resolved=resolved,
-        )
+def three_schema(pg_db) -> Iterator[ScopedTestSchema]:
+    with scoped_test_schema(
+        pg_db.resolved, prefix="phase32", split_roles=[Role.VOCAB, Role.RESULTS]
+    ) as scoped:
+        yield scoped
 
 
 def _bootstrap_vocab(engine: sa.Engine, vocab_schema: str) -> None:
@@ -125,33 +99,33 @@ def _bootstrap_vocab(engine: sa.Engine, vocab_schema: str) -> None:
             conn.execute(sa.text(f'ALTER TABLE "{vocab_schema}"."{table}" ENABLE TRIGGER ALL'))
 
 
-def test_tables_land_in_the_schema_their_role_declares(three_schema: _ThreeSchema) -> None:
+def test_tables_land_in_the_schema_their_role_declares(three_schema: ScopedTestSchema) -> None:
     create_missing_tables(
         three_schema.engine, vocab_engine=three_schema.engine, vocabulary_included=True,
         resolved=three_schema.resolved,
     )
 
     inspector = sa.inspect(three_schema.engine)
-    assert inspector.has_table("person", schema=three_schema.clinical_schema)
-    assert inspector.has_table("observation", schema=three_schema.clinical_schema)
-    assert inspector.has_table("concept", schema=three_schema.vocab_schema)
-    assert inspector.has_table("domain", schema=three_schema.vocab_schema)
-    assert inspector.has_table("cohort", schema=three_schema.results_schema)
-    assert inspector.has_table("observation_period", schema=three_schema.clinical_schema)
+    assert inspector.has_table("person", schema=three_schema.schemas[Role.PRIMARY])
+    assert inspector.has_table("observation", schema=three_schema.schemas[Role.PRIMARY])
+    assert inspector.has_table("concept", schema=three_schema.schemas[Role.VOCAB])
+    assert inspector.has_table("domain", schema=three_schema.schemas[Role.VOCAB])
+    assert inspector.has_table("cohort", schema=three_schema.schemas[Role.RESULTS])
+    assert inspector.has_table("observation_period", schema=three_schema.schemas[Role.PRIMARY])
 
     # And not duplicated into the wrong schema.
-    assert not inspector.has_table("concept", schema=three_schema.clinical_schema)
-    assert not inspector.has_table("cohort", schema=three_schema.clinical_schema)
+    assert not inspector.has_table("concept", schema=three_schema.schemas[Role.PRIMARY])
+    assert not inspector.has_table("cohort", schema=three_schema.schemas[Role.PRIMARY])
 
 
 def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
-    three_schema: _ThreeSchema,
+    three_schema: ScopedTestSchema,
 ) -> None:
     create_missing_tables(
         three_schema.engine, vocab_engine=three_schema.engine, vocabulary_included=True,
         resolved=three_schema.resolved,
     )
-    _bootstrap_vocab(three_schema.engine, three_schema.vocab_schema)
+    _bootstrap_vocab(three_schema.engine, three_schema.schemas[Role.VOCAB])
 
     with so.Session(three_schema.engine) as session:
         session.add(
@@ -203,13 +177,8 @@ def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_data
 ) -> None:
     """create_missing_tables() used to call ensure_schema() only for the
     primary schema; a fresh database needed vocab/results schemas created too.
-
-    database_name and all three schema names get a fresh uuid suffix: the
-    provenance guard tracks a baseline per (database_name, schema_tag), so a
-    fixed name would drift against whatever an earlier run registered.
     """
     run_id = uuid.uuid4().hex[:8]
-    database_name = f"fresh_schema_test_{run_id}"
     clinical_schema = f"phase32_fresh_clinical_{run_id}"
     vocab_schema = f"phase32_fresh_vocab_{run_id}"
     results_schema = f"phase32_fresh_results_{run_id}"
@@ -220,21 +189,11 @@ def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_data
                 conn.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
 
     cleanup_after_test(_drop_schemas)
-    schema_registry_table = SchemaRegistry.__table__
-    delete_rows_on_cleanup(
-        cleanup_after_test, pg_engine,
-        schema_registry_table, schema_registry_table.c.database_name == database_name,
-    )
-
-    patched_connection = dataclasses.replace(pg_db.resolved.connection, test_only=False)
-    resolved = dataclasses.replace(
+    reset_schema_registry_rows(cleanup_after_test, pg_engine)
+    resolved = resolve_with_role_schemas(
         pg_db.resolved,
-        name=database_name,
-        schema_name=clinical_schema,
-        vocab_schema=vocab_schema,
-        results_schema=results_schema,
-        connection=patched_connection,
-        vocab_connection=patched_connection,
+        {Role.PRIMARY: clinical_schema, Role.VOCAB: vocab_schema, Role.RESULTS: results_schema},
+        resolver=guarded_resolver(pg_db.resolved),
     )
     engine = resolved.create_engine()
 

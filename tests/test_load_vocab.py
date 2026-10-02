@@ -18,11 +18,8 @@ def connection(fresh_engine, fresh_resolved):
     """
     Fresh, isolated SQLite database for tests.
     """
+    bootstrap(fresh_resolved, create=True)
     connection = fresh_engine.connect()
-    # bindable is required: fresh_engine is built by oa_configurator.testing's SQLite
-    # strategy, which always provisions its own tempfile and never builds off resolved,
-    # so fresh_resolved can't be trusted to describe the real target.
-    bootstrap(fresh_resolved, create=True, bindable=connection)
     yield connection
     connection.close()
 

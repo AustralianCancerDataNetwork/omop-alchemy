@@ -1,4 +1,3 @@
-import dataclasses
 
 import pytest
 import sqlalchemy as sa
@@ -13,9 +12,12 @@ from oa_configurator import (
     physical_schema_of,
     qualified,
 )
-from oa_configurator.domains.resources.schema_registry import SchemaRegistry
-from oa_configurator.testing import DIALECT_PARAMS
-from sqlalchemy.engine import make_url
+from oa_configurator.testing import (
+    DIALECT_PARAMS,
+    reset_schema_registry_rows,
+    resolve_with_role_schemas,
+    scoped_test_schema,
+)
 
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY, omop_index_name
@@ -44,7 +46,6 @@ from omop_alchemy.maintenance.tables import collect_maintenance_tables
 from omop_alchemy.maintenance.tables import TableCategory
 from omop_alchemy.maintenance.tables import select_omop_tables
 
-from tests.conftest import resolved_cdm_database_from_engine
 
 
 runner = CliRunner()
@@ -62,12 +63,12 @@ def indexed_engine(request):
     clustering is dialect-portable logic, not SQLite-specific.
 
     Postgres gets its own fresh, dropped-after-test schema via
-    pg_scoped_schema rather than pg_session's shared public schema, since
+    scoped_test_schema rather than pg_session's shared public schema, since
     some tests here rename an ORM-declared index and a shared schema would
     carry that rename into later tests.
 
     MAINTENANCE_SCHEMA (the dropped-index bookkeeping table's fixed
-    schema) isn't reset by pg_scoped_schema, so it's dropped explicitly
+    schema) isn't reset by scoped_test_schema, so it's dropped explicitly
     both before running and via cleanup_after_test.
     """
     if request.param == "postgresql":
@@ -83,18 +84,13 @@ def indexed_engine(request):
         _drop_bookkeeping_table()
         cleanup_after_test(_drop_bookkeeping_table)
 
-        pg_scoped_schema = request.getfixturevalue("pg_scoped_schema")
-        # Reuses pg_db.resolved's own database_name: guard_schema_provenance_for()
-        # requires an existing baseline for (database_name, schema_tag), which
-        # pg_db's own create_engine() call already registered. A fresh
-        # database_name would have no baseline and the guard would refuse.
-        with pg_scoped_schema("indexed_engine") as scoped:
+        pg_db = request.getfixturevalue("pg_db")
+        with scoped_test_schema(pg_db.resolved, prefix="indexed_engine") as scoped:
             create_missing_tables(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
             yield scoped.engine
     else:
         engine = request.getfixturevalue("fresh_engine")
-        resolved = resolved_cdm_database_from_engine(engine, name="indexed_engine")
-        create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
+        create_missing_tables(engine, vocab_engine=engine, resolved=request.getfixturevalue("fresh_resolved"))
         yield engine
 
 
@@ -103,18 +99,14 @@ def indexed_resolved(indexed_engine, request):
     """ResolvedCDMDatabase paired with indexed_engine, matching whatever
     schema indexed_engine actually built.
 
-    On Postgres this reuses pg_db.resolved (test_only=True) rather than a
-    fresh one: guard_schema_provenance_for() only no-ops for a connection
-    marked test_only, and otherwise requires a baseline this disposable,
-    per-test schema could never have.
+    On Postgres this is pg_db's test-only entry, so the provenance guard
+    skips this disposable, per-test schema.
     """
     if indexed_engine.dialect.name == "postgresql":
         pg_db = request.getfixturevalue("pg_db")
         schema = physical_schema_of(indexed_engine, schema_tag=Role.PRIMARY)
-        return dataclasses.replace(
-            pg_db.resolved, schema_name=schema, vocab_schema=schema, results_schema=schema
-        )
-    return resolved_cdm_database_from_engine(indexed_engine, name="indexed_engine")
+        return resolve_with_role_schemas(pg_db.resolved, {Role.PRIMARY: schema})
+    return request.getfixturevalue("fresh_resolved")
 
 
 @pytest.fixture
@@ -649,31 +641,19 @@ def test_describe_shape_conflict_mentions_reason_for_sqlite_dialect_options():
 # same connection. The check itself lives in oa_configurator.
 
 
-def test_resolving_cdm_database_with_maintenance_schema_name_raises(pg_engine, cleanup_after_test):
-    resolved = resolved_cdm_database_from_engine(pg_engine, name="maintenance_schema_guard")
-    create_cdm_engine(resolved).dispose()
+def test_resolving_cdm_database_with_maintenance_schema_name_raises(
+    pg_db, pg_unscoped_resolved, cleanup_after_test
+):
+    reset_schema_registry_rows(cleanup_after_test, pg_db.committing_engine, [MAINTENANCE_SCHEMA])
+    create_cdm_engine(pg_unscoped_resolved).dispose()
 
-    def _cleanup() -> None:
-        with pg_engine.begin() as connection:
-            table = SchemaRegistry.__table__
-            connection.execute(table.delete().where(table.c.physical_schema == MAINTENANCE_SCHEMA))
-
-    cleanup_after_test(_cleanup)
-
-    url = make_url(pg_engine.url)
-    colliding_stack = StackConfig.for_session(
-        connections={
-            "c": ConnectionConfig(
-                dialect=url.drivername, host=url.host, port=url.port,
-                user=url.username, password=url.password, database_name=url.database,
-                test_only=False,
+    colliding_resolved = Resolver.from_active_config().with_overrides(
+        databases={
+            "maintenance_schema_collision": CDMDatabaseConfig(
+                connection=pg_db.resolved.connection.name, cdm_schema=MAINTENANCE_SCHEMA
             )
         },
-        databases={
-            "default": CDMDatabaseConfig(connection="c", cdm_schema=MAINTENANCE_SCHEMA)
-        },
-    )
-    colliding_resolved = Resolver(colliding_stack).resolve_database("default")
+    ).resolve_database("maintenance_schema_collision")
     with pytest.raises(SchemaOwnershipError, match=f"{MAINTENANCE_SCHEMA!r}.*omop_alchemy"):
         colliding_resolved.create_engine()
 

@@ -14,13 +14,12 @@ schema, using ``pg_engine`` the same way ``test_db_schema_search_path_on_postgre
 
 from __future__ import annotations
 
-from contextlib import AbstractContextManager
-from typing import Callable, Iterator
+from typing import Iterator
 
 import pytest
 import sqlalchemy as sa
-
-from tests.conftest import PgScopedSchema as _Scoped
+from oa_configurator import Role
+from oa_configurator.testing import ScopedTestSchema, scoped_test_schema
 
 from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.cli_foreign_keys import (
@@ -36,19 +35,19 @@ pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
 
 @pytest.fixture()
-def scoped(pg_scoped_schema: Callable[[str], AbstractContextManager[_Scoped]]) -> Iterator[_Scoped]:
-    """``pg_engine`` scoped to a real, non-default, uniquely-named schema.
+def scoped(pg_db) -> Iterator[ScopedTestSchema]:
+    """``pg_db`` scoped to a real, non-default, uniquely-named schema.
 
     Single-schema deployment: vocab/results fall back to the same schema as
     everything else, matching ``ResolvedCDMDatabase``'s own fallback when
     ``vocab_schema``/``results_schema`` aren't configured, the exact case
     that made the vocab/results-role fix safe for unconfigured deployments.
     """
-    with pg_scoped_schema("backends_non_default") as scoped:
+    with scoped_test_schema(pg_db.resolved, prefix="backends_non_default") as scoped:
         yield scoped
 
 
-def test_fk_trigger_toggle_targets_the_configured_schema(scoped: _Scoped) -> None:
+def test_fk_trigger_toggle_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
     create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
 
     disabled = manage_foreign_key_triggers(scoped.engine, vocab_engine=scoped.engine, enable=False, resolved=scoped.resolved)
@@ -73,7 +72,7 @@ def test_fk_trigger_toggle_targets_the_configured_schema(scoped: _Scoped) -> Non
     assert status_after_enable["person"].disabled_trigger_count == 0
 
 
-def test_index_disable_and_enable_targets_the_configured_schema(scoped: _Scoped) -> None:
+def test_index_disable_and_enable_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
     create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
 
     disabled = manage_indexes(scoped.engine, vocab_engine=scoped.engine, enable=False, resolved=scoped.resolved)
@@ -82,7 +81,7 @@ def test_index_disable_and_enable_targets_the_configured_schema(scoped: _Scoped)
 
     inspector = sa.inspect(scoped.engine)
     person_indexes_after_disable = {
-        idx["name"] for idx in inspector.get_indexes("person", schema=scoped.schema)
+        idx["name"] for idx in inspector.get_indexes("person", schema=scoped.schemas[Role.PRIMARY])
     }
 
     enabled = manage_indexes(scoped.engine, vocab_engine=scoped.engine, enable=True, resolved=scoped.resolved)
@@ -90,12 +89,12 @@ def test_index_disable_and_enable_targets_the_configured_schema(scoped: _Scoped)
 
     inspector = sa.inspect(scoped.engine)
     person_indexes_after_enable = {
-        idx["name"] for idx in inspector.get_indexes("person", schema=scoped.schema)
+        idx["name"] for idx in inspector.get_indexes("person", schema=scoped.schemas[Role.PRIMARY])
     }
     assert person_indexes_after_enable != person_indexes_after_disable or person_indexes_after_enable
 
 
-def test_fulltext_install_targets_the_configured_schema(scoped: _Scoped) -> None:
+def test_fulltext_install_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
     create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
 
     results = install_fulltext_columns(scoped.engine, resolved=scoped.resolved)
@@ -105,12 +104,12 @@ def test_fulltext_install_targets_the_configured_schema(scoped: _Scoped) -> None
     inspector = sa.inspect(scoped.engine)
     for result in results:
         columns = {
-            c["name"] for c in inspector.get_columns(result.table_name, schema=scoped.schema)
+            c["name"] for c in inspector.get_columns(result.table_name, schema=scoped.schemas[Role.PRIMARY])
         }
         assert result.vector_column_name in columns
 
 
-def test_sequence_reset_targets_the_configured_schema(scoped: _Scoped) -> None:
+def test_sequence_reset_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
     create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
 
     results = {
