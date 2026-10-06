@@ -158,7 +158,7 @@ Each list must expose these columns:
 | Argument | Required columns |
 |---|---|
 | `explicit_episodes` | `episode_id`, `person_id` |
-| `fallback_episodes` | `episode_id`, `person_id`, `episode_start_date`, `episode_end_date`, and the ranking's stable ID column |
+| `fallback_episodes` | `episode_id`, `person_id`, `episode_start_date`, `episode_end_date`; for `explicit_first_ranked`, also the ranking's stable ID column |
 
 A complete example, using the same episodes for both steps and requesting diagnostics:
 
