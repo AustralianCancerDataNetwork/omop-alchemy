@@ -2706,6 +2706,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Attach an event to an episode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choose-which-episodes-each-step-can-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choose which episodes each step can use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3216,6 +3233,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Attach an event to an episode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choose-which-episodes-each-step-can-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choose which episodes each step can use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3504,8 +3538,72 @@
     Policy -- "explicit_first_all_in_window" --> Window["Every date-eligible episode<br/>in the window"] --> Many["Attach to each eligible episode"]
 </div>
 <p>Choosing between ranked and all-in-window fallback is a statement about result grain. Ranked fallback produces at most one episode per event. All-in-window fallback intentionally allows one event to appear against several overlapping episodes.</p>
-<p><code>episode_attachment_queries()</code> applies the complete precedence rule. It accepts a canonical event statement or one supported event model, validates explicit links against <code>Episode_Event</code>, and applies fallback only to events that have no valid explicit link:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<p><code>episode_attachment_queries()</code> applies the complete precedence rule. It accepts a canonical event statement or one supported event model, validates explicit links against <code>Episode_Event</code>, and applies fallback only to events that have no valid explicit link.</p>
+<h3 id="choose-which-episodes-each-step-can-use">Choose which episodes each step can use<a class="headerlink" href="#choose-which-episodes-each-step-can-use" title="Permanent link">&para;</a></h3>
+<p>An event can reach an episode in two ways: through a recorded link, or by date. Each way has its own list of episodes:</p>
+<ul>
+<li><code>explicit_episodes</code> lists the episodes a recorded link may point to. It defaults to every row of <code>Episode</code>.</li>
+<li><code>fallback_episodes</code> lists the episodes an unlinked event may be attached to by date. Only the fallback policies use it.</li>
+</ul>
+<p>Usually the two lists are the same, so pass the same source to both.</p>
+<p>Pass a shorter fallback list when some episodes should never be chosen by date. For example, a progression may be recorded as its own episode, nested under the original disease episode. A recorded link to the progression episode is still correct and is kept. An unlinked event, though, should go to the disease episode, not to whichever episode happened to start most recently. To get that, pass every episode as <code>explicit_episodes</code> and only the disease episodes as <code>fallback_episodes</code>:</p>
+<div  class="mermaid">flowchart LR
+    Linked["Event with a<br/>recorded link"]
+    Unlinked["Event with no<br/>recorded link"]
+    Disease["Disease episode<br/>(in both lists)"]
+    Progression["Progression episode<br/>(explicit_episodes only)"]
+    Linked -- "follows the link" --> Disease
+    Linked -- "follows the link" --> Progression
+    Unlinked -- "chosen by date" --> Disease
+    Unlinked -. "never chosen by date" .-x Progression
+</div>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model.structural</span><span class="w"> </span><span class="kn">import</span> <span class="n">Episode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">EpisodeAttachmentPolicy</span><span class="p">,</span>
+    <span class="n">canonical_episode_projection</span><span class="p">,</span>
+    <span class="n">episode_attachment_queries</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">disease_episodes</span> <span class="o">=</span> <span class="n">canonical_episode_projection</span><span class="p">(</span><span class="n">Episode</span><span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+    <span class="n">Episode</span><span class="o">.</span><span class="n">episode_concept_id</span> <span class="o">==</span> <span class="mi">32533</span>  <span class="c1"># Disease Episode</span>
+<span class="p">)</span>
+
+<span class="n">attachment_queries</span> <span class="o">=</span> <span class="n">episode_attachment_queries</span><span class="p">(</span>
+    <span class="n">events</span><span class="p">,</span>
+    <span class="n">policy</span><span class="o">=</span><span class="n">EpisodeAttachmentPolicy</span><span class="o">.</span><span class="n">explicit_first_ranked</span><span class="p">,</span>
+    <span class="n">explicit_episodes</span><span class="o">=</span><span class="n">Episode</span><span class="p">,</span>
+    <span class="n">fallback_episodes</span><span class="o">=</span><span class="n">disease_episodes</span><span class="p">,</span>
+    <span class="n">ranking</span><span class="o">=</span><span class="n">ranking</span><span class="p">,</span>  <span class="c1"># a TemporalRankingSpec, as in the example below</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Three rules apply:</p>
+<ul>
+<li><strong>A valid recorded link always wins.</strong> It is kept even when its episode is not in <code>fallback_episodes</code>, and the event is not also attached by date.</li>
+<li><strong>Fallback policies need <code>fallback_episodes</code>.</strong> <code>explicit_only</code> never falls back, so it rejects one.</li>
+<li><strong>You decide what goes in each list.</strong> The builder does not know about episode types or how episodes nest.</li>
+</ul>
+<p>Each list must expose these columns:</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Required columns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>explicit_episodes</code></td>
+<td><code>episode_id</code>, <code>person_id</code></td>
+</tr>
+<tr>
+<td><code>fallback_episodes</code></td>
+<td><code>episode_id</code>, <code>person_id</code>, <code>episode_start_date</code>, <code>episode_end_date</code>; for <code>explicit_first_ranked</code>, also the ranking's stable ID column</td>
+</tr>
+</tbody>
+</table>
+<p>A complete example, using the same episodes for both steps and requesting diagnostics:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model.structural</span><span class="w"> </span><span class="kn">import</span> <span class="n">Episode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.episodes.derivation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">EpisodeAttachmentPolicy</span><span class="p">,</span>
     <span class="n">EpisodeAttachmentDiagnostic</span><span class="p">,</span>
     <span class="n">TemporalRankingSpec</span><span class="p">,</span>
@@ -3516,6 +3614,8 @@
 <span class="n">attachment_queries</span> <span class="o">=</span> <span class="n">episode_attachment_queries</span><span class="p">(</span>
     <span class="n">events</span><span class="p">,</span>
     <span class="n">policy</span><span class="o">=</span><span class="n">EpisodeAttachmentPolicy</span><span class="o">.</span><span class="n">explicit_first_ranked</span><span class="p">,</span>
+    <span class="n">explicit_episodes</span><span class="o">=</span><span class="n">Episode</span><span class="p">,</span>
+    <span class="n">fallback_episodes</span><span class="o">=</span><span class="n">Episode</span><span class="p">,</span>
     <span class="n">ranking</span><span class="o">=</span><span class="n">TemporalRankingSpec</span><span class="p">(</span>
         <span class="n">policy</span><span class="o">=</span><span class="n">TemporalSelectionPolicy</span><span class="o">.</span><span class="n">nearest</span><span class="p">,</span>
         <span class="n">stable_id_column</span><span class="o">=</span><span class="s2">&quot;episode_id&quot;</span><span class="p">,</span>
@@ -3532,7 +3632,7 @@
 <span class="p">]</span>
 </code></pre></div>
 <p>The attachment result preserves the event projection and adds <code>episode_id</code> and <code>attachment_method</code>. Its uniqueness key is <code>(event_source_table, event_id, episode_id)</code>. A valid explicit link may legitimately connect an event to more than one episode; each relationship remains a separate attachment under that key.</p>
-<p>Diagnostics are advisory rows and do not change the attachments. They identify cross-person links, fallback ambiguity, and events for which no valid explicit link or fallback candidate exists. <code>EpisodeAttachmentDiagnostic.from_mapping()</code> converts a raw SQLAlchemy mapping into a typed value carrying the event identity, projected and linked Field concepts, episode, candidate count, and message.</p>
+<p>Diagnostics are advisory rows and do not change the attachments. They identify cross-person links, fallback ambiguity, and events for which no valid explicit link or fallback candidate exists. Link diagnostics use <code>explicit_episodes</code>; ambiguity counts and missing-candidate reasons use <code>fallback_episodes</code>. <code>EpisodeAttachmentDiagnostic.from_mapping()</code> converts a raw SQLAlchemy mapping into a typed value carrying the event identity, projected and linked Field concepts, episode, candidate count, and message.</p>
 <h2 id="rank-fallback-candidates">Rank fallback candidates<a class="headerlink" href="#rank-fallback-candidates" title="Permanent link">&para;</a></h2>
 <p>Ranking has two independent parts: which side of the anchor date should be considered first, and how candidates on that side should be ordered. Keeping them separate supports both symmetric nearest-date matching and the common preference for an episode that had already started when the event occurred.</p>
 <p>For an event on 20 January, consider these episode starts:</p>
@@ -6614,9 +6714,13 @@ attachment where the event is the anchor and episode starts are candidates,
     <span class="n">events</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">policy</span><span class="p">:</span> <span class="n">EpisodeAttachmentPolicy</span><span class="p">,</span>
-    <span class="n">episodes</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Episode</span><span class="p">]</span>
+    <span class="n">explicit_episodes</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Episode</span><span class="p">]</span>
     <span class="o">|</span> <span class="n">FromClause</span>
     <span class="o">|</span> <span class="n">SelectBase</span> <span class="o">=</span> <span class="n">Episode</span><span class="p">,</span>
+    <span class="n">fallback_episodes</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Episode</span><span class="p">]</span>
+    <span class="o">|</span> <span class="n">FromClause</span>
+    <span class="o">|</span> <span class="n">SelectBase</span>
+    <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">episode_events</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Episode_Event</span><span class="p">]</span>
     <span class="o">|</span> <span class="n">FromClause</span>
     <span class="o">|</span> <span class="n">SelectBase</span> <span class="o">=</span> <span class="n">Episode_Event</span><span class="p">,</span>
@@ -6678,19 +6782,41 @@ episode in the fallback window.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>episodes</code>
+                <code>explicit_episodes</code>
             </td>
             <td>
                   <code><span title="type">type</span>[<span title="omop_alchemy.cdm.model.structural.Episode">Episode</span>] | <span title="sqlalchemy.sql.selectable.FromClause">FromClause</span> | <span title="sqlalchemy.sql.selectable.SelectBase">SelectBase</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>An Episode model or selectable exposing episode identity, person and
-date bounds.</p>
+                <p>An Episode model or selectable exposing episode identity and person.
+Explicit <code>Episode_Event</code> links are valid only when they name an
+episode in this source.</p>
               </div>
             </td>
             <td>
                   <code><span title="omop_alchemy.cdm.model.structural.Episode">Episode</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>fallback_episodes</code>
+            </td>
+            <td>
+                  <code><span title="type">type</span>[<span title="omop_alchemy.cdm.model.structural.Episode">Episode</span>] | <span title="sqlalchemy.sql.selectable.FromClause">FromClause</span> | <span title="sqlalchemy.sql.selectable.SelectBase">SelectBase</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An Episode model or selectable exposing episode identity, person and
+date bounds, plus the ranking's stable ID column for ranked fallback.
+Only these episodes are admitted, counted and ranked as date-window
+candidates. Required by fallback policies and rejected by
+<code>explicit_only</code>. Pass the same source as <code>explicit_episodes</code> when
+both stages should consider the same population.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -6810,13 +6936,17 @@ attachment query. Building the queries does not execute them.</p>
 
 <details class="note" open>
   <summary>Notes</summary>
-  <p>Resolution proceeds in three stages: validate explicit links, admit
-same-person fallback candidates within the episode-relative window, then
-retain every admitted candidate or apply temporal ranking according to
-<code>policy</code>. Explicit links suppress fallback only after the event ID,
-Field-concept discriminator, episode ID and person all agree; the final
-result is deduplicated by event source, event ID and episode ID. Fallback
-ambiguity counts distinct eligible episodes, even when inputs repeat rows.</p>
+  <p>Resolution proceeds in three stages: validate explicit links against
+<code>explicit_episodes</code>, admit same-person candidates from
+<code>fallback_episodes</code> within the episode-relative window, then retain every
+admitted candidate or apply temporal ranking according to <code>policy</code>. The
+two episode sources are independent: an episode can be a valid explicit
+target without being a fallback candidate. The builder does not interpret
+episode types or hierarchy; the caller decides each source's membership.
+Explicit links suppress fallback only after the event ID, Field-concept
+discriminator, episode ID and person all agree; the final result is
+deduplicated by event source, event ID and episode ID. Fallback ambiguity
+counts distinct eligible episodes, even when inputs repeat rows.</p>
 <p>Diagnostics explain rejected links and fallback outcomes without changing
 attachment rows. Because inputs may be filtered selectables, the builder
 does not infer missing source rows or unsupported discriminators from their

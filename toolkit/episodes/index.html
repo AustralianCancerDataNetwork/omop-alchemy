@@ -3882,7 +3882,7 @@ episode.</p>
     <span class="n">side_preference</span><span class="o">=</span><span class="n">TemporalSidePreference</span><span class="o">.</span><span class="n">on_or_before_anchor</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
-<p>Pass the policy, window, and—only for ranked fallback—ranking to <code>episode_attachment_queries()</code> with a canonical event projection. The builder validates explicit links by event ID, Field-concept discriminator, episode ID, and person; suppresses fallback only after a valid link; and returns deterministic attachments plus optional diagnostics. All-in-window fallback accepts the window but rejects a ranking because it deliberately retains every admitted episode. <code>episode_window_predicate()</code>, <code>temporal_order_expressions()</code>, and <code>temporal_row_number()</code> remain available when a query needs the individual portable SQL pieces. Date arithmetic is implemented for PostgreSQL and SQLite; compiling it for another dialect fails rather than assuming PostgreSQL syntax.</p>
+<p>Pass the policy, window, and—only for ranked fallback—ranking to <code>episode_attachment_queries()</code> with a canonical event projection, an <code>explicit_episodes</code> source and, for fallback policies, a <code>fallback_episodes</code> source. The builder validates explicit links by event ID, Field-concept discriminator, episode ID, and person against <code>explicit_episodes</code>; suppresses fallback only after a valid link; admits and ranks fallback candidates from <code>fallback_episodes</code> only; and returns deterministic attachments plus optional diagnostics. All-in-window fallback accepts the window but rejects a ranking because it deliberately retains every admitted episode. <code>episode_window_predicate()</code>, <code>temporal_order_expressions()</code>, and <code>temporal_row_number()</code> remain available when a query needs the individual portable SQL pieces. Date arithmetic is implemented for PostgreSQL and SQLite; compiling it for another dialect fails rather than assuming PostgreSQL syntax.</p>
 <p>See <a href="../query-contracts/">Query contracts</a> for the complete result shape, attachment example, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.</p>
 
 
@@ -5100,9 +5100,13 @@ attachment where the event is the anchor and episode starts are candidates,
     <span class="n">events</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">FromClause</span> <span class="o">|</span> <span class="n">SelectBase</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">policy</span><span class="p">:</span> <span class="n">EpisodeAttachmentPolicy</span><span class="p">,</span>
-    <span class="n">episodes</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Episode</span><span class="p">]</span>
+    <span class="n">explicit_episodes</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Episode</span><span class="p">]</span>
     <span class="o">|</span> <span class="n">FromClause</span>
     <span class="o">|</span> <span class="n">SelectBase</span> <span class="o">=</span> <span class="n">Episode</span><span class="p">,</span>
+    <span class="n">fallback_episodes</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Episode</span><span class="p">]</span>
+    <span class="o">|</span> <span class="n">FromClause</span>
+    <span class="o">|</span> <span class="n">SelectBase</span>
+    <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">episode_events</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Episode_Event</span><span class="p">]</span>
     <span class="o">|</span> <span class="n">FromClause</span>
     <span class="o">|</span> <span class="n">SelectBase</span> <span class="o">=</span> <span class="n">Episode_Event</span><span class="p">,</span>
@@ -5164,19 +5168,41 @@ episode in the fallback window.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>episodes</code>
+                <code>explicit_episodes</code>
             </td>
             <td>
                   <code><span title="type">type</span>[<span title="omop_alchemy.cdm.model.structural.Episode">Episode</span>] | <span title="sqlalchemy.sql.selectable.FromClause">FromClause</span> | <span title="sqlalchemy.sql.selectable.SelectBase">SelectBase</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>An Episode model or selectable exposing episode identity, person and
-date bounds.</p>
+                <p>An Episode model or selectable exposing episode identity and person.
+Explicit <code>Episode_Event</code> links are valid only when they name an
+episode in this source.</p>
               </div>
             </td>
             <td>
                   <code><span title="omop_alchemy.cdm.model.structural.Episode">Episode</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>fallback_episodes</code>
+            </td>
+            <td>
+                  <code><span title="type">type</span>[<span title="omop_alchemy.cdm.model.structural.Episode">Episode</span>] | <span title="sqlalchemy.sql.selectable.FromClause">FromClause</span> | <span title="sqlalchemy.sql.selectable.SelectBase">SelectBase</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An Episode model or selectable exposing episode identity, person and
+date bounds, plus the ranking's stable ID column for ranked fallback.
+Only these episodes are admitted, counted and ranked as date-window
+candidates. Required by fallback policies and rejected by
+<code>explicit_only</code>. Pass the same source as <code>explicit_episodes</code> when
+both stages should consider the same population.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -5296,13 +5322,17 @@ attachment query. Building the queries does not execute them.</p>
 
 <details class="note" open>
   <summary>Notes</summary>
-  <p>Resolution proceeds in three stages: validate explicit links, admit
-same-person fallback candidates within the episode-relative window, then
-retain every admitted candidate or apply temporal ranking according to
-<code>policy</code>. Explicit links suppress fallback only after the event ID,
-Field-concept discriminator, episode ID and person all agree; the final
-result is deduplicated by event source, event ID and episode ID. Fallback
-ambiguity counts distinct eligible episodes, even when inputs repeat rows.</p>
+  <p>Resolution proceeds in three stages: validate explicit links against
+<code>explicit_episodes</code>, admit same-person candidates from
+<code>fallback_episodes</code> within the episode-relative window, then retain every
+admitted candidate or apply temporal ranking according to <code>policy</code>. The
+two episode sources are independent: an episode can be a valid explicit
+target without being a fallback candidate. The builder does not interpret
+episode types or hierarchy; the caller decides each source's membership.
+Explicit links suppress fallback only after the event ID, Field-concept
+discriminator, episode ID and person all agree; the final result is
+deduplicated by event source, event ID and episode ID. Fallback ambiguity
+counts distinct eligible episodes, even when inputs repeat rows.</p>
 <p>Diagnostics explain rejected links and fallback outcomes without changing
 attachment rows. Because inputs may be filtered selectables, the builder
 does not infer missing source rows or unsupported discriminators from their
