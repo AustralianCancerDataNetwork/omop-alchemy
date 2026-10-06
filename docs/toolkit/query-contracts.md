@@ -101,9 +101,69 @@ flowchart TD
 
 Choosing between ranked and all-in-window fallback is a statement about result grain. Ranked fallback produces at most one episode per event. All-in-window fallback intentionally allows one event to appear against several overlapping episodes.
 
-`episode_attachment_queries()` applies the complete precedence rule. It accepts a canonical event statement or one supported event model, validates explicit links against `Episode_Event`, and applies fallback only to events that have no valid explicit link:
+`episode_attachment_queries()` applies the complete precedence rule. It accepts a canonical event statement or one supported event model, validates explicit links against `Episode_Event`, and applies fallback only to events that have no valid explicit link.
+
+### Choose which episodes each step can use
+
+An event can reach an episode in two ways: through a recorded link, or by date. Each way has its own list of episodes:
+
+- `explicit_episodes` lists the episodes a recorded link may point to. It defaults to every row of `Episode`.
+- `fallback_episodes` lists the episodes an unlinked event may be attached to by date. Only the fallback policies use it.
+
+Usually the two lists are the same, so pass the same source to both.
+
+Pass a shorter fallback list when some episodes should never be chosen by date. For example, a progression may be recorded as its own episode, nested under the original disease episode. A recorded link to the progression episode is still correct and is kept. An unlinked event, though, should go to the disease episode, not to whichever episode happened to start most recently. To get that, pass every episode as `explicit_episodes` and only the disease episodes as `fallback_episodes`:
+
+```mermaid
+flowchart LR
+    Linked["Event with a<br/>recorded link"]
+    Unlinked["Event with no<br/>recorded link"]
+    Disease["Disease episode<br/>(in both lists)"]
+    Progression["Progression episode<br/>(explicit_episodes only)"]
+    Linked -- "follows the link" --> Disease
+    Linked -- "follows the link" --> Progression
+    Unlinked -- "chosen by date" --> Disease
+    Unlinked -. "never chosen by date" .-x Progression
+```
 
 ```python
+from omop_alchemy.cdm.model.structural import Episode
+from omop_alchemy.toolkit.episodes.derivation import (
+    EpisodeAttachmentPolicy,
+    canonical_episode_projection,
+    episode_attachment_queries,
+)
+
+disease_episodes = canonical_episode_projection(Episode).where(
+    Episode.episode_concept_id == 32533  # Disease Episode
+)
+
+attachment_queries = episode_attachment_queries(
+    events,
+    policy=EpisodeAttachmentPolicy.explicit_first_ranked,
+    explicit_episodes=Episode,
+    fallback_episodes=disease_episodes,
+    ranking=ranking,  # a TemporalRankingSpec, as in the example below
+)
+```
+
+Three rules apply:
+
+- **A valid recorded link always wins.** It is kept even when its episode is not in `fallback_episodes`, and the event is not also attached by date.
+- **Fallback policies need `fallback_episodes`.** `explicit_only` never falls back, so it rejects one.
+- **You decide what goes in each list.** The builder does not know about episode types or how episodes nest.
+
+Each list must expose these columns:
+
+| Argument | Required columns |
+|---|---|
+| `explicit_episodes` | `episode_id`, `person_id` |
+| `fallback_episodes` | `episode_id`, `person_id`, `episode_start_date`, `episode_end_date`, and the ranking's stable ID column |
+
+A complete example, using the same episodes for both steps and requesting diagnostics:
+
+```python
+from omop_alchemy.cdm.model.structural import Episode
 from omop_alchemy.toolkit.episodes.derivation import (
     EpisodeAttachmentPolicy,
     EpisodeAttachmentDiagnostic,
@@ -115,6 +175,8 @@ from omop_alchemy.toolkit.episodes.derivation import (
 attachment_queries = episode_attachment_queries(
     events,
     policy=EpisodeAttachmentPolicy.explicit_first_ranked,
+    explicit_episodes=Episode,
+    fallback_episodes=Episode,
     ranking=TemporalRankingSpec(
         policy=TemporalSelectionPolicy.nearest,
         stable_id_column="episode_id",
@@ -133,7 +195,7 @@ typed_diagnostics = [
 
 The attachment result preserves the event projection and adds `episode_id` and `attachment_method`. Its uniqueness key is `(event_source_table, event_id, episode_id)`. A valid explicit link may legitimately connect an event to more than one episode; each relationship remains a separate attachment under that key.
 
-Diagnostics are advisory rows and do not change the attachments. They identify cross-person links, fallback ambiguity, and events for which no valid explicit link or fallback candidate exists. `EpisodeAttachmentDiagnostic.from_mapping()` converts a raw SQLAlchemy mapping into a typed value carrying the event identity, projected and linked Field concepts, episode, candidate count, and message.
+Diagnostics are advisory rows and do not change the attachments. They identify cross-person links, fallback ambiguity, and events for which no valid explicit link or fallback candidate exists. Link diagnostics use `explicit_episodes`; ambiguity counts and missing-candidate reasons use `fallback_episodes`. `EpisodeAttachmentDiagnostic.from_mapping()` converts a raw SQLAlchemy mapping into a typed value carrying the event identity, projected and linked Field concepts, episode, candidate count, and message.
 
 ## Rank fallback candidates
 
