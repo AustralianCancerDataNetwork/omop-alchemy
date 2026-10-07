@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 from oa_configurator import Role
-from oa_configurator.testing import resolve_with_role_schemas
+from oa_configurator.testing import drop_schema_if_exists, resolve_with_role_schemas
 
 from omop_alchemy.backends.postgres import PostgresBackend
 from omop_alchemy.cdm.model.vocabulary import Concept
@@ -273,7 +273,7 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, pg_resolved, 
     )
 
 
-def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path):
+def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cleanup_after_test):
     """
     load_vocab_source with db_schema creates vocabulary tables in the requested
     PostgreSQL schema and loads data into them correctly.
@@ -288,10 +288,10 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path):
     source_path = _copy_fixture_source(tmp_path)
     quoted_schema = '"' + schema.replace('"', '""') + '"'
 
-    with pg_engine.connect() as conn:
-        conn.execute(sa.text(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE"))
+    drop_schema_if_exists(pg_engine, schema)
+    cleanup_after_test(lambda: drop_schema_if_exists(pg_engine, schema))
+    with pg_engine.begin() as conn:
         conn.execute(sa.text(f"CREATE SCHEMA {quoted_schema}"))
-        conn.commit()
 
     # A single-schema deployment: vocab/results fall back to the CDM schema.
     scoped_engine = create_cdm_engine(resolve_with_role_schemas(pg_resolved, {Role.PRIMARY: schema}))
@@ -318,9 +318,6 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path):
         assert count == 7
     finally:
         scoped_engine.dispose()
-        with pg_engine.connect() as conn:
-            conn.execute(sa.text(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE"))
-            conn.commit()
 
 
 def test_postgres_catalog_queries_accept_explicit_schema(pg_engine):

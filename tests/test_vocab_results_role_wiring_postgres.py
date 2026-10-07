@@ -26,6 +26,7 @@ import sqlalchemy.orm as so
 from oa_configurator import Role
 from oa_configurator.testing import (
     ScopedTestSchema,
+    drop_schema_if_exists,
     guarded_resolver,
     reset_schema_registry_rows,
     resolve_with_role_schemas,
@@ -183,12 +184,8 @@ def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_data
     vocab_schema = f"phase32_fresh_vocab_{run_id}"
     results_schema = f"phase32_fresh_results_{run_id}"
 
-    def _drop_schemas() -> None:
-        with pg_engine.begin() as conn:
-            for schema in (clinical_schema, vocab_schema, results_schema):
-                conn.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
-
-    cleanup_after_test(_drop_schemas)
+    for schema in (clinical_schema, vocab_schema, results_schema):
+        cleanup_after_test(lambda schema=schema: drop_schema_if_exists(pg_engine, schema))
     reset_schema_registry_rows(cleanup_after_test, pg_engine)
     resolved = resolve_with_role_schemas(
         pg_db.resolved,
