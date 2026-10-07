@@ -63,11 +63,46 @@ def _event_source(source: type[Any] | FromClause | SelectBase) -> FromClause:
 
 def _episode_source(
     source: type[Episode] | FromClause | SelectBase,
+    *,
+    name: str,
 ) -> FromClause:
     if isinstance(source, type):
         model = cast(type[Episode], source)
-        return canonical_episode_projection(model).subquery("attachment_episodes")
-    return _as_from_clause(source, name="attachment_episodes")
+        return canonical_episode_projection(model).subquery(name)
+    return _as_from_clause(source, name=name)
+
+
+def _fallback_episode_source(
+    source: type[Episode] | FromClause | SelectBase,
+) -> FromClause:
+    fallback_source = _episode_source(source, name="attachment_fallback_episodes")
+    _require_columns(
+        fallback_source.c.keys(),
+        (
+            str(EpisodeColumn.episode_id),
+            str(EpisodeColumn.person_id),
+            str(EpisodeColumn.episode_start_date),
+            str(EpisodeColumn.episode_end_date),
+        ),
+        role="fallback_episodes",
+        error_type=InvalidAttachmentSourceError,
+    )
+    return fallback_source
+
+
+def _validate_policy_inputs(
+    policy: EpisodeAttachmentPolicy,
+    ranking: TemporalRankingSpec | None,
+    fallback_episodes: object | None,
+) -> None:
+    if policy.requires_fallback_ranking and ranking is None:
+        raise ValueError("explicit_first_ranked requires a temporal ranking")
+    if not policy.requires_fallback_ranking and ranking is not None:
+        raise ValueError(f"{policy} does not use a temporal ranking")
+    if policy.uses_fallback and fallback_episodes is None:
+        raise ValueError(f"{policy} requires fallback_episodes")
+    if not policy.uses_fallback and fallback_episodes is not None:
+        raise ValueError(f"{policy} does not use fallback_episodes")
 
 
 def _episode_event_source(
@@ -99,7 +134,7 @@ def _not_exists_for_event(
 
 def _attachment_diagnostics(
     events: FromClause,
-    episodes: FromClause,
+    explicit_episodes: FromClause,
     episode_events: FromClause,
     valid_explicit: FromClause,
     valid_explicit_event_keys: FromClause,
@@ -159,11 +194,11 @@ def _attachment_diagnostics(
                     events.c[event_field] == episode_events.c[link_field],
                 ),
             ).join(
-                episodes,
-                episodes.c[episode_id] == episode_events.c[episode_id],
+                explicit_episodes,
+                explicit_episodes.c[episode_id] == episode_events.c[episode_id],
             )
         )
-        .where(events.c[person_id] != episodes.c[person_id])
+        .where(events.c[person_id] != explicit_episodes.c[person_id])
     )
 
     diagnostic_branches: list[sa.Select[Any]] = [person_mismatches]
@@ -234,7 +269,8 @@ def episode_attachment_queries(
     events: type[Any] | FromClause | SelectBase,
     *,
     policy: EpisodeAttachmentPolicy,
-    episodes: type[Episode] | FromClause | SelectBase = Episode,
+    explicit_episodes: type[Episode] | FromClause | SelectBase = Episode,
+    fallback_episodes: type[Episode] | FromClause | SelectBase | None = None,
     episode_events: type[Episode_Event] | FromClause | SelectBase = Episode_Event,
     ranking: TemporalRankingSpec | None = None,
     window: EpisodeWindowSpec = EpisodeWindowSpec(),
@@ -250,9 +286,17 @@ def episode_attachment_queries(
     policy:
         Whether to use explicit links only, ranked fallback, or every eligible
         episode in the fallback window.
-    episodes:
+    explicit_episodes:
+        An Episode model or selectable exposing episode identity and person.
+        Explicit ``Episode_Event`` links are valid only when they name an
+        episode in this source.
+    fallback_episodes:
         An Episode model or selectable exposing episode identity, person and
-        date bounds.
+        date bounds, plus the ranking's stable ID column for ranked fallback.
+        Only these episodes are admitted, counted and ranked as date-window
+        candidates. Required by fallback policies and rejected by
+        ``explicit_only``. Pass the same source as ``explicit_episodes`` when
+        both stages should consider the same population.
     episode_events:
         An Episode_Event model or selectable containing episode/event links and
         their Field-concept discriminator.
@@ -273,26 +317,29 @@ def episode_attachment_queries(
 
     Notes
     -----
-    Resolution proceeds in three stages: validate explicit links, admit
-    same-person fallback candidates within the episode-relative window, then
-    retain every admitted candidate or apply temporal ranking according to
-    ``policy``. Explicit links suppress fallback only after the event ID,
-    Field-concept discriminator, episode ID and person all agree; the final
-    result is deduplicated by event source, event ID and episode ID. Fallback
-    ambiguity counts distinct eligible episodes, even when inputs repeat rows.
+    Resolution proceeds in three stages: validate explicit links against
+    ``explicit_episodes``, admit same-person candidates from
+    ``fallback_episodes`` within the episode-relative window, then retain every
+    admitted candidate or apply temporal ranking according to ``policy``. The
+    two episode sources are independent: an episode can be a valid explicit
+    target without being a fallback candidate. The builder does not interpret
+    episode types or hierarchy; the caller decides each source's membership.
+    Explicit links suppress fallback only after the event ID, Field-concept
+    discriminator, episode ID and person all agree; the final result is
+    deduplicated by event source, event ID and episode ID. Fallback ambiguity
+    counts distinct eligible episodes, even when inputs repeat rows.
 
     Diagnostics explain rejected links and fallback outcomes without changing
     attachment rows. Because inputs may be filtered selectables, the builder
     does not infer missing source rows or unsupported discriminators from their
     absence.
     """
-    if policy.requires_fallback_ranking and ranking is None:
-        raise ValueError("explicit_first_ranked requires a temporal ranking")
-    if not policy.requires_fallback_ranking and ranking is not None:
-        raise ValueError(f"{policy} does not use a temporal ranking")
+    _validate_policy_inputs(policy, ranking, fallback_episodes)
 
     event_source = _event_source(events)
-    episode_source = _episode_source(episodes)
+    explicit_source = _episode_source(
+        explicit_episodes, name="attachment_explicit_episodes"
+    )
     link_source = _episode_event_source(episode_events)
     event_names = tuple(column.key for column in event_source.c)
 
@@ -303,14 +350,9 @@ def episode_attachment_queries(
         error_type=InvalidAttachmentSourceError,
     )
     _require_columns(
-        episode_source.c.keys(),
-        (
-            str(EpisodeColumn.episode_id),
-            str(EpisodeColumn.person_id),
-            str(EpisodeColumn.episode_start_date),
-            str(EpisodeColumn.episode_end_date),
-        ),
-        role="episodes",
+        explicit_source.c.keys(),
+        (str(EpisodeColumn.episode_id), str(EpisodeColumn.person_id)),
+        role="explicit_episodes",
         error_type=InvalidAttachmentSourceError,
     )
     _require_columns(
@@ -341,7 +383,7 @@ def episode_attachment_queries(
     valid_explicit = (
         sa.select(
             *(event_source.c[name] for name in event_names),
-            episode_source.c[episode_id].label(ATTACHMENT_EPISODE_ID),
+            explicit_source.c[episode_id].label(ATTACHMENT_EPISODE_ID),
             sa.literal(str(EpisodeAttachmentMethod.explicit)).label(ATTACHMENT_METHOD),
         )
         .select_from(
@@ -353,10 +395,10 @@ def episode_attachment_queries(
                     == link_source.c["episode_event_field_concept_id"],
                 ),
             ).join(
-                episode_source,
+                explicit_source,
                 sa.and_(
-                    episode_source.c[episode_id] == link_source.c[episode_id],
-                    episode_source.c[episode_person_id] == event_source.c[person_id],
+                    explicit_source.c[episode_id] == link_source.c[episode_id],
+                    explicit_source.c[episode_person_id] == event_source.c[person_id],
                 ),
             )
         )
@@ -383,17 +425,19 @@ def episode_attachment_queries(
     attachment_branches: list[sa.Select[Any]] = [explicit_select]
 
     if policy.uses_fallback:
+        assert fallback_episodes is not None  # validated above
+        fallback_source = _fallback_episode_source(fallback_episodes)
         # episode resolution stage 2 records the complete table-scoped identity
         # of every valid explicit event. The anti-existence check below must use
         # both columns: event_id alone is never a cross-table identity in OMOP.
         fallback_join = event_source.join(
-            episode_source,
+            fallback_source,
             sa.and_(
-                event_source.c[person_id] == episode_source.c[episode_person_id],
+                event_source.c[person_id] == fallback_source.c[episode_person_id],
                 episode_window_predicate(
                     event_source.c[event_date],
-                    episode_source.c[episode_start],
-                    episode_source.c[episode_end],
+                    fallback_source.c[episode_start],
+                    fallback_source.c[episode_end],
                     window=window,
                 ),
             ),
@@ -404,7 +448,7 @@ def episode_attachment_queries(
             sa.select(
                 event_source.c[source_table],
                 event_source.c[event_id],
-                episode_source.c[episode_id],
+                fallback_source.c[episode_id],
             )
             .select_from(fallback_join)
             .where(_not_exists_for_event(event_source, valid_explicit_event_keys))
@@ -425,15 +469,15 @@ def episode_attachment_queries(
         )
         fallback_columns: list[sa.ColumnElement[Any]] = [
             *(event_source.c[name] for name in event_names),
-            episode_source.c[episode_id].label(ATTACHMENT_EPISODE_ID),
+            fallback_source.c[episode_id].label(ATTACHMENT_EPISODE_ID),
             sa.literal(str(EpisodeAttachmentMethod.fallback)).label(ATTACHMENT_METHOD),
             fallback_counts.c[_FALLBACK_CANDIDATE_COUNT],
         ]
         if policy.requires_fallback_ranking:
             assert ranking is not None  # validated above
-            if ranking.stable_id_column not in episode_source.c:
+            if ranking.stable_id_column not in fallback_source.c:
                 raise InvalidAttachmentSourceError(
-                    "episodes is missing temporal stable ID column: "
+                    "fallback_episodes is missing temporal stable ID column: "
                     f"{ranking.stable_id_column}"
                 )
             # episode resolution stage 3 ranks only after window admission. A side
@@ -441,9 +485,9 @@ def episode_attachment_queries(
             # ID prevents tied dates from depending on database row order.
             fallback_columns.append(
                 temporal_row_number(
-                    episode_source.c[episode_start],
+                    fallback_source.c[episode_start],
                     event_source.c[event_date],
-                    episode_source.c[ranking.stable_id_column],
+                    fallback_source.c[ranking.stable_id_column],
                     ranking,
                     partition_by=(
                         event_source.c[source_table],
@@ -512,7 +556,7 @@ def episode_attachment_queries(
         # ResolvedEpisodeEvent owns complete target-table resolution.
         diagnostics = _attachment_diagnostics(
             event_source,
-            episode_source,
+            explicit_source,
             link_source,
             valid_explicit,
             valid_explicit_event_keys,
