@@ -28,14 +28,11 @@ Maintenance CLI commands that rely on a not-supported feature raise
 `FeatureNotSupportedError` on SQLite rather than doing nothing. In
 particular, against a SQLite database:
 
-- `indexes cluster` and the clustering step of `_manage_indexes --enable`
+- `indexes cluster` and the clustering step of `indexes enable`
   are unavailable.
 - `truncate-tables` cannot use `RESTART IDENTITY`/`CASCADE`.
 - `fulltext install` is unavailable entirely.
 - `backup-database`/`restore-database` are unavailable entirely.
 - FK trigger toggling and FK violation counting are unavailable.
 
-SQLite remains fully supported for the core ORM/CDM layer (models, queries,
-`_create_missing_tables`, schema-provenance guarding) — these limitations are
-specific to the maintenance operations listed above, which assume a
-PostgreSQL-grade catalog.
+SQLite remains fully supported for the core ORM/CDM layer (models, queries,`create-missing-tables`, schema-drift detection at engine construction). Tthese limitations are specific to the maintenance operations listed above, which assume a PostgreSQL-grade catalog.

@@ -318,10 +318,10 @@ def load_vocab_source(
     vocab_schema : str, optional
         Schema vocab-tagged tables live in, for the table-existence check
         against ``vocab_engine``. Defaults to ``db_schema``.
-    resolved : ResolvedCDMDatabase, optional
-        Enables the schema-provenance guard around any missing vocabulary
-        table creation. Omitted by direct test/programmatic callers with no
-        resolved config behind their engine, in which case the guard no-ops.
+    resolved : ResolvedCDMDatabase
+        Forwarded to the index/FK/table-creation helpers this function calls,
+        which check it against each table's declared schema tags before creating
+        anything.
     """
     vocab_schema = vocab_schema if vocab_schema is not None else db_schema
 

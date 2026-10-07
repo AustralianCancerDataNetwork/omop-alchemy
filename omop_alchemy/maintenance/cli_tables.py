@@ -424,7 +424,7 @@ def reset_model_sequences(
 app = typer.Typer(rich_markup_mode="rich", help="Manage Database Tables: analyze, truncate, and reset sequences",)
 
 @app.command("analyze-tables")
-@omop_command("analyze-tables", dry_run=True)
+@omop_command("analyze-tables", dry_run=True, writes=False)
 def analyze_tables_command(
     conn,
     engine,

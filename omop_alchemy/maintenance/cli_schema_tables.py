@@ -95,14 +95,13 @@ def _create_missing_tables(
         Engine for vocab-role tables, when ``vocab_connection`` names a
         physically different server than ``engine``.
     resolved : ResolvedCDMDatabase
-        Enables the schema-provenance guard around each ``create_all()``
-        call, and ensures every non-primary role's schema exists in a
-        split-engined deployment. A role whose connection is
-        test_only=true no-ops the guard, at the guard's own discretion.
+        Checked against each table's declared schema tag before
+        ``create_all()`` (``_assert_tags_claimed``), and used to ensure every
+        non-primary role's schema exists in a split-engined deployment.
 
     Notes
     -----
-    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
+    - No provenance guard as engine was just built in `omop_command`. There is no possibility
     of schema drift between the engine's creation and this command's execution.
     """
     missing_tables = collect_missing_tables(

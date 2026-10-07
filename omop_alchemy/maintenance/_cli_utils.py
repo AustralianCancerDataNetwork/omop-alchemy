@@ -125,8 +125,9 @@ def omop_command(
     vocabulary_included: bool | None = None,
     dry_run: bool = False,
     mode_label: str | None = None,
+    writes: bool = True,
 ) -> Callable[[_F], _F]:
-    """Decorator that eliminates CLI boilerplate for every omop-alchemy command. Changes the 
+    """Decorator that eliminates CLI boilerplate for every omop-alchemy command. Changes the
     typer signature to remove the connection/engine parameters and add a ``--database`` option.
 
     Resolves the database connection from oa_configurator, calls
@@ -134,8 +135,8 @@ def omop_command(
 
     Notes
     -----
-    The decorated function must accept the following positional parameters in order: 
-    1. ``conn``: a :class:`_ConnContext` object with the resolved database connection 
+    The decorated function must accept the following positional parameters in order:
+    1. ``conn``: a :class:`_ConnContext` object with the resolved database connection
     2. ``engine``: the SQLAlchemy engine for the resolved database
 
     The third positional parameter, ``vocab_engine``, is optional and only provided if
@@ -146,6 +147,14 @@ def omop_command(
     The decorator also adds a ``--database`` option to the command, allowing users to
     override the default database entry specified in ``OmopAlchemyConfig.cdm_db`` for that
     invocation.
+
+    Parameters
+    ----------
+    writes : bool, optional
+        Whether this command ever writes to the database. False for a
+        genuinely read-only command so it can run against a legacy, unbaselined
+        database without rasing the adoption-drift error the calling command
+        is meant to run *before*. Complements _NON_WRITING_MODES.
     """
     def decorator(func: _F) -> _F:
         orig_params = list(inspect.signature(func).parameters.values())
@@ -157,7 +166,7 @@ def omop_command(
             _database = kwargs.pop("database", None)
             _vocab = kwargs.get("vocabulary_included", vocabulary_included)
             _mode = mode_label if mode_label is not None else ("dry-run" if _dry_run else "apply")
-            _register_claims = _mode not in _NON_WRITING_MODES
+            _register_claims = writes and _mode not in _NON_WRITING_MODES
             try:
                 from ..config import create_cdm_engine, get_cdm_context
                 pkg_config, resolved = get_cdm_context(_database)

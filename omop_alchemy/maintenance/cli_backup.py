@@ -268,7 +268,7 @@ app = typer.Typer(
 )
 
 @app.command("backup-database")
-@omop_command("backup-database", dry_run=True)
+@omop_command("backup-database", dry_run=True, writes=False)
 def backup_database_command(
     conn,
     engine,
