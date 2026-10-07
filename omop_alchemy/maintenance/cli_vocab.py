@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, TypeAlias, cast
@@ -13,7 +12,12 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from sqlalchemy.exc import OperationalError
 import typer
-from oa_configurator import ResolvedCDMDatabase, ensure_schema, guard_schema_provenance_for
+from oa_configurator import (
+    ResolvedCDMDatabase,
+    UnregisteredSchemaTagError,
+    claimed_schema_tags,
+    declared_schema_tags,
+)
 from orm_loader.backends import STAGING_SCHEMA, resolve_backend
 from orm_loader.helpers import Base
 from orm_loader.tables.typing import CSVTableProtocol
@@ -42,7 +46,7 @@ from omop_alchemy.cdm.model.vocabulary import (
 from ..backends import backend_supports, resolve_backend as resolve_omop_backend
 from ._cli_utils import Status, omop_command
 from .cli_foreign_keys import manage_foreign_key_triggers
-from .cli_indexes import manage_indexes
+from .cli_indexes import _manage_indexes
 from .cli_tables import reset_model_sequences
 from .tables import TableCategory, select_maintenance_tables
 from .ui import (
@@ -184,7 +188,7 @@ def _load_vocab_model_csv(
     chunksize: int | None = None,
     index_strategy: str = "auto",
     merge_batch_size: int | None = None,
-    staging_schema: str | None = None,
+    staging_schema_tag: str | None = None,
 ) -> int:
     """Call model.load_csv. If the staging table is absent, create it and retry once."""
     load_kwargs: dict[str, object] = {
@@ -192,7 +196,7 @@ def _load_vocab_model_csv(
         "quote_mode": quote_mode,
         "index_strategy": index_strategy,
         "merge_batch_size": merge_batch_size,
-        "staging_schema": staging_schema,
+        "staging_schema_tag": staging_schema_tag,
     }
     if chunksize is not None:
         load_kwargs["chunksize"] = chunksize
@@ -204,7 +208,7 @@ def _load_vocab_model_csv(
             raise
 
         session.rollback()
-        model.create_staging_table(session, staging_schema=staging_schema)
+        model.create_staging_table(session, staging_schema_tag=staging_schema_tag)
         return int(model.load_csv(session, csv_path, **load_kwargs))  # ty: ignore[invalid-argument-type]
 
 
@@ -244,7 +248,12 @@ def _create_missing_vocabulary_tables(
     db_schema: str | None,
     resolved: ResolvedCDMDatabase,
 ) -> int:
-    """Create any vocabulary-category ORM tables that are absent from the target database. Returns the count created."""
+    """Create any vocabulary-category ORM tables that are absent from the target database. Returns the count created.
+    Notes
+    -----
+    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
+    of schema drift between the engine's creation and this command's execution.
+    """
     vocab_tables = select_maintenance_tables(
         categories=(TableCategory.VOCABULARY,),
     )
@@ -257,21 +266,15 @@ def _create_missing_vocabulary_tables(
     if not missing_tables:
         return 0
 
-    tables_by_schema_tag: dict[str, list[sa.Table]] = {}
-    for table in missing_tables:
-        tables_by_schema_tag.setdefault(table.schema_tag, []).append(table.table)
-
-    with ExitStack() as guard_stack:
-        # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
-        for schema_tag in tables_by_schema_tag:
-            guard_stack.enter_context(
-                guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag)
-            )
-        Base.metadata.create_all(
-            bind=connection,
-            tables=[table.table for table in missing_tables],
-            checkfirst=True,
+    all_tables = [table.table for table in missing_tables]
+    missing_claims = declared_schema_tags(all_tables) - claimed_schema_tags(connection)
+    if missing_claims:
+        raise UnregisteredSchemaTagError(
+            f"_create_missing_vocabulary_tables(): table(s) declare schema tag(s) "
+            f"{sorted(missing_claims)} that aren't claimed on this connection. Add them "
+            "to create_cdm_engine()'s own create_engine(schema_claims=[...]) call."
         )
+    Base.metadata.create_all(bind=connection, tables=all_tables, checkfirst=True)
     return len(missing_tables)
 
 
@@ -355,11 +358,6 @@ def load_vocab_source(
             + ", ".join(sorted(missing))
         )
 
-    if not dry_run:
-        ensure_schema(engine, db_schema)
-        ensure_schema(engine, STAGING_SCHEMA)
-        ensure_schema(vocab_engine, vocab_schema)
-
     table_count = sum(
         1
         for m in all_models
@@ -404,7 +402,7 @@ def load_vocab_source(
             0.0,
             table_count=table_count,
         )
-        disable_results = manage_indexes(
+        disable_results = _manage_indexes(
             vocab_engine,
             vocab_engine=vocab_engine,
             enable=False,
@@ -513,7 +511,7 @@ def load_vocab_source(
                             index_strategy="keep" if _use_bulk_mode else "auto",
                             chunksize=chunksize,
                             merge_batch_size=merge_batch_size,
-                            staging_schema=STAGING_SCHEMA,
+                            staging_schema_tag=STAGING_SCHEMA,
                         )
                         session.commit()
                     break
@@ -559,7 +557,7 @@ def load_vocab_source(
                 100.0,
                 table_count=table_count,
             )
-            manage_indexes(
+            _manage_indexes(
                 vocab_engine,
                 vocab_engine=vocab_engine,
                 enable=True,

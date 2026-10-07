@@ -79,7 +79,7 @@ def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
         chunksize=None,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
-        staging_schema=None,
+        staging_schema_tag=None,
     ) -> int:
         loaded_tables.append(
             (model.__tablename__, merge_strategy, quote_mode, csv_path)
@@ -269,7 +269,7 @@ def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_p
         quote_mode,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
-        staging_schema=None,
+        staging_schema_tag=None,
     ):
         calls["merge_strategy"] = merge_strategy
         calls["quote_mode"] = quote_mode
@@ -316,7 +316,7 @@ def test_load_vocab_source_loads_in_fk_dependency_order(fresh_engine, fresh_reso
         chunksize=None,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
-        staging_schema=None,
+        staging_schema_tag=None,
     ) -> int:
         loaded_order.append(model.__tablename__)
         return 1
@@ -352,7 +352,7 @@ def test_load_vocab_source_reports_weighted_progress(fresh_engine, fresh_resolve
         chunksize=None,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
-        staging_schema=None,
+        staging_schema_tag=None,
     ) -> int:
         return 1
 
@@ -390,7 +390,7 @@ def test_load_vocab_source_wraps_failed_table_load(fresh_engine, fresh_resolved,
         chunksize=None,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
-        staging_schema=None,
+        staging_schema_tag=None,
     ):
         if model.__tablename__ == "domain":
             raise sa.exc.ProgrammingError(  # type: ignore[attr-defined]
@@ -446,7 +446,7 @@ def test_load_vocab_model_csv_retries_missing_staging_table(fresh_engine, monkey
         quote_mode,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
-        staging_schema=None,
+        staging_schema_tag=None,
     ):
         calls["load_csv"] += 1
         if calls["load_csv"] == 1:
@@ -457,9 +457,9 @@ def test_load_vocab_model_csv_retries_missing_staging_table(fresh_engine, monkey
             )
         return 123
 
-    def fake_create_staging_table(session, *, staging_schema=None):
+    def fake_create_staging_table(session, *, staging_schema_tag=None):
         calls["create_staging_table"] += 1
-        created_staging_schemas.append(staging_schema)
+        created_staging_schemas.append(staging_schema_tag)
 
     monkeypatch.setattr(FakeModel, "load_csv", fake_load_csv)
     monkeypatch.setattr(FakeModel, "create_staging_table", fake_create_staging_table)
@@ -471,7 +471,7 @@ def test_load_vocab_model_csv_retries_missing_staging_table(fresh_engine, monkey
             model=FakeModel,  # type: ignore[arg-type]
             csv_path=_athena_source_path() / "DRUG_STRENGTH.csv",
             merge_strategy="upsert",
-            staging_schema="staging",
+            staging_schema_tag="staging",
         )
 
     assert row_count == 123
@@ -537,7 +537,7 @@ def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(fresh_engine, fre
         chunksize=None,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
-        staging_schema=None,
+        staging_schema_tag=None,
     ) -> int:
         received_quote_modes.append(quote_mode)
         return 1
@@ -581,7 +581,7 @@ def test_load_vocab_source_tables_single_loads_only_that_table(fresh_engine, fre
         chunksize=None,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
-        staging_schema=None,
+        staging_schema_tag=None,
     ) -> int:
         loaded_tables.append(model.__tablename__)
         return 1
@@ -614,7 +614,7 @@ def test_load_vocab_source_tables_multiple_loads_exactly_those(fresh_engine, fre
         chunksize=None,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
-        staging_schema=None,
+        staging_schema_tag=None,
     ) -> int:
         loaded_tables.append(model.__tablename__)
         return 1
@@ -661,7 +661,7 @@ def test_load_vocab_source_tables_missing_csv_raises_runtime_error(fresh_engine,
 
 
 def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, fresh_resolved, monkeypatch, tmp_path):
-    """A foreign index that manage_indexes(enable=False) leaves in place (status=warning)
+    """A foreign index that _manage_indexes(enable=False) leaves in place (status=warning)
     during the bulk-mode disable step must be surfaced on the returned report, not
     silently discarded -- this is the only call site that inspects those results."""
     engine = fresh_engine
@@ -674,16 +674,9 @@ def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, fresh
 
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_vocab._load_vocab_model_csv",
-        lambda session, *, model, csv_path, merge_strategy, quote_mode="auto", chunksize=None, index_strategy="auto", merge_batch_size=1_000_000, staging_schema=None: (
+        lambda session, *, model, csv_path, merge_strategy, quote_mode="auto", chunksize=None, index_strategy="auto", merge_batch_size=1_000_000, staging_schema_tag=None: (
             1
         ),
-    )
-    # ensure_schema() resolves a backend from engine.dialect.name too, and would
-    # otherwise try to run real PostgreSQL "CREATE SCHEMA" DDL against this SQLite
-    # connection now that the dialect name is faked above.
-    monkeypatch.setattr(
-        "omop_alchemy.maintenance.cli_vocab.ensure_schema",
-        lambda engine, schema: None,
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_vocab.manage_foreign_key_triggers",
@@ -732,7 +725,7 @@ def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, fresh
         ]
 
     monkeypatch.setattr(
-        "omop_alchemy.maintenance.cli_vocab.manage_indexes",
+        "omop_alchemy.maintenance.cli_vocab._manage_indexes",
         fake_manage_indexes,
     )
 

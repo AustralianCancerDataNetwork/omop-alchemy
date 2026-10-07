@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from contextlib import ExitStack
 from dataclasses import dataclass
 
 import sqlalchemy as sa
@@ -13,7 +12,6 @@ from oa_configurator import (
     ResolvedDatabase,
     autocommit_connection,
     claimed_schema_tags,
-    guard_schema_provenance_for,
     physical_schema_of,
     qualified,
 )
@@ -114,7 +112,7 @@ def analyze_tables(
 
 
 # ---------------------------------------------------------------------------
-# truncate_tables
+# _truncate_tables
 # ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
@@ -176,7 +174,7 @@ def _format_blocking_reference_error(blockers: dict[str, set[str]]) -> str:
     )
 
 
-def truncate_tables(
+def _truncate_tables(
     engine: sa.Engine,
     *,
     vocab_engine: sa.Engine,
@@ -187,7 +185,13 @@ def truncate_tables(
     dry_run: bool = False,
     resolved: ResolvedCDMDatabase,
 ) -> list[TruncateTableResult]:
-    """Truncate selected ORM-managed tables. Raises if non-selected tables hold blocking FK references."""
+    """Truncate selected ORM-managed tables. Raises if non-selected tables hold blocking FK references.
+    
+    Notes
+    -----
+    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
+    of schema drift between the engine's creation and this command's execution.
+    """
     if scope is not None and table_names is not None:
         raise RuntimeError("Use either `scope` or `table_names`, not both.")
     if scope is None and table_names is None:
@@ -258,30 +262,21 @@ def truncate_tables(
             for table_engine, tables_for_engine in existing_tables_by_engine.items():
                 # table_engine is engine: reuse the already-open connection/transaction
                 # above rather than opening a second one to the same database.
-                truncate_connection = connection if table_engine is engine else None
-                # ExitStack: a variable number of guards, one per distinct
-                # schema_tag mapped to this engine, closed together in order.
-                with ExitStack() as guards:
-                    if truncate_connection is None:
-                        truncate_connection = guards.enter_context(table_engine.begin())
-                    schema_tags_for_engine = {schema_tag for schema_tag, _ in tables_for_engine}
-                    # One provenance guard per schema_tag: a same-named table could
-                    # already exist under a drifted schema, so truncate could hit
-                    # unrelated data.
-                    for schema_tag in schema_tags_for_engine:
-                        guards.enter_context(
-                            guard_schema_provenance_for(
-                                truncate_connection,
-                                resolved,
-                                schema_tag=schema_tag,
-                            )
-                        )
+                if table_engine is engine:
                     resolve_backend(table_engine).truncate_table_batch(
-                        truncate_connection,
+                        connection,
                         tables_for_engine,
                         restart_identities=restart_identities,
                         cascade=cascade,
                     )
+                else:
+                    with table_engine.begin() as truncate_connection:
+                        resolve_backend(table_engine).truncate_table_batch(
+                            truncate_connection,
+                            tables_for_engine,
+                            restart_identities=restart_identities,
+                            cascade=cascade,
+                        )
 
     return results
 
@@ -545,7 +540,7 @@ def truncate_tables_command(
         )
         raise typer.Exit(code=1)
     with console.status("Truncating selected tables..."):
-        results = truncate_tables(
+        results = _truncate_tables(
             engine,
             vocab_engine=vocab_engine,
             scope=resolved_scope,

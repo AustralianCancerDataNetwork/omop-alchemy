@@ -19,6 +19,7 @@ import sqlalchemy.orm as so
 from sqlalchemy.dialects import postgresql
 from oa_configurator import Role
 from oa_configurator.testing import ScopedTestSchema, scoped_test_schema
+from orm_loader.backends import staging_schema_claim
 from orm_loader.helpers import bulk_load_context
 
 from omop_alchemy.backends import (
@@ -28,8 +29,8 @@ from omop_alchemy.backends import (
     PostgresBackend,
 )
 from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Synonym, Domain
-from omop_alchemy.maintenance.cli_fulltext import install_fulltext_columns, populate_fulltext_columns
-from omop_alchemy.maintenance.cli_schema_tables import create_missing_tables
+from omop_alchemy.maintenance.cli_fulltext import _install_fulltext_columns, populate_fulltext_columns
+from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
 from omop_alchemy.maintenance.cli_vocab import load_vocab_source
 from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 
@@ -44,8 +45,8 @@ _CONCEPT_ID = 4181412
 def installed(pg_db) -> Iterator[ScopedTestSchema]:
     """A scoped schema with fulltext installed and one populated concept."""
     with scoped_test_schema(pg_db.resolved, prefix="fulltext_column") as scoped:
-        create_missing_tables(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
-        install_fulltext_columns(scoped.engine, resolved=scoped.resolved)
+        _create_missing_tables(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
+        _install_fulltext_columns(scoped.engine)
         with so.Session(scoped.engine) as session:
             with bulk_load_context(session):
                 session.add(
@@ -118,7 +119,7 @@ def test_orm_does_not_know_the_column(installed: ScopedTestSchema) -> None:
 
 def test_missing_column_raises(pg_db) -> None:
     with scoped_test_schema(pg_db.resolved, prefix="fulltext_missing") as scoped:
-        create_missing_tables(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
+        _create_missing_tables(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
         with pytest.raises(FullTextError, match=CONCEPT_NAME_TSVECTOR_COLUMN):
             _backend.fulltext_vector_column(scoped.engine, _CONCEPT)
 
@@ -134,7 +135,9 @@ def test_vocab_load_after_install_succeeds_in_a_schema_without_the_column(
     for table_name, data in _ATHENA_FIXTURE_DATA.items():
         _write_fixture_csv(source_path, table_name, data)
 
-    with scoped_test_schema(pg_db.resolved, prefix="fulltext_regression_load") as other:
+    with scoped_test_schema(
+        pg_db.resolved, prefix="fulltext_regression_load", schema_claims=[staging_schema_claim()]
+    ) as other:
         report = load_vocab_source(
             other.engine, vocab_engine=other.engine,
             source_path=source_path,

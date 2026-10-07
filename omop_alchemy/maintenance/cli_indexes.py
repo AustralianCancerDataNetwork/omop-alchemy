@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
@@ -14,7 +13,6 @@ import typer
 from oa_configurator import (
     ResolvedCDMDatabase,
     ensure_schema,
-    guard_schema_provenance_for,
     physical_schema_of,
     supports_schemas,
 )
@@ -582,8 +580,8 @@ def _resolve_physical_cluster_name(
     name if the database was pre-indexed by an external script (e.g. the
     OHDSI CDM DDL script), so this falls back to whichever plain index
     actually covers the same columns. Shared by the standalone indexes
-    cluster command and manage_indexes()'s cluster step (for the
-    primary-key-based cluster target case, which manage_indexes() otherwise
+    cluster command and _manage_indexes()'s cluster step (for the
+    primary-key-based cluster target case, which _manage_indexes() otherwise
     resolves more precisely via its own per-run physical_index_names tracking
     -- see the comment at its call site).
 
@@ -665,7 +663,7 @@ def collect_index_targets(
 
 @dataclass(frozen=True)
 class _IndexOutcome:
-    """Resolved outcome of processing one ORM-defined index in manage_indexes().
+    """Resolved outcome of processing one ORM-defined index in _manage_indexes().
 
     Built directly at the point each outcome is determined, in the live-run
     or dry-run branch -- there is exactly one place that decides status,
@@ -688,7 +686,7 @@ class _IndexOutcome:
     physical_name: str
 
 
-def manage_indexes(
+def _manage_indexes(
     engine: sa.Engine,
     *,
     vocab_engine: sa.Engine,
@@ -699,7 +697,13 @@ def manage_indexes(
     cluster: bool = True,
     resolved: ResolvedCDMDatabase,
 ) -> list[IndexManagementResult]:
-    """Create or drop all ORM-defined indexes. CLUSTERs tables when enabling and cluster=True."""
+    """Create or drop all ORM-defined indexes. CLUSTERs tables when enabling and cluster=True.
+    
+    Notes
+    -----
+    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
+    of schema drift between the engine's creation and this command's execution.
+    """
     selected_tables = (
         select_maintenance_tables(categories=(TableCategory.VOCABULARY,))
         if vocabulary_only
@@ -716,301 +720,283 @@ def manage_indexes(
 
     results: list[IndexManagementResult] = []
 
-    with ExitStack() as guard_stack:
-        if not dry_run:
-            tables_by_engine_and_schema_tag: dict[sa.Engine, dict[str, list[sa.Table]]] = {}
-            for table in selected_tables:
-                table_engine = resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
-                tables_by_engine_and_schema_tag.setdefault(table_engine, {}).setdefault(
-                    table.schema_tag, []
-                ).append(table.table)
-            # One provenance guard per (engine, schema_tag)
-            # Count only known at runtime:ExitStack defers every write until the block below succeeds.
-            for table_engine, tables_by_schema_tag in tables_by_engine_and_schema_tag.items():
-                guard_connection = guard_stack.enter_context(table_engine.begin())
-                for schema_tag in tables_by_schema_tag:
-                    # A same-named index could already exist under a drifted schema, attached to an unrelated table.
-                    guard_stack.enter_context(
-                        guard_schema_provenance_for(guard_connection, resolved, schema_tag=schema_tag)
-                    )
+    for table in selected_tables:
+        table_engine = resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
+        backend = backends_by_engine[table_engine]
+        db_schema = physical_schema_of(table_engine, schema_tag=table.schema_tag)
+        inspector = sa.inspect(table_engine)
+        if not inspector.has_table(table.table_name, schema=db_schema):
+            continue
 
-        for table in selected_tables:
-            table_engine = resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
-            backend = backends_by_engine[table_engine]
-            db_schema = physical_schema_of(table_engine, schema_tag=table.schema_tag)
-            inspector = sa.inspect(table_engine)
-            if not inspector.has_table(table.table_name, schema=db_schema):
+        existing_indexes = inspector.get_indexes(table.table_name, schema=db_schema)
+        existing_index_names = {index["name"] for index in existing_indexes}
+
+        created_any = False
+        clustered_now = False
+        physical_index_names: dict[str, str] = {}
+
+        for metadata_index in sorted(table.table.indexes, key=lambda idx: idx.name or ""):
+            index_name = str(metadata_index.name)
+            column_names = tuple(column.name for column in metadata_index.columns)
+            unique = bool(metadata_index.unique)
+            exists = index_name in existing_index_names
+            should_apply = (
+                not enable
+            ) or (
+                enable and not exists
+            )
+
+            if not should_apply:
+                physical_index_names[index_name] = index_name
                 continue
 
-            existing_indexes = inspector.get_indexes(table.table_name, schema=db_schema)
-            existing_index_names = {index["name"] for index in existing_indexes}
+            schema_index = metadata_indexes[(table.table_name, index_name)]
+            # Plain create/drop succeeding is the common case for both live and
+            # dry runs, so it's the default outcome; every branch below only
+            # overrides it for a foreign-index or already-in-place case.
+            outcome = _IndexOutcome(
+                status=dry_status(dry_run),
+                detail=dry_label(
+                    dry_run,
+                    planned="metadata-defined index would be dropped" if not enable else "metadata-defined index would be created",
+                    applied="metadata-defined index dropped" if not enable else "metadata-defined index created",
+                ),
+                physical_name=index_name,
+            )
 
-            created_any = False
-            clustered_now = False
-            physical_index_names: dict[str, str] = {}
-
-            for metadata_index in sorted(table.table.indexes, key=lambda idx: idx.name or ""):
-                index_name = str(metadata_index.name)
-                column_names = tuple(column.name for column in metadata_index.columns)
-                unique = bool(metadata_index.unique)
-                exists = index_name in existing_index_names
-                should_apply = (
-                    not enable
-                ) or (
-                    enable and not exists
-                )
-
-                if not should_apply:
-                    physical_index_names[index_name] = index_name
-                    continue
-
-                schema_index = metadata_indexes[(table.table_name, index_name)]
-                # Plain create/drop succeeding is the common case for both live and
-                # dry runs, so it's the default outcome; every branch below only
-                # overrides it for a foreign-index or already-in-place case.
-                outcome = _IndexOutcome(
-                    status=dry_status(dry_run),
-                    detail=dry_label(
-                        dry_run,
-                        planned="metadata-defined index would be dropped" if not enable else "metadata-defined index would be created",
-                        applied="metadata-defined index dropped" if not enable else "metadata-defined index created",
-                    ),
-                    physical_name=index_name,
-                )
-
-                # Each index gets its own connection: a transaction when actually
-                # mutating (not dry_run, so WAL is committed and checkpointable
-                # before the next index build begins), a plain read-only
-                # connection when only previewing.
-                connection_factory = table_engine.begin if not dry_run else table_engine.connect
-                with connection_factory() as connection:
-                    if not enable:
-                        if not dry_run:
-                            existed_before_drop = backend.index_exists(
-                                connection, index_name, schema_tag=table.schema_tag
-                            )
-                        else:
-                            existed_before_drop = exists
-                        if not existed_before_drop:
-                            # Index under a different naming scheme than ours
-                            equivalent_name = _find_equivalent_index(existing_indexes, column_names, unique)
-                            if equivalent_name is not None:
-                                if not dry_run:
-                                    captured = _record_captured_index(
-                                        connection,
-                                        table_name=table.table_name, db_schema=db_schema,
-                                        index_name=equivalent_name,
-                                        column_names=column_names, unique=unique,
-                                    )
-                                else:
-                                    pending_capture, _, _ = _peek_captured_index(
-                                        connection,
-                                        table_name=table.table_name, db_schema=db_schema,
-                                        column_names=column_names, unique=unique,
-                                    )
-                                    captured = pending_capture is None
-                                if captured:
-                                    if not dry_run:
-                                        backend.drop_index_if_exists(
-                                            connection, equivalent_name, schema_tag=table.schema_tag
-                                        )
-                                    outcome = _IndexOutcome(
-                                        status=dry_status(dry_run, Status.CAPTURED),
-                                        detail=dry_label(
-                                            dry_run,
-                                            planned=f"foreign index '{equivalent_name}' would be captured and dropped for bulk load",
-                                            applied=f"foreign index '{equivalent_name}' captured and dropped for bulk load",
-                                        ),
-                                        physical_name=equivalent_name,
-                                    )
-                                else:
-                                    # A different foreign index for this table/column-set is
-                                    # already captured and awaiting restore. Leave this one
-                                    # in place rather than dropping something we can no
-                                    # longer track.
-                                    outcome = _IndexOutcome(
-                                        status=Status.WARNING,
-                                        detail=dry_label(
-                                            dry_run,
-                                            planned=(
-                                                f"foreign index '{equivalent_name}' would be left in place: a different "
-                                                "foreign index for this table/column-set is already captured and "
-                                                "awaiting restore"
-                                            ),
-                                            applied=(
-                                                f"foreign index '{equivalent_name}' left in place: a different "
-                                                "foreign index for this table/column-set is already captured and "
-                                                "awaiting restore"
-                                            ),
-                                        ),
-                                        physical_name=equivalent_name,
-                                    )
-                            else:
-                                conflict = _find_shape_conflict(existing_indexes, column_names, unique)
-                                if conflict is not None:
-                                    conflict_name = str(conflict["name"])
-                                    outcome = _IndexOutcome(
-                                        status=Status.WARNING,
-                                        detail=dry_label(
-                                            dry_run,
-                                            planned=f"foreign index '{conflict_name}' {_describe_shape_conflict(conflict)}; would be left in place",
-                                            applied=f"foreign index '{conflict_name}' {_describe_shape_conflict(conflict)}; left in place",
-                                        ),
-                                        physical_name=conflict_name,
-                                    )
-                                else:
-                                    outcome = _IndexOutcome(
-                                        status=Status.SKIPPED,
-                                        detail="metadata-defined index already absent (skipped)",
-                                        physical_name=index_name,
-                                    )
-                        elif not dry_run:
-                            backend.drop_index_if_exists(connection, index_name, schema_tag=table.schema_tag)
-                            # outcome stays default: applied / "metadata-defined index dropped"
-                        # dry-run, existed_before_drop True: outcome stays default ("would be dropped")
+            # Each index gets its own connection: a transaction when actually
+            # mutating (not dry_run, so WAL is committed and checkpointable
+            # before the next index build begins), a plain read-only
+            # connection when only previewing.
+            connection_factory = table_engine.begin if not dry_run else table_engine.connect
+            with connection_factory() as connection:
+                if not enable:
+                    if not dry_run:
+                        existed_before_drop = backend.index_exists(
+                            connection, index_name, schema_tag=table.schema_tag
+                        )
                     else:
-                        if not dry_run:
-                            restored_name = _restore_captured_index(
-                                connection,
-                                table_name=table.table_name, db_schema=db_schema,
-                                column_names=column_names, unique=unique,
-                            )
-                        else:
-                            restored_name, _, _ = _peek_captured_index(
-                                connection,
-                                table_name=table.table_name, db_schema=db_schema,
-                                column_names=column_names, unique=unique,
-                            )
-                        if restored_name is not None:
+                        existed_before_drop = exists
+                    if not existed_before_drop:
+                        # Index under a different naming scheme than ours
+                        equivalent_name = _find_equivalent_index(existing_indexes, column_names, unique)
+                        if equivalent_name is not None:
                             if not dry_run:
-                                created_any = True
-                            outcome = _IndexOutcome(
-                                status=dry_status(dry_run, Status.RESTORED),
-                                detail=dry_label(
-                                    dry_run,
-                                    planned=f"foreign index '{restored_name}' would be restored from bulk-load capture",
-                                    applied=f"foreign index '{restored_name}' restored from bulk-load capture",
-                                ),
-                                physical_name=restored_name,
-                            )
-                        else:
-                            equivalent_name = _find_equivalent_index(existing_indexes, column_names, unique)
-                            if equivalent_name is not None:
+                                captured = _record_captured_index(
+                                    connection,
+                                    table_name=table.table_name, db_schema=db_schema,
+                                    index_name=equivalent_name,
+                                    column_names=column_names, unique=unique,
+                                )
+                            else:
+                                pending_capture, _, _ = _peek_captured_index(
+                                    connection,
+                                    table_name=table.table_name, db_schema=db_schema,
+                                    column_names=column_names, unique=unique,
+                                )
+                                captured = pending_capture is None
+                            if captured:
+                                if not dry_run:
+                                    backend.drop_index_if_exists(
+                                        connection, equivalent_name, schema_tag=table.schema_tag
+                                    )
                                 outcome = _IndexOutcome(
-                                    status=Status.SKIPPED,
+                                    status=dry_status(dry_run, Status.CAPTURED),
                                     detail=dry_label(
                                         dry_run,
-                                        planned=f"equivalent foreign index '{equivalent_name}' already provides this coverage (would skip creation)",
-                                        applied=f"equivalent foreign index '{equivalent_name}' already provides this coverage (skipped)",
+                                        planned=f"foreign index '{equivalent_name}' would be captured and dropped for bulk load",
+                                        applied=f"foreign index '{equivalent_name}' captured and dropped for bulk load",
                                     ),
                                     physical_name=equivalent_name,
                                 )
-                            elif not dry_run:
-                                savepoint = connection.begin_nested()
-                                try:
-                                    schema_index.create(bind=connection, checkfirst=True)
-                                except DBAPIError as exc:
-                                    savepoint.rollback()
-                                    if "already exists" not in str(exc.orig).lower():
-                                        raise
-                                    outcome = _IndexOutcome(
-                                        status=Status.SKIPPED,
-                                        detail="metadata-defined index already exists (skipped)",
-                                        physical_name=index_name,
-                                    )
-                                else:
-                                    savepoint.commit()
-                                    created_any = True
-                                    # outcome stays default: applied / "metadata-defined index created"
-                            # dry-run, no restore, no equivalent: outcome stays default ("would be created")
-
-                physical_name = outcome.physical_name
-                physical_index_names[index_name] = physical_name
-                results.append(
-                    IndexManagementResult(
-                        operation="index",
-                        table_name=table.table_name,
-                        category=table.category,
-                        schema_tag=table.schema_tag,
-                        index_name=physical_name,
-                        column_names=column_names,
-                        unique=unique,
-                        clustered=metadata_index.info.get(OMOP_CLUSTER_INDEX_INFO_KEY) is True,
-                        enable=enable,
-                        status=outcome.status,
-                        detail=outcome.detail,
-                    )
-                )
-
-            # Clustering for perfomance is a separate operation from index creation
-            if enable:
-                cluster_index_name = _cluster_target_name(table)
-                if cluster_index_name is not None:
-                    cluster_columns = _cluster_column_names(table, cluster_index_name)
-                    if cluster_index_name in physical_index_names:
-                        # Resolved authoritatively from what actually happened in this
-                        # run's per-index loop (own name, captured, restored, or a
-                        # skip-equivalent) -- more precise than re-deriving from the
-                        # now-stale existing_indexes snapshot, since e.g. a
-                        # just-restored index wouldn't appear in it.
-                        physical_cluster_name = physical_index_names[cluster_index_name]
-                    else:
-                        # Primary-key-based cluster target: never entered the per-index
-                        # loop, so resolve it the same way the standalone `indexes
-                        # cluster` command does.
-                        physical_cluster_name = _resolve_physical_cluster_name(
-                            existing_indexes,
-                            cluster_index_name,
-                            cluster_columns,
-                        )
-                    if not clustering_supported or not cluster:
-                        results.append(
-                            IndexManagementResult(
-                                operation="cluster",
-                                table_name=table.table_name,
-                                category=table.category,
-                                schema_tag=table.schema_tag,
-                                index_name=physical_cluster_name,
-                                column_names=cluster_columns,
-                                unique=False,
-                                clustered=True,
-                                enable=enable,
-                                status=Status.SKIPPED,
-                                detail=(
-                                    f"cluster metadata present but unsupported on {backend.name}"
-                                    if not clustering_supported
-                                    else "clustering skipped (run 'indexes cluster' to apply)"
-                                ),
-                            )
-                        )
-                    else:
-                        if not dry_run:
-                            with table_engine.begin() as connection:
-                                backend.cluster_table(
-                                    connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
+                            else:
+                                # A different foreign index for this table/column-set is
+                                # already captured and awaiting restore. Leave this one
+                                # in place rather than dropping something we can no
+                                # longer track.
+                                outcome = _IndexOutcome(
+                                    status=Status.WARNING,
+                                    detail=dry_label(
+                                        dry_run,
+                                        planned=(
+                                            f"foreign index '{equivalent_name}' would be left in place: a different "
+                                            "foreign index for this table/column-set is already captured and "
+                                            "awaiting restore"
+                                        ),
+                                        applied=(
+                                            f"foreign index '{equivalent_name}' left in place: a different "
+                                            "foreign index for this table/column-set is already captured and "
+                                            "awaiting restore"
+                                        ),
+                                    ),
+                                    physical_name=equivalent_name,
                                 )
-                            clustered_now = True
-
-                        results.append(
-                            IndexManagementResult(
-                                operation="cluster",
-                                table_name=table.table_name,
-                                category=table.category,
-                                schema_tag=table.schema_tag,
-                                index_name=physical_cluster_name,
-                                column_names=cluster_columns,
-                                unique=False,
-                                clustered=True,
-                                enable=enable,
-                                status=dry_status(dry_run),
-                                detail=dry_label(dry_run, "table would be clustered using ORM-defined metadata", "table clustered using ORM-defined metadata"),
-                            )
+                        else:
+                            conflict = _find_shape_conflict(existing_indexes, column_names, unique)
+                            if conflict is not None:
+                                conflict_name = str(conflict["name"])
+                                outcome = _IndexOutcome(
+                                    status=Status.WARNING,
+                                    detail=dry_label(
+                                        dry_run,
+                                        planned=f"foreign index '{conflict_name}' {_describe_shape_conflict(conflict)}; would be left in place",
+                                        applied=f"foreign index '{conflict_name}' {_describe_shape_conflict(conflict)}; left in place",
+                                    ),
+                                    physical_name=conflict_name,
+                                )
+                            else:
+                                outcome = _IndexOutcome(
+                                    status=Status.SKIPPED,
+                                    detail="metadata-defined index already absent (skipped)",
+                                    physical_name=index_name,
+                                )
+                    elif not dry_run:
+                        backend.drop_index_if_exists(connection, index_name, schema_tag=table.schema_tag)
+                        # outcome stays default: applied / "metadata-defined index dropped"
+                    # dry-run, existed_before_drop True: outcome stays default ("would be dropped")
+                else:
+                    if not dry_run:
+                        restored_name = _restore_captured_index(
+                            connection,
+                            table_name=table.table_name, db_schema=db_schema,
+                            column_names=column_names, unique=unique,
                         )
+                    else:
+                        restored_name, _, _ = _peek_captured_index(
+                            connection,
+                            table_name=table.table_name, db_schema=db_schema,
+                            column_names=column_names, unique=unique,
+                        )
+                    if restored_name is not None:
+                        if not dry_run:
+                            created_any = True
+                        outcome = _IndexOutcome(
+                            status=dry_status(dry_run, Status.RESTORED),
+                            detail=dry_label(
+                                dry_run,
+                                planned=f"foreign index '{restored_name}' would be restored from bulk-load capture",
+                                applied=f"foreign index '{restored_name}' restored from bulk-load capture",
+                            ),
+                            physical_name=restored_name,
+                        )
+                    else:
+                        equivalent_name = _find_equivalent_index(existing_indexes, column_names, unique)
+                        if equivalent_name is not None:
+                            outcome = _IndexOutcome(
+                                status=Status.SKIPPED,
+                                detail=dry_label(
+                                    dry_run,
+                                    planned=f"equivalent foreign index '{equivalent_name}' already provides this coverage (would skip creation)",
+                                    applied=f"equivalent foreign index '{equivalent_name}' already provides this coverage (skipped)",
+                                ),
+                                physical_name=equivalent_name,
+                            )
+                        elif not dry_run:
+                            savepoint = connection.begin_nested()
+                            try:
+                                schema_index.create(bind=connection, checkfirst=True)
+                            except DBAPIError as exc:
+                                savepoint.rollback()
+                                if "already exists" not in str(exc.orig).lower():
+                                    raise
+                                outcome = _IndexOutcome(
+                                    status=Status.SKIPPED,
+                                    detail="metadata-defined index already exists (skipped)",
+                                    physical_name=index_name,
+                                )
+                            else:
+                                savepoint.commit()
+                                created_any = True
+                                # outcome stays default: applied / "metadata-defined index created"
+                        # dry-run, no restore, no equivalent: outcome stays default ("would be created")
 
-            if not dry_run and (created_any or clustered_now):
-                with table_engine.connect() as connection:
-                    backend.analyze_table(connection, table.table_name, schema_tag=table.schema_tag)
-                    connection.commit()
+            physical_name = outcome.physical_name
+            physical_index_names[index_name] = physical_name
+            results.append(
+                IndexManagementResult(
+                    operation="index",
+                    table_name=table.table_name,
+                    category=table.category,
+                    schema_tag=table.schema_tag,
+                    index_name=physical_name,
+                    column_names=column_names,
+                    unique=unique,
+                    clustered=metadata_index.info.get(OMOP_CLUSTER_INDEX_INFO_KEY) is True,
+                    enable=enable,
+                    status=outcome.status,
+                    detail=outcome.detail,
+                )
+            )
+
+        # Clustering for perfomance is a separate operation from index creation
+        if enable:
+            cluster_index_name = _cluster_target_name(table)
+            if cluster_index_name is not None:
+                cluster_columns = _cluster_column_names(table, cluster_index_name)
+                if cluster_index_name in physical_index_names:
+                    # Resolved authoritatively from what actually happened in this
+                    # run's per-index loop (own name, captured, restored, or a
+                    # skip-equivalent) -- more precise than re-deriving from the
+                    # now-stale existing_indexes snapshot, since e.g. a
+                    # just-restored index wouldn't appear in it.
+                    physical_cluster_name = physical_index_names[cluster_index_name]
+                else:
+                    # Primary-key-based cluster target: never entered the per-index
+                    # loop, so resolve it the same way the standalone `indexes
+                    # cluster` command does.
+                    physical_cluster_name = _resolve_physical_cluster_name(
+                        existing_indexes,
+                        cluster_index_name,
+                        cluster_columns,
+                    )
+                if not clustering_supported or not cluster:
+                    results.append(
+                        IndexManagementResult(
+                            operation="cluster",
+                            table_name=table.table_name,
+                            category=table.category,
+                            schema_tag=table.schema_tag,
+                            index_name=physical_cluster_name,
+                            column_names=cluster_columns,
+                            unique=False,
+                            clustered=True,
+                            enable=enable,
+                            status=Status.SKIPPED,
+                            detail=(
+                                f"cluster metadata present but unsupported on {backend.name}"
+                                if not clustering_supported
+                                else "clustering skipped (run 'indexes cluster' to apply)"
+                            ),
+                        )
+                    )
+                else:
+                    if not dry_run:
+                        with table_engine.begin() as connection:
+                            backend.cluster_table(
+                                connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
+                            )
+                        clustered_now = True
+
+                    results.append(
+                        IndexManagementResult(
+                            operation="cluster",
+                            table_name=table.table_name,
+                            category=table.category,
+                            schema_tag=table.schema_tag,
+                            index_name=physical_cluster_name,
+                            column_names=cluster_columns,
+                            unique=False,
+                            clustered=True,
+                            enable=enable,
+                            status=dry_status(dry_run),
+                            detail=dry_label(dry_run, "table would be clustered using ORM-defined metadata", "table clustered using ORM-defined metadata"),
+                        )
+                    )
+
+        if not dry_run and (created_any or clustered_now):
+            with table_engine.connect() as connection:
+                backend.analyze_table(connection, table.table_name, schema_tag=table.schema_tag)
+                connection.commit()
 
     return results
 
@@ -1036,7 +1022,7 @@ def disable_indexes_command(
 ) -> None:
     """Drop all ORM-defined secondary indexes from the target database. Useful before bulk data loads."""
     with console.status("Managing metadata-defined indexes..."):
-        results = manage_indexes(
+        results = _manage_indexes(
             engine,
             vocab_engine=vocab_engine,
             enable=False,
@@ -1074,7 +1060,7 @@ def enable_indexes_command(
     separate step once you've confirmed sufficient disk headroom for large vocabulary tables.
     """
     with console.status("Managing metadata-defined indexes..."):
-        results = manage_indexes(
+        results = _manage_indexes(
             engine,
             vocab_engine=vocab_engine,
             enable=True,
@@ -1109,6 +1095,11 @@ def cluster_tables_command(
     Run this after 'indexes enable' once you have confirmed sufficient disk headroom.
     On Docker, check Docker Desktop → Resources → Virtual Disk Limit before running on
     vocabulary tables (concept_ancestor alone needs ~5 GB free).
+
+    Notes
+    -----
+    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
+    of schema drift between the engine's creation and this command's execution.
     """
     backends_by_engine = {
         candidate_engine: resolve_backend(candidate_engine)
@@ -1121,68 +1112,50 @@ def cluster_tables_command(
     selected_tables = select_omop_tables(vocabulary_included=vocabulary_included)
     results: list[IndexManagementResult] = []
 
-    with ExitStack() as guard_stack:
+    for table in selected_tables:
+        table_engine = conn.resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
+        backend = backends_by_engine[table_engine]
+        table_schema = physical_schema_of(table_engine, schema_tag=table.schema_tag)
+        inspector = sa.inspect(table_engine)
+        if not inspector.has_table(table.table_name, schema=table_schema):
+            continue
+
+        cluster_index_name = _cluster_target_name(table)
+        if cluster_index_name is None:
+            continue
+
+        cluster_columns = _cluster_column_names(table, cluster_index_name)
+        existing_indexes = inspector.get_indexes(table.table_name, schema=table_schema)
+        physical_cluster_name = _resolve_physical_cluster_name(
+            existing_indexes,
+            cluster_index_name,
+            cluster_columns,
+        )
+
         if not dry_run:
-            tables_by_engine_and_schema_tag: dict[sa.Engine, dict[str, list[sa.Table]]] = {}
-            for table in selected_tables:
-                table_engine = conn.resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
-                tables_by_engine_and_schema_tag.setdefault(table_engine, {}).setdefault(
-                    table.schema_tag, []
-                ).append(table.table)
-            # One provenance guard per (engine, schema_tag)
-            # Count only known at untime: ExitStack defers every write until the block below succeeds.
-            for table_engine, tables_by_schema_tag in tables_by_engine_and_schema_tag.items():
-                guard_connection = guard_stack.enter_context(table_engine.begin())
-                for schema_tag in tables_by_schema_tag:
-                    # CLUSTER physically rewrites the table's heap: guard against a drifted schema the same as any other DDL.
-                    guard_stack.enter_context(
-                        guard_schema_provenance_for(guard_connection, conn.resolved, schema_tag=schema_tag)
-                    )
-
-        for table in selected_tables:
-            table_engine = conn.resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
-            backend = backends_by_engine[table_engine]
-            table_schema = physical_schema_of(table_engine, schema_tag=table.schema_tag)
-            inspector = sa.inspect(table_engine)
-            if not inspector.has_table(table.table_name, schema=table_schema):
-                continue
-
-            cluster_index_name = _cluster_target_name(table)
-            if cluster_index_name is None:
-                continue
-
-            cluster_columns = _cluster_column_names(table, cluster_index_name)
-            existing_indexes = inspector.get_indexes(table.table_name, schema=table_schema)
-            physical_cluster_name = _resolve_physical_cluster_name(
-                existing_indexes,
-                cluster_index_name,
-                cluster_columns,
-            )
-
-            if not dry_run:
-                with table_engine.begin() as connection:
-                    backend.cluster_table(
-                        connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
-                    )
-                with table_engine.connect() as connection:
-                    backend.analyze_table(connection, table.table_name, schema_tag=table.schema_tag)
-                    connection.commit()
-
-            results.append(
-                IndexManagementResult(
-                    operation="cluster",
-                    table_name=table.table_name,
-                    category=table.category,
-                    schema_tag=table.schema_tag,
-                    index_name=physical_cluster_name,
-                    column_names=cluster_columns,
-                    unique=False,
-                    clustered=True,
-                    enable=True,
-                    status=dry_status(dry_run),
-                    detail=dry_label(dry_run, "table would be clustered and analyzed", "table clustered and analyzed"),
+            with table_engine.begin() as connection:
+                backend.cluster_table(
+                    connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
                 )
+            with table_engine.connect() as connection:
+                backend.analyze_table(connection, table.table_name, schema_tag=table.schema_tag)
+                connection.commit()
+
+        results.append(
+            IndexManagementResult(
+                operation="cluster",
+                table_name=table.table_name,
+                category=table.category,
+                schema_tag=table.schema_tag,
+                index_name=physical_cluster_name,
+                column_names=cluster_columns,
+                unique=False,
+                clustered=True,
+                enable=True,
+                status=dry_status(dry_run),
+                detail=dry_label(dry_run, "table would be clustered and analyzed", "table clustered and analyzed"),
             )
+        )
 
     console.print(render_index_results(results))
     console.print(render_index_summary(results, dry_run=dry_run))

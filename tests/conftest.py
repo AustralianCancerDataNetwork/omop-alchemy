@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from typing import Any, Dict, Iterator, Tuple
 
 from omop_alchemy.config import OmopAlchemyConfig
-from omop_alchemy.maintenance.cli_tables import truncate_tables
+from omop_alchemy.maintenance.cli_tables import _truncate_tables
 from omop_alchemy.maintenance.cli_vocab import _load_vocab_model_csv
 from omop_alchemy.maintenance.tables import select_maintenance_tables
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Observation_Period, Person
@@ -437,7 +437,7 @@ def pg_session(pg_engine, pg_unscoped_resolved, cleanup_after_test):
         )
 
     def _clear_managed_tables() -> None:
-        truncate_tables(
+        _truncate_tables(
             pg_engine, vocab_engine=pg_engine,
             table_names=tuple(table.table_name for table in select_maintenance_tables()),
             cascade=True, resolved=pg_unscoped_resolved,

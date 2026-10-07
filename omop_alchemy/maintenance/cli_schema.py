@@ -30,7 +30,7 @@ from .cli_schema_summary import (
 from .cli_schema_tables import (
     TableCreationResult as TableCreationResult,
     collect_missing_tables as collect_missing_tables,
-    create_missing_tables,
+    _create_missing_tables,
 )
 from .ui import (
     console,
@@ -161,7 +161,7 @@ def create_missing_tables_command(
 ) -> None:
     """Create missing ORM-managed OMOP tables from metadata."""
     with console.status("Creating missing tables..."):
-        results = create_missing_tables(
+        results = _create_missing_tables(
             engine,
             vocab_engine=vocab_engine,
             vocabulary_included=vocabulary_included,

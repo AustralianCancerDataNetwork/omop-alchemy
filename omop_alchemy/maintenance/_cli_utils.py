@@ -116,6 +116,8 @@ class _ConnContext:
 
 
 # ── Decorator ─────────────────────────────────────────────────────────────────
+_NON_WRITING_MODES = frozenset({"dry-run", "inspect"})
+
 
 def omop_command(
     command_name: str,
@@ -155,11 +157,15 @@ def omop_command(
             _database = kwargs.pop("database", None)
             _vocab = kwargs.get("vocabulary_included", vocabulary_included)
             _mode = mode_label if mode_label is not None else ("dry-run" if _dry_run else "apply")
+            _register_claims = _mode not in _NON_WRITING_MODES
             try:
                 from ..config import create_cdm_engine, get_cdm_context
                 pkg_config, resolved = get_cdm_context(_database)
-                engine = create_cdm_engine(resolved)
-                vocab_engine = resolved.vocab_engine_for(engine) if wants_vocab else None
+                engine = create_cdm_engine(resolved, register_claims=_register_claims)
+                vocab_engine = (
+                    resolved.vocab_engine_for(engine, register_claims=_register_claims)
+                    if wants_vocab else None
+                )
                 conn = _ConnContext(
                     resolved=resolved,
                     resource_name=_database or pkg_config.cdm_db,

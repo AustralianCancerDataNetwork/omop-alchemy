@@ -141,20 +141,32 @@ def vocabulary_identity(resolved: ResolvedCDMDatabase) -> str | None:
     return f"{vocab_target.safe_url}|{resolved.vocab_schema}"
 
 
-def create_cdm_engine(resolved: ResolvedCDMDatabase) -> sa.Engine:
+def create_cdm_engine(resolved: ResolvedCDMDatabase, *, register_claims: bool = True) -> sa.Engine:
     """Create the CDM engine, reserve its maintenance schema, and register
-    its vocabulary cache identity."""
+    its vocabulary cache identity.
 
-    maintenace_schema_claim = SchemaClaim(
-        schema_tag=MAINTENANCE_SCHEMA, 
-        physical_schema=MAINTENANCE_SCHEMA, 
+    Parameters
+    ----------
+    resolved : ResolvedCDMDatabase
+    register_claims : bool, optional
+        Forwarded to ``create_engine()``. False only checks the claims
+        without writing them. 
+        - For read-only access: False. Does not require CREATE privilege
+        - For read/write access: True. Requires CREATE privilege, and will
+        raise if the staging schema is already claimed by another package.
+    """
+
+    maintenance_schema_claim = SchemaClaim(
+        schema_tag=MAINTENANCE_SCHEMA,
+        physical_schema=MAINTENANCE_SCHEMA,
         reserved=True
     )
     engine = resolved.create_engine(
         schema_claims=[
-            maintenace_schema_claim,
+            maintenance_schema_claim,
             staging_schema_claim(),
-        ]
+        ],
+        register_claims=register_claims,
     )
 
     # Imported here rather than at module scope: toolkit.core.concepts reaches

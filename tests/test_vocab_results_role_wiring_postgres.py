@@ -35,7 +35,7 @@ from oa_configurator.testing import (
 from omop_alchemy.cdm.model.clinical import Observation, Person
 from omop_alchemy.cdm.model.derived import Cohort
 from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Class, Domain, Vocabulary
-from omop_alchemy.maintenance.cli_schema_tables import create_missing_tables
+from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -100,7 +100,7 @@ def _bootstrap_vocab(engine: sa.Engine, vocab_schema: str) -> None:
 
 
 def test_tables_land_in_the_schema_their_role_declares(three_schema: ScopedTestSchema) -> None:
-    create_missing_tables(
+    _create_missing_tables(
         three_schema.engine, vocab_engine=three_schema.engine, vocabulary_included=True,
         resolved=three_schema.resolved,
     )
@@ -121,7 +121,7 @@ def test_tables_land_in_the_schema_their_role_declares(three_schema: ScopedTestS
 def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
     three_schema: ScopedTestSchema,
 ) -> None:
-    create_missing_tables(
+    _create_missing_tables(
         three_schema.engine, vocab_engine=three_schema.engine, vocabulary_included=True,
         resolved=three_schema.resolved,
     )
@@ -175,7 +175,7 @@ def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
 def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_database(
     pg_db, pg_engine: sa.Engine, cleanup_after_test
 ) -> None:
-    """create_missing_tables() used to call ensure_schema() only for the
+    """_create_missing_tables() used to call ensure_schema() only for the
     primary schema; a fresh database needed vocab/results schemas created too.
     """
     run_id = uuid.uuid4().hex[:8]
@@ -197,7 +197,7 @@ def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_data
     )
     engine = resolved.create_engine()
 
-    create_missing_tables(
+    _create_missing_tables(
         engine, vocab_engine=engine,
         vocabulary_included=True,
         resolved=resolved,

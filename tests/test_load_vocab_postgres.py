@@ -18,6 +18,7 @@ from oa_configurator.testing import resolve_with_role_schemas
 
 from omop_alchemy.backends.postgres import PostgresBackend
 from omop_alchemy.cdm.model.vocabulary import Concept
+from omop_alchemy.config import create_cdm_engine
 from omop_alchemy.maintenance.cli_vocab import (
     _load_vocab_model_csv,
     load_vocab_source,
@@ -25,6 +26,20 @@ from omop_alchemy.maintenance.cli_vocab import (
 from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
+
+
+@pytest.fixture
+def pg_engine(pg_unscoped_resolved):
+    """
+    Notes
+    -----
+    Overrides conftest's bare-engine pg_engine for this module: every test
+    here loads vocabulary data via load_vocab_source(), which (like every
+    real CLI command) expects to run on an engine built through
+    create_cdm_engine()."""
+    engine = create_cdm_engine(pg_unscoped_resolved)
+    yield engine
+    engine.dispose()
 
 
 def _copy_fixture_source(base_dir: Path) -> Path:
@@ -279,7 +294,7 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path):
         conn.commit()
 
     # A single-schema deployment: vocab/results fall back to the CDM schema.
-    scoped_engine = resolve_with_role_schemas(pg_resolved, {Role.PRIMARY: schema}).create_engine()
+    scoped_engine = create_cdm_engine(resolve_with_role_schemas(pg_resolved, {Role.PRIMARY: schema}))
 
     try:
         report = load_vocab_source(

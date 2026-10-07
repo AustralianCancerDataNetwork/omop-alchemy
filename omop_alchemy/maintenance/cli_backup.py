@@ -10,7 +10,7 @@ import subprocess
 
 import sqlalchemy as sa
 import typer
-from oa_configurator import claimed_schema_tags, physical_schema_of
+from oa_configurator import ResolvedCDMDatabase
 
 from ..backends import (
     resolve_backend, 
@@ -74,30 +74,22 @@ def _vocab_sibling_path(primary_path: str, backup_format: BackupFormat) -> Path:
     return primary.with_name(f"{stem}-vocab{suffix}")
 
 
-def _engine_schemas(engine: sa.Engine) -> list[str]:
-    """Physical schema names engine's own schema_translate_map has claimed, sorted."""
-    return sorted(
-        {
-            physical
-            for tag in claimed_schema_tags(engine)
-            if (physical := physical_schema_of(engine, schema_tag=tag)) is not None
-        }
-    )
-
-
 def _single_connection_backup(
     engine: sa.Engine,
+    resolved: ResolvedCDMDatabase,
     *,
     output_path: str | Path | None,
     backup_format: BackupFormat,
     dry_run: bool,
 ) -> BackupResult:
-    """Back up every schema engine's own schema_translate_map has claimed, in one pg_dump invocation."""
+    """Back up every schema this database entry claims on engine's own
+    physical server, in one pg_dump invocation."""
     backend = resolve_backend(engine)
     require_backend_support(backend, "prepare_backup", "Database backup")
     resolved_output_path = Path(output_path) if output_path is not None else _default_output_path(backup_format)
     resolved_output_path = resolved_output_path.expanduser().resolve()
-    schemas = _engine_schemas(engine)
+    with engine.connect() as connection:
+        schemas = sorted(resolved.occupied_schemas(connection))
 
     tool_path, command, env, database_name = backend.prepare_backup(
         engine,
@@ -136,18 +128,21 @@ def _single_connection_backup(
 
 def _single_connection_restore(
     engine: sa.Engine,
+    resolved: ResolvedCDMDatabase,
     *,
     input_path: str | Path,
     backup_format: BackupFormat,
     dry_run: bool,
 ) -> BackupResult:
-    """Restore every schema engine's own schema_translate_map has claimed, from one backup artifact."""
+    """Restore every schema this database entry claims on engine's own
+    physical server, from one backup artifact."""
     backend = resolve_backend(engine)
     require_backend_support(backend, "prepare_restore", "Database restore")
     resolved_input_path = Path(input_path).expanduser().resolve()
     if not resolved_input_path.exists():
         raise RuntimeError(f"Backup artifact not found: {resolved_input_path}")
-    schemas = _engine_schemas(engine)
+    with engine.connect() as connection:
+        schemas = sorted(resolved.occupied_schemas(connection))
 
     tool_path, command, env, database_name = backend.prepare_restore(
         engine,
@@ -185,6 +180,7 @@ def _single_connection_restore(
 
 def create_database_backup(
     engine: sa.Engine,
+    resolved: ResolvedCDMDatabase,
     *,
     vocab_engine: sa.Engine,
     output_path: str | Path | None = None,
@@ -192,7 +188,7 @@ def create_database_backup(
     include_vocab: bool = False,
     dry_run: bool = False,
 ) -> list[BackupResult]:
-    """Back up every schema engine has claimed. Runs pg_dump unless dry_run is True.
+    """Back up every schema this database entry claims. Runs pg_dump unless dry_run is True.
 
     Parameters
     ----------
@@ -205,12 +201,16 @@ def create_database_backup(
         Also back up the vocabulary connection, in a second artifact
         alongside the first.
     """
-    results = [_single_connection_backup(engine, output_path=output_path, backup_format=backup_format, dry_run=dry_run)]
+    results = [
+        _single_connection_backup(engine, resolved, output_path=output_path, backup_format=backup_format, dry_run=dry_run)
+    ]
 
     if include_vocab and vocab_engine is not engine:
         vocab_output_path = _vocab_sibling_path(results[0].file_path, backup_format)
         results.append(
-            _single_connection_backup(vocab_engine, output_path=vocab_output_path, backup_format=backup_format, dry_run=dry_run)
+            _single_connection_backup(
+                vocab_engine, resolved, output_path=vocab_output_path, backup_format=backup_format, dry_run=dry_run
+            )
         )
 
     return results
@@ -218,6 +218,7 @@ def create_database_backup(
 
 def restore_database_backup(
     engine: sa.Engine,
+    resolved: ResolvedCDMDatabase,
     *,
     vocab_engine: sa.Engine,
     input_path: str | Path,
@@ -225,7 +226,8 @@ def restore_database_backup(
     vocab_input_path: str | Path | None = None,
     dry_run: bool = False,
 ) -> list[BackupResult]:
-    """Restore every schema engine has claimed from input_path. Runs the restore unless dry_run is True.
+    """Restore every schema this database entry claims from input_path.
+    Runs the restore unless dry_run is True.
 
     Parameters
     ----------
@@ -238,7 +240,9 @@ def restore_database_backup(
         valid when the vocabulary lives on a connection genuinely separate
         from engine's own.
     """
-    results = [_single_connection_restore(engine, input_path=input_path, backup_format=backup_format, dry_run=dry_run)]
+    results = [
+        _single_connection_restore(engine, resolved, input_path=input_path, backup_format=backup_format, dry_run=dry_run)
+    ]
 
     if vocab_input_path is not None:
         if vocab_engine is engine:
@@ -247,7 +251,9 @@ def restore_database_backup(
                 "separate connection; omit vocab_input_path."
             )
         results.append(
-            _single_connection_restore(vocab_engine, input_path=vocab_input_path, backup_format=backup_format, dry_run=dry_run)
+            _single_connection_restore(
+                vocab_engine, resolved, input_path=vocab_input_path, backup_format=backup_format, dry_run=dry_run
+            )
         )
 
     return results
@@ -286,6 +292,7 @@ def backup_database_command(
     with console.status("Creating restore-ready database backup..."):
         results = create_database_backup(
             engine,
+            conn.resolved,
             vocab_engine=vocab_engine,
             output_path=output_path,
             backup_format=backup_format,
@@ -319,6 +326,7 @@ def restore_database_command(
     with console.status("Restoring database backup..."):
         results = restore_database_backup(
             engine,
+            conn.resolved,
             vocab_engine=vocab_engine,
             input_path=input_path,
             backup_format=backup_format,

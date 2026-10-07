@@ -17,7 +17,7 @@ from omop_alchemy.maintenance.cli_fulltext import (
     FullTextAction,
     FullTextResult,
     drop_fulltext_columns,
-    install_fulltext_columns,
+    _install_fulltext_columns,
     populate_fulltext_columns,
 )
 
@@ -87,15 +87,14 @@ class _FakeEngine:
         return _FakeBegin(self.connection)
 
 
-def test_install_fulltext_columns_builds_postgresql_ddl_without_touching_orm_metadata(fresh_resolved):
+def test_install_fulltext_columns_builds_postgresql_ddl_without_touching_orm_metadata():
     """Install emits expected PostgreSQL DDL and leaves the ORM tables unchanged."""
     engine = _FakeEngine()
 
-    results = install_fulltext_columns(
+    results = _install_fulltext_columns(
         engine,  # type: ignore[arg-type]
         create_indexes=True,
         fastupdate=True,
-        resolved=fresh_resolved,
     )
 
     assert [result.action for result in results] == [FullTextAction.INSTALL, FullTextAction.INSTALL]
@@ -153,23 +152,21 @@ def test_drop_fulltext_columns_drops_schema_objects():
 @pytest.mark.parametrize(
     "fn_name",
     [
-        "install_fulltext_columns",
+        "_install_fulltext_columns",
         "populate_fulltext_columns",
         "drop_fulltext_columns",
     ],
 )
-def test_fulltext_management_requires_postgresql(fresh_engine, fresh_resolved, fn_name):
+def test_fulltext_management_requires_postgresql(fresh_engine, fn_name):
     """Fulltext management APIs reject non-PostgreSQL engines."""
     engine = fresh_engine
     fn = {
-        "install_fulltext_columns": install_fulltext_columns,
+        "_install_fulltext_columns": _install_fulltext_columns,
         "populate_fulltext_columns": populate_fulltext_columns,
         "drop_fulltext_columns": drop_fulltext_columns,
     }[fn_name]
-    kwargs = {"resolved": fresh_resolved} if fn_name == "install_fulltext_columns" else {}
-
     with pytest.raises(RuntimeError) as exc_info:
-        fn(engine, **kwargs)
+        fn(engine)
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
@@ -182,7 +179,7 @@ def test_fulltext_install_cli_passes_options(monkeypatch, pg_db):
     Needs a genuinely reachable connection: create_cdm_engine() registers/
     checks schema claims against the real connection as it builds its
     engine, so a fake "localhost" one fails there before this test's
-    mocked-out install_fulltext_columns is ever reached.
+    mocked-out _install_fulltext_columns is ever reached.
 
     test_only=False: OmopAlchemyConfig.cdm_db requires is_test=False, and
     Resolver.resolve_package_config() enforces that it matches the
@@ -233,7 +230,7 @@ def test_fulltext_install_cli_passes_options(monkeypatch, pg_db):
         )
 
     monkeypatch.setattr(
-        "omop_alchemy.maintenance.cli_fulltext.install_fulltext_columns",
+        "omop_alchemy.maintenance.cli_fulltext._install_fulltext_columns",
         fake_install_fulltext_columns,
     )
 

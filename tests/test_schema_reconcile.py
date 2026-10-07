@@ -8,8 +8,8 @@ from oa_configurator import qualified, physical_schema_of
 from oa_configurator.testing import DIALECT_PARAMS, isolated_test_schema, scoped_test_schema
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import omop_index_name
-from omop_alchemy.maintenance.cli_indexes import manage_indexes
-from omop_alchemy.maintenance.cli_schema import create_missing_tables
+from omop_alchemy.maintenance.cli_indexes import _manage_indexes
+from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.cli_schema_reconcile import is_blocking_issue, reconcile_schema
 
 PERSON_GENDER_INDEX = omop_index_name("person", "gender_concept_id")
@@ -25,7 +25,7 @@ class _ReconcileEngine(NamedTuple):
 def reconcile_engine(request) -> Iterator[_ReconcileEngine]:
     """Every OMOP table created, indexed, and clustered, on both Postgres and SQLite.
 
-    manage_indexes(enable=True) is required on Postgres: create_missing_tables()
+    _manage_indexes(enable=True) is required on Postgres: _create_missing_tables()
     alone creates indexes but never physically CLUSTERs them, so a fresh
     database would otherwise report false cluster drift. It's a harmless
     no-op for clustering on SQLite.
@@ -39,14 +39,14 @@ def reconcile_engine(request) -> Iterator[_ReconcileEngine]:
     if request.param == "postgresql":
         pg_db = request.getfixturevalue("pg_db")
         with scoped_test_schema(pg_db.resolved, prefix="reconcile") as scoped:
-            create_missing_tables(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
-            manage_indexes(scoped.engine, vocab_engine=scoped.engine, enable=True, resolved=scoped.resolved)
+            _create_missing_tables(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
+            _manage_indexes(scoped.engine, vocab_engine=scoped.engine, enable=True, resolved=scoped.resolved)
             yield _ReconcileEngine(scoped.engine, scoped.resolved)
             return
     engine = request.getfixturevalue("fresh_engine")
     resolved = request.getfixturevalue("fresh_resolved")
-    create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
-    manage_indexes(engine, vocab_engine=engine, enable=True, resolved=resolved)
+    _create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
+    _manage_indexes(engine, vocab_engine=engine, enable=True, resolved=resolved)
     yield _ReconcileEngine(engine, resolved)
 
 
@@ -61,7 +61,7 @@ def fresh_reconcile_engine(fresh_engine, fresh_resolved) -> _ReconcileEngine:
     operation). Parametrizing these onto Postgres would need a real CLUSTER
     call, not a mock swap, so they stay a separate, SQLite-specific fixture.
     """
-    create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
+    _create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
     return _ReconcileEngine(fresh_engine, fresh_resolved)
 
 
@@ -131,7 +131,7 @@ def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(p
         # vocabulary_included defaults to True: person's gender_concept_id FK
         # targets a vocab table, so excluding vocab here would leave that FK
         # unresolved and person itself blocked from creation.
-        create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
+        _create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
         with engine.begin() as connection:
             connection.exec_driver_sql(f'ALTER TABLE "{scoped.schemas[Role.PRIMARY]}".person SET SCHEMA "{schema_b}"')
 
@@ -163,8 +163,8 @@ def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_sch
         pg_db.resolved, prefix="reconcile_three", split_roles=[Role.VOCAB, Role.RESULTS]
     ) as scoped:
         engine, resolved = scoped.engine, scoped.resolved
-        create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
-        manage_indexes(engine, vocab_engine=engine, enable=True, vocabulary_included=True, resolved=resolved)
+        _create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
+        _manage_indexes(engine, vocab_engine=engine, enable=True, vocabulary_included=True, resolved=resolved)
 
         report = reconcile_schema(engine, vocab_engine=engine, resolved=resolved, vocabulary_included=True)
 
@@ -188,7 +188,7 @@ def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db):
     """
     with scoped_test_schema(pg_db.resolved, prefix="reconcile_functional_index") as scoped:
         engine, resolved = scoped.engine, scoped.resolved
-        create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
+        _create_missing_tables(engine, vocab_engine=engine, resolved=resolved)
 
         def _index_issues(report):
             return [
@@ -234,7 +234,7 @@ def test_is_blocking_issue_excludes_renamed_only():
 def test_reconcile_schema_cluster_check_reports_renamed_for_foreign_cluster_index(fresh_reconcile_engine, monkeypatch):
     """A table physically clustered on a foreign-named equivalent of the ORM's
     cluster index (e.g. captured/restored under its original name by
-    manage_indexes()) must report a 'renamed' cluster issue, not 'mismatch'."""
+    _manage_indexes()) must report a 'renamed' cluster issue, not 'mismatch'."""
     engine, resolved = fresh_reconcile_engine
     with engine.begin() as connection:
         connection.exec_driver_sql(f"DROP INDEX {EPISODE_PERSON_INDEX}")

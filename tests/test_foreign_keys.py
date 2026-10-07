@@ -3,7 +3,7 @@ from typer.testing import CliRunner
 
 from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance._cli_utils import Status
-from omop_alchemy.maintenance.cli_schema import create_missing_tables
+from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.cli_foreign_keys import (
     ForeignKeyConstraintViolation,
     validate_foreign_key_constraints,
@@ -18,7 +18,7 @@ runner = CliRunner()
 
 def test_collect_fk_info_finds_participating_tables(fresh_engine, fresh_resolved):
     """Test _collect_fk_info finds participating tables."""
-    create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
+    _create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
 
     targets = {
         target.table_name: target
@@ -31,7 +31,7 @@ def test_collect_fk_info_finds_participating_tables(fresh_engine, fresh_resolved
 
 def test_manage_foreign_key_triggers_supports_dry_run(fresh_engine, fresh_resolved):
     """Test manage foreign key triggers supports dry run."""
-    create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
+    _create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
 
     with pytest.raises(RuntimeError) as exc_info:
         manage_foreign_key_triggers(
@@ -46,7 +46,7 @@ def test_manage_foreign_key_triggers_supports_dry_run(fresh_engine, fresh_resolv
 
 def test_collect_foreign_key_trigger_status_is_safe_on_sqlite(fresh_engine, fresh_resolved):
     """Test collect foreign key trigger status is safe on sqlite."""
-    create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
+    _create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
 
     with pytest.raises(RuntimeError) as exc_info:
         collect_foreign_key_trigger_status(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
@@ -56,7 +56,7 @@ def test_collect_foreign_key_trigger_status_is_safe_on_sqlite(fresh_engine, fres
 
 def test_validate_foreign_key_constraints_is_safe_on_sqlite(fresh_engine, fresh_resolved):
     """Test validate foreign key constraints is safe on sqlite."""
-    create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
+    _create_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
 
     with pytest.raises(RuntimeError) as exc_info:
         validate_foreign_key_constraints(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)

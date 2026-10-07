@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-from contextlib import ExitStack
 from dataclasses import dataclass
 
 import sqlalchemy as sa
 
 from oa_configurator import (
     ResolvedCDMDatabase,
-    Role,
+    UnregisteredSchemaTagError,
+    claimed_schema_tags,
     declared_schema_tags,
-    ensure_schema,
-    guard_schema_provenance_for,
     physical_schema_of,
 )
 from orm_loader.helpers import Base
@@ -33,6 +31,24 @@ class TableCreationResult:
     model_name: str
     status: Status
     detail: str
+
+
+def _assert_tags_claimed(connection: sa.Connection, tables: list[sa.Table], *, context: str) -> None:
+    """Raise a clear error if any of tables' declared schema tags isn't
+    claimed on connection, instead of letting create_all() fail obscurely
+    against a schema that was never created.
+
+    context names the caller-specific situation (e.g. which connection's
+    tables are being checked), so the error names the actual call site
+    rather than hardcoding one caller's identity into a shared helper.
+    """
+    missing = declared_schema_tags(tables) - claimed_schema_tags(connection)
+    if missing:
+        raise UnregisteredSchemaTagError(
+            f"{context}: table(s) declare schema tag(s) {sorted(missing)} that "
+            "aren't claimed on this connection. Add them to create_cdm_engine()'s own "
+            "create_engine(schema_claims=[...]) call."
+        )
 
 
 def _table_dependencies(table: MaintenanceTable) -> tuple[str, ...]:
@@ -63,7 +79,7 @@ def collect_missing_tables(
     )
 
 
-def create_missing_tables(
+def _create_missing_tables(
     engine: sa.Engine,
     *,
     vocab_engine: sa.Engine,
@@ -83,16 +99,12 @@ def create_missing_tables(
         call, and ensures every non-primary role's schema exists in a
         split-engined deployment. A role whose connection is
         test_only=true no-ops the guard, at the guard's own discretion.
+
+    Notes
+    -----
+    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
+    of schema drift between the engine's creation and this command's execution.
     """
-    if not dry_run:
-        ensure_schema(engine, physical_schema_of(engine, schema_tag=Role.PRIMARY))
-        # create_all() would fail for a non-existing schema on a fresh database.
-        for schema_tag in declared_schema_tags(Base.metadata.tables.values()):
-            # Primary schema is already ensured above
-            if schema_tag == Role.PRIMARY.value:
-                continue
-            target_engine = resolved.route_for_schema_tag(schema_tag, vocab=vocab_engine, primary=engine)
-            ensure_schema(target_engine, physical_schema_of(target_engine, schema_tag=schema_tag))
     missing_tables = collect_missing_tables(
         engine,
         vocab_engine=vocab_engine,
@@ -138,13 +150,11 @@ def create_missing_tables(
             table for table in all_tables
             if resolved.route_for_schema_tag(table.schema, vocab=vocab_engine, primary=engine) is not vocab_engine  # ty: ignore[invalid-argument-type]
         ]
+
         if vocab_engine is engine:
             # One call: create_all's dependency sort and FK-deferral must see every table together.
-            with engine.begin() as connection, ExitStack() as guards:
-                for schema_tag in declared_schema_tags(all_tables):
-                    guards.enter_context(
-                        guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag)
-                    )
+            with engine.begin() as connection:
+                _assert_tags_claimed(connection, all_tables, context="_create_missing_tables()")
                 Base.metadata.create_all(
                     bind=connection, tables=all_tables, checkfirst=True
                 )
@@ -152,19 +162,18 @@ def create_missing_tables(
             # Split physical connections: a cross-boundary FK can't be created here at all;
             # that failure surfaces from create_all itself rather than being masked.
             if other_tables:
-                with engine.begin() as connection, ExitStack() as guards:
-                    for schema_tag in declared_schema_tags(other_tables):
-                        guards.enter_context(
-                            guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag)
-                        )
+                with engine.begin() as connection:
+                    _assert_tags_claimed(
+                        connection, other_tables, context="_create_missing_tables() (primary connection)"
+                    )
                     Base.metadata.create_all(
                         bind=connection, tables=other_tables, checkfirst=True
                     )
             if vocab_tables:
-                with (
-                    vocab_engine.begin() as vocab_connection,
-                    guard_schema_provenance_for(vocab_connection, resolved, schema_tag=Role.VOCAB),
-                ):
+                with vocab_engine.begin() as vocab_connection:
+                    _assert_tags_claimed(
+                        vocab_connection, vocab_tables, context="_create_missing_tables() (vocab connection)"
+                    )
                     Base.metadata.create_all(
                         bind=vocab_connection, tables=vocab_tables, checkfirst=True
                     )

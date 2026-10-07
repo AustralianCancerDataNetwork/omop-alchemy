@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from contextlib import ExitStack
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
@@ -10,11 +9,6 @@ from typing import cast
 import typer
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
-from oa_configurator import (
-    ResolvedCDMDatabase, 
-    guard_schema_provenance_for
-)
-
 from ..backends import backend_support_note as _backend_support_note
 from ..backends import resolve_backend, require_backend_support
 from ..backends.base import FullTextError
@@ -74,32 +68,26 @@ class FullTextResult:
 
 # ── Orchestrators ─────────────────────────────────────────────────────────────
 
-def install_fulltext_columns(
+def _install_fulltext_columns(
     engine: Engine,
     *,
     create_indexes: bool = True,
     fastupdate: bool = False,
     dry_run: bool = False,
-    resolved: ResolvedCDMDatabase,
 ) -> tuple[FullTextResult, ...]:
-    """Install tsvector sidecar columns (and optionally GIN indexes) on OMOP vocabulary tables."""
+    """Install tsvector sidecar columns (and optionally GIN indexes) on OMOP vocabulary tables.
+    Notes
+    -----
+    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
+    of schema drift between the engine's creation and this command's execution.
+    """
     backend = resolve_backend(engine)
     require_backend_support(backend, "install_fulltext_on_table", "Full-text search")
     targets = backend.fulltext_targets
 
     try:
         if not dry_run:
-            tables_by_schema_tag: dict[str, list[sa.Table]] = {}
-            for cfg in targets:
-                tag = _schema_tag_for_target(cfg.table_name)
-                tables_by_schema_tag.setdefault(tag, []).append(_FULLTEXT_TARGET_TABLES[cfg.table_name])
-            # One provenance guard per schema_tag (count only known at runtime); ExitStack defers every write until the block below succeeds.
-            with engine.begin() as connection, ExitStack() as guard_stack:
-                for schema_tag in tables_by_schema_tag:
-                    # A same-named column/index could already exist under a drifted schema, attached to an unrelated table.
-                    guard_stack.enter_context(
-                        guard_schema_provenance_for(connection, resolved, schema_tag=schema_tag)
-                    )
+            with engine.begin() as connection:
                 for cfg in targets:
                     backend.install_fulltext_on_table(
                         connection,
@@ -253,12 +241,11 @@ def install_fulltext_command(
 ) -> None:
     """Add tsvector sidecar columns to vocabulary tables and optionally create GIN indexes for fast full-text search."""
     with console.status("Managing PostgreSQL full-text sidecar columns..."):
-        results = install_fulltext_columns(
+        results = _install_fulltext_columns(
             engine,
             create_indexes=create_indexes,
             fastupdate=fastupdate,
             dry_run=dry_run,
-            resolved=conn.resolved,
         )
     console.print(render_fulltext_results(results))
     console.print(render_fulltext_summary(results, action="install", dry_run=dry_run))
