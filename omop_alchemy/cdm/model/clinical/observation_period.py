@@ -2,18 +2,15 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from datetime import date
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     role_fk,
-    cdm_table,
     CDMTableBase,
     required_concept_fk,
     merge_table_args,
     omop_index,
 )
 
-@cdm_table
-class Observation_Period(CDMTableBase, Base):
+class Observation_Period(CDMTableBase):
     __tablename__ = "observation_period"
     __table_args__ = merge_table_args(
         omop_index(__tablename__, "person_id", cluster=True),

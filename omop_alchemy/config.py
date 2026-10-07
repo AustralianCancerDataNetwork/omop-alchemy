@@ -16,6 +16,7 @@ from oa_configurator import (
 from orm_loader.backends import staging_schema_claim
 
 MAINTENANCE_SCHEMA: str = "omop_alchemy_maintenance"
+EXTENSION_SCHEMA: str = "extension"
 
 
 class OmopAlchemyConfig(PackageConfigBase):
@@ -112,6 +113,11 @@ def _maintenance_schema_claims() -> list[SchemaClaim]:
         SchemaClaim(
             schema_tag=MAINTENANCE_SCHEMA,
             physical_schema=MAINTENANCE_SCHEMA,
+            reserved=True,
+        ),
+        SchemaClaim(
+            schema_tag=EXTENSION_SCHEMA,
+            physical_schema=EXTENSION_SCHEMA,
             reserved=True,
         ),
         staging_schema_claim(),

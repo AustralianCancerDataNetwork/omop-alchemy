@@ -3,12 +3,10 @@ import sqlalchemy.orm as so
 from oa_configurator import Role
 from typing import Optional, TYPE_CHECKING
 from datetime import date
-from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
     role_fk,
     CDMTableBase,
-    cdm_table,
     optional_concept_fk,
     ReferenceContext,
     DomainValidationMixin,
@@ -21,8 +19,7 @@ if TYPE_CHECKING:
     from ..vocabulary import Concept
     from ..clinical import Person, PersonView
 
-@cdm_table
-class Death(CDMTableBase, Base):
+class Death(CDMTableBase):
     __tablename__ = "death"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

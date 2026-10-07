@@ -1,18 +1,15 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
     CDMTableBase,
-    cdm_table,
     merge_table_args,
     omop_index,
     role_fk,
 )
 
-@cdm_table
-class Fact_Relationship(CDMTableBase, Base):
+class Fact_Relationship(CDMTableBase):
     __tablename__ = "fact_relationship"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

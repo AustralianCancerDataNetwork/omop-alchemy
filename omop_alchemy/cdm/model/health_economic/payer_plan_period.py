@@ -3,18 +3,15 @@ import sqlalchemy.orm as so
 from oa_configurator import Role
 from typing import Optional
 from datetime import date
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     role_fk,
-    cdm_table,
     CDMTableBase,
     optional_concept_fk,
     merge_table_args,
     omop_index,
 )
 
-@cdm_table
-class Payer_Plan_Period(CDMTableBase, Base):
+class Payer_Plan_Period(CDMTableBase):
     __tablename__ = "payer_plan_period"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

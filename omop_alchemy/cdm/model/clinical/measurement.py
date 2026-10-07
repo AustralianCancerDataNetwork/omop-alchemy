@@ -5,7 +5,6 @@ import sqlalchemy.orm as so
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     CDMTableBase,
     DomainValidationMixin,
@@ -14,7 +13,6 @@ from omop_alchemy.cdm.base import (
     ModifierSourceMixin,
     ClinicalEventMixin,
     ReferenceContext,
-    cdm_table,
     optional_concept_fk,
     role_fk,
     ValueMixin,
@@ -28,8 +26,7 @@ if TYPE_CHECKING:
     from .person import Person
 
 
-@cdm_table
-class Measurement(Base, CDMTableBase, ValueMixin, ModifierSourceMixin):
+class Measurement(CDMTableBase, ValueMixin, ModifierSourceMixin):
     __tablename__ = "measurement"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

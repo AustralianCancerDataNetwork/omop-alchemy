@@ -4,9 +4,11 @@ from oa_configurator import (
     ConnectionConfig,
     ResolvedCDMDatabase,
     StackConfig,
+    physical_schema_of,
 )
 
 from omop_alchemy.config import (
+    EXTENSION_SCHEMA,
     create_cdm_engines,
     get_cdm_context,
 )
@@ -59,6 +61,18 @@ def test_create_cdm_engines_keeps_distinct_in_memory_connections_separate():
     finally:
         primary.dispose()
         vocab.dispose()
+
+
+def test_create_cdm_engine_claims_the_extension_schema():
+    """The extension schema tag is claimed alongside the maintenance schema,
+    and folds to unqualified on SQLite rather than a literal, unresolvable prefix.
+    """
+    resolved = _resolved_cdm_database(primary_database=":memory:")
+    primary, vocab = create_cdm_engines(resolved)
+    try:
+        assert physical_schema_of(primary, schema_tag=EXTENSION_SCHEMA) is None
+    finally:
+        primary.dispose()
 
 
 def test_get_cdm_context_resolves_the_typed_database_field(monkeypatch) -> None:

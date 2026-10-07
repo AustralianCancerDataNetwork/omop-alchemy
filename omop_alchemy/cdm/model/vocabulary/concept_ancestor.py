@@ -1,18 +1,15 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     ReferenceTable,
-    cdm_table,
     CDMTableBase,
     merge_table_args,
     omop_index,
     role_fk,
 )
 
-@cdm_table
-class Concept_Ancestor(Base, ReferenceTable, CDMTableBase):
+class Concept_Ancestor(ReferenceTable, CDMTableBase):
     __tablename__ = "concept_ancestor"
     __table_args__ = merge_table_args(
         {"schema": Role.VOCAB.value},

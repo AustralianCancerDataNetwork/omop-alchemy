@@ -1092,6 +1092,7 @@ def test_render_reconciliation_summary_treats_renamed_only_as_matched():
             TableReconciliationResult(
                 table_name="person",
                 category=TableCategory.CLINICAL,
+                schema_tag=Role.PRIMARY.value,
                 status=Status.MATCHED,
                 issue_count=1,
                 detail="1 difference(s) detected.",

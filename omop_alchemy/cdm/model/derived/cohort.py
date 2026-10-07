@@ -2,15 +2,12 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from datetime import date
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
-    cdm_table,
     CDMTableBase,
     merge_table_args,
 )
 
-@cdm_table
-class Cohort(CDMTableBase, Base):
+class Cohort(CDMTableBase):
     __tablename__ = "cohort"
     __table_args__ = merge_table_args({"schema": Role.RESULTS.value})
 

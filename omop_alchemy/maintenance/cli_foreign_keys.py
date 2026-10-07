@@ -33,7 +33,7 @@ class ForeignKeyBase:
     """Identity and CDM category metadata shared across all foreign key result types."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
     schema_tag: str
 
 

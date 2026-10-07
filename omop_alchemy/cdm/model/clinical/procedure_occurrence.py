@@ -4,9 +4,7 @@ import sqlalchemy.orm as so
 from oa_configurator import Role
 from typing import Optional, TYPE_CHECKING
 from datetime import date
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
-    cdm_table,
     CDMTableBase,
     optional_concept_fk,
     required_concept_fk,
@@ -26,8 +24,7 @@ if TYPE_CHECKING:
     from ..clinical import Person
     from ..health_system import Provider, Visit_Occurrence, Visit_Detail
 
-@cdm_table
-class Procedure_Occurrence(CDMTableBase, Base, PersonScoped, HealthSystemContext):
+class Procedure_Occurrence(CDMTableBase, PersonScoped, HealthSystemContext):
     __tablename__ = "procedure_occurrence"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

@@ -55,7 +55,8 @@ class MaintenanceTable:
     table_name: str
     model_name: str
     model_module: str
-    category: TableCategory
+    category: TableCategory | None
+    extension_owner: str | None
     table: sa.Table
     primary_key_columns: tuple[sa.Column[object], ...]
 
@@ -73,6 +74,10 @@ class MaintenanceTable:
         if tag is None:
             raise TypeError(f"{self.table_name}: table has no schema tag.")
         return tag
+
+    @property
+    def is_extension(self) -> bool:
+        return self.extension_owner is not None
 
     @property
     def is_vocabulary(self) -> bool:
@@ -177,7 +182,9 @@ def _mapped_cdm_table_classes() -> Iterable[type]:
     ]
 
 
-def _table_category(mapped_class: type) -> TableCategory:
+def _table_category(mapped_class: type) -> TableCategory | None:
+    if getattr(mapped_class, "__omop_extension_owner__", None) is not None:
+        return None
     category_name = getattr(mapped_class, "__omop_table_category__", None)
     if category_name is None:
         raise RuntimeError(
@@ -200,6 +207,7 @@ def collect_maintenance_tables() -> list[MaintenanceTable]:
                 model_name=mapped_class.__name__,
                 model_module=mapped_class.__module__,
                 category=_table_category(mapped_class),
+                extension_owner=getattr(mapped_class, "__omop_extension_owner__", None),
                 table=table,
                 primary_key_columns=tuple(table.primary_key.columns),
             )
@@ -231,6 +239,7 @@ def select_maintenance_tables(
     categories: Iterable[TableCategory] | None = None,
     exclude_categories: Iterable[TableCategory] | None = None,
     require_single_integer_primary_key: bool = False,
+    extension_only: bool = False,
 ) -> list[MaintenanceTable]:
     selected = collect_maintenance_tables()
 
@@ -254,6 +263,9 @@ def select_maintenance_tables(
             if table.has_single_integer_primary_key
         ]
 
+    if extension_only:
+        selected = [table for table in selected if table.is_extension]
+
     return selected
 
 
@@ -262,6 +274,7 @@ def resolve_maintenance_tables(
     table_names: Iterable[str] | None = None,
     scope: TableCategory | None = None,
     require_single_integer_primary_key: bool = False,
+    extension_only: bool = False,
 ) -> list[MaintenanceTable]:
     if table_names is not None:
         selected_by_name = maintenance_table_map()
@@ -299,6 +312,7 @@ def resolve_maintenance_tables(
 
     return select_maintenance_tables(
         require_single_integer_primary_key=require_single_integer_primary_key,
+        extension_only=extension_only,
     )
 
 
