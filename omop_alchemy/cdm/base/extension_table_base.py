@@ -1,6 +1,6 @@
 from sqlalchemy.orm import declared_attr
 
-from ...config import EXTENSION_SCHEMA
+from ...config import CDM_EXTENSION_SCHEMA
 from .cdm_table_base import CDMTableBase
 
 
@@ -16,12 +16,12 @@ class CDMExtensionTableBase(CDMTableBase):
 
     @declared_attr.directive
     def __table_args__(cls):
-        return {"schema": EXTENSION_SCHEMA}
+        return {"schema": CDM_EXTENSION_SCHEMA}
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(_is_extension=True, **kwargs)
-        if cls.__omop_is_cdm_table__ and cls.__table__.schema != EXTENSION_SCHEMA:
+        if cls.__omop_is_cdm_table__ and cls.__table__.schema != CDM_EXTENSION_SCHEMA:
             raise TypeError(
-                f"{cls.__name__} must live in the {EXTENSION_SCHEMA!r} schema; "
+                f"{cls.__name__} must live in the {CDM_EXTENSION_SCHEMA!r} schema; "
                 "extension tables cannot override their schema via __table_args__."
             )

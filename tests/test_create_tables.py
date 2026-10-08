@@ -78,7 +78,7 @@ def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(fresh_r
         model_name="_SyntheticTagTable",
         model_module=__name__,
         category=TableCategory.METADATA,
-        extension_owner=None,
+        extension_table_owner=None,
         table=_SyntheticTagTable.__table__,  # ty: ignore[invalid-argument-type]
         primary_key_columns=tuple(_SyntheticTagTable.__table__.primary_key.columns),  # ty: ignore[unresolved-attribute]
     )

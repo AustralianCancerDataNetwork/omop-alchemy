@@ -253,25 +253,25 @@ class Selection(NamedTuple):
 
     scope: TableCategory | None
     tables: tuple[str, ...] | None
-    extension: bool
+    cdm_extension: bool
 
 
 def resolve_selection(
     *,
     scope: TableCategory | None,
     tables: list[str] | None,
-    extension: bool = False,
+    cdm_extension: bool = False,
     default_scope: TableCategory | None = None,
 ) -> Selection:
     """Resolve the three mutually exclusive table selectors.
 
-    `--table` beats `--scope`/`--extension`; `--extension` beats `--scope`;
+    `--table` beats `--scope`/`--cdm-extension`; `--cdm-extension` beats `--scope`;
     `default_scope` only applies when none of the three was given.
     """
-    if sum([scope is not None, bool(tables), extension]) > 1:
-        raise RuntimeError("Use only one of `--scope`, `--table`, or `--extension`.")
+    if sum([scope is not None, bool(tables), cdm_extension]) > 1:
+        raise RuntimeError("Use only one of `--scope`, `--table`, or `--cdm-extension`.")
     if tables:
         return Selection(None, tuple(tables), False)
-    if extension:
+    if cdm_extension:
         return Selection(None, None, True)
     return Selection(scope or default_scope, None, False)

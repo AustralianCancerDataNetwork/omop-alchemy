@@ -16,7 +16,9 @@ from oa_configurator import (
 from orm_loader.backends import staging_schema_claim
 
 MAINTENANCE_SCHEMA: str = "omop_alchemy_maintenance"
-EXTENSION_SCHEMA: str = "extension"
+CDM_EXTENSION_SCHEMA: str = "cdm_extension"
+# Fixed owner for the CDM_EXTENSION_SCHEMA claim
+CDM_EXTENSION_SCHEMA_OWNER: str = "omop_alchemy"
 
 
 class OmopAlchemyConfig(PackageConfigBase):
@@ -116,9 +118,10 @@ def _maintenance_schema_claims() -> list[SchemaClaim]:
             reserved=True,
         ),
         SchemaClaim(
-            schema_tag=EXTENSION_SCHEMA,
-            physical_schema=EXTENSION_SCHEMA,
+            schema_tag=CDM_EXTENSION_SCHEMA,
+            physical_schema=CDM_EXTENSION_SCHEMA,
             reserved=True,
+            owner=CDM_EXTENSION_SCHEMA_OWNER,
         ),
         staging_schema_claim(),
     ]

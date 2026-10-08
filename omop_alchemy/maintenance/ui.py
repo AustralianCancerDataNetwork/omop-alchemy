@@ -14,7 +14,7 @@ from ..backends.resolve import backend_label
 from .ascii import render_banner
 from .tables import TableCategory
 
-EXTENSION_SCHEMA_STYLE: str = "cyan"
+CDM_EXTENSION_SCHEMA_STYLE: str = "cyan"
 
 if TYPE_CHECKING:
     from ._cli_utils import Status
@@ -76,7 +76,7 @@ def _category_label(category: TableCategory | None, schema_tag: str) -> Text:
     category=None; its schema tag is rendered in its place.
     """
     if category is None:
-        return Text(schema_tag, style=EXTENSION_SCHEMA_STYLE)
+        return Text(schema_tag, style=CDM_EXTENSION_SCHEMA_STYLE)
     return Text(
         category.value.replace("_", " "),
         style=category.style,

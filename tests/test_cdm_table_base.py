@@ -8,11 +8,12 @@ import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role, SchemaClaim
+from oa_configurator.testing import reset_schema_registry_rows
 from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import CDMExtensionTableBase, CDMTableBase
 from omop_alchemy.cdm.base.cdm_table_base import MODEL_MODULE_PREFIX, _redeclares_a_tagged_ancestors_table
-from omop_alchemy.config import EXTENSION_SCHEMA
+from omop_alchemy.config import CDM_EXTENSION_SCHEMA, CDM_EXTENSION_SCHEMA_OWNER
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.tables import _mapped_cdm_table_classes, collect_maintenance_tables
 
@@ -90,7 +91,7 @@ def test_internal_module_table_rejects_missing_schema_tag():
 def test_internal_module_table_rejects_extension_table_base():
     """A class defined under omop_alchemy.cdm.model.* must use CDMTableBase directly."""
     with pytest.raises(TypeError, match="CDMTableBase"), _cleanup_table(
-        "zz_test_cdm_table_base_internal_ext", schema=EXTENSION_SCHEMA
+        "zz_test_cdm_table_base_internal_ext", schema=CDM_EXTENSION_SCHEMA
     ):
         class _FakeInternalViaExtension(CDMExtensionTableBase):
             __module__ = f"{MODEL_MODULE_PREFIX}fake_domain"
@@ -135,16 +136,16 @@ def test_extension_table_is_tagged_with_its_owner_and_no_category():
         __tablename__ = "zz_test_cdm_table_base_extension"
         id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
-    with _cleanup_table("zz_test_cdm_table_base_extension", schema=EXTENSION_SCHEMA):
+    with _cleanup_table("zz_test_cdm_table_base_extension", schema=CDM_EXTENSION_SCHEMA):
         assert _FakeExtension.__omop_is_cdm_table__ is True
         assert _FakeExtension.__omop_table_category__ is None
         assert _FakeExtension.__omop_extension_owner__ == "tests"
-        assert _FakeExtension.__table__.schema == EXTENSION_SCHEMA
+        assert _FakeExtension.__table__.schema == CDM_EXTENSION_SCHEMA
         assert sa.inspect(_FakeExtension, raiseerr=False) is not None
 
 
 def test_extension_table_cannot_override_its_schema():
-    with pytest.raises(TypeError, match=EXTENSION_SCHEMA), _cleanup_table(
+    with pytest.raises(TypeError, match=CDM_EXTENSION_SCHEMA), _cleanup_table(
         "zz_test_cdm_table_base_ext_override", schema=Role.PRIMARY.value
     ):
         class _FakeExtensionOverride(CDMExtensionTableBase):
@@ -160,12 +161,12 @@ def test_extension_table_may_redeclare_table_args_matching_the_default_schema():
     class _FakeExtensionRestated(CDMExtensionTableBase):
         __module__ = "tests.fake_extension_pkg.tables"
         __tablename__ = "zz_test_cdm_table_base_ext_restated"
-        __table_args__ = {"schema": EXTENSION_SCHEMA}
+        __table_args__ = {"schema": CDM_EXTENSION_SCHEMA}
         id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
-    with _cleanup_table("zz_test_cdm_table_base_ext_restated", schema=EXTENSION_SCHEMA):
+    with _cleanup_table("zz_test_cdm_table_base_ext_restated", schema=CDM_EXTENSION_SCHEMA):
         assert _FakeExtensionRestated.__omop_is_cdm_table__ is True
-        assert _FakeExtensionRestated.__table__.schema == EXTENSION_SCHEMA
+        assert _FakeExtensionRestated.__table__.schema == CDM_EXTENSION_SCHEMA
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +180,7 @@ def test_every_mapped_cdm_class_is_inspectable():
         assert sa.inspect(cls, raiseerr=False) is not None
 
 
-def test_category_and_extension_owner_are_mutually_exclusive():
+def test_category_and_extension_table_owner_are_mutually_exclusive():
     tables = collect_maintenance_tables()
     assert tables
     for table in tables:
@@ -194,7 +195,7 @@ def test_extension_table_created_via_create_missing_tables_on_sqlite(fresh_resol
     """SQLite has no schema concept: the extension tag must resolve to
     unqualified, not a literal 'extension.' prefix SQLite can't create.
 
-    fresh_engine isn't used here: it has no claim for EXTENSION_SCHEMA
+    fresh_engine isn't used here: it has no claim for CDM_EXTENSION_SCHEMA
     (that claim is create_cdm_engine()'s own responsibility, covered by
     test_config_driver.py), so this builds its own engine with the tag
     explicitly claimed, matching how a real CDM engine resolves it.
@@ -205,9 +206,9 @@ def test_extension_table_created_via_create_missing_tables_on_sqlite(fresh_resol
         id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
     engine = fresh_resolved.create_engine(
-        schema_claims=[SchemaClaim(schema_tag=EXTENSION_SCHEMA, physical_schema=EXTENSION_SCHEMA, reserved=True)]
+        schema_claims=[SchemaClaim(schema_tag=CDM_EXTENSION_SCHEMA, physical_schema=CDM_EXTENSION_SCHEMA, reserved=True)]
     )
-    with _cleanup_table("zz_test_cdm_table_base_sqlite_smoke", schema=EXTENSION_SCHEMA):
+    with _cleanup_table("zz_test_cdm_table_base_sqlite_smoke", schema=CDM_EXTENSION_SCHEMA):
         results = _create_missing_tables(engine, vocab_engine=engine, resolved=fresh_resolved)
         result_by_name = {result.table_name: result for result in results}
 
@@ -218,7 +219,7 @@ def test_extension_table_created_via_create_missing_tables_on_sqlite(fresh_resol
 
 @pytest.mark.postgresql
 @pytest.mark.db_dialect
-def test_extension_table_creates_its_schema_on_postgres(pg_db, pg_engine):
+def test_extension_table_creates_its_schema_on_postgres(pg_db, pg_engine, cleanup_after_test):
     """Ensure_schema must actually CREATE the extension schema when
     it doesn't exist yet, not just resolve to a name.
     """
@@ -228,13 +229,19 @@ def test_extension_table_creates_its_schema_on_postgres(pg_db, pg_engine):
         id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
     extension_schema = f"zz_ext_smoke_{uuid.uuid4().hex[:12]}"
+    reset_schema_registry_rows(cleanup_after_test, pg_engine, schema_tags=[CDM_EXTENSION_SCHEMA])
+    assert extension_schema not in sa.inspect(pg_engine).get_schema_names()
 
-    with _cleanup_table("zz_test_cdm_table_base_pg_smoke", schema=EXTENSION_SCHEMA):
+    with _cleanup_table("zz_test_cdm_table_base_pg_smoke", schema=CDM_EXTENSION_SCHEMA):
         engine = pg_db.resolved.create_engine(
-            schema_claims=[SchemaClaim(schema_tag=EXTENSION_SCHEMA, physical_schema=extension_schema)],
+            schema_claims=[SchemaClaim(
+                schema_tag=CDM_EXTENSION_SCHEMA,
+                physical_schema=extension_schema,
+                owner=CDM_EXTENSION_SCHEMA_OWNER,
+            )],
         )
         try:
-            assert extension_schema not in sa.inspect(engine).get_schema_names()
+            assert extension_schema in sa.inspect(engine).get_schema_names()
 
             _create_missing_tables(engine, vocab_engine=engine, resolved=pg_db.resolved)
 

@@ -59,19 +59,19 @@ def analyze_tables(
     *,
     scope: TableCategory | None = None,
     table_names: tuple[str, ...] | None = None,
-    extension_only: bool = False,
+    cdm_extension_only: bool = False,
     vacuum: bool = False,
     dry_run: bool = False,
 ) -> list[AnalyzeTableResult]:
     """Run ANALYZE (or VACUUM ANALYZE) on selected ORM-managed tables to refresh planner statistics.
 
-    Runs on every ORM-managed table if scope, table_names, and extension_only are all omitted.
+    Runs on every ORM-managed table if scope, table_names, and cdm_extension_only are all omitted.
     Each table is analysed on the engine hosting it, one connection per engine.
     """
-    if sum([scope is not None, table_names is not None, extension_only]) > 1:
-        raise RuntimeError("Use only one of `scope`, `table_names`, or `extension_only`.")
+    if sum([scope is not None, table_names is not None, cdm_extension_only]) > 1:
+        raise RuntimeError("Use only one of `scope`, `table_names`, or `cdm_extension_only`.")
 
-    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names, extension_only=extension_only)
+    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names, cdm_extension_only=cdm_extension_only)
     operation = "VACUUM ANALYZE" if vacuum else "ANALYZE"
     results: list[AnalyzeTableResult] = []
 
@@ -182,7 +182,7 @@ def _truncate_tables(
     *,
     scope: TableCategory | None = None,
     table_names: tuple[str, ...] | None = None,
-    extension_only: bool = False,
+    cdm_extension_only: bool = False,
     restart_identities: bool = False,
     cascade: bool = False,
     dry_run: bool = False,
@@ -199,12 +199,12 @@ def _truncate_tables(
     - No provenance guard as the engines were just built in `omop_command`. There is no
     possibility of schema drift between their creation and this command's execution.
     """
-    if sum([scope is not None, table_names is not None, extension_only]) > 1:
-        raise RuntimeError("Use only one of `scope`, `table_names`, or `extension_only`.")
-    if scope is None and table_names is None and not extension_only:
-        raise RuntimeError("Select tables to truncate with `scope`, `table_names`, or `extension_only`.")
+    if sum([scope is not None, table_names is not None, cdm_extension_only]) > 1:
+        raise RuntimeError("Use only one of `scope`, `table_names`, or `cdm_extension_only`.")
+    if scope is None and table_names is None and not cdm_extension_only:
+        raise RuntimeError("Select tables to truncate with `scope`, `table_names`, or `cdm_extension_only`.")
 
-    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names, extension_only=extension_only)
+    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names, cdm_extension_only=cdm_extension_only)
     groups = context.targets_by_engine(selected_tables)
     for engine in groups:
         require_backend_support(resolve_backend(engine), "truncate_table_batch", "Table truncation")
@@ -421,10 +421,10 @@ def analyze_tables_command(
         "--table",
         help="Specific ORM-managed table name to analyze. Repeat to target multiple tables.",
     ),
-    extension: bool = typer.Option(
+    cdm_extension: bool = typer.Option(
         False,
-        "--extension",
-        help="Analyze only extension tables (third-party tables outside the CDM domain categories).",
+        "--cdm-extension",
+        help="Analyze only CDM extension tables (third-party tables outside the pre-defined CDM domain categories).",
     ),
     vacuum: bool = typer.Option(
         False,
@@ -434,13 +434,13 @@ def analyze_tables_command(
     dry_run: bool = False,
 ) -> None:
     """Analyse selected ORM-managed tables to update planner statistics."""
-    selection = resolve_selection(scope=scope, tables=table, extension=extension)
+    selection = resolve_selection(scope=scope, tables=table, cdm_extension=cdm_extension)
     with console.status("Refreshing planner statistics for selected tables..."):
         results = analyze_tables(
             conn,
             scope=selection.scope,
             table_names=selection.tables,
-            extension_only=selection.extension,
+            cdm_extension_only=selection.cdm_extension,
             vacuum=vacuum,
             dry_run=dry_run,
         )
@@ -492,10 +492,10 @@ def truncate_tables_command(
         "--table",
         help="Specific ORM-managed table name to truncate. Repeat to target multiple tables.",
     ),
-    extension: bool = typer.Option(
+    cdm_extension: bool = typer.Option(
         False,
-        "--extension",
-        help="Truncate only extension tables (third-party tables outside the CDM domain categories).",
+        "--cdm-extension",
+        help="Truncate only CDM extension tables (third-party tables outside the pre-defined CDM domain categories).",
     ),
     restart_identities: bool = typer.Option(
         False,
@@ -515,10 +515,10 @@ def truncate_tables_command(
     dry_run: bool = False,
 ) -> None:
     """Truncate selected ORM-managed OMOP tables. Aborts if external FK references would block unless --cascade is set."""
-    selection = resolve_selection(scope=scope, tables=table, extension=extension)
-    if selection.scope is None and selection.tables is None and not selection.extension:
+    selection = resolve_selection(scope=scope, tables=table, cdm_extension=cdm_extension)
+    if selection.scope is None and selection.tables is None and not selection.cdm_extension:
         console.print(
-            render_error("Select tables to truncate with `--scope`, one or more `--table` values, or `--extension`.")
+            render_error("Select tables to truncate with `--scope`, one or more `--table` values, or `--cdm-extension`.")
         )
         raise typer.Exit(code=1)
     if not dry_run and not yes:
@@ -531,7 +531,7 @@ def truncate_tables_command(
             conn,
             scope=selection.scope,
             table_names=selection.tables,
-            extension_only=selection.extension,
+            cdm_extension_only=selection.cdm_extension,
             restart_identities=restart_identities,
             cascade=cascade,
             dry_run=dry_run,
