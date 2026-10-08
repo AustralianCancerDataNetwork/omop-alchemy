@@ -197,6 +197,14 @@ The attachment result preserves the event projection and adds `episode_id` and `
 
 Diagnostics are advisory rows and do not change the attachments. They identify cross-person links, fallback ambiguity, and events for which no valid explicit link or fallback candidate exists. Link diagnostics use `explicit_episodes`; ambiguity counts and missing-candidate reasons use `fallback_episodes`. `EpisodeAttachmentDiagnostic.from_mapping()` converts a raw SQLAlchemy mapping into a typed value carrying the event identity, projected and linked Field concepts, episode, candidate count, and message.
 
+## Optional upcoming-episode preference
+
+`episode_attachment_queries` accepts `upcoming_preference=None` by default. An opt-in `UpcomingEpisodePreference(max_days_before_start=60, min_started_age_days=365)` prefers the nearest eligible upcoming episode within 60 calendar days only when the nearest eligible already-started candidate is at least 365 days old. The caller supplies both values; Alchemy does not infer a clinical window. Both thresholds are inclusive.
+
+A more recent started candidate prevents the override even if another eligible cancer is older. With no started candidate, ordinary nearest-upcoming selection applies. Equal dates use the ranking's stable ID; a start on the event date is already started.
+
+The preference is accepted only with `explicit_first_ranked`, `nearest`, and `on_or_before_anchor`; incompatible combinations raise `ValueError`. Explicit links, window admission, distinct candidate counts, diagnostic columns and result identities are unchanged. Omitting it preserves the existing ranking. Generic temporal ranking and observation selectors have no preference argument. The candidate-set age is projected before the outer ranking window for PostgreSQL and SQLite portability.
+
 ## Rank fallback candidates
 
 Ranking has two independent parts: which side of the anchor date should be considered first, and how candidates on that side should be ordered. Keeping them separate supports both symmetric nearest-date matching and the common preference for an episode that had already started when the event occurred.

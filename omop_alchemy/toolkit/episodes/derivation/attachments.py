@@ -23,9 +23,12 @@ from .contracts import (
     EpisodeColumn,
     EpisodeWindowSpec,
     TemporalRankingSpec,
+    TemporalSelectionPolicy,
+    TemporalSidePreference,
+    UpcomingEpisodePreference,
 )
 from .structure import canonical_episode_projection
-from .temporal import episode_window_predicate, temporal_row_number
+from .temporal import episode_window_predicate, signed_day_delta, temporal_row_number
 
 
 ATTACHMENT_EPISODE_ID = "episode_id"
@@ -33,6 +36,9 @@ ATTACHMENT_METHOD = "attachment_method"
 _FALLBACK_RANK = "_fallback_rank"
 _FALLBACK_CANDIDATE_COUNT = "_fallback_candidate_count"
 _IDENTITY_RANK = "_attachment_identity_rank"
+_FALLBACK_DAY_DELTA = "_fallback_day_delta"
+_FALLBACK_STABLE_ID = "_fallback_stable_id"
+_NEAREST_STARTED_AGE = "_nearest_started_age"
 
 
 class InvalidAttachmentSourceError(ValueError):
@@ -94,6 +100,7 @@ def _validate_policy_inputs(
     policy: EpisodeAttachmentPolicy,
     ranking: TemporalRankingSpec | None,
     fallback_episodes: object | None,
+    upcoming_preference: UpcomingEpisodePreference | None,
 ) -> None:
     if policy.requires_fallback_ranking and ranking is None:
         raise ValueError("explicit_first_ranked requires a temporal ranking")
@@ -103,6 +110,77 @@ def _validate_policy_inputs(
         raise ValueError(f"{policy} requires fallback_episodes")
     if not policy.uses_fallback and fallback_episodes is not None:
         raise ValueError(f"{policy} does not use fallback_episodes")
+
+    if upcoming_preference is not None and (
+        not policy.requires_fallback_ranking
+        or ranking is None
+        or ranking.policy is not TemporalSelectionPolicy.nearest
+        or ranking.side_preference is not TemporalSidePreference.on_or_before_anchor
+    ):
+        raise ValueError(
+            "upcoming_preference requires ranked, nearest, already-started-first attachment"
+        )
+
+
+def _fallback_ranking_columns(
+    events: FromClause,
+    episodes: FromClause,
+    ranking: TemporalRankingSpec,
+    preference: UpcomingEpisodePreference | None,
+) -> list[sa.ColumnElement[Any]]:
+    """Project the inputs needed for either ordinary or candidate-set ranking."""
+    if ranking.stable_id_column not in episodes.c:
+        raise InvalidAttachmentSourceError(
+            "fallback_episodes is missing temporal stable ID column: "
+            f"{ranking.stable_id_column}"
+        )
+    start = episodes.c.episode_start_date
+    anchor = events.c.event_date
+    stable_id = episodes.c[ranking.stable_id_column]
+    if preference is not None:
+        return [
+            signed_day_delta(start, anchor).label(_FALLBACK_DAY_DELTA),
+            stable_id.label(_FALLBACK_STABLE_ID),
+        ]
+    return [temporal_row_number(
+        start, anchor, stable_id, ranking,
+        partition_by=(events.c.event_source_table, events.c.event_id),
+        label=_FALLBACK_RANK,
+    )]
+
+
+def _rank_upcoming_candidates(
+    candidates: FromClause,
+    preference: UpcomingEpisodePreference | None,
+) -> FromClause:
+    """Rank after projecting the age of the nearest admitted started episode."""
+    if preference is None:
+        return candidates
+    partition = (candidates.c.event_source_table, candidates.c.event_id)
+    delta = candidates.c[_FALLBACK_DAY_DELTA]
+    ages = sa.select(
+        *candidates.c,
+        sa.func.min(sa.case((delta <= 0, -delta)))
+        .over(partition_by=partition)
+        .label(_NEAREST_STARTED_AGE),
+    ).cte("fallback_candidate_ages")
+    delta = ages.c[_FALLBACK_DAY_DELTA]
+    tier = sa.case(
+        (sa.and_(
+            delta > 0,
+            delta <= preference.max_days_before_start,
+            ages.c[_NEAREST_STARTED_AGE] >= preference.min_started_age_days,
+        ), 0),
+        (delta <= 0, 1),
+        else_=2,
+    )
+    return sa.select(
+        *ages.c,
+        sa.func.row_number().over(
+            partition_by=(ages.c.event_source_table, ages.c.event_id),
+            order_by=(tier, sa.func.abs(delta), ages.c[_FALLBACK_STABLE_ID]),
+        ).label(_FALLBACK_RANK),
+    ).cte("ranked_upcoming_candidates")
 
 
 def _episode_event_source(
@@ -274,6 +352,7 @@ def episode_attachment_queries(
     episode_events: type[Episode_Event] | FromClause | SelectBase = Episode_Event,
     ranking: TemporalRankingSpec | None = None,
     window: EpisodeWindowSpec = EpisodeWindowSpec(),
+    upcoming_preference: UpcomingEpisodePreference | None = None,
     include_diagnostics: bool = False,
 ) -> EpisodeAttachmentQueries:
     """Build explicit-first attachments from canonical event and episode inputs.
@@ -305,6 +384,11 @@ def episode_attachment_queries(
         for policies that do not rank fallback candidates.
     window:
         Episode-relative date window used to admit fallback candidates.
+    upcoming_preference:
+        Optional candidate-set override for ranked, nearest, already-started-first
+        fallback. Prefer the nearest upcoming candidate within the supplied
+        horizon only when the nearest admitted started candidate is at least
+        the supplied age. Explicit links and window admission are unchanged.
     include_diagnostics:
         If ``True``, return an advisory diagnostic selectable as well as the
         attachment query. Building the queries does not execute them.
@@ -334,7 +418,7 @@ def episode_attachment_queries(
     does not infer missing source rows or unsupported discriminators from their
     absence.
     """
-    _validate_policy_inputs(policy, ranking, fallback_episodes)
+    _validate_policy_inputs(policy, ranking, fallback_episodes, upcoming_preference)
 
     event_source = _event_source(events)
     explicit_source = _episode_source(
@@ -475,27 +559,9 @@ def episode_attachment_queries(
         ]
         if policy.requires_fallback_ranking:
             assert ranking is not None  # validated above
-            if ranking.stable_id_column not in fallback_source.c:
-                raise InvalidAttachmentSourceError(
-                    "fallback_episodes is missing temporal stable ID column: "
-                    f"{ranking.stable_id_column}"
-                )
-            # episode resolution stage 3 ranks only after window admission. A side
-            # preference is a deliberate clinical policy tier; the stable episode
-            # ID prevents tied dates from depending on database row order.
-            fallback_columns.append(
-                temporal_row_number(
-                    fallback_source.c[episode_start],
-                    event_source.c[event_date],
-                    fallback_source.c[ranking.stable_id_column],
-                    ranking,
-                    partition_by=(
-                        event_source.c[source_table],
-                        event_source.c[event_id],
-                    ),
-                    label=_FALLBACK_RANK,
-                )
-            )
+            fallback_columns.extend(_fallback_ranking_columns(
+                event_source, fallback_source, ranking, upcoming_preference
+            ))
 
         # All fallback policies share the same finite episode-relative window.
         # The policy decides whether every admitted episode survives or exactly
@@ -508,6 +574,9 @@ def episode_attachment_queries(
                 )
             )
             .cte("fallback_attachment_candidates")
+        )
+        fallback_candidates = _rank_upcoming_candidates(
+            fallback_candidates, upcoming_preference
         )
         selected_fallback = sa.select(
             *(fallback_candidates.c[name] for name in attachment_names)
