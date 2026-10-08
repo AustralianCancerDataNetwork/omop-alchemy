@@ -3883,6 +3883,7 @@ episode.</p>
 <span class="p">)</span>
 </code></pre></div>
 <p>Pass the policy, window, and—only for ranked fallback—ranking to <code>episode_attachment_queries()</code> with a canonical event projection, an <code>explicit_episodes</code> source and, for fallback policies, a <code>fallback_episodes</code> source. The builder validates explicit links by event ID, Field-concept discriminator, episode ID, and person against <code>explicit_episodes</code>; suppresses fallback only after a valid link; admits and ranks fallback candidates from <code>fallback_episodes</code> only; and returns deterministic attachments plus optional diagnostics. All-in-window fallback accepts the window but rejects a ranking because it deliberately retains every admitted episode. <code>episode_window_predicate()</code>, <code>temporal_order_expressions()</code>, and <code>temporal_row_number()</code> remain available when a query needs the individual portable SQL pieces. Date arithmetic is implemented for PostgreSQL and SQLite; compiling it for another dialect fails rather than assuming PostgreSQL syntax.</p>
+<p>An attachment builder can opt into <code>UpcomingEpisodePreference</code> for a narrow already-started-first override. The caller supplies the upcoming horizon and minimum age of the nearest started candidate; no clinical values are inferred. This leaves generic temporal selectors unchanged. See <a href="../query-contracts/#optional-upcoming-episode-preference">Optional upcoming-episode preference</a> for the admissible ranking and boundary rules.</p>
 <p>See <a href="../query-contracts/">Query contracts</a> for the complete result shape, attachment example, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.</p>
 
 
@@ -4991,6 +4992,61 @@ attachment where the event is the anchor and episode starts are candidates,
 
 </div>
 
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="omop_alchemy.toolkit.episodes.derivation.UpcomingEpisodePreference" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">UpcomingEpisodePreference</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#omop_alchemy.toolkit.episodes.derivation.UpcomingEpisodePreference" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">UpcomingEpisodePreference</span><span class="p">(</span>
+    <span class="n">max_days_before_start</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">min_started_age_days</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Prefer a nearby upcoming episode over a sufficiently old started winner.</p>
+<p>Thresholds are inclusive calendar-day distances supplied by the caller.
+Only ranked, nearest, already-started-first attachment accepts this option.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
 
 <div class="doc doc-object doc-function">
 
@@ -5112,6 +5168,8 @@ attachment where the event is the anchor and episode starts are candidates,
     <span class="o">|</span> <span class="n">SelectBase</span> <span class="o">=</span> <span class="n">Episode_Event</span><span class="p">,</span>
     <span class="n">ranking</span><span class="p">:</span> <span class="n">TemporalRankingSpec</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">window</span><span class="p">:</span> <span class="n">EpisodeWindowSpec</span> <span class="o">=</span> <span class="n">EpisodeWindowSpec</span><span class="p">(),</span>
+    <span class="n">upcoming_preference</span><span class="p">:</span> <span class="n">UpcomingEpisodePreference</span>
+    <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">include_diagnostics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EpisodeAttachmentQueries</span>
 </code></pre></div>
@@ -5268,6 +5326,30 @@ for policies that do not rank fallback candidates.</p>
   
       dataclass
    (omop_alchemy.toolkit.episodes.derivation.contracts.EpisodeWindowSpec)" href="#omop_alchemy.toolkit.episodes.derivation.EpisodeWindowSpec">EpisodeWindowSpec</a>()</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>upcoming_preference</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="UpcomingEpisodePreference
+
+
+  
+      dataclass
+   (omop_alchemy.toolkit.episodes.derivation.contracts.UpcomingEpisodePreference)" href="#omop_alchemy.toolkit.episodes.derivation.UpcomingEpisodePreference">UpcomingEpisodePreference</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional candidate-set override for ranked, nearest, already-started-first
+fallback. Prefer the nearest upcoming candidate within the supplied
+horizon only when the nearest admitted started candidate is at least
+the supplied age. Explicit links and window admission are unchanged.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
