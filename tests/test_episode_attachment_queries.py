@@ -20,6 +20,7 @@ from omop_alchemy.toolkit.episodes.derivation import (
     TemporalRankingSpec,
     TemporalSelectionPolicy,
     TemporalSidePreference,
+    UpcomingEpisodePreference,
     episode_attachment_queries,
 )
 from omop_alchemy.toolkit.episodes.derivation.attachments import (
@@ -478,7 +479,6 @@ def test_episode_model_can_supply_both_stages():
     assert "attachment_fallback_episodes" in compiled
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_postgresql_executes_collision_and_stable_tie_contracts(pg_session):
     unlinked = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
@@ -560,7 +560,7 @@ def _attachment_rows(session, queries) -> set[tuple[int, int, str]]:
     "session_fixture",
     [
         "session",
-        pytest.param("pg_session", marks=pytest.mark.requires_database("test_cdm_db")),
+        pytest.param("pg_session", marks=pytest.mark.db_dialect),
     ],
 )
 def test_ranked_fallback_admits_only_the_fallback_source(request, session_fixture):
@@ -594,7 +594,7 @@ def test_ranked_fallback_admits_only_the_fallback_source(request, session_fixtur
     "session_fixture",
     [
         "session",
-        pytest.param("pg_session", marks=pytest.mark.requires_database("test_cdm_db")),
+        pytest.param("pg_session", marks=pytest.mark.db_dialect),
     ],
 )
 @pytest.mark.parametrize(
@@ -754,4 +754,127 @@ def test_fallback_source_must_expose_the_ranking_stable_id():
                 policy=TemporalSelectionPolicy.nearest,
                 stable_id_column="episode_rank_id",
             ),
+        )
+
+
+@pytest.mark.parametrize(
+    "started_ages,future_offsets,expected",
+    [
+        ((730,), (40,), 2),        # pre-diagnosis referral, older cancer two years in
+        ((195,), (17,), 1),        # recent cancer must keep its referral
+        ((730, 195), (17,), 3),    # nearest started winner determines the threshold
+        ((365,), (60,), 2),        # both thresholds are inclusive
+        ((364,), (60,), 1),
+        ((365,), (61,), 1),
+        ((0,), (17,), 1),          # same-day start is already started
+        ((), (40, 17), 3),         # no started candidate keeps ordinary nearest
+        ((730,), (60, 17), 3),     # earliest upcoming candidate, not any future row
+        ((730,), (40, 40), 2),     # stable episode ID breaks equal dates
+        ((730,), (), 1),
+    ],
+)
+def test_upcoming_preference_boundaries_and_recent_started_winner(
+    session, started_ages, future_offsets, expected
+):
+    from datetime import timedelta
+
+    anchor = date(2026, 1, 20)
+    episodes = [
+        EpisodeCase(1 if i == 0 else 3, 101, anchor - timedelta(days=age), anchor)
+        for i, age in enumerate(started_ages)
+    ] + [
+        EpisodeCase(2 + i, 101, anchor + timedelta(days=offset), anchor + timedelta(days=90))
+        for i, offset in enumerate(future_offsets)
+    ]
+    queries = episode_attachment_queries(
+        _event_source(_procedure(8, anchor)),
+        **_shared_episodes(_episode_source(*episodes)),
+        episode_events=_empty_link_source(),
+        policy=EpisodeAttachmentPolicy.explicit_first_ranked,
+        ranking=_nearest(started_first=True),
+        upcoming_preference=UpcomingEpisodePreference(60, 365),
+    )
+    assert _attachment_rows(session, queries) == {(8, expected, "fallback")}
+
+
+@pytest.mark.parametrize("session_fixture", ["session", "pg_session"])
+def test_upcoming_preference_preserves_explicit_identity_and_diagnostics(request, session_fixture):
+    session = request.getfixturevalue(session_fixture)
+    anchor = date(2026, 1, 20)
+    old = EpisodeCase(1, 101, date(2024, 1, 20), date(2026, 12, 31))
+    upcoming = EpisodeCase(2, 101, date(2026, 3, 1), date(2026, 12, 31))
+    wrong_person = EpisodeCase(3, 202, date(2024, 1, 20), date(2026, 12, 31))
+    procedure = _procedure(8, anchor)
+    measurement = EventCase(
+        ClinicalEventIdentity("measurement", 8), 101, anchor, ModifierFieldConcepts.MEASUREMENT
+    )
+    queries = episode_attachment_queries(
+        _event_source(procedure, procedure, measurement),
+        **_shared_episodes(_episode_source(old, old, upcoming, wrong_person)),
+        episode_events=_link_source(_procedure_link(8, 1), _procedure_link(8, 3)),
+        policy=EpisodeAttachmentPolicy.explicit_first_ranked,
+        ranking=_nearest(started_first=True),
+        upcoming_preference=UpcomingEpisodePreference(60, 365),
+        include_diagnostics=True,
+    )
+    rows = session.execute(queries.attachments).mappings().all()
+    assert {(r["event_source_table"], r["event_id"], r["episode_id"], r["attachment_method"]) for r in rows} == {
+        ("procedure_occurrence", 8, 1, "explicit"),
+        ("measurement", 8, 2, "fallback"),
+    }
+    assert len(rows) == 2
+    diagnostics = session.execute(queries.diagnostics).mappings().all()
+    assert any(r["diagnostic_code"] == "ambiguous_fallback" and r["candidate_count"] == 2 for r in diagnostics)
+    assert set(rows[0]) == {
+        "person_id", "event_id", "event_date", "event_datetime", "event_concept_id",
+        "event_field_concept_id", "event_source_table", "episode_id", "attachment_method",
+    }
+
+
+def test_upcoming_preference_does_not_admit_outside_window_or_suppress_invalid_link(session):
+    anchor = date(2026, 1, 20)
+    episodes = _episode_source(
+        EpisodeCase(1, 101, date(2024, 1, 20), date(2026, 12, 31)),
+        EpisodeCase(2, 101, date(2026, 3, 1), date(2026, 12, 31)),
+        EpisodeCase(3, 202, date(2026, 3, 1), date(2026, 12, 31)),
+    )
+    queries = episode_attachment_queries(
+        _event_source(_procedure(8, anchor)),
+        **_shared_episodes(episodes),
+        episode_events=_link_source(_procedure_link(8, 3)),
+        policy=EpisodeAttachmentPolicy.explicit_first_ranked,
+        ranking=_nearest(started_first=True),
+        window=EpisodeWindowSpec(days_prior=30),
+        upcoming_preference=UpcomingEpisodePreference(60, 365),
+    )
+    assert _attachment_rows(session, queries) == {(8, 1, "fallback")}
+
+
+@pytest.mark.parametrize("horizon,age", [(0, 365), (-1, 365), (60, -1)])
+def test_upcoming_preference_rejects_invalid_thresholds(horizon, age):
+    with pytest.raises(ValueError):
+        UpcomingEpisodePreference(horizon, age)
+
+
+@pytest.mark.parametrize(
+    "policy,ranking",
+    [
+        (EpisodeAttachmentPolicy.explicit_only, None),
+        (EpisodeAttachmentPolicy.explicit_first_all_in_window, None),
+        (EpisodeAttachmentPolicy.explicit_first_ranked, _nearest()),
+        (EpisodeAttachmentPolicy.explicit_first_ranked, TemporalRankingSpec(
+            TemporalSelectionPolicy.latest, "episode_id", TemporalSidePreference.on_or_before_anchor
+        )),
+    ],
+)
+def test_upcoming_preference_rejects_incompatible_policies(policy, ranking):
+    with pytest.raises(ValueError, match="upcoming_preference requires"):
+        episode_attachment_queries(
+            _event_source(_procedure(8, date(2026, 1, 20))),
+            explicit_episodes=_episode_source(ROOT_EPISODE),
+            fallback_episodes=_episode_source(ROOT_EPISODE, name="fallback") if policy.uses_fallback else None,
+            episode_events=_empty_link_source(),
+            policy=policy,
+            ranking=ranking,
+            upcoming_preference=UpcomingEpisodePreference(60, 365),
         )

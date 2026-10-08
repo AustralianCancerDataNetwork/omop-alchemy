@@ -208,6 +208,24 @@ class EpisodeWindowSpec:
             raise ValueError("open_end_fallback_days must be non-negative")
 
 
+@dataclass(frozen=True, slots=True)
+class UpcomingEpisodePreference:
+    """Prefer a nearby upcoming episode over a sufficiently old started winner.
+
+    Thresholds are inclusive calendar-day distances supplied by the caller.
+    Only ranked, nearest, already-started-first attachment accepts this option.
+    """
+
+    max_days_before_start: int
+    min_started_age_days: int
+
+    def __post_init__(self) -> None:
+        if self.max_days_before_start <= 0 or self.min_started_age_days < 0:
+            raise ValueError(
+                "upcoming preference requires a positive horizon and non-negative started age"
+            )
+
+
 class TemporalSelectionPolicy(StrEnum):
     """How one row is selected from several temporal candidates."""
 

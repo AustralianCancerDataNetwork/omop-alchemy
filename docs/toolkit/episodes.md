@@ -150,6 +150,8 @@ ranking = TemporalRankingSpec(
 
 Pass the policy, window, and—only for ranked fallback—ranking to `episode_attachment_queries()` with a canonical event projection, an `explicit_episodes` source and, for fallback policies, a `fallback_episodes` source. The builder validates explicit links by event ID, Field-concept discriminator, episode ID, and person against `explicit_episodes`; suppresses fallback only after a valid link; admits and ranks fallback candidates from `fallback_episodes` only; and returns deterministic attachments plus optional diagnostics. All-in-window fallback accepts the window but rejects a ranking because it deliberately retains every admitted episode. `episode_window_predicate()`, `temporal_order_expressions()`, and `temporal_row_number()` remain available when a query needs the individual portable SQL pieces. Date arithmetic is implemented for PostgreSQL and SQLite; compiling it for another dialect fails rather than assuming PostgreSQL syntax.
 
+An attachment builder can opt into `UpcomingEpisodePreference` for a narrow already-started-first override. The caller supplies the upcoming horizon and minimum age of the nearest started candidate; no clinical values are inferred. This leaves generic temporal selectors unchanged. See [Optional upcoming-episode preference](query-contracts.md#optional-upcoming-episode-preference) for the admissible ranking and boundary rules.
+
 See [Query contracts](query-contracts.md) for the complete result shape, attachment example, boundaries, repeated-observation selection, and the distinction between absolute-nearest and already-started-first ranking.
 
 ::: omop_alchemy.toolkit.episodes.derivation
