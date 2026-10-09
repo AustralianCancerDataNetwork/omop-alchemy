@@ -37,6 +37,7 @@ from omop_alchemy.cdm.model.clinical import Observation, Person
 from omop_alchemy.cdm.model.derived import Cohort
 from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Class, Domain, Vocabulary
 from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
+from omop_alchemy.maintenance.context import MaintenanceContext
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -102,8 +103,8 @@ def _bootstrap_vocab(engine: sa.Engine, vocab_schema: str) -> None:
 
 def test_tables_land_in_the_schema_their_role_declares(three_schema: ScopedTestSchema) -> None:
     _create_missing_tables(
-        three_schema.engine, vocab_engine=three_schema.engine, vocabulary_included=True,
-        resolved=three_schema.resolved,
+        MaintenanceContext(resolved=three_schema.resolved, engine=three_schema.engine, vocab_engine=three_schema.engine),
+        vocabulary_included=True,
     )
 
     inspector = sa.inspect(three_schema.engine)
@@ -123,8 +124,8 @@ def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
     three_schema: ScopedTestSchema,
 ) -> None:
     _create_missing_tables(
-        three_schema.engine, vocab_engine=three_schema.engine, vocabulary_included=True,
-        resolved=three_schema.resolved,
+        MaintenanceContext(resolved=three_schema.resolved, engine=three_schema.engine, vocab_engine=three_schema.engine),
+        vocabulary_included=True,
     )
     _bootstrap_vocab(three_schema.engine, three_schema.schemas[Role.VOCAB])
 
@@ -192,12 +193,11 @@ def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_data
         {Role.PRIMARY: clinical_schema, Role.VOCAB: vocab_schema, Role.RESULTS: results_schema},
         resolver=guarded_resolver(pg_db.resolved),
     )
-    engine = resolved.create_engine()
+    engine, _ = resolved.create_engines()
 
     _create_missing_tables(
-        engine, vocab_engine=engine,
+        MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine),
         vocabulary_included=True,
-        resolved=resolved,
     )
 
     inspector = sa.inspect(engine)

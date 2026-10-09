@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 import sqlalchemy as sa
-from oa_configurator import ResolvedDatabase, physical_schema_of
+
+if TYPE_CHECKING:
+    from .context import MaintenanceContext
 
 
 class TableCategory(StrEnum):
@@ -95,6 +97,72 @@ class MaintenanceTable:
         return (
             self.has_single_primary_key
             and isinstance(self.primary_key_columns[0].type, sa.Integer)
+        )
+
+
+def all_table_names(bindable: sa.Engine | sa.Connection, *, schema: str | None) -> set[str]:
+    """Every table name visible in *schema*, ordinary and foreign alike.
+
+    ``get_table_names`` omits foreign tables, so a vocabulary exposed
+    through a federated wrapper would look absent without this. Foreign
+    tables are a PostgreSQL concept, so the second lookup is skipped where
+    the inspector does not offer it.
+    """
+    inspector = sa.inspect(bindable)
+    names = set(inspector.get_table_names(schema=schema))
+    foreign_table_names = getattr(inspector, "get_foreign_table_names", None)
+    if foreign_table_names is not None:
+        names |= set(foreign_table_names(schema=schema))
+    return names
+
+
+@dataclass(frozen=True)
+class TableTarget:
+    """Where one table's maintenance work has to run.
+
+    Built only by ``MaintenanceContext.targets()``, so every command reads
+    the same answer instead of re-deriving it.
+
+    Attributes
+    ----------
+    table : MaintenanceTable
+        The table this target describes.
+    bind : sqlalchemy.Engine
+        Engine hosting this table, already routed by schema tag.
+    physical_schema : str or None
+        Schema the tag resolves to on *bind*. None for a dialect with no
+        real schema concept.
+    foreign_keys_creatable : bool
+        Whether this table's foreign keys to other tags can physically
+        exist. False for a key crossing a database boundary, which lets
+        reconciliation tell an impossible constraint from a broken one.
+    """
+
+    table: MaintenanceTable
+    bind: sa.Engine
+    physical_schema: str | None
+    foreign_keys_creatable: bool
+
+    @property
+    def schema_tag(self) -> str:
+        return self.table.schema_tag
+
+    @property
+    def table_name(self) -> str:
+        return self.table.table_name
+
+    def exists(self) -> bool:
+        """Is this table physically present on its own bind?
+
+        Unions ordinary and foreign tables, so a vocabulary exposed through
+        a federated wrapper is not reported absent. Foreign tables are a
+        PostgreSQL concept, so the lookup is skipped on a dialect whose
+        inspector does not offer it.
+        """
+        if sa.inspect(self.bind).has_table(self.table_name, schema=self.physical_schema):
+            return True
+        return self.table_name in all_table_names(
+            self.bind, schema=self.physical_schema
         )
 
 
@@ -249,29 +317,24 @@ def select_omop_tables(
     )
 
 
-def existing_maintenance_tables(
-    bindable: sa.Engine | sa.Connection,
+def existing_maintenance_targets(
+    context: MaintenanceContext,
     *,
     vocabulary_included: bool,
-    vocab_bindable: sa.Engine | sa.Connection,
     categories: Iterable[TableCategory] | None = None,
     require_single_integer_primary_key: bool = False,
-    resolved: ResolvedDatabase,
-) -> list[MaintenanceTable]:
-    """ORM-managed tables that already exist, each checked against its own schema tag.
+) -> list[TableTarget]:
+    """Targets for ORM-managed tables that already exist on their own engine.
 
     Parameters
     ----------
-    bindable : sqlalchemy.Engine or sqlalchemy.Connection
-        Used to inspect and resolve schemas for every non-vocab table.
-    vocab_bindable : sqlalchemy.Engine or sqlalchemy.Connection
-        Used instead of *bindable* for vocab-tagged tables.
-        May be the same phyiscal connection as *bindable* when the CDM and vocabulary tables
-        are on the same server.
+    context : MaintenanceContext
+    vocabulary_included : bool
+        Include vocabulary tables. Ignored when *categories* is given.
     categories : Iterable[TableCategory], optional
         When given, selects tables by category via
-        :func:`select_maintenance_tables` instead of the binary
-        *vocabulary_included* flag.
+        :func:`select_maintenance_tables` instead of *vocabulary_included*.
+    require_single_integer_primary_key : bool, optional
     """
     selected = (
         select_maintenance_tables(
@@ -283,42 +346,17 @@ def existing_maintenance_tables(
             require_single_integer_primary_key=require_single_integer_primary_key,
         )
     )
-    return [
-        table
-        for table in selected
-        if sa.inspect(
-            resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_bindable, primary=bindable)
-        ).has_table(
-            table.table_name,
-            schema=physical_schema_of(
-                resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_bindable, primary=bindable),
-                schema_tag=table.schema_tag,
-            ),
-        )
-    ]
+    return [target for target in context.targets(selected) if target.exists()]
 
 
-def missing_maintenance_tables(
-    bindable: sa.Engine | sa.Connection,
+def missing_maintenance_targets(
+    context: MaintenanceContext,
     *,
     vocabulary_included: bool,
-    vocab_bindable: sa.Engine | sa.Connection,
-    resolved: ResolvedDatabase,
-) -> list[MaintenanceTable]:
-    """ORM-managed tables that are absent, each checked against its own schema tag.
-
-    See :func:`existing_maintenance_tables` for *vocab_bindable*'s role.
-    """
+) -> list[TableTarget]:
+    """Targets for ORM-managed tables absent from their own engine."""
     return [
-        table
-        for table in select_omop_tables(vocabulary_included=vocabulary_included)
-        if not sa.inspect(
-            resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_bindable, primary=bindable)
-        ).has_table(
-            table.table_name,
-            schema=physical_schema_of(
-                resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_bindable, primary=bindable),
-                schema_tag=table.schema_tag,
-            ),
-        )
+        target
+        for target in context.targets(select_omop_tables(vocabulary_included=vocabulary_included))
+        if not target.exists()
     ]

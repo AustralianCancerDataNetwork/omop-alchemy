@@ -30,6 +30,7 @@ from omop_alchemy.maintenance.cli_fulltext import _install_fulltext_columns
 from omop_alchemy.maintenance.cli_indexes import _manage_indexes
 from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
 from omop_alchemy.maintenance.cli_tables import reset_model_sequences
+from omop_alchemy.maintenance.context import MaintenanceContext
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -48,34 +49,34 @@ def scoped(pg_db) -> Iterator[ScopedTestSchema]:
 
 
 def test_fk_trigger_toggle_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
-    _create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
+    _create_missing_tables(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine), vocabulary_included=True)
 
-    disabled = manage_foreign_key_triggers(scoped.engine, vocab_engine=scoped.engine, enable=False, resolved=scoped.resolved)
+    disabled = manage_foreign_key_triggers(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine), enable=False)
     assert disabled
     assert all(result.status == Status.APPLIED for result in disabled)
 
     status_after_disable = {
         result.table_name: result
-        for result in collect_foreign_key_trigger_status(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
+        for result in collect_foreign_key_trigger_status(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
     }
     person_status = status_after_disable["person"]
     assert person_status.enabled_trigger_count == 0
     assert person_status.disabled_trigger_count > 0
 
-    enabled = manage_foreign_key_triggers(scoped.engine, vocab_engine=scoped.engine, enable=True, resolved=scoped.resolved)
+    enabled = manage_foreign_key_triggers(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine), enable=True)
     assert all(result.status == Status.APPLIED for result in enabled)
 
     status_after_enable = {
         result.table_name: result
-        for result in collect_foreign_key_trigger_status(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
+        for result in collect_foreign_key_trigger_status(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
     }
     assert status_after_enable["person"].disabled_trigger_count == 0
 
 
 def test_index_disable_and_enable_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
-    _create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
+    _create_missing_tables(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine), vocabulary_included=True)
 
-    disabled = _manage_indexes(scoped.engine, vocab_engine=scoped.engine, enable=False, resolved=scoped.resolved)
+    disabled = _manage_indexes(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine), enable=False)
     assert disabled
     assert all(result.status in (Status.APPLIED, Status.SKIPPED) for result in disabled)
 
@@ -84,7 +85,7 @@ def test_index_disable_and_enable_targets_the_configured_schema(scoped: ScopedTe
         idx["name"] for idx in inspector.get_indexes("person", schema=scoped.schemas[Role.PRIMARY])
     }
 
-    enabled = _manage_indexes(scoped.engine, vocab_engine=scoped.engine, enable=True, resolved=scoped.resolved)
+    enabled = _manage_indexes(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine), enable=True)
     assert all(result.status in (Status.APPLIED, Status.SKIPPED) for result in enabled)
 
     inspector = sa.inspect(scoped.engine)
@@ -95,9 +96,9 @@ def test_index_disable_and_enable_targets_the_configured_schema(scoped: ScopedTe
 
 
 def test_fulltext_install_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
-    _create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
+    _create_missing_tables(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine), vocabulary_included=True)
 
-    results = _install_fulltext_columns(scoped.engine)
+    results = _install_fulltext_columns(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
     assert results
     assert all(result.status == Status.APPLIED for result in results)
 
@@ -110,10 +111,10 @@ def test_fulltext_install_targets_the_configured_schema(scoped: ScopedTestSchema
 
 
 def test_sequence_reset_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
-    _create_missing_tables(scoped.engine, vocab_engine=scoped.engine, vocabulary_included=True, resolved=scoped.resolved)
+    _create_missing_tables(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine), vocabulary_included=True)
 
     results = {
-        r.table_name: r for r in reset_model_sequences(scoped.engine, vocab_engine=scoped.engine, resolved=scoped.resolved)
+        r.table_name: r for r in reset_model_sequences(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
     }
     person_result = results["person"]
 

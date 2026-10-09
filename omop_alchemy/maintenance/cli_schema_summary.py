@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 
 import sqlalchemy as sa
 
-from oa_configurator import qualified, physical_schema_of
+from oa_configurator import qualified
+from .context import MaintenanceContext
 from .tables import TableCategory, select_omop_tables
 
 
@@ -24,28 +26,32 @@ class TableSummaryResult:
 
 
 def collect_data_summary(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
     vocabulary_included: bool = False,
     existing_only: bool = True,
 ) -> list[TableSummaryResult]:
-    """Return row counts and existence state for each ORM-managed table in the target database."""
-    inspector = sa.inspect(engine)
+    """Return row counts and existence state for each ORM-managed table, each read on its own engine."""
     tables = select_omop_tables(vocabulary_included=vocabulary_included)
 
     results: list[TableSummaryResult] = []
-    with engine.connect() as connection:
-        for table in tables:
-            exists = inspector.has_table(table.table_name, schema=physical_schema_of(engine, schema_tag=table.schema_tag))
+    with ExitStack() as stack:
+        connections: dict[sa.Engine, sa.Connection] = {}
+        for target in context.targets(tables):
+            table = target.table
+            exists = target.exists()
             if not exists and existing_only:
                 continue
 
             row_count: int | None = None
             if exists:
+                if target.bind not in connections:
+                    connections[target.bind] = stack.enter_context(target.bind.connect())
+                connection = connections[target.bind]
                 row_count = int(
                     connection.execute(
                         sa.text(
-                            f"SELECT COUNT(*) FROM {qualified(connection, table.table_name, physical_schema=physical_schema_of(connection, schema_tag=table.schema_tag))}"
+                            f"SELECT COUNT(*) FROM {qualified(connection, table.table_name, physical_schema=target.physical_schema)}"
                         )
                     ).scalar_one()
                 )

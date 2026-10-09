@@ -13,13 +13,14 @@ import sqlalchemy.orm as so
 from sqlalchemy.exc import OperationalError
 import typer
 from oa_configurator import (
-    ResolvedCDMDatabase,
+    Role,
     UnregisteredSchemaTagError,
     claimed_schema_tags,
     declared_schema_tags,
+    physical_schema_of,
 )
 from orm_loader.backends import STAGING_SCHEMA, resolve_backend
-from orm_loader.helpers import Base
+from orm_loader.helpers import create_tables
 from orm_loader.tables.typing import CSVTableProtocol
 from rich.progress import (
     BarColumn,
@@ -45,6 +46,7 @@ from omop_alchemy.cdm.model.vocabulary import (
 
 from ..backends import backend_supports, resolve_backend as resolve_omop_backend
 from ._cli_utils import Status, omop_command
+from .context import MaintenanceContext
 from .cli_foreign_keys import manage_foreign_key_triggers
 from .cli_indexes import _manage_indexes
 from .cli_tables import reset_model_sequences
@@ -242,50 +244,40 @@ def _missing_required_files(
     ]
 
 
-def _create_missing_vocabulary_tables(
-    connection: sa.Connection,
-    *,
-    db_schema: str | None,
-    resolved: ResolvedCDMDatabase,
-) -> int:
-    """Create any vocabulary-category ORM tables that are absent from the target database. Returns the count created.
+def _create_missing_vocabulary_tables(context: MaintenanceContext) -> int:
+    """Create any vocabulary-category ORM tables absent from their own engine. Returns the count created.
+
     Notes
     -----
-    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
-    of schema drift between the engine's creation and this command's execution.
+    - No provenance guard as the engines were just built in `omop_command`. There is no
+    possibility of schema drift between their creation and this command's execution.
     """
-    vocab_tables = select_maintenance_tables(
-        categories=(TableCategory.VOCABULARY,),
-    )
-    inspector = sa.inspect(connection)
-    missing_tables = [
-        table
-        for table in vocab_tables
-        if not inspector.has_table(table.table_name, schema=db_schema)
+    missing = [
+        target
+        for target in context.targets(select_maintenance_tables(categories=(TableCategory.VOCABULARY,)))
+        if not target.exists()
     ]
-    if not missing_tables:
-        return 0
-
-    all_tables = [table.table for table in missing_tables]
-    missing_claims = declared_schema_tags(all_tables) - claimed_schema_tags(connection)
-    if missing_claims:
-        raise UnregisteredSchemaTagError(
-            f"_create_missing_vocabulary_tables(): table(s) declare schema tag(s) "
-            f"{sorted(missing_claims)} that aren't claimed on this connection. Add them "
-            "to create_cdm_engine()'s own create_engine(schema_claims=[...]) call."
-        )
-    Base.metadata.create_all(bind=connection, tables=all_tables, checkfirst=True)
-    return len(missing_tables)
+    by_engine: dict[sa.Engine, list[sa.Table]] = {}
+    for target in missing:
+        by_engine.setdefault(target.bind, []).append(target.table.table)
+    for engine, tables in by_engine.items():
+        with engine.begin() as connection:
+            missing_claims = declared_schema_tags(tables) - claimed_schema_tags(connection)
+            if missing_claims:
+                raise UnregisteredSchemaTagError(
+                    f"_create_missing_vocabulary_tables(): table(s) declare schema tag(s) "
+                    f"{sorted(missing_claims)} that aren't claimed on this connection. Add them "
+                    "to create_cdm_engines()'s own create_engines(schema_claims=[...]) call."
+                )
+            create_tables(connection, tables, resolved=context.resolved)
+    return len(missing)
 
 
 def load_vocab_source(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    vocab_engine: sa.Engine,
-    vocab_schema: str | None = None,
     source_path: str | Path,
     tables: list[str] | None = None,
-    db_schema: str | None = None,
     dry_run: bool = False,
     merge_strategy: MergeStrategy = "replace",
     quote_mode: QuoteMode = "by_delimiter",
@@ -293,7 +285,6 @@ def load_vocab_source(
     bulk_mode: bool = True,
     merge_batch_size: int | None = None,
     progress_callback: VocabularyLoadProgressCallback | None = None,
-    resolved: ResolvedCDMDatabase,
 ) -> VocabularyLoadReport:
     """
     Load Athena vocabulary CSVs from source_path into the target database.
@@ -310,20 +301,12 @@ def load_vocab_source(
 
     Parameters
     ----------
-    vocab_engine : sqlalchemy.Engine
-        Engine for vocabulary tables and the load itself, when
-        ``vocab_connection`` names a physically different server than
-        ``engine``. May be the same as ``engine`` when the CDM and vocabulary 
-        tables are on the same physical server.
-    vocab_schema : str, optional
-        Schema vocab-tagged tables live in, for the table-existence check
-        against ``vocab_engine``. Defaults to ``db_schema``.
-    resolved : ResolvedCDMDatabase
-        Forwarded to the index/FK/table-creation helpers this function calls,
-        which check it against each table's declared schema tags before creating
-        anything.
+    context : MaintenanceContext
+        The load, and every index, FK-trigger and sequence step around it,
+        runs on the engine hosting the vocabulary tables.
     """
-    vocab_schema = vocab_schema if vocab_schema is not None else db_schema
+    vocab_engine = context.vocab_engine
+    vocab_schema = physical_schema_of(vocab_engine, schema_tag=Role.VOCAB.value)
 
     resolved_source_path = Path(source_path).expanduser().resolve()
     if not resolved_source_path.exists() or not resolved_source_path.is_dir():
@@ -389,12 +372,10 @@ def load_vocab_source(
             table_count=table_count,
         )
         manage_foreign_key_triggers(
-            vocab_engine,
-            vocab_engine=vocab_engine,
+            context,
             enable=False,
             vocabulary_only=True,
             dry_run=False,
-            resolved=resolved,
         )
         _emit(
             progress_callback,
@@ -403,12 +384,10 @@ def load_vocab_source(
             table_count=table_count,
         )
         disable_results = _manage_indexes(
-            vocab_engine,
-            vocab_engine=vocab_engine,
+            context,
             enable=False,
             vocabulary_only=True,
             dry_run=False,
-            resolved=resolved,
         )
         index_warnings = tuple(
             f"{result.table_name}.{result.index_name}: {result.detail}"
@@ -424,11 +403,7 @@ def load_vocab_source(
             )
 
     if not dry_run:
-        with vocab_engine.connect() as pre_conn:
-            created_table_count = _create_missing_vocabulary_tables(
-                pre_conn, db_schema=vocab_schema, resolved=resolved
-            )
-            pre_conn.commit()
+        created_table_count = _create_missing_vocabulary_tables(context)
 
     try:
         for model in all_models:
@@ -558,13 +533,11 @@ def load_vocab_source(
                 table_count=table_count,
             )
             _manage_indexes(
-                vocab_engine,
-                vocab_engine=vocab_engine,
+                context,
                 enable=True,
                 vocabulary_only=True,
                 dry_run=False,
                 cluster=False,
-                resolved=resolved,
             )
             _emit(
                 progress_callback,
@@ -573,12 +546,10 @@ def load_vocab_source(
                 table_count=table_count,
             )
             manage_foreign_key_triggers(
-                vocab_engine,
-                vocab_engine=vocab_engine,
+                context,
                 enable=True,
                 vocabulary_only=True,
                 dry_run=False,
-                resolved=resolved,
             )
 
     _emit(
@@ -590,11 +561,9 @@ def load_vocab_source(
 
     if not dry_run and backend_supports(resolve_omop_backend(vocab_engine), "find_sequence_name"):
         sequence_results = reset_model_sequences(
-            vocab_engine,
-            vocab_engine=vocab_engine,
+            context,
             vocabulary_only=True,
             dry_run=False,
-            resolved=resolved,
         )
         sequence_reset_count = sum(
             result.status == Status.RESET for result in sequence_results
@@ -603,7 +572,7 @@ def load_vocab_source(
     return VocabularyLoadReport(
         source_path=str(resolved_source_path),
         backend=vocab_engine.dialect.name,
-        db_schema=db_schema,
+        db_schema=vocab_schema,
         merge_strategy=merge_strategy,
         created_table_count=created_table_count,
         sequence_reset_count=sequence_reset_count,
@@ -621,9 +590,7 @@ app = typer.Typer(rich_markup_mode="rich")
 )
 @omop_command("load-vocab-source", vocabulary_included=True, dry_run=True)
 def load_vocab_source_command(
-    conn,
-    engine,
-    vocab_engine,
+    conn: MaintenanceContext,
     athena_source: str | None = typer.Option(
         None,
         help="Path to the unzipped Athena vocabulary CSV directory. Falls back to the saved athena-source default.",
@@ -730,12 +697,9 @@ def load_vocab_source_command(
                 )
 
         report = load_vocab_source(
-            engine,
-            vocab_engine=vocab_engine,
-            vocab_schema=conn.resolved.vocab_schema,
+            conn,
             source_path=effective_athena_source,
             tables=tables or None,
-            db_schema=conn.resolved.schema_name,
             dry_run=dry_run,
             merge_strategy=merge_strategy,
             quote_mode=quote_mode,
@@ -743,7 +707,6 @@ def load_vocab_source_command(
             bulk_mode=bulk_mode,
             merge_batch_size=merge_batch_size,
             progress_callback=_update_progress,
-            resolved=conn.resolved,
         )
         progress.update(
             task_id, completed=100.0, description="Athena vocabulary load complete"

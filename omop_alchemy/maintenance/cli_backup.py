@@ -23,6 +23,7 @@ from ._cli_utils import (
     dry_status,
     omop_command
 )
+from .context import MaintenanceContext
 from .ui import (
     console,
     render_backup_result,
@@ -179,10 +180,8 @@ def _single_connection_restore(
 
 
 def create_database_backup(
-    engine: sa.Engine,
-    resolved: ResolvedCDMDatabase,
+    context: MaintenanceContext,
     *,
-    vocab_engine: sa.Engine,
     output_path: str | Path | None = None,
     backup_format: BackupFormat = BackupFormat.CUSTOM,
     include_vocab: bool = False,
@@ -192,24 +191,34 @@ def create_database_backup(
 
     Parameters
     ----------
-    vocab_engine : sqlalchemy.Engine
-        Backed up in a second artifact when include_vocab is True and
-        genuinely a different physical connection than engine's own --
-        a shared vocabulary connection is already covered by the first
-        artifact. Its lifecycle (disposal) is the caller's responsibility.
+    context : MaintenanceContext
+        Its vocabulary engine is backed up in a second artifact when
+        include_vocab is True and the vocabulary has its own database; a
+        shared one is already covered by the first artifact. The caller keeps
+        ownership of both engines.
     include_vocab : bool, optional
         Also back up the vocabulary connection, in a second artifact
         alongside the first.
     """
     results = [
-        _single_connection_backup(engine, resolved, output_path=output_path, backup_format=backup_format, dry_run=dry_run)
+        _single_connection_backup(
+            context.engine, 
+            context.resolved, 
+            output_path=output_path, 
+            backup_format=backup_format, 
+            dry_run=dry_run
+        )
     ]
 
-    if include_vocab and vocab_engine is not engine:
+    if include_vocab and context.vocab_engine is not context.engine:
         vocab_output_path = _vocab_sibling_path(results[0].file_path, backup_format)
         results.append(
             _single_connection_backup(
-                vocab_engine, resolved, output_path=vocab_output_path, backup_format=backup_format, dry_run=dry_run
+                context.vocab_engine, 
+                context.resolved, 
+                output_path=vocab_output_path, 
+                backup_format=backup_format, 
+                dry_run=dry_run
             )
         )
 
@@ -217,10 +226,8 @@ def create_database_backup(
 
 
 def restore_database_backup(
-    engine: sa.Engine,
-    resolved: ResolvedCDMDatabase,
+    context: MaintenanceContext,
     *,
-    vocab_engine: sa.Engine,
     input_path: str | Path,
     backup_format: BackupFormat,
     vocab_input_path: str | Path | None = None,
@@ -231,9 +238,9 @@ def restore_database_backup(
 
     Parameters
     ----------
-    vocab_engine : sqlalchemy.Engine
-        Restored from vocab_input_path when given. Its lifecycle
-        (disposal) is the caller's responsibility.
+    context : MaintenanceContext
+        Its vocabulary engine is restored from vocab_input_path when given.
+        The caller keeps ownership of both engines.
     vocab_input_path : str or Path, optional
         Path to a separate artifact for the vocabulary connection, produced
         by a prior create_database_backup(include_vocab=True) call. Only
@@ -241,18 +248,28 @@ def restore_database_backup(
         from engine's own.
     """
     results = [
-        _single_connection_restore(engine, resolved, input_path=input_path, backup_format=backup_format, dry_run=dry_run)
+        _single_connection_restore(
+            context.engine, 
+            context.resolved, 
+            input_path=input_path, 
+            backup_format=backup_format, 
+            dry_run=dry_run
+        )
     ]
 
     if vocab_input_path is not None:
-        if vocab_engine is engine:
+        if context.vocab_engine is context.engine:
             raise RuntimeError(
                 "vocab_input_path was given but this database's vocabulary is not on a "
                 "separate connection; omit vocab_input_path."
             )
         results.append(
             _single_connection_restore(
-                vocab_engine, resolved, input_path=vocab_input_path, backup_format=backup_format, dry_run=dry_run
+                context.vocab_engine, 
+                context.resolved, 
+                input_path=vocab_input_path, 
+                backup_format=backup_format, 
+                dry_run=dry_run
             )
         )
 
@@ -270,9 +287,7 @@ app = typer.Typer(
 @app.command("backup-database")
 @omop_command("backup-database", dry_run=True, writes=False)
 def backup_database_command(
-    conn,
-    engine,
-    vocab_engine,
+    conn: MaintenanceContext,
     output_path: str | None = typer.Option(
         None,
         help="Output path for the backup artifact. Defaults to a timestamped file in the current directory.",
@@ -291,9 +306,7 @@ def backup_database_command(
     """Create a database backup that can be restored with `restore-database`."""
     with console.status("Creating restore-ready database backup..."):
         results = create_database_backup(
-            engine,
-            conn.resolved,
-            vocab_engine=vocab_engine,
+            conn,
             output_path=output_path,
             backup_format=backup_format,
             include_vocab=include_vocab,
@@ -307,9 +320,7 @@ def backup_database_command(
 @app.command("restore-database")
 @omop_command("restore-database", dry_run=True)
 def restore_database_command(
-    conn,
-    engine,
-    vocab_engine,
+    conn: MaintenanceContext,
     input_path: str = typer.Argument(help="Path to the backup artifact (.dump or .sql) to restore."),
     backup_format: BackupFormat = typer.Option(
         ...,
@@ -325,9 +336,7 @@ def restore_database_command(
     """Restore a database backup that was created with `backup-database`."""
     with console.status("Restoring database backup..."):
         results = restore_database_backup(
-            engine,
-            conn.resolved,
-            vocab_engine=vocab_engine,
+            conn,
             input_path=input_path,
             backup_format=backup_format,
             vocab_input_path=vocab_input_path,

@@ -1,5 +1,6 @@
 import copy
 import os
+import uuid
 from datetime import date
 from pathlib import Path
 import pytest
@@ -11,7 +12,7 @@ from oa_configurator import ResolvedCDMDatabase
 import sqlalchemy.orm as so
 from sqlalchemy.orm import Session, sessionmaker
 
-from typing import Any, Dict, Iterator, Tuple
+from typing import Any, Dict, Iterator, NamedTuple, Tuple
 
 from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance.cli_tables import _truncate_tables
@@ -28,6 +29,7 @@ from omop_alchemy.cdm.model.vocabulary import (
     Relationship,
     Vocabulary,
 )
+from omop_alchemy.maintenance.context import MaintenanceContext
 
 # typer forces colorized rich error/output rendering when GITHUB_ACTIONS (or
 # FORCE_COLOR / PY_COLORS) is set -- see typer.rich_utils.FORCE_TERMINAL. Under
@@ -36,6 +38,24 @@ from omop_alchemy.cdm.model.vocabulary import (
 # force feeds every typer rich Console, so clear it here: tests then see the same
 # uncolored output everywhere; real users still get colour in a real terminal.
 _typer_rich_utils.FORCE_TERMINAL = None
+
+
+class FakeMaintenanceContext:
+    """Stands in for MaintenanceContext with every tag hosted on one fake engine.
+
+    Parameters
+    ----------
+    engine : Any
+        Fake engine every schema tag routes to.
+    """
+
+    def __init__(self, engine: Any) -> None:
+        self.engine = engine
+        self.engines = (engine,)
+
+    def engine_for(self, schema_tag: str) -> Any:
+        """Return the one fake engine for any *schema_tag*."""
+        return self.engine
 
 
 @pytest.fixture
@@ -404,7 +424,7 @@ def pg_engine(pg_unscoped_resolved):
     every Role tag maps to the connection's default schema (``public``).
     ``pg_session`` resets its tables before and after each test.
     """
-    engine = pg_unscoped_resolved.create_engine()
+    engine, _ = pg_unscoped_resolved.create_engines()
     yield engine
     engine.dispose()
 
@@ -438,9 +458,9 @@ def pg_session(pg_engine, pg_unscoped_resolved, cleanup_after_test):
 
     def _clear_managed_tables() -> None:
         _truncate_tables(
-            pg_engine, vocab_engine=pg_engine,
+            MaintenanceContext(resolved=pg_unscoped_resolved, engine=pg_engine, vocab_engine=pg_engine),
             table_names=tuple(table.table_name for table in select_maintenance_tables()),
-            cascade=True, resolved=pg_unscoped_resolved,
+            cascade=True,
         )
 
     _clear_managed_tables()
@@ -455,6 +475,64 @@ def pg_session(pg_engine, pg_unscoped_resolved, cleanup_after_test):
     finally:
         session.rollback()
         session.close()
+
+
+class SplitCDM(NamedTuple):
+    """A CDM whose vocabulary lives in its own PostgreSQL database."""
+
+    resolved: ResolvedCDMDatabase
+    primary: sa.Engine
+    vocab: sa.Engine
+
+
+@pytest.fixture
+def pg_split(pg_db, tmp_path) -> Iterator[SplitCDM]:
+    """Primary and vocabulary on two fresh PostgreSQL databases, every CDM
+    table created through bootstrap and the fixture vocabulary loaded.
+
+    Both databases are created for this test and dropped afterwards, so
+    nothing committed here reaches the shared test database.
+    """
+    from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Resolver, StackConfig
+    from oa_configurator.testing.postgres import PostgresTestStrategy
+
+    from omop_alchemy.config import create_cdm_engines
+
+    url = pg_db.connection.engine.url
+    suffix = uuid.uuid4().hex[:8]
+    connections = {
+        role: ConnectionConfig(
+            dialect=url.drivername, host=url.host, port=url.port, user=url.username,
+            password=url.password, database_name=f"split_{role}_{suffix}", test_only=True,
+        )
+        for role in ("primary", "vocab")
+    }
+    strategy = PostgresTestStrategy()
+    for connection in connections.values():
+        strategy._ensure_test_db_exists(connection.build_url())
+    stack = StackConfig.for_session(
+        connections=connections,
+        databases={
+            "split_cdm": CDMDatabaseConfig(
+                connection="primary", vocab_connection="vocab",
+                cdm_schema="public", vocab_schema="public",
+            )
+        },
+    )
+    resolved = Resolver(stack).resolve_database("split_cdm")
+    assert isinstance(resolved, ResolvedCDMDatabase)
+    try:
+        bootstrap(resolved, create=True)
+        primary, vocab = create_cdm_engines(resolved)
+        try:
+            _load_fixture_vocabulary(vocab, tmp_path)
+            yield SplitCDM(resolved=resolved, primary=primary, vocab=vocab)
+        finally:
+            primary.dispose()
+            vocab.dispose()
+    finally:
+        for name, connection in connections.items():
+            strategy.drop_test_database(connection.resolve(name))
 
 
 @pytest.fixture

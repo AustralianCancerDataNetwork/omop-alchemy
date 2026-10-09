@@ -11,10 +11,11 @@ import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 from ..backends import backend_support_note as _backend_support_note
 from ..backends import resolve_backend, require_backend_support
-from ..backends.base import FullTextError
+from ..backends.base import Backend, FullTextError, FullTextTargetConfig
 from ..cdm.model.vocabulary.concept import Concept
 from ..cdm.model.vocabulary.concept_synonym import Concept_Synonym
 from ._cli_utils import Status, dry_label, dry_status, omop_command
+from .context import MaintenanceContext
 from .ui import (
     console,
     render_fulltext_results,
@@ -66,10 +67,33 @@ class FullTextResult:
     row_count: int | None = None
 
 
+def _fulltext_groups(
+    context: MaintenanceContext, capability: str
+) -> list[tuple[Engine, Backend, list[FullTextTargetConfig]]]:
+    """Fulltext targets grouped by the engine hosting each target table.
+
+    The backend of every engine hosting a target table must support
+    *capability*, and supplies that table's target configuration.
+    """
+    table_names_by_engine: dict[Engine, set[str]] = {}
+    for table_name in _FULLTEXT_TARGET_TABLES:
+        engine = context.engine_for(_schema_tag_for_target(table_name))
+        table_names_by_engine.setdefault(engine, set()).add(table_name)
+
+    groups = []
+    for engine, table_names in table_names_by_engine.items():
+        backend = resolve_backend(engine)
+        require_backend_support(backend, capability, "Full-text search")
+        groups.append(
+            (engine, backend, [cfg for cfg in backend.fulltext_targets if cfg.table_name in table_names])
+        )
+    return groups
+
+
 # ── Orchestrators ─────────────────────────────────────────────────────────────
 
 def _install_fulltext_columns(
-    engine: Engine,
+    context: MaintenanceContext,
     *,
     create_indexes: bool = True,
     fastupdate: bool = False,
@@ -78,26 +102,26 @@ def _install_fulltext_columns(
     """Install tsvector sidecar columns (and optionally GIN indexes) on OMOP vocabulary tables.
     Notes
     -----
-    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
-    of schema drift between the engine's creation and this command's execution.
+    - No provenance guard as the engines were just built in `omop_command`. There is no
+    possibility of schema drift between their creation and this command's execution.
     """
-    backend = resolve_backend(engine)
-    require_backend_support(backend, "install_fulltext_on_table", "Full-text search")
-    targets = backend.fulltext_targets
+    groups = _fulltext_groups(context, "install_fulltext_on_table")
+    targets = [cfg for _, _, cfgs in groups for cfg in cfgs]
 
     try:
         if not dry_run:
-            with engine.begin() as connection:
-                for cfg in targets:
-                    backend.install_fulltext_on_table(
-                        connection,
-                        table_name=cfg.table_name,
-                        vector_column_name=cfg.vector_column_name,
-                        index_name=cfg.index_name,
-                        create_indexes=create_indexes,
-                        fastupdate=fastupdate,
-                        schema_tag=_schema_tag_for_target(cfg.table_name),
-                    )
+            for engine, backend, cfgs in groups:
+                with engine.begin() as connection:
+                    for cfg in cfgs:
+                        backend.install_fulltext_on_table(
+                            connection,
+                            table_name=cfg.table_name,
+                            vector_column_name=cfg.vector_column_name,
+                            index_name=cfg.index_name,
+                            create_indexes=create_indexes,
+                            fastupdate=fastupdate,
+                            schema_tag=_schema_tag_for_target(cfg.table_name),
+                        )
     except FullTextError:
         raise
     except Exception as exc:
@@ -125,29 +149,29 @@ def _install_fulltext_columns(
 
 
 def populate_fulltext_columns(
-    engine: Engine,
+    context: MaintenanceContext,
     *,
     regconfig: str = "english",
     dry_run: bool = False,
 ) -> tuple[FullTextResult, ...]:
     """Populate tsvector sidecar columns with pre-computed search vectors."""
-    backend = resolve_backend(engine)
-    require_backend_support(backend, "populate_fulltext_on_table", "Full-text search")
-    targets = backend.fulltext_targets
+    groups = _fulltext_groups(context, "populate_fulltext_on_table")
+    targets = [cfg for _, _, cfgs in groups for cfg in cfgs]
 
     row_counts: dict[str, int | None] = {}
     try:
         if not dry_run:
-            with engine.begin() as connection:
-                for cfg in targets:
-                    row_counts[cfg.table_name] = backend.populate_fulltext_on_table(
-                        connection,
-                        table_name=cfg.table_name,
-                        vector_column_name=cfg.vector_column_name,
-                        source_column_name=cfg.source_column_name,
-                        regconfig=regconfig,
-                        schema_tag=_schema_tag_for_target(cfg.table_name),
-                    )
+            for engine, backend, cfgs in groups:
+                with engine.begin() as connection:
+                    for cfg in cfgs:
+                        row_counts[cfg.table_name] = backend.populate_fulltext_on_table(
+                            connection,
+                            table_name=cfg.table_name,
+                            vector_column_name=cfg.vector_column_name,
+                            source_column_name=cfg.source_column_name,
+                            regconfig=regconfig,
+                            schema_tag=_schema_tag_for_target(cfg.table_name),
+                        )
     except FullTextError:
         raise
     except Exception as exc:
@@ -172,28 +196,28 @@ def populate_fulltext_columns(
 
 
 def drop_fulltext_columns(
-    engine: Engine,
+    context: MaintenanceContext,
     *,
     drop_indexes: bool = True,
     dry_run: bool = False,
 ) -> tuple[FullTextResult, ...]:
     """Remove tsvector sidecar columns and their associated GIN indexes."""
-    backend = resolve_backend(engine)
-    require_backend_support(backend, "drop_fulltext_on_table", "Full-text search")
-    targets = backend.fulltext_targets
+    groups = _fulltext_groups(context, "drop_fulltext_on_table")
+    targets = [cfg for _, _, cfgs in groups for cfg in cfgs]
 
     try:
         if not dry_run:
-            with engine.begin() as connection:
-                for cfg in targets:
-                    backend.drop_fulltext_on_table(
-                        connection,
-                        table_name=cfg.table_name,
-                        vector_column_name=cfg.vector_column_name,
-                        index_name=cfg.index_name,
-                        drop_indexes=drop_indexes,
-                        schema_tag=_schema_tag_for_target(cfg.table_name),
-                    )
+            for engine, backend, cfgs in groups:
+                with engine.begin() as connection:
+                    for cfg in cfgs:
+                        backend.drop_fulltext_on_table(
+                            connection,
+                            table_name=cfg.table_name,
+                            vector_column_name=cfg.vector_column_name,
+                            index_name=cfg.index_name,
+                            drop_indexes=drop_indexes,
+                            schema_tag=_schema_tag_for_target(cfg.table_name),
+                        )
     except FullTextError:
         raise
     except Exception as exc:
@@ -225,8 +249,7 @@ def drop_fulltext_columns(
 @app.command("install")
 @omop_command("fulltext install", vocabulary_included=True, dry_run=True)
 def install_fulltext_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     create_indexes: bool = typer.Option(
         True,
         "--create-indexes/--no-create-indexes",
@@ -242,7 +265,7 @@ def install_fulltext_command(
     """Add tsvector sidecar columns to vocabulary tables and optionally create GIN indexes for fast full-text search."""
     with console.status("Managing PostgreSQL full-text sidecar columns..."):
         results = _install_fulltext_columns(
-            engine,
+            conn,
             create_indexes=create_indexes,
             fastupdate=fastupdate,
             dry_run=dry_run,
@@ -254,8 +277,7 @@ def install_fulltext_command(
 @app.command("populate")
 @omop_command("fulltext populate", vocabulary_included=True, dry_run=True)
 def populate_fulltext_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     regconfig: str = typer.Option(
         "english",
         help="PostgreSQL text search configuration to use when building tsvector values (e.g. 'english', 'simple').",
@@ -265,7 +287,7 @@ def populate_fulltext_command(
     """Fill tsvector sidecar columns with pre-computed search vectors using the specified PostgreSQL text search configuration."""
     with console.status("Managing PostgreSQL full-text sidecar columns..."):
         results = populate_fulltext_columns(
-            engine,
+            conn,
             regconfig=regconfig,
             dry_run=dry_run,
         )
@@ -276,8 +298,7 @@ def populate_fulltext_command(
 @app.command("drop")
 @omop_command("fulltext drop", vocabulary_included=True, dry_run=True)
 def drop_fulltext_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     drop_indexes: bool = typer.Option(
         True,
         "--drop-indexes/--no-drop-indexes",
@@ -288,7 +309,7 @@ def drop_fulltext_command(
     """Remove tsvector sidecar columns and their associated GIN indexes from vocabulary tables."""
     with console.status("Managing PostgreSQL full-text sidecar columns..."):
         results = drop_fulltext_columns(
-            engine,
+            conn,
             drop_indexes=drop_indexes,
             dry_run=dry_run,
         )

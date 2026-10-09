@@ -11,9 +11,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 import typer
 
 from oa_configurator import (
-    ResolvedCDMDatabase,
     ensure_schema,
-    physical_schema_of,
     supports_schemas,
 )
 
@@ -22,6 +20,7 @@ from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY
 from ..backends import resolve_backend, backend_supports
 from ..config import MAINTENANCE_SCHEMA
 from ._cli_utils import Status, dry_label, dry_status, omop_command
+from .context import MaintenanceContext
 from .tables import (
     MaintenanceTable,
     TableCategory,
@@ -619,21 +618,21 @@ def _resolve_physical_cluster_name(
 
 
 def collect_index_targets(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
     vocabulary_included: bool = False,
 ) -> list[IndexTarget]:
-    """List ORM-defined indexes that currently exist in the target database."""
-    inspector = sa.inspect(engine)
+    """List ORM-defined indexes that currently exist, each read on its table's own engine."""
     selected_tables = select_omop_tables(vocabulary_included=vocabulary_included)
 
     targets: list[IndexTarget] = []
-    for table in selected_tables:
-        table_schema = physical_schema_of(engine, schema_tag=table.schema_tag)
-        if not inspector.has_table(table.table_name, schema=table_schema):
+    for table_target in context.targets(selected_tables):
+        if not table_target.exists():
             continue
-
-        existing_indexes = inspector.get_indexes(table.table_name, schema=table_schema)
+        table = table_target.table
+        existing_indexes = sa.inspect(table_target.bind).get_indexes(
+            table.table_name, schema=table_target.physical_schema
+        )
         existing_index_names = {index["name"] for index in existing_indexes}
 
         for metadata_index in sorted(table.table.indexes, key=lambda idx: idx.name or ""):
@@ -687,22 +686,20 @@ class _IndexOutcome:
 
 
 def _manage_indexes(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    vocab_engine: sa.Engine,
     enable: bool,
     vocabulary_included: bool = False,
     vocabulary_only: bool = False,
     dry_run: bool = False,
     cluster: bool = True,
-    resolved: ResolvedCDMDatabase,
 ) -> list[IndexManagementResult]:
     """Create or drop all ORM-defined indexes. CLUSTERs tables when enabling and cluster=True.
     
     Notes
     -----
-    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
-    of schema drift between the engine's creation and this command's execution.
+    - No provenance guard as the engines were just built in `omop_command`. There is no
+    possibility of schema drift between their creation and this command's execution.
     """
     selected_tables = (
         select_maintenance_tables(categories=(TableCategory.VOCABULARY,))
@@ -710,23 +707,21 @@ def _manage_indexes(
         else select_omop_tables(vocabulary_included=vocabulary_included)
     )
     metadata_indexes = _schema_metadata_indexes(selected_tables)
-    backends_by_engine = {
-        candidate_engine: resolve_backend(candidate_engine)
-        for candidate_engine in ({engine, vocab_engine} if vocab_engine is not engine else (engine,))
-    }
+    backends_by_engine = {candidate: resolve_backend(candidate) for candidate in context.engines}
     clustering_supported = any(
         backend_supports(candidate_backend, "cluster_table") for candidate_backend in backends_by_engine.values()
     )
 
     results: list[IndexManagementResult] = []
 
-    for table in selected_tables:
-        table_engine = resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
-        backend = backends_by_engine[table_engine]
-        db_schema = physical_schema_of(table_engine, schema_tag=table.schema_tag)
-        inspector = sa.inspect(table_engine)
-        if not inspector.has_table(table.table_name, schema=db_schema):
+    for target in context.targets(selected_tables):
+        if not target.exists():
             continue
+        table = target.table
+        table_engine = target.bind
+        backend = backends_by_engine[table_engine]
+        db_schema = target.physical_schema
+        inspector = sa.inspect(table_engine)
 
         existing_indexes = inspector.get_indexes(table.table_name, schema=db_schema)
         existing_index_names = {index["name"] for index in existing_indexes}
@@ -1010,9 +1005,7 @@ app = typer.Typer(
 @app.command("disable")
 @omop_command("indexes disable", dry_run=True)
 def disable_indexes_command(
-    conn,
-    engine,
-    vocab_engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -1023,12 +1016,10 @@ def disable_indexes_command(
     """Drop all ORM-defined secondary indexes from the target database. Useful before bulk data loads."""
     with console.status("Managing metadata-defined indexes..."):
         results = _manage_indexes(
-            engine,
-            vocab_engine=vocab_engine,
+            conn,
             enable=False,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
-            resolved=conn.resolved,
         )
     console.print(render_index_results(results))
     console.print(render_index_summary(results, dry_run=dry_run))
@@ -1038,9 +1029,7 @@ def disable_indexes_command(
 @app.command("enable")
 @omop_command("indexes enable", dry_run=True)
 def enable_indexes_command(
-    conn,
-    engine,
-    vocab_engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -1061,13 +1050,11 @@ def enable_indexes_command(
     """
     with console.status("Managing metadata-defined indexes..."):
         results = _manage_indexes(
-            engine,
-            vocab_engine=vocab_engine,
+            conn,
             enable=True,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
             cluster=cluster,
-            resolved=conn.resolved,
         )
     console.print(render_index_results(results))
     console.print(render_index_summary(results, dry_run=dry_run))
@@ -1077,9 +1064,7 @@ def enable_indexes_command(
 @app.command("cluster")
 @omop_command("indexes cluster", dry_run=True)
 def cluster_tables_command(
-    conn,
-    engine,
-    vocab_engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -1098,27 +1083,25 @@ def cluster_tables_command(
 
     Notes
     -----
-    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
-    of schema drift between the engine's creation and this command's execution.
+    - No provenance guard as the engines were just built in `omop_command`. There is no
+    possibility of schema drift between their creation and this command's execution.
     """
-    backends_by_engine = {
-        candidate_engine: resolve_backend(candidate_engine)
-        for candidate_engine in ({engine, vocab_engine} if vocab_engine is not engine else (engine,))
-    }
+    backends_by_engine = {candidate: resolve_backend(candidate) for candidate in conn.engines}
     if not any(backend_supports(candidate_backend, "cluster_table") for candidate_backend in backends_by_engine.values()):
-        console.print(f"[yellow]Clustering is not supported on {resolve_backend(engine).name}.[/yellow]")
+        console.print(f"[yellow]Clustering is not supported on {resolve_backend(conn.engine).name}.[/yellow]")
         raise typer.Exit(0)
 
     selected_tables = select_omop_tables(vocabulary_included=vocabulary_included)
     results: list[IndexManagementResult] = []
 
-    for table in selected_tables:
-        table_engine = conn.resolved.route_for_schema_tag(table.schema_tag, vocab=vocab_engine, primary=engine)
-        backend = backends_by_engine[table_engine]
-        table_schema = physical_schema_of(table_engine, schema_tag=table.schema_tag)
-        inspector = sa.inspect(table_engine)
-        if not inspector.has_table(table.table_name, schema=table_schema):
+    for target in conn.targets(selected_tables):
+        if not target.exists():
             continue
+        table = target.table
+        table_engine = target.bind
+        backend = backends_by_engine[table_engine]
+        table_schema = target.physical_schema
+        inspector = sa.inspect(table_engine)
 
         cluster_index_name = _cluster_target_name(table)
         if cluster_index_name is None:

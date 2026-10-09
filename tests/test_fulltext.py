@@ -13,6 +13,8 @@ from omop_alchemy.cdm.model.vocabulary.concept import Concept
 from omop_alchemy.cdm.model.vocabulary.concept_synonym import Concept_Synonym
 from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.cli import app
+from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import FakeMaintenanceContext
 from omop_alchemy.maintenance.cli_fulltext import (
     FullTextAction,
     FullTextResult,
@@ -92,7 +94,7 @@ def test_install_fulltext_columns_builds_postgresql_ddl_without_touching_orm_met
     engine = _FakeEngine()
 
     results = _install_fulltext_columns(
-        engine,  # type: ignore[arg-type]
+        FakeMaintenanceContext(engine),  # type: ignore[arg-type]
         create_indexes=True,
         fastupdate=True,
     )
@@ -117,7 +119,7 @@ def test_populate_fulltext_columns_issues_update_with_regconfig_and_row_counts()
     engine = _FakeEngine(rowcount=11)
 
     results = populate_fulltext_columns(
-        engine,  # type: ignore[arg-type]
+        FakeMaintenanceContext(engine),  # type: ignore[arg-type]
         regconfig="simple",
     )
 
@@ -134,7 +136,7 @@ def test_drop_fulltext_columns_drops_schema_objects():
     engine = _FakeEngine()
 
     results = drop_fulltext_columns(
-        engine,  # type: ignore[arg-type]
+        FakeMaintenanceContext(engine),  # type: ignore[arg-type]
         drop_indexes=True,
     )
 
@@ -157,7 +159,7 @@ def test_drop_fulltext_columns_drops_schema_objects():
         "drop_fulltext_columns",
     ],
 )
-def test_fulltext_management_requires_postgresql(fresh_engine, fn_name):
+def test_fulltext_management_requires_postgresql(fresh_engine, fresh_resolved, fn_name):
     """Fulltext management APIs reject non-PostgreSQL engines."""
     engine = fresh_engine
     fn = {
@@ -166,7 +168,7 @@ def test_fulltext_management_requires_postgresql(fresh_engine, fn_name):
         "drop_fulltext_columns": drop_fulltext_columns,
     }[fn_name]
     with pytest.raises(RuntimeError) as exc_info:
-        fn(engine)
+        fn(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine))
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 

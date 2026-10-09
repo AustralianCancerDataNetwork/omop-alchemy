@@ -5,10 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
-from oa_configurator import Dialect, ResolvedCDMDatabase
+from oa_configurator import Dialect
 
 from ..backends import backend_supports, resolve_backend
 from ._cli_utils import Status
+from .context import MaintenanceContext
 from .cli_foreign_keys import (
     ForeignKeyStatusResult,
     ForeignKeyValidationReport,
@@ -24,6 +25,7 @@ from .cli_schema_reconcile import (
     is_blocking_issue,
     reconcile_schema,
 )
+from .tables import select_maintenance_tables
 
 
 # ---------------------------------------------------------------------------
@@ -174,12 +176,36 @@ def _build_recommendations(
     return tuple(recommendations)
 
 
+def find_shadow_tables(context: MaintenanceContext) -> tuple[str, ...]:
+    """Tables of a role sitting on a database that does not host that role.
+
+    A pre-split copy of the vocabulary left on the primary database is the
+    usual cause, and it is the dangerous one: a statement reaching across
+    the boundary finds the stale copy and returns its rows instead of
+    failing. Every engine is checked. Reported as ``schema_tag.table_name``,
+    sorted.
+
+    Returns an empty tuple on a colocated deployment, where every role is
+    hosted on the one database and no table can be a shadow.
+    """
+    physical_schemas = context.resolved.resolved_physical_schemas()
+    shadows = []
+    for engine in context.engines:
+        with engine.connect() as connection:
+            hosted = {role.value for role in context.resolved.roles_on_connection(connection)}
+            inspector = sa.inspect(connection)
+            for table in select_maintenance_tables():
+                tag = table.schema_tag
+                if tag in hosted:
+                    continue
+                if inspector.has_table(table.table_name, schema=physical_schemas.get(tag)):
+                    shadows.append(f"{tag}.{table.table_name}")
+    return tuple(sorted(shadows))
+
+
 def collect_doctor_report(
+    context: MaintenanceContext,
     *,
-    engine: sa.engine.Engine,
-    vocab_engine: sa.engine.Engine,
-    resolved: ResolvedCDMDatabase,
-    resource_name: str,
     vocabulary_included: bool = True,
     deep: bool = False,
 ) -> DoctorReport:
@@ -187,25 +213,13 @@ def collect_doctor_report(
 
     Parameters
     ----------
-    engine : sa.engine.Engine
-        Already-resolved CDM engine (from the ``@omop_command`` decorator),
-        reused for all database checks instead of re-resolving config. The
-        caller retains ownership; this function does not dispose it.
-    vocab_engine : sa.engine.Engine
-        Engine for vocab-role tables.
-    resolved : ResolvedDatabase
-        Forwarded to every check so vocab/results tables are compared
-        against their own schema tag, not one schema uniformly.
-    resource_name : str
-        Configured database resource name.
+    context : MaintenanceContext
+        Reused for every check; the caller keeps ownership of its engines.
+    vocabulary_included : bool, optional
+    deep : bool, optional
+        Also reconcile the schema and validate foreign keys.
     """
-    info = collect_maintenance_info(
-        engine=engine,
-        vocab_engine=vocab_engine,
-        resolved=resolved,
-        resource_name=resource_name,
-        vocabulary_included=vocabulary_included,
-    )
+    info = collect_maintenance_info(context, vocabulary_included=vocabulary_included)
 
     checks = [
         DoctorCheck(
@@ -237,13 +251,23 @@ def collect_doctor_report(
             )
         )
 
-        if deep:
-            reconciliation = reconcile_schema(
-                engine,
-                vocab_engine=vocab_engine,
-                resolved=resolved,
-                vocabulary_included=vocabulary_included,
+        shadow_tables = find_shadow_tables(context)
+        checks.append(
+            DoctorCheck(
+                name="shadow tables",
+                status=Status.PASSED if not shadow_tables else Status.WARNING,
+                detail=(
+                    "No tables of a role hosted elsewhere are present here."
+                    if not shadow_tables
+                    else f"{len(shadow_tables)} stale table(s) of a role hosted on "
+                    f"another database are present here: {', '.join(shadow_tables)}. "
+                    "A query crossing the boundary can read these instead of failing."
+                ),
             )
+        )
+
+        if deep:
+            reconciliation = reconcile_schema(context, vocabulary_included=vocabulary_included)
             blocking_issue_count = sum(
                 1 for issue in reconciliation.issues if is_blocking_issue(issue)
             )
@@ -271,14 +295,11 @@ def collect_doctor_report(
                 )
             )
 
-        backend = resolve_backend(engine)
+        backend = resolve_backend(context.engine)
         if backend_supports(backend, "get_fk_trigger_counts"):
             foreign_key_status = tuple(
                 collect_foreign_key_trigger_status(
-                    engine,
-                    vocab_engine=vocab_engine,
-                    vocabulary_included=vocabulary_included,
-                    resolved=resolved,
+                    context, vocabulary_included=vocabulary_included
                 )
             )
             disabled_tables = sum(
@@ -300,10 +321,7 @@ def collect_doctor_report(
 
             if deep and backend_supports(backend, "count_fk_violations"):
                 foreign_key_validation = validate_foreign_key_constraints(
-                    engine,
-                    vocab_engine=vocab_engine,
-                    vocabulary_included=vocabulary_included,
-                    resolved=resolved,
+                    context, vocabulary_included=vocabulary_included
                 )
                 violating_tables = sum(
                     result.status == Status.FAILED
@@ -375,6 +393,11 @@ def collect_doctor_report(
                 ),
                 DoctorCheck(
                     name="foreign key validation",
+                    status=Status.SKIPPED,
+                    detail="Skipped because the database connection is not ready.",
+                ),
+                DoctorCheck(
+                    name="shadow tables",
                     status=Status.SKIPPED,
                     detail="Skipped because the database connection is not ready.",
                 ),

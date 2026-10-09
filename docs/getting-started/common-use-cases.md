@@ -89,8 +89,37 @@ connection       = "cdm"
 vocab_connection = "vocab"  # <- references your vocabulary DB
 ```
 
-!!! warning "Queries spanning both databases"
-    Reads that only touch vocabulary tables route to the `vocab` connection automatically. However, a query joining a vocabulary table against a clinical table (that lives in the `cdm` connection/DB) can't be answered by one physical connection in the underlying backend `SQLAlchemy`. `omop-alchemy` resolves those by querying each side separately and then merging the results in Python. Large queries therefore require significant memory budgets depending on the query.
+### When to use what
+
+Rule of thumb: are you working with rows or with tables?
+
+| You are... | Use | Example |
+|---|---|---|
+| Reading or writing rows of mapped classes | a session from `cdm_sessionmaker()` | `session.scalars(select(Concept).where(...))`, `session.add(Condition_Occurrence(...))`, `condition.condition_concept.concept_name` |
+| Changing or inspecting tables themselves | the engine for that table's tag, from `create_engines()` | CREATE/DROP/TRUNCATE, ANALYZE, ALTER, CREATE INDEX, `has_table`, `COUNT(*)` over a table, raw `text()` SQL |
+
+```python
+from omop_alchemy.config import get_cdm_context
+from omop_alchemy.cross_database import cdm_sessionmaker
+
+_, resolved = get_cdm_context()
+primary, vocab = resolved.create_engines()
+sessions = cdm_sessionmaker(resolved, primary=primary, vocab=vocab)
+```
+
+In practice:
+
+- Application code works with rows, so it uses `cdm_sessionmaker()`. The session sends each statement to the database that hosts its table.
+- Table-level work picks its engine explicitly: `vocab` for vocabulary tables, `primary` for everything else. The `omop-alchemy` maintenance commands already do this for you.
+
+### Limits
+
+- To filter one side by the other, use `filter_by_keys()`.
+- Concept-set expressions on a clinical column (`expression_for()`, `runtime_concept_predicate()`) need `session=` to work across the two databases.
+- A query joining tables from both databases raises `CrossDatabaseStatementError`. So does a statement sent to an engine that does not host its table.
+- Raw `text()` SQL is not checked.
+- No transaction covers both databases.
+- Foreign keys between the two databases are not created, and `reconcile-schema` does not report them as missing.
 
 ---
 

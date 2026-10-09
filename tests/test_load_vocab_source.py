@@ -20,6 +20,7 @@ from omop_alchemy.maintenance.cli_vocab import (
 from omop_alchemy.maintenance.tables import TableCategory
 from omop_alchemy.cdm.model.vocabulary import Drug_Strength
 from omop_alchemy.config import OmopAlchemyConfig
+from omop_alchemy.maintenance.context import MaintenanceContext
 
 
 runner = CliRunner()
@@ -91,7 +92,7 @@ def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
         fake_load_vocab_model_csv,
     )
 
-    report = load_vocab_source(engine, vocab_engine=engine, source_path=source_path, resolved=fresh_resolved)
+    report = load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path)
 
     result_by_name = {result.table_name: result for result in report.results}
 
@@ -125,9 +126,8 @@ def test_load_vocab_source_requires_full_required_athena_fixture(fresh_engine, f
 
     with pytest.raises(RuntimeError) as exc_info:
         load_vocab_source(
-            engine, vocab_engine=engine,
+            MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
             source_path=partial_source,
-            resolved=fresh_resolved,
         )
 
     assert "Missing required Athena vocabulary CSV files" in str(exc_info.value)
@@ -151,10 +151,9 @@ def test_load_vocab_source_dry_run_does_not_create_tables(fresh_engine, fresh_re
     source_path = _build_required_athena_source(tmp_path)
 
     report = load_vocab_source(
-        engine, vocab_engine=engine,
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
         source_path=source_path,
         dry_run=True,
-        resolved=fresh_resolved,
     )
 
     assert all(
@@ -326,7 +325,7 @@ def test_load_vocab_source_loads_in_fk_dependency_order(fresh_engine, fresh_reso
         fake_load_vocab_model_csv,
     )
 
-    load_vocab_source(engine, vocab_engine=engine, source_path=source_path, resolved=fresh_resolved)
+    load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path)
 
     expected_order = [m.__tablename__ for m in REQUIRED_VOCAB_MODELS]
     assert loaded_order[: len(expected_order)] == expected_order
@@ -362,10 +361,9 @@ def test_load_vocab_source_reports_weighted_progress(fresh_engine, fresh_resolve
     )
 
     load_vocab_source(
-        engine, vocab_engine=engine,
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
         source_path=source_path,
         progress_callback=events.append,
-        resolved=fresh_resolved,
     )
 
     assert events
@@ -407,9 +405,8 @@ def test_load_vocab_source_wraps_failed_table_load(fresh_engine, fresh_resolved,
 
     with pytest.raises(RuntimeError) as exc_info:
         load_vocab_source(
-            engine, vocab_engine=engine,
+            MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
             source_path=source_path,
-            resolved=fresh_resolved,
         )
 
     message = str(exc_info.value)
@@ -547,7 +544,7 @@ def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(fresh_engine, fre
         fake_load_vocab_model_csv,
     )
 
-    load_vocab_source(engine, vocab_engine=engine, source_path=source_path, resolved=fresh_resolved)
+    load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path)
 
     assert all(mode == "by_delimiter" for mode in received_quote_modes), (
         f"Expected all tables to use quote_mode='by_delimiter', got: {received_quote_modes}"
@@ -562,7 +559,7 @@ def test_load_vocab_source_tables_unknown_name_raises_runtime_error(fresh_engine
     source_path = _build_required_athena_source(tmp_path)
 
     with pytest.raises(RuntimeError, match="Unknown vocabulary table"):
-        load_vocab_source(engine, vocab_engine=engine, source_path=source_path, tables=["not_a_table"], resolved=fresh_resolved)
+        load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path, tables=["not_a_table"])
 
 
 def test_load_vocab_source_tables_single_loads_only_that_table(fresh_engine, fresh_resolved, monkeypatch, tmp_path):
@@ -591,7 +588,7 @@ def test_load_vocab_source_tables_single_loads_only_that_table(fresh_engine, fre
         fake_load_vocab_model_csv,
     )
 
-    report = load_vocab_source(engine, vocab_engine=engine, source_path=source_path, tables=["concept"], resolved=fresh_resolved)
+    report = load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path, tables=["concept"])
 
     assert loaded_tables == ["concept"]
     result_names = {r.table_name for r in report.results}
@@ -624,7 +621,7 @@ def test_load_vocab_source_tables_multiple_loads_exactly_those(fresh_engine, fre
         fake_load_vocab_model_csv,
     )
 
-    load_vocab_source(engine, vocab_engine=engine, source_path=source_path, tables=["concept", "vocabulary"], resolved=fresh_resolved)
+    load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path, tables=["concept", "vocabulary"])
 
     assert set(loaded_tables) == {"concept", "vocabulary"}
 
@@ -641,7 +638,10 @@ def test_load_vocab_source_tables_skips_required_files_preflight(fresh_engine, f
     # Should raise RuntimeError for missing concept CSV — but NOT the "Missing required" error.
     # Since concept.csv IS present, the load should proceed without hitting the preflight.
     report = load_vocab_source(
-        engine, vocab_engine=engine, source_path=source_path, tables=["concept"], dry_run=True, resolved=fresh_resolved
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+        source_path=source_path,
+        tables=["concept"],
+        dry_run=True,
     )
 
     result_names = {r.table_name for r in report.results}
@@ -657,7 +657,7 @@ def test_load_vocab_source_tables_missing_csv_raises_runtime_error(fresh_engine,
     # No CSVs at all — concept is in tables= but its file is missing.
 
     with pytest.raises(RuntimeError, match="concept"):
-        load_vocab_source(engine, vocab_engine=engine, source_path=source_path, tables=["concept"], resolved=fresh_resolved)
+        load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path, tables=["concept"])
 
 
 def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, fresh_resolved, monkeypatch, tmp_path):
@@ -729,7 +729,7 @@ def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, fresh
         fake_manage_indexes,
     )
 
-    report = load_vocab_source(engine, vocab_engine=engine, source_path=source_path, bulk_mode=True, resolved=fresh_resolved)
+    report = load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path, bulk_mode=True)
 
     assert disable_calls == [False, True]
     assert report.index_warnings == (

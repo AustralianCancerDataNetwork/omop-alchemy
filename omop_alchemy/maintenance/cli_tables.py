@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 
 import sqlalchemy as sa
 import typer
 
 from oa_configurator import (
-    ResolvedCDMDatabase,
-    ResolvedDatabase,
     autocommit_connection,
     claimed_schema_tags,
     physical_schema_of,
@@ -17,7 +16,9 @@ from oa_configurator import (
 )
 from ..backends import resolve_backend, require_backend_support, backend_support_note
 from ._cli_utils import Status, dry_label, dry_status, omop_command, resolve_selection
+from .context import MaintenanceContext
 from .tables import (
+    all_table_names,
     TableCategory,
     resolve_maintenance_tables,
     select_maintenance_tables,
@@ -54,7 +55,7 @@ class AnalyzeTableResult:
 
 
 def analyze_tables(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
     scope: TableCategory | None = None,
     table_names: tuple[str, ...] | None = None,
@@ -64,27 +65,24 @@ def analyze_tables(
     """Run ANALYZE (or VACUUM ANALYZE) on selected ORM-managed tables to refresh planner statistics.
 
     Runs on every ORM-managed table if both scope and table_names are omitted.
+    Each table is analysed on the engine hosting it, one connection per engine.
     """
     if scope is not None and table_names is not None:
         raise RuntimeError("Use either `scope` or `table_names`, not both.")
 
-    backend = resolve_backend(engine)
     selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names)
-    inspector = sa.inspect(engine)
     operation = "VACUUM ANALYZE" if vacuum else "ANALYZE"
     results: list[AnalyzeTableResult] = []
 
-    connection_factory = autocommit_connection(engine) if vacuum else engine.connect()
-
-    with connection_factory as connection:
-        for maintenance_table in selected_tables:
-            table_schema = physical_schema_of(engine, schema_tag=maintenance_table.schema_tag)
-            if not inspector.has_table(maintenance_table.table_name, schema=table_schema):
+    with ExitStack() as stack:
+        connections: dict[sa.Engine, sa.Connection] = {}
+        for target in context.targets(selected_tables):
+            if not target.exists():
                 results.append(
                     AnalyzeTableResult(
-                        table_name=maintenance_table.table_name,
-                        category=maintenance_table.category,
-                        schema_tag=maintenance_table.schema_tag,
+                        table_name=target.table_name,
+                        category=target.table.category,
+                        schema_tag=target.schema_tag,
                         operation=operation,
                         status=Status.SKIPPED,
                         detail="table not present in target database",
@@ -93,15 +91,19 @@ def analyze_tables(
                 continue
 
             if not dry_run:
-                backend.analyze_table(
-                    connection, maintenance_table.table_name, vacuum=vacuum, schema_tag=maintenance_table.schema_tag
+                if target.bind not in connections:
+                    connections[target.bind] = stack.enter_context(
+                        autocommit_connection(target.bind) if vacuum else target.bind.connect()
+                    )
+                resolve_backend(target.bind).analyze_table(
+                    connections[target.bind], target.table_name, vacuum=vacuum, schema_tag=target.schema_tag
                 )
 
             results.append(
                 AnalyzeTableResult(
-                    table_name=maintenance_table.table_name,
-                    category=maintenance_table.category,
-                    schema_tag=maintenance_table.schema_tag,
+                    table_name=target.table_name,
+                    category=target.table.category,
+                    schema_tag=target.schema_tag,
                     operation=operation,
                     status=dry_status(dry_run),
                     detail=dry_label(dry_run, f"{operation.lower()} would run", f"{operation.lower()} completed"),
@@ -128,23 +130,23 @@ class TruncateTableResult:
 
 
 def _blocking_foreign_key_references(
-    engine: sa.Engine,
-    inspector: sa.Inspector,
+    connection: sa.Connection,
     *,
     selected_table_names: set[str],
 ) -> dict[str, set[str]]:
     """Return tables outside the selection that FK-reference at least one selected table, preventing truncation.
 
-    A blocking table can live under any schema tag engine itself routes (a
-    vocab table can FK-reference a clinical table's PK, or vice versa;
-    likewise an extension table), so every one of those is scanned, not
-    just the primary one.
+    Scans every schema tag claimed on *connection*'s engine (a vocab table can
+    FK-reference a clinical table's PK, or vice versa; likewise an extension
+    table). A foreign key never spans two databases, so one engine's scan is
+    complete for the tables that engine hosts.
     """
+    inspector = sa.inspect(connection)
     blockers: dict[str, set[str]] = {}
 
-    for schema_tag in claimed_schema_tags(engine):
-        tag_schema = physical_schema_of(engine, schema_tag=schema_tag)
-        for table_name in inspector.get_table_names(schema=tag_schema):
+    for schema_tag in claimed_schema_tags(connection):
+        tag_schema = physical_schema_of(connection, schema_tag=schema_tag)
+        for table_name in sorted(all_table_names(connection, schema=tag_schema)):
             if table_name in selected_table_names:
                 continue
 
@@ -175,110 +177,92 @@ def _format_blocking_reference_error(blockers: dict[str, set[str]]) -> str:
 
 
 def _truncate_tables(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    vocab_engine: sa.Engine,
     scope: TableCategory | None = None,
     table_names: tuple[str, ...] | None = None,
     restart_identities: bool = False,
     cascade: bool = False,
     dry_run: bool = False,
-    resolved: ResolvedCDMDatabase,
 ) -> list[TruncateTableResult]:
     """Truncate selected ORM-managed tables. Raises if non-selected tables hold blocking FK references.
-    
+
+    Each engine's tables are counted, checked for blockers and truncated in
+    one transaction on that engine, and in one statement, since PostgreSQL's
+    RESTRICT mode requires referencing and referenced tables to be named
+    together. No transaction spans the two engines of a split deployment.
+
     Notes
     -----
-    - No provenance guard as engine was just built in `omop_command`. There is no possibility 
-    of schema drift between the engine's creation and this command's execution.
+    - No provenance guard as the engines were just built in `omop_command`. There is no
+    possibility of schema drift between their creation and this command's execution.
     """
     if scope is not None and table_names is not None:
         raise RuntimeError("Use either `scope` or `table_names`, not both.")
     if scope is None and table_names is None:
         raise RuntimeError("Select tables to truncate with `scope` or `table_names`.")
 
-    backend = resolve_backend(engine)
-    require_backend_support(backend, "truncate_table_batch", "Table truncation")
     selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names)
-    inspector = sa.inspect(engine)
-    results: list[TruncateTableResult] = []
-    existing_tables: list[str] = []
-    # (schema_tag, table_name) pairs sharing one physical connection, so
-    # PostgreSQL's own multi-schema TRUNCATE syntax can name them together in
-    # one statement -- RESTRICT mode requires referencing and referenced
-    # tables to be named in the same statement, not just the same transaction.
-    existing_tables_by_engine: dict[sa.Engine, list[tuple[str, str]]] = {}
+    groups = context.targets_by_engine(selected_tables)
+    for engine in groups:
+        require_backend_support(resolve_backend(engine), "truncate_table_batch", "Table truncation")
 
-    with engine.begin() as connection:
-        for maintenance_table in selected_tables:
-            if not inspector.has_table(
-                maintenance_table.table_name, schema=physical_schema_of(engine, schema_tag=maintenance_table.schema_tag)
-            ):
-                results.append(
-                    TruncateTableResult(
-                        table_name=maintenance_table.table_name,
-                        category=maintenance_table.category,
-                        schema_tag=maintenance_table.schema_tag,
-                        row_count=None,
-                        status=Status.SKIPPED,
-                        detail="table not present in target database",
+    row_counts: dict[str, int] = {}
+    with ExitStack() as stack:
+        connections = {engine: stack.enter_context(engine.begin()) for engine in groups}
+        present = {
+            engine: [target for target in targets if target.exists()]
+            for engine, targets in groups.items()
+        }
+        for engine, targets in present.items():
+            for target in targets:
+                row_counts[target.table_name] = int(
+                    connections[engine].exec_driver_sql(
+                        f"SELECT COUNT(*) FROM {qualified(connections[engine], target.table_name, physical_schema=target.physical_schema)}"
+                    ).scalar_one()
+                )
+
+        if not dry_run and not cascade:
+            blockers: dict[str, set[str]] = {}
+            for engine, targets in present.items():
+                if targets:
+                    blockers |= _blocking_foreign_key_references(
+                        connections[engine],
+                        selected_table_names={target.table_name for target in targets},
                     )
-                )
-                continue
-
-            row_count = int(
-                connection.exec_driver_sql(
-                    f"SELECT COUNT(*) FROM {qualified(connection, maintenance_table.table_name, physical_schema=physical_schema_of(connection, schema_tag=maintenance_table.schema_tag))}"
-                ).scalar_one()
-            )
-            existing_tables.append(maintenance_table.table_name)
-            table_engine = resolved.route_for_schema_tag(
-                maintenance_table.schema_tag, vocab=vocab_engine, primary=engine
-            )
-            existing_tables_by_engine.setdefault(table_engine, []).append(
-                (maintenance_table.schema_tag, maintenance_table.table_name)
-            )
-            results.append(
-                TruncateTableResult(
-                    table_name=maintenance_table.table_name,
-                    category=maintenance_table.category,
-                    schema_tag=maintenance_table.schema_tag,
-                    row_count=row_count,
-                    status=dry_status(dry_run),
-                    detail=dry_label(dry_run, "table would be truncated", "table truncated"),
-                )
-            )
-
-        if existing_tables and not dry_run and not cascade:
-            blockers = _blocking_foreign_key_references(
-                engine,
-                inspector,
-                selected_table_names=set(existing_tables),
-            )
             if blockers:
                 raise RuntimeError(_format_blocking_reference_error(blockers))
 
-        if existing_tables and not dry_run:
-            for table_engine, tables_for_engine in existing_tables_by_engine.items():
-                # table_engine is engine: reuse the already-open connection/transaction
-                # above rather than opening a second one to the same database.
-                if table_engine is engine:
-                    resolve_backend(table_engine).truncate_table_batch(
-                        connection,
-                        tables_for_engine,
+        if not dry_run:
+            for engine, targets in present.items():
+                if targets:
+                    resolve_backend(engine).truncate_table_batch(
+                        connections[engine],
+                        [(target.schema_tag, target.table_name) for target in targets],
                         restart_identities=restart_identities,
                         cascade=cascade,
                     )
-                else:
-                    with table_engine.begin() as truncate_connection:
-                        resolve_backend(table_engine).truncate_table_batch(
-                            truncate_connection,
-                            tables_for_engine,
-                            restart_identities=restart_identities,
-                            cascade=cascade,
-                        )
 
-    return results
+    return [
+        TruncateTableResult(
+            table_name=table.table_name,
+            category=table.category,
+            schema_tag=table.schema_tag,
+            row_count=row_counts[table.table_name],
+            status=dry_status(dry_run),
+            detail=dry_label(dry_run, "table would be truncated", "table truncated"),
+        )
+        if table.table_name in row_counts
+        else TruncateTableResult(
+            table_name=table.table_name,
+            category=table.category,
+            schema_tag=table.schema_tag,
+            row_count=None,
+            status=Status.SKIPPED,
+            detail="table not present in target database",
+        )
+        for table in selected_tables
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -342,20 +326,17 @@ def collect_sequence_targets(
 
 
 def reset_model_sequences(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    vocab_engine: sa.Engine,
     vocabulary_included: bool = False,
     vocabulary_only: bool = False,
     dry_run: bool = False,
-    resolved: ResolvedDatabase,
 ) -> list[SequenceResetResult]:
     """Reset each owned sequence to MAX(pk_column) + 1 to prevent insert conflicts after bulk loads."""
     targets = collect_sequence_targets(vocabulary_included=vocabulary_included, vocabulary_only=vocabulary_only)
     targets_by_engine: dict[sa.Engine, list[SequenceTarget]] = {}
     for target in targets:
-        target_engine = resolved.route_for_schema_tag(target.schema_tag, vocab=vocab_engine, primary=engine)
-        targets_by_engine.setdefault(target_engine, []).append(target)
+        targets_by_engine.setdefault(context.engine_for(target.schema_tag), []).append(target)
 
     results: list[SequenceResetResult] = []
 
@@ -426,8 +407,7 @@ app = typer.Typer(rich_markup_mode="rich", help="Manage Database Tables: analyze
 @app.command("analyze-tables")
 @omop_command("analyze-tables", dry_run=True, writes=False)
 def analyze_tables_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     scope: TableCategory | None = typer.Option(
         None,
         "--scope",
@@ -450,7 +430,7 @@ def analyze_tables_command(
     resolved_scope, resolved_tables = resolve_selection(scope=scope, tables=table)
     with console.status("Refreshing planner statistics for selected tables..."):
         results = analyze_tables(
-            engine,
+            conn,
             scope=resolved_scope,
             table_names=resolved_tables,
             vacuum=vacuum,
@@ -467,9 +447,7 @@ def analyze_tables_command(
 )
 @omop_command("reset-sequences", dry_run=True)
 def reset_sequences_command(
-    conn,
-    engine,
-    vocab_engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -480,11 +458,9 @@ def reset_sequences_command(
     """Reset each owned sequence to MAX(pk) + 1 to prevent insert conflicts after bulk loads."""
     with console.status("Resetting PostgreSQL sequences..."):
         results = reset_model_sequences(
-            engine,
-            vocab_engine=vocab_engine,
+            conn,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
-            resolved=conn.resolved,
         )
     console.print(render_sequence_reset_results(results))
     console.print(render_sequence_reset_summary(results, dry_run=dry_run))
@@ -496,9 +472,7 @@ def reset_sequences_command(
 )
 @omop_command("truncate-tables", dry_run=True)
 def truncate_tables_command(
-    conn,
-    engine,
-    vocab_engine,
+    conn: MaintenanceContext,
     scope: TableCategory | None = typer.Option(
         None,
         "--scope",
@@ -541,14 +515,12 @@ def truncate_tables_command(
         raise typer.Exit(code=1)
     with console.status("Truncating selected tables..."):
         results = _truncate_tables(
-            engine,
-            vocab_engine=vocab_engine,
+            conn,
             scope=resolved_scope,
             table_names=resolved_tables,
             restart_identities=restart_identities,
             cascade=cascade,
             dry_run=dry_run,
-            resolved=conn.resolved,
         )
     console.print(render_truncate_results(results))
     console.print(

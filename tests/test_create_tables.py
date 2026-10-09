@@ -6,11 +6,12 @@ from orm_loader.helpers import Base
 from omop_alchemy.maintenance import cli_schema_tables
 from omop_alchemy.maintenance.cli_schema import collect_missing_tables, _create_missing_tables
 from omop_alchemy.maintenance.tables import MaintenanceTable, TableCategory
+from omop_alchemy.maintenance.context import MaintenanceContext
 
 
 def test_collect_missing_tables_on_empty_database(fresh_engine, fresh_resolved):
     """An empty database reports core clinical and vocabulary tables as missing."""
-    missing = collect_missing_tables(fresh_engine, vocab_engine=fresh_engine, resolved=fresh_resolved)
+    missing = collect_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine))
 
     table_names = {table.table_name for table in missing}
     assert "person" in table_names
@@ -19,7 +20,7 @@ def test_collect_missing_tables_on_empty_database(fresh_engine, fresh_resolved):
 
 def test_create_missing_tables_reports_blocked_tables_when_vocabulary_is_missing(fresh_engine, fresh_resolved):
     """Non-vocabulary creation reports blocked tables when required vocab tables are excluded."""
-    results = _create_missing_tables(fresh_engine, vocab_engine=fresh_engine, vocabulary_included=False, resolved=fresh_resolved)
+    results = _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine), vocabulary_included=False)
 
     inspector = sa.inspect(fresh_engine)
     assert results
@@ -34,12 +35,12 @@ def test_create_missing_tables_reports_blocked_tables_when_vocabulary_is_missing
 
 def test_create_missing_tables_can_recreate_non_vocabulary_tables_when_dependencies_exist(fresh_engine, fresh_resolved):
     """Previously dropped non-vocabulary tables can be recreated when dependencies are present."""
-    _create_missing_tables(fresh_engine, vocab_engine=fresh_engine, vocabulary_included=True, resolved=fresh_resolved)
+    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine), vocabulary_included=True)
 
     with fresh_engine.begin() as connection:
         connection.exec_driver_sql("DROP TABLE cdm_source")
 
-    results = _create_missing_tables(fresh_engine, vocab_engine=fresh_engine, vocabulary_included=False, resolved=fresh_resolved)
+    results = _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine), vocabulary_included=False)
 
     inspector = sa.inspect(fresh_engine)
     assert any(result.table_name == "cdm_source" and result.status == "created" for result in results)
@@ -49,7 +50,7 @@ def test_create_missing_tables_can_recreate_non_vocabulary_tables_when_dependenc
 
 def test_create_missing_tables_can_create_vocabulary(fresh_engine, fresh_resolved):
     """Including vocabulary creates both clinical and vocabulary tables."""
-    _create_missing_tables(fresh_engine, vocab_engine=fresh_engine, vocabulary_included=True, resolved=fresh_resolved)
+    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine), vocabulary_included=True)
 
     inspector = sa.inspect(fresh_engine)
     assert inspector.has_table("person")
@@ -63,7 +64,7 @@ def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(fresh_r
     Uses a fake MaintenanceTable: tagging a real CDM table this way needs
     extension-table support, not yet built on this branch.
     """
-    engine = fresh_resolved.create_engine(
+    engine, _ = fresh_resolved.create_engines(
         schema_claims=[SchemaClaim(schema_tag="synthetic_tag", physical_schema=None)]
     )
 
@@ -80,10 +81,14 @@ def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(fresh_r
         table=_SyntheticTagTable.__table__,  # ty: ignore[invalid-argument-type]
         primary_key_columns=tuple(_SyntheticTagTable.__table__.primary_key.columns),  # ty: ignore[unresolved-attribute]
     )
-    monkeypatch.setattr(cli_schema_tables, "collect_missing_tables", lambda *a, **k: [fake_table])
+    monkeypatch.setattr(
+        cli_schema_tables,
+        "missing_maintenance_targets",
+        lambda context, **_: context.targets([fake_table]),
+    )
 
     try:
-        results = _create_missing_tables(engine, vocab_engine=engine, resolved=fresh_resolved)
+        results = _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine))
         result_by_name = {result.table_name: result for result in results}
         assert result_by_name["synthetic_tag_table"].status == "created"
         assert sa.inspect(engine).has_table("synthetic_tag_table")

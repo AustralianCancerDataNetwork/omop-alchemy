@@ -30,6 +30,7 @@ from omop_alchemy.maintenance.cli_indexes import _manage_indexes
 from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
 from omop_alchemy.maintenance.cli_tables import _truncate_tables
 from omop_alchemy.maintenance.tables import TableCategory
+from omop_alchemy.maintenance.context import MaintenanceContext
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -47,7 +48,7 @@ def _guarded_schema(pg_db, prefix: str) -> AbstractContextManager[ScopedTestSche
 
 def test_create_missing_tables_guard_fires_on_reconfigured_schema(pg_db):
     with _guarded_schema(pg_db, "guard_wiring_a") as scoped_a:
-        _create_missing_tables(scoped_a.engine, vocab_engine=scoped_a.engine, resolved=scoped_a.resolved)
+        _create_missing_tables(MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine))
 
     # Drift is now caught at create_engine() construction time before
     # _create_missing_tables() is even reachable.
@@ -62,9 +63,10 @@ def test_install_fulltext_columns_guard_fires_on_reconfigured_schema(pg_db):
         # unguarded create here would leave _install_fulltext_columns's own guard
         # seeing "tables exist but no record", a false first-time-drift positive.
         _create_missing_tables(
-            scoped_a.engine, vocab_engine=scoped_a.engine, vocabulary_included=True, resolved=scoped_a.resolved
+            MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine),
+            vocabulary_included=True,
         )
-        _install_fulltext_columns(scoped_a.engine)
+        _install_fulltext_columns(MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine))
 
     # Drift is now caught at create_engine() construction time, before
     # _install_fulltext_columns() is even reachable.
@@ -76,9 +78,10 @@ def test_install_fulltext_columns_guard_fires_on_reconfigured_schema(pg_db):
 def test_manage_indexes_enable_guard_fires_on_reconfigured_schema(pg_db):
     with _guarded_schema(pg_db, "guard_wiring_idx_a") as scoped_a:
         _create_missing_tables(
-            scoped_a.engine, vocab_engine=scoped_a.engine, vocabulary_included=True, resolved=scoped_a.resolved
+            MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine),
+            vocabulary_included=True,
         )
-        _manage_indexes(scoped_a.engine, vocab_engine=scoped_a.engine, enable=True, cluster=False, resolved=scoped_a.resolved)
+        _manage_indexes(MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine), enable=True, cluster=False)
 
     # Drift is now caught at create_engine() construction time, before
     # _manage_indexes() is even reachable.
@@ -92,9 +95,10 @@ def test_manage_indexes_disable_guard_fires_on_reconfigured_schema(pg_db):
     used to build no guard at all, regardless of resolved."""
     with _guarded_schema(pg_db, "guard_wiring_idxd_a") as scoped_a:
         _create_missing_tables(
-            scoped_a.engine, vocab_engine=scoped_a.engine, vocabulary_included=True, resolved=scoped_a.resolved
+            MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine),
+            vocabulary_included=True,
         )
-        _manage_indexes(scoped_a.engine, vocab_engine=scoped_a.engine, enable=False, resolved=scoped_a.resolved)
+        _manage_indexes(MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine), enable=False)
 
     # Drift is now caught at create_engine() construction time, before
     # _manage_indexes() is even reachable.
@@ -106,11 +110,13 @@ def test_manage_indexes_disable_guard_fires_on_reconfigured_schema(pg_db):
 def test_truncate_tables_guard_fires_on_reconfigured_schema(pg_db):
     with _guarded_schema(pg_db, "guard_wiring_trunc_a") as scoped_a:
         _create_missing_tables(
-            scoped_a.engine, vocab_engine=scoped_a.engine, vocabulary_included=True, resolved=scoped_a.resolved
+            MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine),
+            vocabulary_included=True,
         )
         _truncate_tables(
-            scoped_a.engine, vocab_engine=scoped_a.engine, scope=TableCategory.VOCABULARY, cascade=True,
-            resolved=scoped_a.resolved,
+            MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine),
+            scope=TableCategory.VOCABULARY,
+            cascade=True,
         )
 
     # Drift is now caught at create_engine() construction time, before

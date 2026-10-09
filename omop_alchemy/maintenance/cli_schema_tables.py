@@ -7,18 +7,19 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 
 from oa_configurator import (
-    ResolvedCDMDatabase,
     UnregisteredSchemaTagError,
     claimed_schema_tags,
     declared_schema_tags,
     physical_schema_of,
 )
-from orm_loader.helpers import Base
+from orm_loader.helpers import Base, create_tables
 from ._cli_utils import Status, dry_label, dry_status
+from .context import MaintenanceContext
 from .tables import (
+    all_table_names,
     MaintenanceTable,
     TableCategory,
-    missing_maintenance_tables,
+    missing_maintenance_targets,
 )
 
 
@@ -46,8 +47,8 @@ def _assert_tags_claimed(connection: sa.Connection, tables: list[sa.Table], *, c
     if missing:
         raise UnregisteredSchemaTagError(
             f"{context}: table(s) declare schema tag(s) {sorted(missing)} that "
-            "aren't claimed on this connection. Add them to create_cdm_engine()'s own "
-            "create_engine(schema_claims=[...]) call."
+            "aren't claimed on this connection. Add them to create_cdm_engines()'s own "
+            "create_engines(schema_claims=[...]) call."
         )
 
 
@@ -64,58 +65,43 @@ def _table_dependencies(table: MaintenanceTable) -> tuple[str, ...]:
 
 
 def collect_missing_tables(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    vocab_engine: sa.Engine,
     vocabulary_included: bool = True,
-    resolved: ResolvedCDMDatabase,
 ) -> list[MaintenanceTable]:
-    """Return ORM-managed tables that are absent from the target database, each checked against its own role's schema."""
-    return missing_maintenance_tables(
-        engine,
-        vocab_bindable=vocab_engine,
-        vocabulary_included=vocabulary_included,
-        resolved=resolved,
-    )
+    """Return ORM-managed tables that are absent, each checked on its own engine and schema."""
+    return [
+        target.table
+        for target in missing_maintenance_targets(context, vocabulary_included=vocabulary_included)
+    ]
 
 
 def _create_missing_tables(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    vocab_engine: sa.Engine,
     vocabulary_included: bool = True,
     dry_run: bool = False,
-    resolved: ResolvedCDMDatabase,
 ) -> list[TableCreationResult]:
-    """Create any ORM-managed tables missing from the target database. Skips tables with unresolved FK dependencies.
+    """Create any ORM-managed tables missing from their own engine. Skips tables with unresolved FK dependencies.
 
-    Parameters
-    ----------
-    vocab_engine : sqlalchemy.Engine
-        Engine for vocab-role tables, when ``vocab_connection`` names a
-        physically different server than ``engine``.
-    resolved : ResolvedCDMDatabase
-        Checked against each table's declared schema tag before
-        ``create_all()`` (``_assert_tags_claimed``), and used to ensure every
-        non-primary role's schema exists in a split-engined deployment.
+    Each engine creates its own tables through ``orm_loader``'s
+    ``create_tables``, which leaves out foreign keys to a tag hosted on the
+    other database, since no dialect can express those.
 
     Notes
     -----
-    - No provenance guard as engine was just built in `omop_command`. There is no possibility
-    of schema drift between the engine's creation and this command's execution.
+    - No provenance guard as the engines were just built in `omop_command`. There is no
+    possibility of schema drift between their creation and this command's execution.
     """
-    missing_tables = collect_missing_tables(
-        engine,
-        vocab_engine=vocab_engine,
-        vocabulary_included=vocabulary_included,
-        resolved=resolved,
-    )
+    missing_targets = missing_maintenance_targets(context, vocabulary_included=vocabulary_included)
+    missing_tables = [target.table for target in missing_targets]
     # Checking only primary schema would hide existing tables elsewhere, wrongly blocking dependents.
     existing_table_names: set[str] = set()
     for schema_tag in declared_schema_tags(Base.metadata.tables.values()):
-        target_engine = resolved.route_for_schema_tag(schema_tag, vocab=vocab_engine, primary=engine)
-        existing_table_names |= set(
-            sa.inspect(target_engine).get_table_names(schema=physical_schema_of(target_engine, schema_tag=schema_tag))
+        target_engine = context.engine_for(schema_tag)
+        existing_table_names |= all_table_names(
+            target_engine,
+            schema=physical_schema_of(target_engine, schema_tag=schema_tag),
         )
     missing_table_names = {table.table_name for table in missing_tables}
 
@@ -130,53 +116,18 @@ def _create_missing_tables(
         if unresolved_dependencies:
             blocked_dependencies[maintenance_table.table_name] = unresolved_dependencies
 
-    creatable_tables = [
-        table
-        for table in missing_tables
-        if table.table_name not in blocked_dependencies
-    ]
+    if not dry_run:
+        creatable: dict[sa.Engine, list[sa.Table]] = {}
+        for target in missing_targets:
+            if target.table_name not in blocked_dependencies:
+                creatable.setdefault(target.bind, []).append(target.table.table)
+        for engine, tables in creatable.items():
+            # One call per engine: create_all's dependency sort and FK-deferral must see every table together.
+            with engine.begin() as connection:
+                _assert_tags_claimed(connection, tables, context="_create_missing_tables()")
+                create_tables(connection, tables, resolved=context.resolved)
 
     results: list[TableCreationResult] = []
-    if creatable_tables and not dry_run:
-        all_tables = [table.table for table in creatable_tables]
-        vocab_tables = [
-            table for table in all_tables
-            # SQLAlchemy's own stub omits None from schema's declared type,
-            # despite accepting and correctly handling it at runtime.
-            if resolved.route_for_schema_tag(table.schema, vocab=vocab_engine, primary=engine) is vocab_engine  # ty: ignore[invalid-argument-type]
-        ]
-        other_tables = [
-            table for table in all_tables
-            if resolved.route_for_schema_tag(table.schema, vocab=vocab_engine, primary=engine) is not vocab_engine  # ty: ignore[invalid-argument-type]
-        ]
-
-        if vocab_engine is engine:
-            # One call: create_all's dependency sort and FK-deferral must see every table together.
-            with engine.begin() as connection:
-                _assert_tags_claimed(connection, all_tables, context="_create_missing_tables()")
-                Base.metadata.create_all(
-                    bind=connection, tables=all_tables, checkfirst=True
-                )
-        else:
-            # Split physical connections: a cross-boundary FK can't be created here at all;
-            # that failure surfaces from create_all itself rather than being masked.
-            if other_tables:
-                with engine.begin() as connection:
-                    _assert_tags_claimed(
-                        connection, other_tables, context="_create_missing_tables() (primary connection)"
-                    )
-                    Base.metadata.create_all(
-                        bind=connection, tables=other_tables, checkfirst=True
-                    )
-            if vocab_tables:
-                with vocab_engine.begin() as vocab_connection:
-                    _assert_tags_claimed(
-                        vocab_connection, vocab_tables, context="_create_missing_tables() (vocab connection)"
-                    )
-                    Base.metadata.create_all(
-                        bind=vocab_connection, tables=vocab_tables, checkfirst=True
-                    )
-
     for maintenance_table in missing_tables:
         blocked = blocked_dependencies.get(maintenance_table.table_name)
         results.append(

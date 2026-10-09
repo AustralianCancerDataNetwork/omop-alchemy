@@ -18,7 +18,6 @@ from omop_alchemy.toolkit.core.concepts import (
     clear_concept_group_cache,
     concept_group_cache_stats,
     concept_group_registry,
-    register_vocabulary_identity,
     resolve_concept_group,
 )
 from omop_alchemy.toolkit.core.concepts.registry import ConceptGroupRegistry
@@ -233,44 +232,49 @@ def test_expansion_is_cached_per_vocabulary(session):
     assert resolve_concept_group(session, spec) is resolve_concept_group(session, spec)
 
 
-def test_registered_identity_is_shared_across_engines(session):
-    """Two engines under one vocabulary identity share expansions.
-
-    This is the whole point of identity-scoped caching: recreating an engine
-    against the same database must not re-run the closure.
-    """
+def test_engines_on_one_vocabulary_share_expansions(session):
+    """A second engine on the same database reuses the first one's registry,
+    and builds on its own engine."""
     engine = session.get_bind().engine
-    register_vocabulary_identity(engine, "test-vocab-identity")
+    other = sa.create_engine(
+        engine.url,
+        execution_options={"schema_translate_map": engine.get_execution_options()["schema_translate_map"]},
+    )
+    statements: list[str] = []
+    sa.event.listen(other, "before_cursor_execute", lambda *args: statements.append(args[2]))
     try:
-        registry_a = concept_group_registry(session)
-        with so.Session(engine) as other_session:
-            register_vocabulary_identity(
-                other_session.get_bind().engine, "test-vocab-identity"
-            )
-            registry_b = concept_group_registry(other_session)
-        assert registry_a is registry_b
+        with so.Session(other) as other_session:
+            assert concept_group_registry(other_session) is concept_group_registry(session)
+            resolve_concept_group(other_session, _spec(name="built_on_caller", parents=(1,)))
+        assert any("concept_ancestor" in statement for statement in statements)
     finally:
-        clear_concept_group_cache()
+        other.dispose()
 
 
-def test_unregistered_engines_do_not_share(session, fresh_engine):
-    """Without an identity, each engine is its own scope.
-
-    In-memory SQLite lands here deliberately: identical configuration, separate
-    databases, so sharing would serve one database's concept sets for another.
-    """
+def test_engines_on_different_databases_do_not_share(session, fresh_engine):
     with so.Session(fresh_engine) as other_session:
         assert concept_group_registry(session) is not concept_group_registry(
             other_session
         )
 
 
+def test_in_memory_engines_do_not_share():
+    """Two in-memory SQLite engines on one URL are separate databases."""
+    first, second = sa.create_engine("sqlite://"), sa.create_engine("sqlite://")
+    try:
+        with so.Session(first) as a, so.Session(second) as b:
+            assert concept_group_registry(a) is not concept_group_registry(b)
+    finally:
+        first.dispose()
+        second.dispose()
+
+
 def test_connection_bound_sessions_share_their_engine_scope(session):
     """Session.get_bind() returns a Connection for connection-bound sessions.
 
     Without normalising to the engine, every such session would be its own cache
-    scope and the cache would do nothing on that path — which is a pattern the
-    fixtures themselves use.
+    scope and the cache would do nothing on that path, which the fixtures
+    themselves use.
     """
     engine = session.get_bind().engine
     with engine.connect() as connection:
@@ -290,26 +294,26 @@ def test_eviction_is_bounded_and_counted(session):
     otherwise invisible because it presents as ordinary slowness.
     """
     engine = session.get_bind().engine
-    registry = ConceptGroupRegistry(engine, max_bytes=1)
+    registry = ConceptGroupRegistry(max_bytes=1)
 
     # exact members need no ancestry, so this exercises the bound, not the vocabulary
     for name in ("a", "b"):
         registry.register_spec(_spec(name=name, parents=(), exact=tuple(range(50))))
 
-    registry.get("a")
-    registry.get("b")
+    registry.get("a", engine=engine)
+    registry.get("b", engine=engine)
     assert registry.stats.evictions >= 1
     assert registry.stats.rebuilds_after_evict == 0
 
-    registry.get("a")  # evicted above, so this is a rebuild
+    registry.get("a", engine=engine)  # evicted above, so this is a rebuild
     assert registry.stats.rebuilds_after_evict == 1
 
 
 def test_generous_bound_never_evicts(session):
-    registry = ConceptGroupRegistry(session.get_bind().engine)
+    registry = ConceptGroupRegistry()
     for name in ("a", "b", "c"):
         registry.register_spec(_spec(name=name, parents=(), exact=(1, 2, 3)))
-        registry.get(name)
+        registry.get(name, engine=session.get_bind().engine)
     assert registry.stats.evictions == 0
     assert registry.stats.entries == 3
 

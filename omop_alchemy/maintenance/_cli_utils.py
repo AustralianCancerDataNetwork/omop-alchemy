@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import functools
 import inspect
-from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Callable, TypeVar
 
 import typer
-from oa_configurator import ResolvedCDMDatabase
 from sqlalchemy.exc import SQLAlchemyError
 
+from .context import MaintenanceContext
 from .tables import TableCategory
 from .ui import console, render_error, render_command_header
 from ..backends import BackendNotSupportedError
@@ -101,20 +100,6 @@ class Status(StrEnum):
     FAILED = ("failed", Severity.ERROR)
 
 
-@dataclass(frozen=True)
-class _ConnContext:
-    """Connection context assembled once per CLI command.
-
-    resource_name and athena_source come from OmopAlchemyConfig, not from
-    resolved. Everything else a command needs (schema, vocab/results
-    schema, test_only) is available via resolved directly, rather than
-    duplicated here.
-    """
-    resolved: ResolvedCDMDatabase
-    resource_name: str = ""
-    athena_source: str | None = None
-
-
 # ── Decorator ─────────────────────────────────────────────────────────────────
 _NON_WRITING_MODES = frozenset({"dry-run", "inspect"})
 
@@ -128,21 +113,16 @@ def omop_command(
     writes: bool = True,
 ) -> Callable[[_F], _F]:
     """Decorator that eliminates CLI boilerplate for every omop-alchemy command. Changes the
-    typer signature to remove the connection/engine parameters and add a ``--database`` option.
+    typer signature to remove the context parameter and add a ``--database`` option.
 
-    Resolves the database connection from oa_configurator, calls
-    :func:`render_command_header`, and wraps the body in ``try/except handle_error``.
+    Resolves the database, builds its engine pair with ``create_cdm_engines``,
+    calls :func:`render_command_header`, and wraps the body in ``try/except handle_error``.
 
     Notes
     -----
-    The decorated function must accept the following positional parameters in order:
-    1. ``conn``: a :class:`_ConnContext` object with the resolved database connection
-    2. ``engine``: the SQLAlchemy engine for the resolved database
-
-    The third positional parameter, ``vocab_engine``, is optional and only provided if
-    the decorated function's signature declares it. The decorator will build and dispose
-    a second engine for the vocabulary schema when needed (useful for split CDM
-    configurations).
+    The decorated function's first positional parameter receives a
+    :class:`MaintenanceContext`. Every table-level operation routes through
+    its ``targets()``. The engines are disposed when the command returns.
 
     The decorator also adds a ``--database`` option to the command, allowing users to
     override the default database entry specified in ``OmopAlchemyConfig.cdm_db`` for that
@@ -158,7 +138,6 @@ def omop_command(
     """
     def decorator(func: _F) -> _F:
         orig_params = list(inspect.signature(func).parameters.values())
-        wants_vocab = any(p.name == "vocab_engine" for p in orig_params)
 
         @functools.wraps(func)
         def wrapper(**kwargs: Any) -> Any:
@@ -168,15 +147,15 @@ def omop_command(
             _mode = mode_label if mode_label is not None else ("dry-run" if _dry_run else "apply")
             _register_claims = writes and _mode not in _NON_WRITING_MODES
             try:
-                from ..config import create_cdm_engine, get_cdm_context
+                from ..config import create_cdm_engines, get_cdm_context
                 pkg_config, resolved = get_cdm_context(_database)
-                engine = create_cdm_engine(resolved, register_claims=_register_claims)
-                vocab_engine = (
-                    resolved.vocab_engine_for(engine, register_claims=_register_claims)
-                    if wants_vocab else None
+                engine, vocab_engine = create_cdm_engines(
+                    resolved, register_claims=_register_claims
                 )
-                conn = _ConnContext(
+                conn = MaintenanceContext(
                     resolved=resolved,
+                    engine=engine,
+                    vocab_engine=vocab_engine,
                     resource_name=_database or pkg_config.cdm_db,
                     athena_source=pkg_config.athena_source_path,
                 )
@@ -191,26 +170,22 @@ def omop_command(
                 )
                 try:
                     call_kwargs = dict(kwargs)
-                    if wants_vocab:
-                        call_kwargs["vocab_engine"] = vocab_engine
                     if dry_run:
                         call_kwargs["dry_run"] = _dry_run
-                    return func(conn, engine, **call_kwargs)
+                    return func(conn, **call_kwargs)
                 finally:
-                    engine.dispose()
-                    if vocab_engine is not None and vocab_engine is not engine:
-                        vocab_engine.dispose()
+                    for owned in conn.engines:
+                        owned.dispose()
             except Exception as exc:
                 handle_error(exc)
 
         # Rebuild the Typer-visible signature:
-        # • skip conn/engine/vocab_engine (decorator supplies them)
+        # • skip conn (decorator supplies it)
         # • skip dry_run if the decorator owns it
         # • always add --database
         func_params = [
-            p for p in orig_params[2:]
+            p for p in orig_params[1:]
             if not (dry_run and p.name == "dry_run")
-            and not (wants_vocab and p.name == "vocab_engine")
         ]
         new_params = func_params[:]
         new_params.append(

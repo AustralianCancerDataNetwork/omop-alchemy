@@ -7,7 +7,6 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 from oa_configurator import (
-    ResolvedDatabase,
     find_table_in_other_schemas,
     physical_schema_of,
     supports_schemas,
@@ -16,6 +15,7 @@ from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, Reflecte
 
 from ..backends import Backend, backend_supports, resolve_backend
 from ._cli_utils import Severity, Status
+from .context import MaintenanceContext
 from .cli_indexes import _cluster_column_names, _cluster_target_name, _find_equivalent_index
 from .tables import (
     TableCategory,
@@ -191,26 +191,17 @@ def _actual_index_signature(actual_index: ReflectedIndex, backend: Backend) -> t
 
 
 def reconcile_schema(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    vocab_engine: sa.Engine,
-    resolved: ResolvedDatabase,
     vocabulary_included: bool = False,
 ) -> SchemaReconciliationReport:
     """Compare ORM metadata against the live database schema.
 
     Parameters
     ----------
-    engine : sqlalchemy.Engine
-        Engine to inspect for every non-vocab table. Its dialect selects
-        the backend used for cluster-state checks on those tables.
-    vocab_engine : sqlalchemy.Engine
-        Used instead of *engine* for vocab-tagged tables, including its own
-        dialect's backend for cluster-state checks. Pass *engine* itself
-        when there is no real split.
-    resolved : ResolvedDatabase
-        Qualifies each table to its own schema tag (schema_name/vocab_schema/
-        results_schema).
+    context : MaintenanceContext
+        Each table is inspected on its own engine and schema, with that
+        engine's backend used for cluster-state checks.
     vocabulary_included : bool, optional
         Whether vocabulary tables are included in the diff.
 
@@ -223,32 +214,29 @@ def reconcile_schema(
     excluded_categories: tuple[TableCategory, ...] = (
         () if vocabulary_included else (TableCategory.VOCABULARY,)
     )
-    _cross_schema_fk_supported = supports_schemas(engine)
+    _cross_schema_fk_supported = supports_schemas(context.engine)
     selected_tables = select_maintenance_tables(exclude_categories=excluded_categories)
-    schema_qualified_tables = _schema_qualified_tables(engine)
+    schema_qualified_tables = _schema_qualified_tables(context.engine)
     all_issues: list[ReconciliationIssue] = []
     table_results: list[TableReconciliationResult] = []
 
     with ExitStack() as connections:
-        # Collapses to one connection when engine and vocab_engine are the
-        # same object, avoiding a second connection against the same pool.
         engine_connections = {
             candidate_engine: connections.enter_context(candidate_engine.connect())
-            for candidate_engine in ({engine, vocab_engine} if vocab_engine is not engine else (engine,))
+            for candidate_engine in context.engines
         }
         engine_backends = {
             candidate_engine: resolve_backend(candidate_engine) for candidate_engine in engine_connections
         }
-        for maintenance_table in selected_tables:
+        for target in context.targets(selected_tables):
+            maintenance_table = target.table
             table_issues: list[ReconciliationIssue] = []
-            table_schema_tag = maintenance_table.table.schema
-            if table_schema_tag is None:
-                raise TypeError(f"{maintenance_table.table_name}: table has no schema tag.")
-            table_engine = resolved.route_for_schema_tag(table_schema_tag, vocab=vocab_engine, primary=engine)
+            table_schema_tag = target.schema_tag
+            table_engine = target.bind
             connection = engine_connections[table_engine]
             _backend = engine_backends[table_engine]
             inspector = sa.inspect(connection)
-            table_schema = physical_schema_of(engine, schema_tag=table_schema_tag)
+            table_schema = target.physical_schema
             exists = inspector.has_table(maintenance_table.table_name, schema=table_schema)
             if not exists:
                 relocated_to = find_table_in_other_schemas(
@@ -405,12 +393,21 @@ def reconcile_schema(
             for signature, constraint in expected_fks.items():
                 if signature not in actual_fks:
                     raw_constraint = raw_expected_fks.get(signature)
+                    referred_tag = (
+                        raw_constraint.referred_table.schema
+                        if raw_constraint is not None
+                        else None
+                    )
                     if (
-                        not _cross_schema_fk_supported
-                        and raw_constraint is not None
-                        and raw_constraint.referred_table.schema != table_schema_tag
+                        referred_tag is not None
+                        and referred_tag != table_schema_tag
+                        and not (
+                            _cross_schema_fk_supported
+                            and context.resolved.foreign_key_can_span(table_schema_tag, referred_tag)
+                        )
                     ):
-                        # SQLite can never create an inline FK crossing a schema boundary.
+                        # SQLite cannot create an inline cross-schema FK at all, and no
+                        # dialect can create one spanning two databases.
                         continue
                     constrained_columns, referred_table, referred_columns = signature
                     table_issues.append(
@@ -607,7 +604,7 @@ def reconcile_schema(
             all_issues.extend(table_issues)
 
     return SchemaReconciliationReport(
-        backend=engine.dialect.name,
+        backend=context.engine.dialect.name,
         table_results=tuple(table_results),
         issues=tuple(all_issues),
     )

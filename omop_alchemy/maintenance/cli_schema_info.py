@@ -7,14 +7,14 @@ import importlib.metadata
 import importlib.util
 import shutil
 
-import sqlalchemy as sa
 from sqlalchemy.exc import SQLAlchemyError
 
-from oa_configurator import Dialect, ResolvedCDMDatabase
+from oa_configurator import Dialect
 from oa_configurator.loader import DEFAULT_CONFIG_PATH
 
 from ..backends.resolve import backend_label
 from ._cli_utils import Status
+from .context import MaintenanceContext
 from .cli_schema_tables import collect_missing_tables
 from .tables import (
     TableCategory,
@@ -256,14 +256,12 @@ def _command_support_for_backend(
 
 
 def collect_maintenance_info(
+    context: MaintenanceContext,
     *,
-    engine: sa.engine.Engine,
-    vocab_engine: sa.engine.Engine,
-    resolved: ResolvedCDMDatabase,
-    resource_name: str,
     vocabulary_included: bool = True,
 ) -> MaintenanceInfo:
-    """Probe connection readiness and assess per-command support for an already-resolved engine."""
+    """Probe every engine's connection readiness and assess per-command support."""
+    engine = context.engine
     pg_dump_path = shutil.which("pg_dump")
     pg_restore_path = shutil.which("pg_restore")
     psql_path = shutil.which("psql")
@@ -291,15 +289,11 @@ def collect_maintenance_info(
     missing_table_count: int | None = None
 
     try:
-        with engine.connect() as connection:
-            connection.exec_driver_sql("SELECT 1")
+        for candidate in context.engines:
+            with candidate.connect() as connection:
+                connection.exec_driver_sql("SELECT 1")
         connection_ready = True
-        missing_tables = collect_missing_tables(
-            engine,
-            vocab_engine=vocab_engine,
-            vocabulary_included=vocabulary_included,
-            resolved=resolved,
-        )
+        missing_tables = collect_missing_tables(context, vocabulary_included=vocabulary_included)
         missing_table_count = len(missing_tables)
         existing_table_count = len(managed_tables) - missing_table_count
     except SQLAlchemyError as exc:
@@ -324,8 +318,8 @@ def collect_maintenance_info(
         psql_path=psql_path,
         config_file=str(config_file),
         config_exists=config_file.exists(),
-        resource_name=resource_name,
-        db_schema=resolved.schema_name,
+        resource_name=context.resource_name,
+        db_schema=context.resolved.schema_name,
         engine_url=engine_url,
         backend=backend,
         connection_ready=connection_ready,

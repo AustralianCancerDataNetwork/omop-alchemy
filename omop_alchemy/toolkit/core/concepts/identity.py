@@ -1,79 +1,44 @@
-"""Vocabulary identity, so concept-set caches survive engine recreation.
+"""Cache scope for concept-set expansions: the vocabulary a session reads.
 
-An expanded concept set is a function of the *vocabulary* behind a connection,
-not of the ``Engine`` object that happens to be open.  Caching per engine means
-recreating an engine against the same database re-runs every closure query;
-caching per URL is unsafe, because two in-memory SQLite engines share a URL and
-are separate databases.
+An expansion depends only on the vocabulary tables, so engines reading the same
+physical database and vocabulary schema share one scope. The scope is derived
+from the engine itself: ``connection_key`` of its URL plus the physical schema
+its ``schema_translate_map`` gives the ``vocab`` tag.
 
-So a caller that knows which vocabulary an engine points at registers that fact:
-
-    from omop_alchemy.toolkit.core.concepts import register_vocabulary_identity
-
-    engine = my_own_factory(...)
-    register_vocabulary_identity(engine, my_identity_string)
-
-``omop_alchemy.config.create_cdm_engine`` does this automatically, but it is
-**one registrar among several** — downstream packages build engines through
-their own factories and must be able to register too, or their engines silently
-fall back to per-engine caching and lose the reuse this exists to provide.
-Compose the identity string with ``omop_alchemy.config.vocabulary_identity`` so
-every caller spells the same dataset the same way; two spellings produce two
-cache entries that each look authoritative.
-
-Engines with no registered identity are cached per engine object, held weakly.
-That is always correct — it just does not share across engines.
+An engine that cannot name its vocabulary that way gets a scope of its own: an
+in-memory SQLite database, where two engines on one URL are separate databases,
+or an engine with no ``vocab`` entry in its translate map.
 """
 
 from __future__ import annotations
 
-from weakref import WeakKeyDictionary
-
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role, UnregisteredSchemaTagError, connection_key, is_ephemeral_url, physical_schema_of
 
-_VOCAB_IDENTITY: "WeakKeyDictionary[sa.Engine, str]" = WeakKeyDictionary()
 
+def vocabulary_engine_of(session: so.Session) -> sa.Engine:
+    """Engine *session* sends vocabulary statements to.
 
-def register_vocabulary_identity(engine: sa.Engine, identity: str) -> None:
-    """Declare which vocabulary dataset ``engine`` reads.
-
-    Concept-set caches keyed on this identity are shared by every engine
-    registered under it, so recreating an engine reuses the expansion.
-
-    Pass the engine your factory *returns*.
-    ``ResolvedCDMDatabase.create_engine`` ends with
-    ``execution_options(schema_translate_map=...)``, which yields a derived
-    ``OptionEngine``; that is the object sessions bind to, and the one lookups
-    will see.
-
-    Do not register an identity for an ephemeral database — notably in-memory
-    SQLite, where two engines built from identical configuration are genuinely
-    separate databases.  Those correctly fall back to per-engine caching.
+    Asked through ``Concept`` rather than with no argument, so a session
+    binding each table to its own engine answers with the vocabulary one.
     """
-    _VOCAB_IDENTITY[engine] = identity
+    from omop_alchemy.cdm.model.vocabulary.concept import Concept
 
-
-def clear_vocabulary_identity(engine: sa.Engine) -> None:
-    """Forget ``engine``'s registered identity, if it had one."""
-    _VOCAB_IDENTITY.pop(engine, None)
-
-
-def engine_for_bind(bind: sa.Engine | sa.Connection) -> sa.Engine:
-    """Normalise a session bind to an ``Engine``.
-
-    ``Session.get_bind()`` returns a ``Connection`` for connection-bound
-    sessions, which is a normal pattern in test fixtures.  Without this, every
-    such session would look like a distinct cache scope.
-    """
-    return bind.engine
+    return session.get_bind(Concept).engine
 
 
 def cache_scope(session: so.Session) -> str | sa.Engine:
-    """Cache scope for ``session``: its vocabulary identity, else its engine.
+    """Cache scope for *session*: its physical vocabulary, else its vocabulary engine.
 
-    A ``str`` scope is shared across engines pointing at the same vocabulary.
-    An ``Engine`` scope is private to that engine and dies with it.
+    A ``str`` scope is shared by every engine reading that vocabulary. An
+    ``Engine`` scope is private to that engine and dies with it.
     """
-    engine = engine_for_bind(session.get_bind())
-    return _VOCAB_IDENTITY.get(engine, engine)
+    engine = vocabulary_engine_of(session)
+    if is_ephemeral_url(engine.url):
+        return engine
+    try:
+        schema = physical_schema_of(engine, schema_tag=Role.VOCAB.value)
+    except UnregisteredSchemaTagError:
+        return engine
+    return f"{connection_key(engine.url)}|{schema or ''}"

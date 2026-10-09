@@ -18,12 +18,13 @@ from oa_configurator.testing import drop_schema_if_exists, resolve_with_role_sch
 
 from omop_alchemy.backends.postgres import PostgresBackend
 from omop_alchemy.cdm.model.vocabulary import Concept
-from omop_alchemy.config import create_cdm_engine
+from omop_alchemy.config import create_cdm_engines
 from omop_alchemy.maintenance.cli_vocab import (
     _load_vocab_model_csv,
     load_vocab_source,
 )
 from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
+from omop_alchemy.maintenance.context import MaintenanceContext
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -36,8 +37,8 @@ def pg_engine(pg_unscoped_resolved):
     Overrides conftest's bare-engine pg_engine for this module: every test
     here loads vocabulary data via load_vocab_source(), which (like every
     real CLI command) expects to run on an engine built through
-    create_cdm_engine()."""
-    engine = create_cdm_engine(pg_unscoped_resolved)
+    create_cdm_engines()."""
+    engine, _ = create_cdm_engines(pg_unscoped_resolved)
     yield engine
     engine.dispose()
 
@@ -98,7 +99,7 @@ def _make_concept_source(
 def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, pg_resolved, tmp_path):
     """load_vocab_source() completes end-to-end on real Postgres via orm-loader>=0.4.0."""
     source_path = _copy_fixture_source(tmp_path)
-    report = load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_path, resolved=pg_resolved)
+    report = load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path)
 
     assert report.merge_strategy == "replace"
     assert all(r.status == "loaded" for r in report.results if r.required)
@@ -143,7 +144,7 @@ def test_default_quote_mode_preserves_literal_quotes_on_postgres(
         {col: (val,) for col, val in zip(concept_cols, concept_row)},
     )
 
-    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_path, resolved=pg_resolved)
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path)
 
     concept_name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
@@ -182,7 +183,7 @@ def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
         {col: (val,) for col, val in zip(concept_cols, concept_row)},
     )
 
-    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_path, quote_mode="csv", resolved=pg_resolved)
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path, quote_mode="csv")
 
     concept_name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
@@ -234,9 +235,9 @@ def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
         tmp_path / "v2", concept_id=concept_id, concept_name="name_v2"
     )
 
-    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_absent, merge_strategy="replace", resolved=pg_resolved)
-    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_v1, merge_strategy="replace", resolved=pg_resolved)
-    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_v2, merge_strategy="replace", resolved=pg_resolved)
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_absent, merge_strategy="replace")
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v1, merge_strategy="replace")
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v2, merge_strategy="replace")
 
     names = dict(
         pg_session.execute(
@@ -261,8 +262,8 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, pg_resolved, 
         tmp_path / "v2", concept_id=concept_id, concept_name="name_v2"
     )
 
-    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_v1, merge_strategy="upsert", resolved=pg_resolved)
-    load_vocab_source(pg_engine, vocab_engine=pg_engine, source_path=source_v2, merge_strategy="upsert", resolved=pg_resolved)
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v1, merge_strategy="upsert")
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v2, merge_strategy="upsert")
 
     name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = :cid"),
@@ -280,7 +281,7 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cle
 
     schema_translate_map, not db_schema alone, is what actually routes
     ORM-managed table creation: a real deployment sets it once, at engine
-    construction (ResolvedCDMDatabase.create_engine()), not per call. This
+    construction (ResolvedCDMDatabase.create_engines()), not per call. This
     scopes it here the same way, matching orm-loader's own
     test_schema_translate_map.py regression test.
     """
@@ -294,14 +295,13 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cle
         conn.execute(sa.text(f"CREATE SCHEMA {quoted_schema}"))
 
     # A single-schema deployment: vocab/results fall back to the CDM schema.
-    scoped_engine = create_cdm_engine(resolve_with_role_schemas(pg_resolved, {Role.PRIMARY: schema}))
+    scoped_resolved = resolve_with_role_schemas(pg_resolved, {Role.PRIMARY: schema})
+    scoped_engine, _ = create_cdm_engines(scoped_resolved)
 
     try:
         report = load_vocab_source(
-            scoped_engine, vocab_engine=scoped_engine,
+            MaintenanceContext(resolved=scoped_resolved, engine=scoped_engine, vocab_engine=scoped_engine),
             source_path=source_path,
-            db_schema=schema,
-            resolved=pg_resolved,
         )
 
         assert any(r.status == "loaded" for r in report.results if r.required)
