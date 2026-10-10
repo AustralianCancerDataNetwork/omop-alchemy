@@ -797,7 +797,13 @@ def test_upcoming_preference_boundaries_and_recent_started_winner(
     assert _attachment_rows(session, queries) == {(8, expected, "fallback")}
 
 
-@pytest.mark.parametrize("session_fixture", ["session", "pg_session"])
+@pytest.mark.parametrize(
+    "session_fixture",
+    [
+        "session",
+        pytest.param("pg_session", marks=[pytest.mark.postgresql, pytest.mark.db_dialect]),
+    ],
+)
 def test_upcoming_preference_preserves_explicit_identity_and_diagnostics(request, session_fixture):
     session = request.getfixturevalue(session_fixture)
     anchor = date(2026, 1, 20)
