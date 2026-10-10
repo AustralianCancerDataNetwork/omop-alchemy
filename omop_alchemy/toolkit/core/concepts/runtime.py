@@ -12,9 +12,11 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 
 import sqlalchemy as sa
+import sqlalchemy.orm as so
 
 from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Ancestor
 from omop_alchemy.cdm.query import ConceptFilter
+from omop_alchemy.cross_database import filter_by_keys
 
 
 def _normalise_concept_ids(values: Iterable[int]) -> tuple[int, ...]:
@@ -99,6 +101,31 @@ def descendant_concept_select(
     ).apply(statement)
 
 
+def descendant_membership(
+    column: sa.SQLColumnExpression[Any],
+    ancestor_ids: Iterable[int],
+    *,
+    require_standard: bool = False,
+    include_classification: bool = True,
+    session: so.Session | None = None,
+) -> sa.ColumnElement[bool]:
+    """*column* is a descendant of one of *ancestor_ids*.
+
+    Without *session* this is a ``concept_ancestor`` subquery, which needs
+    *column* on the vocabulary's database. With one it goes through
+    :func:`~omop_alchemy.cross_database.filter_by_keys`, so it also works when
+    the vocabulary lives on its own database.
+    """
+    keys = descendant_concept_select(
+        ancestor_ids,
+        require_standard=require_standard,
+        include_classification=include_classification,
+    )
+    if session is None:
+        return column.in_(keys)
+    return filter_by_keys(column, keys_select=keys, session=session)
+
+
 def _concept_set_side(
     column: sa.SQLColumnExpression[Any],
     *,
@@ -106,16 +133,17 @@ def _concept_set_side(
     exact_ids: tuple[int, ...],
     require_standard: bool,
     include_classification: bool,
+    session: so.Session | None,
 ) -> sa.ColumnElement[bool]:
     clauses: list[sa.ColumnElement[bool]] = []
     if ancestor_ids:
         clauses.append(
-            column.in_(
-                descendant_concept_select(
-                    ancestor_ids,
-                    require_standard=require_standard,
-                    include_classification=include_classification,
-                )
+            descendant_membership(
+                column,
+                ancestor_ids,
+                require_standard=require_standard,
+                include_classification=include_classification,
+                session=session,
             )
         )
     if exact_ids:
@@ -128,8 +156,14 @@ def _concept_set_side(
 def runtime_concept_predicate(
     column: sa.SQLColumnExpression[Any],
     spec: RuntimeConceptSetSpec,
+    *,
+    session: so.Session | None = None,
 ) -> sa.ColumnElement[bool]:
-    """Render runtime concept membership entirely as database predicates."""
+    """Render runtime concept membership as database predicates.
+
+    Pass *session* when *column* may be on another database than the
+    vocabulary; see :func:`descendant_membership`.
+    """
     if not spec.has_inclusions:
         return sa.false()
 
@@ -139,6 +173,7 @@ def runtime_concept_predicate(
         exact_ids=spec.include_exact_ids,
         require_standard=spec.require_standard,
         include_classification=spec.include_classification,
+        session=session,
     )
 
     excluded = _concept_set_side(
@@ -147,6 +182,7 @@ def runtime_concept_predicate(
         exact_ids=spec.exclude_exact_ids,
         require_standard=spec.require_standard,
         include_classification=spec.include_classification,
+        session=session,
     )
     # Exclusion is evaluated after inclusion so an explicit exclusion always
     # wins over a descendant or exact inclusion.

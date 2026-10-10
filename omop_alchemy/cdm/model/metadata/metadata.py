@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from typing import Optional
 from datetime import date
 from orm_loader.helpers import Base
@@ -17,6 +18,7 @@ from omop_alchemy.cdm.base import (
 class Metadata(CDMTableBase, Base, ValueMixin):
     __tablename__ = "metadata"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "metadata_concept_id", cluster=True),
         omop_index(__tablename__, "metadata_type_concept_id"),
     )

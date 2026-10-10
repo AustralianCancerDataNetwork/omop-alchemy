@@ -10,11 +10,18 @@ from typing import Literal, TypeAlias, cast
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-import sqlalchemy.event as sae
 from sqlalchemy.exc import OperationalError
 import typer
-from sqlalchemy.pool import NullPool
-from orm_loader.backends import resolve_backend
+from oa_configurator import (
+    Role,
+    UnregisteredSchemaTagError,
+    claimed_schema_tags,
+    declared_schema_tags,
+    physical_schema_of,
+    qualified,
+)
+from orm_loader.backends import STAGING_SCHEMA, resolve_backend
+from orm_loader.helpers import create_tables
 from orm_loader.tables.typing import CSVTableProtocol
 from rich.progress import (
     BarColumn,
@@ -25,7 +32,6 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from ..backends.resolve import SupportedDialect
 from omop_alchemy.cdm.model.vocabulary import (
     Concept,
     Concept_Ancestor,
@@ -39,17 +45,13 @@ from omop_alchemy.cdm.model.vocabulary import (
     Vocabulary,
 )
 
-from ._cli_utils import (
-    ReservedSchema,
-    Status,
-    ensure_schema,
-    omop_command,
-    reject_reserved_schema,
-)
+from ..backends import backend_supports, resolve_backend as resolve_omop_backend
+from ._cli_utils import Status, omop_command
+from .context import MaintenanceContext
 from .cli_foreign_keys import manage_foreign_key_triggers
-from .cli_indexes import manage_indexes
+from .cli_indexes import _manage_indexes
 from .cli_tables import reset_model_sequences
-from .tables import TableCategory, schema_adjusted_metadata, select_maintenance_tables
+from .tables import TableCategory, select_maintenance_tables
 from .ui import (
     console,
     render_error,
@@ -168,7 +170,7 @@ def _is_missing_staging_table_error(
     session: so.Session,
 ) -> bool:
     """Return True if the exception is a ProgrammingError caused by the staging table not existing yet."""
-    staging_table_name = resolve_backend(session).staging_name_for_table(
+    staging_table_name = resolve_backend(session, mapper=model).staging_name_for_table(
         model.__tablename__
     )
     message = str(exc).lower()
@@ -189,7 +191,7 @@ def _load_vocab_model_csv(
     chunksize: int | None = None,
     index_strategy: str = "auto",
     merge_batch_size: int | None = None,
-    staging_schema: str | None = None,
+    staging_schema_tag: str | None = None,
 ) -> int:
     """Call model.load_csv. If the staging table is absent, create it and retry once."""
     load_kwargs: dict[str, object] = {
@@ -197,7 +199,7 @@ def _load_vocab_model_csv(
         "quote_mode": quote_mode,
         "index_strategy": index_strategy,
         "merge_batch_size": merge_batch_size,
-        "staging_schema": staging_schema,
+        "staging_schema_tag": staging_schema_tag,
     }
     if chunksize is not None:
         load_kwargs["chunksize"] = chunksize
@@ -209,7 +211,7 @@ def _load_vocab_model_csv(
             raise
 
         session.rollback()
-        model.create_staging_table(session, staging_schema=staging_schema)
+        model.create_staging_table(session, staging_schema_tag=staging_schema_tag)
         return int(model.load_csv(session, csv_path, **load_kwargs))  # ty: ignore[invalid-argument-type]
 
 
@@ -243,42 +245,40 @@ def _missing_required_files(
     ]
 
 
-def _create_missing_vocabulary_tables(
-    connection: sa.Connection,
-    *,
-    db_schema: str | None,
-) -> int:
-    """Create any vocabulary-category ORM tables that are absent from the target database. Returns the count created."""
-    vocab_tables = select_maintenance_tables(
-        categories=(TableCategory.VOCABULARY,),
-    )
-    inspector = sa.inspect(connection)
-    missing_tables = [
-        table
-        for table in vocab_tables
-        if not inspector.has_table(table.table_name, schema=db_schema)
-    ]
-    if not missing_tables:
-        return 0
+def _create_missing_vocabulary_tables(context: MaintenanceContext) -> int:
+    """Create any vocabulary-category ORM tables absent from their own engine. Returns the count created.
 
-    metadata, adjusted_tables = schema_adjusted_metadata(
-        vocab_tables,
-        db_schema=db_schema,
-    )
-    metadata.create_all(
-        bind=connection,
-        tables=[adjusted_tables[table.table_name] for table in missing_tables],
-        checkfirst=True,
-    )
-    return len(missing_tables)
+    Notes
+    -----
+    - No provenance guard as the engines were just built in `omop_command`. There is no
+    possibility of schema drift between their creation and this command's execution.
+    """
+    missing = [
+        target
+        for target in context.targets(select_maintenance_tables(categories=(TableCategory.VOCABULARY,)))
+        if not target.exists()
+    ]
+    by_engine: dict[sa.Engine, list[sa.Table]] = {}
+    for target in missing:
+        by_engine.setdefault(target.bind, []).append(target.table.table)
+    for engine, tables in by_engine.items():
+        with engine.begin() as connection:
+            missing_claims = declared_schema_tags(tables) - claimed_schema_tags(connection)
+            if missing_claims:
+                raise UnregisteredSchemaTagError(
+                    f"_create_missing_vocabulary_tables(): table(s) declare schema tag(s) "
+                    f"{sorted(missing_claims)} that aren't claimed on this connection. Add them "
+                    "to create_cdm_engines()'s own create_engines(schema_claims=[...]) call."
+                )
+            create_tables(connection, tables, resolved=context.resolved)
+    return len(missing)
 
 
 def load_vocab_source(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
     source_path: str | Path,
     tables: list[str] | None = None,
-    db_schema: str | None = None,
     dry_run: bool = False,
     merge_strategy: MergeStrategy = "replace",
     quote_mode: QuoteMode = "by_delimiter",
@@ -299,7 +299,16 @@ def load_vocab_source(
     With bulk_mode (default on PostgreSQL), secondary indexes and FK triggers
     are toggled globally around the load for speed. Pass --no-bulk-mode when
     loading a single table to avoid the index drop/rebuild overhead.
+
+    Parameters
+    ----------
+    context : MaintenanceContext
+        The load, and every index, FK-trigger and sequence step around it,
+        runs on the engine hosting the vocabulary tables.
     """
+    vocab_engine = context.vocab_engine
+    vocab_schema = physical_schema_of(vocab_engine, schema_tag=Role.VOCAB.value)
+
     resolved_source_path = Path(source_path).expanduser().resolve()
     if not resolved_source_path.exists() or not resolved_source_path.is_dir():
         raise RuntimeError(f"Athena source directory not found: {resolved_source_path}")
@@ -333,32 +342,6 @@ def load_vocab_source(
             + ", ".join(sorted(missing))
         )
 
-    reject_reserved_schema(db_schema)
-
-    if not dry_run:
-        ensure_schema(engine, db_schema)
-        ensure_schema(engine, ReservedSchema.STAGING)
-
-    # NullPool: each session/connection is opened fresh and closed immediately after
-    # use. No stale pooled connections survive between tables, which prevents
-    # "connection in recovery mode" failures on subsequent tables after a heavy load.
-    load_engine = sa.create_engine(engine.url, poolclass=NullPool)
-    if db_schema is not None:
-        # NullPool discards the DBAPI connection on every commit, so a one-time
-        # SET search_path on the first checkout doesn't survive into the next
-        # checkout (e.g. after create_staging_table's commit). Re-apply on every
-        # new connection via an engine-level connect event so COPY and raw-cursor
-        # operations always target the right schema. The staging schema no longer
-        # needs to be on the path because orm-loader now qualifies staging
-        # table identifiers explicitly.
-        _quoted_schema = '"' + db_schema.replace('"', '""') + '"'
-
-        @sae.listens_for(load_engine, "connect")
-        def _set_search_path(dbapi_conn, _record):
-            cur = dbapi_conn.cursor()
-            cur.execute(f"SET search_path TO {_quoted_schema}")
-            cur.close()
-
     table_count = sum(
         1
         for m in all_models
@@ -380,7 +363,7 @@ def load_vocab_source(
     )
 
     _use_bulk_mode = (
-        bulk_mode and not dry_run and engine.dialect.name == SupportedDialect.POSTGRESQL
+        bulk_mode and not dry_run and backend_supports(resolve_omop_backend(vocab_engine), "toggle_fk_triggers")
     )
     if _use_bulk_mode:
         _emit(
@@ -390,10 +373,9 @@ def load_vocab_source(
             table_count=table_count,
         )
         manage_foreign_key_triggers(
-            engine,
+            context,
             enable=False,
-            vocabulary_included=True,
-            db_schema=db_schema,
+            vocabulary_only=True,
             dry_run=False,
         )
         _emit(
@@ -402,11 +384,10 @@ def load_vocab_source(
             0.0,
             table_count=table_count,
         )
-        disable_results = manage_indexes(
-            engine,
+        disable_results = _manage_indexes(
+            context,
             enable=False,
-            vocabulary_included=True,
-            db_schema=db_schema,
+            vocabulary_only=True,
             dry_run=False,
         )
         index_warnings = tuple(
@@ -423,11 +404,7 @@ def load_vocab_source(
             )
 
     if not dry_run:
-        with load_engine.connect() as pre_conn:
-            created_table_count = _create_missing_vocabulary_tables(
-                pre_conn, db_schema=db_schema
-            )
-            pre_conn.commit()
+        created_table_count = _create_missing_vocabulary_tables(context)
 
     try:
         for model in all_models:
@@ -481,7 +458,7 @@ def load_vocab_source(
             _prev_attempt_was_crash = False
             for attempt in range(3):
                 try:
-                    with so.Session(load_engine) as session:
+                    with so.Session(vocab_engine) as session:
                         if (
                             _prev_attempt_was_crash
                             and merge_strategy == "insert_if_empty"
@@ -492,11 +469,10 @@ def load_vocab_source(
                             # DISABLE TRIGGER ALL on all vocabulary tables, and that state
                             # persists across crash+recovery in pg_trigger.tgenabled.
                             # Schema-qualified explicitly so this targets the CDM table
-                            # regardless of search_path ordering.
-                            table_ref = (
-                                f'"{db_schema}"."{model.__tablename__}"'
-                                if db_schema
-                                else f'"{model.__tablename__}"'
+                            # regardless of search_path ordering -- vocab_schema, since
+                            # this session and the table itself both live on vocab_engine.
+                            table_ref = qualified(
+                                session, model.__tablename__, physical_schema=vocab_schema
                             )
                             session.execute(sa.text(f"TRUNCATE TABLE {table_ref}"))
                             session.commit()
@@ -509,7 +485,7 @@ def load_vocab_source(
                             index_strategy="keep" if _use_bulk_mode else "auto",
                             chunksize=chunksize,
                             merge_batch_size=merge_batch_size,
-                            staging_schema=ReservedSchema.STAGING,
+                            staging_schema_tag=STAGING_SCHEMA,
                         )
                         session.commit()
                     break
@@ -521,7 +497,7 @@ def load_vocab_source(
                     raise VocabularyLoadError(
                         "Athena vocabulary load failed for "
                         f"table `{model.__tablename__}` from `{csv_path}` "
-                        f"using merge strategy `{merge_strategy}` on backend `{engine.dialect.name}`. "
+                        f"using merge strategy `{merge_strategy}` on backend `{vocab_engine.dialect.name}`. "
                         f"Underlying error: {exc.__class__.__name__}: {exc}"
                         + recovery_hint
                     ) from exc
@@ -548,6 +524,10 @@ def load_vocab_source(
                 table_count=table_count,
             )
     finally:
+        if not dry_run:
+            from omop_alchemy.toolkit.core.concepts import clear_concept_group_cache
+
+            clear_concept_group_cache()
         if _use_bulk_mode:
             _emit(
                 progress_callback,
@@ -555,11 +535,10 @@ def load_vocab_source(
                 100.0,
                 table_count=table_count,
             )
-            manage_indexes(
-                engine,
+            _manage_indexes(
+                context,
                 enable=True,
-                vocabulary_included=True,
-                db_schema=db_schema,
+                vocabulary_only=True,
                 dry_run=False,
                 cluster=False,
             )
@@ -570,10 +549,9 @@ def load_vocab_source(
                 table_count=table_count,
             )
             manage_foreign_key_triggers(
-                engine,
+                context,
                 enable=True,
-                vocabulary_included=True,
-                db_schema=db_schema,
+                vocabulary_only=True,
                 dry_run=False,
             )
 
@@ -584,11 +562,10 @@ def load_vocab_source(
         table_count=table_count,
     )
 
-    if not dry_run and engine.dialect.name == SupportedDialect.POSTGRESQL:
+    if not dry_run and backend_supports(resolve_omop_backend(vocab_engine), "find_sequence_name"):
         sequence_results = reset_model_sequences(
-            engine,
-            db_schema=db_schema,
-            vocabulary_included=True,
+            context,
+            vocabulary_only=True,
             dry_run=False,
         )
         sequence_reset_count = sum(
@@ -597,8 +574,8 @@ def load_vocab_source(
 
     return VocabularyLoadReport(
         source_path=str(resolved_source_path),
-        backend=engine.dialect.name,
-        db_schema=db_schema,
+        backend=vocab_engine.dialect.name,
+        db_schema=vocab_schema,
         merge_strategy=merge_strategy,
         created_table_count=created_table_count,
         sequence_reset_count=sequence_reset_count,
@@ -616,8 +593,7 @@ app = typer.Typer(rich_markup_mode="rich")
 )
 @omop_command("load-vocab-source", vocabulary_included=True, dry_run=True)
 def load_vocab_source_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     athena_source: str | None = typer.Option(
         None,
         help="Path to the unzipped Athena vocabulary CSV directory. Falls back to the saved athena-source default.",
@@ -654,7 +630,7 @@ def load_vocab_source_command(
     staging_chunk_size: int | None = typer.Option(
         100_000,
         help=(
-            "[Phase 1] Rows per ORM transaction when loading CSV → staging table. "
+            "Staging load: rows per ORM transaction when loading CSV → staging table. "
             "Ignored when the PostgreSQL COPY fast-path is active (the default for "
             "Athena CSVs). Pass 0 to disable chunking entirely."
         ),
@@ -672,7 +648,7 @@ def load_vocab_source_command(
     merge_batch_size: int | None = typer.Option(
         None,
         help=(
-            "[Phase 2] Rows per transaction when merging staging → target table. "
+            "Merge: rows per transaction when merging staging → target table. "
             "Default: None (no pagination — single INSERT per table, fastest for high-RAM systems). "
             "Set to a positive integer to enable paginated commits for memory-constrained systems; "
             "note that pagination adds a COUNT query and an index build on the staging table "
@@ -724,10 +700,9 @@ def load_vocab_source_command(
                 )
 
         report = load_vocab_source(
-            engine,
+            conn,
             source_path=effective_athena_source,
             tables=tables or None,
-            db_schema=conn.db_schema,
             dry_run=dry_run,
             merge_strategy=merge_strategy,
             quote_mode=quote_mode,

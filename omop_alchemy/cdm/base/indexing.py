@@ -224,8 +224,8 @@ def merge_table_args(*parts: TableArg) -> tuple[TableArg, ...]:
             return
 
         if isinstance(part, tuple):
-            for item in part:
-                consume(item)  # ty: ignore[invalid-argument-type]
+            for item in cast(tuple[TableArg, ...], part):
+                consume(item)
             return
 
         items.append(part)

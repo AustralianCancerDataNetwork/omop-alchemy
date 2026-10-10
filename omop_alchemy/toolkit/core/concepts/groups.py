@@ -13,6 +13,7 @@ membership two ways from one definition::
 
     drug.drug_concept_id in group            # Python, O(1)
     group.expression(Drug_Exposure.drug_concept_id)   # SQL, evaluated per query
+    group.expression(Drug_Exposure.drug_concept_id, session=session)  # any topology
 
 Both renderings come from the same spec, so they cannot disagree.  The SQL form
 deliberately re-derives a subquery rather than embedding the resolved IDs as a
@@ -28,7 +29,7 @@ from typing import Any
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
-from .runtime import descendant_concept_select
+from .runtime import descendant_concept_select, descendant_membership
 from .semantics import ConceptGroupAnchors
 
 
@@ -87,13 +88,16 @@ class ConceptGroupSpec:
     def expression_for(
         self,
         column: sa.SQLColumnExpression[Any],
+        *,
+        session: so.Session | None = None,
     ) -> sa.ColumnElement[bool]:
-        """SQL membership for this group, as a subquery over ``concept_ancestor``.
+        """SQL membership for this group, traversing ``concept_ancestor``.
 
-        Available on the spec because the SQL form needs no session: the
-        traversal is performed by the database when the query runs.  That is
-        what lets a ``hybrid_property`` expose the same governed set at class
-        level, where no session exists.
+        Without *session* the traversal is a subquery performed by the
+        database when the query runs, which is what lets a ``hybrid_property``
+        expose the set at class level. That form needs *column* on the
+        vocabulary's database. Pass *session* when it may not be; see
+        :func:`~.runtime.descendant_membership`.
 
         Deliberately a subquery rather than a literal ``IN`` list built from a
         resolved group: a closure of tens of thousands of IDs degrades query
@@ -105,20 +109,22 @@ class ConceptGroupSpec:
         clauses: list[sa.ColumnElement[bool]] = []
 
         if parents and self.include_descendants:
-            expr = column.in_(
-                descendant_concept_select(
-                    parents,
-                    require_standard=self.require_standard,
-                    include_classification=self.include_classification,
-                )
+            expr = descendant_membership(
+                column,
+                parents,
+                require_standard=self.require_standard,
+                include_classification=self.include_classification,
+                session=session,
             )
             excluded = self.excluded_parent_ids()
             if excluded:
-                expr = expr & column.not_in(
-                    descendant_concept_select(
+                expr = expr & sa.not_(
+                    descendant_membership(
+                        column,
                         excluded,
                         require_standard=self.require_standard,
                         include_classification=self.include_classification,
+                        session=session,
                     )
                 )
             clauses.append(expr)
@@ -167,14 +173,16 @@ class ResolvedConceptGroup:
     def expression(
         self,
         column: sa.SQLColumnExpression[Any],
+        *,
+        session: so.Session | None = None,
     ) -> sa.ColumnElement[bool]:
-        """SQL membership for this group — delegates to the spec.
+        """SQL membership for this group, delegating to the spec.
 
         Kept here so a caller holding a resolved group can reach either
         rendering without going back to the spec, but the definition lives in
         one place.
         """
-        return self.spec.expression_for(column)
+        return self.spec.expression_for(column, session=session)
 
 
 def build_concept_group(

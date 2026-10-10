@@ -1207,7 +1207,7 @@ wheels = [
 
 [[package]]
 name = "oa-configurator"
-version = "1.2.1"
+version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1216,10 +1216,11 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tomli-w" },
     { name = "typer" },
+    { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/07/6f/126bb395080255cca45cd173aec1903aa13f8fc6b153ba5fce760371e1dd/oa_configurator-1.2.1.tar.gz", hash = "sha256:50828dc2490e533ac535d2bf5f008c61a5962095283d2f98d9041f4e40b769e2", size = 182917, upload-time = "2026-08-19T00:12:36.746Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/62/64bf398b8fe381d138446199be69bc437ef93fdb70aab48cebf51467f6ea/oa_configurator-2.0.0.tar.gz", hash = "sha256:26406e90aeadd4c747646763b80f16025c4c6638afec687517788bc537d0d581", size = 278382, upload-time = "2026-10-10T22:48:42.275Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/c0/9246c3948f1f8e62e6e6865d050a961111fb0720f53daceaf77a9a9bb80e/oa_configurator-1.2.1-py3-none-any.whl", hash = "sha256:707a1c321245e2eb6d62e5a9acf81c1145291edb5ace83489d0d726e05291ad0", size = 64178, upload-time = "2026-08-19T00:12:35.357Z" },
+    { url = "https://files.pythonhosted.org/packages/06/9b/99f0073d97de3545d48cf28c8f39b724d543baf83e8af8d0ba5c8bffbb01/oa_configurator-2.0.0-py3-none-any.whl", hash = "sha256:2186beb5567850ba5bfe4950c2820b909d3746c6fa233a6074a85396a343af35", size = 118027, upload-time = "2026-10-10T22:48:40.571Z" },
 ]
 
 [package.optional-dependencies]
@@ -1283,10 +1284,10 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.7.7" },
     { name = "mkdocs-mermaid2-plugin", marker = "extra == 'dev'" },
     { name = "mkdocstrings-python", marker = "extra == 'dev'", specifier = ">=2.0.1" },
-    { name = "oa-configurator", specifier = ">=1.0.0,<2.0.0" },
-    { name = "oa-configurator", extras = ["dev", "postgres"], marker = "extra == 'dev'", specifier = ">=1.0.0,<2.0.0" },
+    { name = "oa-configurator", specifier = ">=2.0.0,<3" },
+    { name = "oa-configurator", extras = ["dev", "postgres"], marker = "extra == 'dev'", specifier = ">=2.0.0,<3" },
     { name = "omop-semantics", marker = "extra == 'semantics'", specifier = ">=0.6.2" },
-    { name = "orm-loader", specifier = ">=1.2.0,<2.0.0" },
+    { name = "orm-loader", specifier = ">=2.0.0,<3" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },
@@ -1297,7 +1298,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "sqlalchemy", specifier = ">=2.0.45" },
     { name = "ty", marker = "extra == 'dev'", specifier = "==0.0.61" },
-    { name = "typer", specifier = ">=0.12" },
+    { name = "typer", specifier = ">=0.19" },
     { name = "typing-extensions", specifier = ">=4.5" },
 ]
 provides-extras = ["dev", "postgres", "semantics"]
@@ -1333,7 +1334,7 @@ wheels = [
 
 [[package]]
 name = "orm-loader"
-version = "1.2.0"
+version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "chardet" },
@@ -1342,9 +1343,9 @@ dependencies = [
     { name = "pyarrow" },
     { name = "sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/42/093713d63ac7af5b29d94fd33f1888f4d192b38c867b16349caa53c1c0af/orm_loader-1.2.0.tar.gz", hash = "sha256:a000527daab1aeaaeb460e135984330805d2243f5d603c8c649b7d0e2cf75ae4", size = 158420, upload-time = "2026-09-02T06:22:56.506Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6a/cd/b3a29d383b80e1c282a3ee12a28f00b5608802763dd98ed7b3adc637e630/orm_loader-2.0.0.tar.gz", hash = "sha256:73232ecb5f1474738e54f30fae89999620d57cc41456ae799669a74c690a76b3", size = 171586, upload-time = "2026-10-10T23:22:15.966Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/46/65/96fe27564dbb9b74fc1991a5ef3d057bf1cfa227f65bd742e83b2328cef0/orm_loader-1.2.0-py3-none-any.whl", hash = "sha256:068ab02e4f2767047aae02908bf50ef63f3951905da5b841a3ee6b931926ae8b", size = 69661, upload-time = "2026-09-02T06:22:55.183Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/61/6687b9c1602deb1c364d4653c641698e3de298b9c4f5dc98c59698455ac7/orm_loader-2.0.0-py3-none-any.whl", hash = "sha256:a118ddc3fcb611d658b7be52f616b641804ae65067efd05753d1bc14a03b52c9", size = 74959, upload-time = "2026-10-10T23:22:14.645Z" },
 ]
 
 [[package]]
@@ -2549,11 +2550,11 @@ wheels = [
 
 [[package]]
 name = "urllib3"
-version = "2.7.0"
+version = "2.8.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c", size = 433602, upload-time = "2026-05-07T16:13:18.596Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz", hash = "sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63", size = 458972, upload-time = "2026-09-15T19:29:36.253Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897", size = 131087, upload-time = "2026-05-07T16:13:17.151Z" },
+    { url = "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl", hash = "sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3", size = 135717, upload-time = "2026-09-15T19:29:34.577Z" },
 ]
 
 [[package]]

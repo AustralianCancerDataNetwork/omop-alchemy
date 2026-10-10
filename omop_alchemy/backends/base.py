@@ -1,11 +1,9 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
 import sqlalchemy as sa
-
-if TYPE_CHECKING:
-    from sqlalchemy.sql import ColumnElement
+from oa_configurator import Role
 
 
 # ── Fulltext types ────────────────────────────────────────────────────────────
@@ -83,9 +81,9 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
         *,
         enable: bool,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> None:
         raise FeatureNotSupportedError("FK trigger management", self)
 
@@ -93,7 +91,8 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> tuple[int, int]:
         """Return (disabled_count, enabled_count) for RI triggers on the table."""
         raise FeatureNotSupportedError("FK trigger status inspection", self)
@@ -105,7 +104,9 @@ class Backend(ABC):
         referred_table: str,
         constrained_cols: list[str],
         referred_cols: list[str],
-        db_schema: str | None,
+        *,
+        source_schema_tag: str = Role.PRIMARY.value,
+        referred_schema_tag: str = Role.PRIMARY.value,
     ) -> int:
         raise FeatureNotSupportedError("FK constraint violation counting", self)
 
@@ -116,7 +117,8 @@ class Backend(ABC):
         conn: sa.Connection,
         table_name: str,
         index_name: str,
-        db_schema: str | None,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> None:
         raise FeatureNotSupportedError("Table clustering", self)
 
@@ -124,9 +126,25 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> str | None:
         raise FeatureNotSupportedError("Cluster index inspection", self)
+
+    # ── Schema reconciliation ────────────────────────────────────────────────
+
+    def normalize_index_expression(self, sql_text: str) -> str:
+        """Canonicalize a reflected functional-index expression for comparison
+        against the ORM's own compiled expression text.
+
+        A backend's own catalog reflection can introduce dialect-specific
+        canonicalization noise (implicit casts, identifier case) that the
+        ORM's compiled text never has. Only called when a backend actually
+        reflects expression-based indexes back with real expression text to
+        normalize; a backend that can't (e.g. SQLite never reflects them at
+        all) never reaches this call.
+        """
+        raise FeatureNotSupportedError("Functional-index expression normalization", self)
 
     # ── Table operations ─────────────────────────────────────────────────────
 
@@ -135,16 +153,17 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         table_name: str,
-        db_schema: str | None,
         *,
         vacuum: bool = False,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> None: ...
 
     def index_exists(
         self,
         conn: sa.Connection,
         index_name: str,
-        db_schema: str | None,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> bool:
         """Return True when the named index currently exists on the database.
 
@@ -157,25 +176,30 @@ class Backend(ABC):
         self,
         conn: sa.Connection,
         index_name: str,
-        db_schema: str | None,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> None:
         """Drop an index by name without relying on SQLAlchemy's reflection-based checkfirst.
 
         Some backends (e.g. SQLite) can't reflect expression-based indexes, so
         Index.drop(checkfirst=True) would silently no-op on them. IF EXISTS is
-        evaluated by the database itself, not by reflection.
+        evaluated by the database itself, not by reflection. schema_tag is
+        accepted for interface parity with the schema-aware override
+        (PostgresBackend); this default implementation is unqualified,
+        matching SQLite having no schema concept to route through.
         """
         conn.exec_driver_sql(f'DROP INDEX IF EXISTS "{index_name}"')
 
     def truncate_table_batch(
         self,
         conn: sa.Connection,
-        table_names: list[str],
-        db_schema: str | None,
+        tables: list[tuple[str, str]],
         *,
         restart_identities: bool,
         cascade: bool,
     ) -> None:
+        """Truncate every (schema_tag, table_name) pair in one statement.
+        """
         raise FeatureNotSupportedError("TRUNCATE with RESTART IDENTITY / CASCADE", self)
 
     # ── Sequence management ──────────────────────────────────────────────────
@@ -185,7 +209,8 @@ class Backend(ABC):
         conn: sa.Connection,
         table_name: str,
         column_name: str,
-        db_schema: str | None,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> str | None:
         raise FeatureNotSupportedError("Owned sequence lookup", self)
 
@@ -197,22 +222,6 @@ class Backend(ABC):
     ) -> None:
         raise FeatureNotSupportedError("Sequence value reset", self)
 
-    # ── Schema context ───────────────────────────────────────────────────────
-
-    def configure_schema_context(
-        self,
-        conn: sa.Connection,
-        db_schema: str | None,
-    ) -> None:
-        pass  # no-op by default; PostgreSQL overrides with SET search_path
-
-    def ensure_schema(
-        self,
-        conn: sa.Connection,
-        schema: str | None,
-    ) -> None:
-        pass  # no-op by default; backends that support named schemas override this
-
     # ── Full-text search ─────────────────────────────────────────────────────
 
     @property
@@ -220,25 +229,28 @@ class Backend(ABC):
         """Return the fulltext target configs managed by this backend. Empty by default."""
         return ()
 
-    def register_fulltext_metadata(self) -> None:
-        """Append tsvector sidecar columns to SQLAlchemy ORM metadata for this backend's targets."""
-        raise FeatureNotSupportedError("Full-text metadata registration", self)
+    def fulltext_vector_column(
+        self, bindable: sa.Engine | sa.Connection, table: sa.Table
+    ) -> sa.ColumnClause:
+        """Return *table*'s stored tsvector column, bound to *table* without being attached to it.
 
-    def unregister_fulltext_metadata(self) -> None:
-        """Remove tsvector sidecar columns from SQLAlchemy ORM metadata."""
-        raise FeatureNotSupportedError("Full-text metadata unregistration", self)
+        Parameters
+        ----------
+        bindable : sqlalchemy.Engine or sqlalchemy.Connection
+            Carries the schema_translate_map the column's presence is checked under.
+        table : sqlalchemy.Table
+            A fulltext target table, e.g. ``Concept.__table__``.
 
-    def concept_name_tsvector_expression(
-        self, *, regconfig: str = "english"
-    ) -> "ColumnElement[Any]":
-        """Return a SQLAlchemy expression for the concept_name tsvector."""
-        raise FeatureNotSupportedError("Full-text search expression", self)
+        Returns
+        -------
+        sqlalchemy.ColumnClause
 
-    def concept_synonym_name_tsvector_expression(
-        self, *, regconfig: str = "english"
-    ) -> "ColumnElement[Any]":
-        """Return a SQLAlchemy expression for the concept_synonym_name tsvector."""
-        raise FeatureNotSupportedError("Full-text search expression", self)
+        Raises
+        ------
+        FullTextError
+            If *table* is no fulltext target or the column is missing in the database.
+        """
+        raise FeatureNotSupportedError("Full-text search", self)
 
     def install_fulltext_on_table(
         self,
@@ -247,9 +259,9 @@ class Backend(ABC):
         table_name: str,
         vector_column_name: str,
         index_name: str,
-        db_schema: str | None,
         create_indexes: bool,
         fastupdate: bool,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> None:
         raise FeatureNotSupportedError("Full-text search", self)
 
@@ -260,8 +272,8 @@ class Backend(ABC):
         table_name: str,
         vector_column_name: str,
         source_column_name: str,
-        db_schema: str | None,
         regconfig: str,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> int | None:
         raise FeatureNotSupportedError("Full-text search", self)
 
@@ -272,8 +284,8 @@ class Backend(ABC):
         table_name: str,
         vector_column_name: str,
         index_name: str,
-        db_schema: str | None,
         drop_indexes: bool,
+        schema_tag: str = Role.PRIMARY.value,
     ) -> None:
         raise FeatureNotSupportedError("Full-text search", self)
 
@@ -284,7 +296,8 @@ class Backend(ABC):
         engine: sa.Engine,
         output_path: str,
         backup_format: str,
-        db_schema: str | None,
+        *,
+        schemas: Sequence[str],
     ) -> tuple[str, list[str], dict[str, str], str]:
         """Return (tool_path, command, env, database_name). subprocess.run stays in CLI."""
         raise FeatureNotSupportedError("Database backup", self)
@@ -294,7 +307,8 @@ class Backend(ABC):
         engine: sa.Engine,
         input_path: str,
         backup_format: str,
-        db_schema: str | None,
+        *,
+        schemas: Sequence[str],
     ) -> tuple[str, list[str], dict[str, str], str]:
         """Return (tool_path, command, env, database_name). subprocess.run stays in CLI."""
         raise FeatureNotSupportedError("Database restore", self)

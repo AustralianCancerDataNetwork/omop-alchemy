@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from typing import Optional, TYPE_CHECKING
 from datetime import date
 from sqlalchemy.ext.declarative import declared_attr
@@ -8,11 +9,13 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
+    role_fk,
+    role_table,
     cdm_table,
     CDMTableBase,
     ReferenceContext,
     required_concept_fk,
-    optional_concept_fk,    
+    optional_concept_fk,
     DomainValidationMixin,
     ExpectedDomain,
     merge_table_args,
@@ -31,12 +34,13 @@ from ..health_system.provider import Provider
 class Visit_Occurrence(CDMTableBase, Base):
     __tablename__ = "visit_occurrence"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "visit_concept_id"),
     )
 
     visit_occurrence_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("person.person_id"), nullable=False)
+    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
     
     visit_concept_id: so.Mapped[int] = required_concept_fk()
     visit_start_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
@@ -45,8 +49,8 @@ class Visit_Occurrence(CDMTableBase, Base):
     visit_end_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
     visit_type_concept_id: so.Mapped[int] = required_concept_fk()
 
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("provider.provider_id"), nullable=True)
-    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("care_site.care_site_id"), nullable=True)
+    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")), nullable=True)
+    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "care_site.care_site_id")), nullable=True)
 
     visit_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
     visit_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
@@ -55,7 +59,7 @@ class Visit_Occurrence(CDMTableBase, Base):
     discharged_to_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     discharged_to_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
 
-    preceding_visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("visit_occurrence.visit_occurrence_id"), nullable=True)
+    preceding_visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")), nullable=True)
 
     def __repr__(self) -> str:
         return f"<VisitOccurrence {self.visit_occurrence_id}>"
@@ -70,7 +74,7 @@ class VisitContext(ReferenceContext):
     def procedure_providers(cls) -> so.Mapped[list["Provider"]]:
         return so.relationship(
             "Provider",
-            secondary="procedure_occurrence",
+            secondary=role_table(Role.PRIMARY, "procedure_occurrence"),
             primaryjoin="Visit_Occurrence.visit_occurrence_id == Procedure_Occurrence.visit_occurrence_id",
             secondaryjoin="Provider.provider_id == Procedure_Occurrence.provider_id",
             viewonly=True,
@@ -81,7 +85,7 @@ class VisitContext(ReferenceContext):
     def observation_providers(cls) -> so.Mapped[list["Provider"]]:
         return so.relationship(
             "Provider",
-            secondary="observation",
+            secondary=role_table(Role.PRIMARY, "observation"),
             primaryjoin="Visit_Occurrence.visit_occurrence_id == Observation.visit_occurrence_id",
             secondaryjoin="Provider.provider_id == Observation.provider_id",
             viewonly=True,
@@ -90,6 +94,8 @@ class VisitContext(ReferenceContext):
 
 class VisitView(Visit_Occurrence, VisitContext, DomainValidationMixin):
     __tablename__ = "visit_occurrence"
+    # Must match Visit_Occurrence's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
     __expected_domains__ = {
         "visit_concept_id": ExpectedDomain("Visit"),

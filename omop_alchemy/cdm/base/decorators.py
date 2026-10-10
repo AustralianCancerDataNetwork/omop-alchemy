@@ -1,4 +1,5 @@
 from typing import TypeVar
+
 from .cdm_table_base import CDMTableBase
 
 T = TypeVar("T", bound=type)
@@ -18,6 +19,7 @@ def cdm_table(cls: T) -> T:
     - Forces __abstract__ = False
     - Ensures __tablename__ is defined
     - Inherits from CDMTableBase
+    - Validates the table's own schema tag
     - Used to clearly distinguish real CDM tables from mixins
     """
 
@@ -31,6 +33,13 @@ def cdm_table(cls: T) -> T:
     if not issubclass(cls, CDMTableBase):
         raise TypeError(
             f"{cls.__name__} must inherit from CDMTableBase "
+        )
+
+    schema_tag = cls.__table__.schema  # ty: ignore[unresolved-attribute]
+    if schema_tag is None:
+        raise TypeError(
+            f"@cdm_table on {cls.__name__}: table has no schema tag. "
+            "Every CDM table must declare __table_args__['schema']."
         )
 
     # Explicitly mark as concrete

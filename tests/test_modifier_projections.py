@@ -6,6 +6,7 @@ import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from datetime import date, datetime
+from oa_configurator import Role
 from sqlalchemy.dialects import postgresql, sqlite
 
 from omop_alchemy.cdm.base import (
@@ -271,12 +272,21 @@ def test_a_source_naming_a_missing_link_column_is_rejected():
 
 
 @pytest.mark.parametrize("source_model", [MeasurementView, ObservationView])
-def test_modifier_source_subclass_projects_its_own_event_metadata(source_model):
+def test_modifier_source_subclass_projects_its_own_event_metadata(
+    source_model, fresh_engine
+):
     original = clinical_event_model_spec(source_model)
     specialized = type(
         f"{source_model.__name__}WithOverriddenEventMetadata",
         (source_model,),
         {
+            # Must match source_model's own schema, or SQLAlchemy silently
+            # builds a second, unlinked Table object (same footgun __table_args__
+            # fixes on every *View class: ModifierTargetMixin's __abstract__ = True
+            # leaks through inherited attribute lookup for any subclass that
+            # doesn't redeclare its own table identity).
+            "__tablename__": source_model.__tablename__,
+            "__table_args__": {"schema": Role.PRIMARY.value},
             "__event_id_col__": "projected_id",
             "projected_id": so.column_property(
                 getattr(source_model, original.event_id_column) + 100
@@ -292,7 +302,7 @@ def test_modifier_source_subclass_projects_its_own_event_metadata(source_model):
     assert spec.event_date_column == "projected_date"
     assert spec.event_datetime_column == "projected_datetime"
 
-    engine = sa.create_engine("sqlite://")
+    engine = fresh_engine
     Base.metadata.create_all(engine, tables=[source_model.__table__])
     with engine.begin() as connection:
         connection.execute(
@@ -328,7 +338,11 @@ def test_modifier_source_subclass_rejects_missing_declared_columns(
     specialized = type(
         f"{source_model.__name__}WithMissing{declaration.strip('_')}",
         (source_model,),
-        {declaration: "no_such_column"},
+        {
+            "__tablename__": source_model.__tablename__,
+            "__table_args__": {"schema": Role.PRIMARY.value},
+            declaration: "no_such_column",
+        },
     )
     with pytest.raises(UnsupportedModifierSourceModelError, match="no_such_column"):
         canonical_modifier_projection(specialized)
@@ -383,9 +397,8 @@ def test_target_resolution_queries_compile_for_supported_models(target):
         assert "diagnostic_code" in str(queries.diagnostics.compile(dialect=dialect))
 
 
-def _seeded_engine(conditions, measurements):
-    """Build a SQLite database holding the given condition and measurement rows."""
-    engine = sa.create_engine("sqlite://")
+def _seeded_engine(engine, conditions, measurements):
+    """Populate fresh_engine with the given condition and measurement rows."""
     Base.metadata.create_all(
         engine, tables=[Condition_Occurrence.__table__, Measurement.__table__]
     )
@@ -425,9 +438,10 @@ def _diagnostic_codes(engine, target) -> set[tuple[int, str]]:
     return {(row["modifier_id"], row["diagnostic_code"]) for row in rows}
 
 
-def test_a_whole_target_table_can_prove_a_dangling_modifier():
+def test_a_whole_target_table_can_prove_a_dangling_modifier(fresh_engine):
     """Absence from an entire table does mean the target row does not exist."""
     engine = _seeded_engine(
+        fresh_engine,
         conditions=[_condition(1, 10)],
         measurements=[_modifier_of(100, 10, 1), _modifier_of(101, 10, 99)],
     )
@@ -437,7 +451,7 @@ def test_a_whole_target_table_can_prove_a_dangling_modifier():
     }
 
 
-def test_a_filtered_target_never_reports_a_missing_target_event():
+def test_a_filtered_target_never_reports_a_missing_target_event(fresh_engine):
     """A narrowed target set cannot distinguish a defect from its own filter.
 
     Both modifiers below point at conditions that genuinely exist. Reporting
@@ -445,6 +459,7 @@ def test_a_filtered_target_never_reports_a_missing_target_event():
     data-quality defect for downstream baseline counts.
     """
     engine = _seeded_engine(
+        fresh_engine,
         conditions=[_condition(1, 10), _condition(2, 10)],
         measurements=[_modifier_of(100, 10, 1), _modifier_of(101, 10, 2)],
     )
@@ -455,9 +470,10 @@ def test_a_filtered_target_never_reports_a_missing_target_event():
     assert _diagnostic_codes(engine, narrowed) == set()
 
 
-def test_a_filtered_target_still_reports_person_mismatch():
+def test_a_filtered_target_still_reports_person_mismatch(fresh_engine):
     """A mismatch is observed on a row that is present, so it stays provable."""
     engine = _seeded_engine(
+        fresh_engine,
         conditions=[_condition(1, 10)],
         measurements=[_modifier_of(100, 11, 1)],
     )
@@ -517,7 +533,6 @@ def test_target_validation_rejects_null_identity_and_cross_person_links():
     }
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_postgresql_executes_modifier_target_validation_contracts(pg_session):
     """PostgreSQL rejects incomplete and cross-person links before selection."""
 

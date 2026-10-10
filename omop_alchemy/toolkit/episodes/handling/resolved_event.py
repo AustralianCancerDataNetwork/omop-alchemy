@@ -6,6 +6,8 @@ from typing import Any, Literal, TypeVar, cast
 import sqlalchemy.orm as so
 from sqlalchemy.ext.declarative import declared_attr
 
+from oa_configurator import Role
+
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.structural.episode_event import Episode_EventView
 
@@ -58,6 +60,11 @@ class ResolvedEpisodeEvent(Episode_EventView):
     mix ``ResolvedEpisodeEventMixin`` into an episode view to reach it
     through ordinary ``episode.episode_events`` traversal.
     """
+
+    __tablename__ = "episode_event"
+    # Must match Episode_Event's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
+    __mapper_args__ = {"concrete": False}
 
     @classmethod
     def recognized_field_concept_ids(cls) -> set[int]:

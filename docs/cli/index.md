@@ -43,15 +43,15 @@ See the [Command Reference](reference.md) for full parameter details.
 
 ## The `@omop_command` decorator
 
-Most commands are decorated with `@omop_command`. This decorator handles all connection boilerplate so the command function body only needs to work with `conn` and `engine`.
+Most commands are decorated with `@omop_command`. This decorator handles all connection boilerplate so the command function body only works with `conn`.
 
 ### What it injects
 
 Every decorated command receives:
 
-- `conn` — a `_ConnContext` dataclass (see below)
-- `engine` — a SQLAlchemy `Engine` ready to use
-- `--dry-run` — injected on commands that support preview mode
+- `conn`: a `MaintenanceContext` (see below)
+- `--dry-run`: injected on commands that support preview mode
+- `--database`: picks a database entry other than the configured default
 
 No connection flags are injected; all configuration comes from oa_configurator.
 
@@ -60,10 +60,10 @@ No connection flags are injected; all configuration comes from oa_configurator.
 When a decorated command is invoked:
 
 1. Calls `get_cdm_context()`, which loads `~/.config/omop/config.toml` (via `load_stack_config()`) and resolves whatever `OmopAlchemyConfig.cdm_db` currently names, returning `(pkg_config, resolved)`. Raises `RuntimeError` with a helpful message if no config file exists yet.
-2. Calls `create_cdm_engine(resolved)` to build a SQLAlchemy engine (`resolved.create_engine()`, with `schema_translate_map` applied) and register its vocabulary cache identity.
-3. Builds `conn` (`db_schema=resolved.schema_name`, `athena_source=pkg_config.athena_source_path`).
+2. Calls `create_cdm_engines(resolved)` to build the primary and vocabulary engines (`resolved.create_engines()`, with `schema_translate_map` applied and the maintenance schemas claimed on both).
+3. Builds `conn` from `resolved` and both engines.
 4. Prints a command header showing the connection, CDM schema, and run mode.
-5. Calls the original function body with `(conn, engine, ...)`.
+5. Calls the original function body with `(conn, ...)`, and disposes both engines afterwards.
 6. Catches `RuntimeError`, `SQLAlchemyError`, and `BackendNotSupportedError`; renders them as formatted errors and exits with code 1.
 
 ### Before and after
@@ -71,17 +71,21 @@ When a decorated command is invoked:
 Without the decorator, every command would need this boilerplate:
 
 ```python
-from omop_alchemy.config import create_cdm_engine, get_cdm_context
+from omop_alchemy.config import create_cdm_engines, get_cdm_context
+from omop_alchemy.maintenance.context import MaintenanceContext
 
 def my_command() -> None:
     pkg_config, resolved = get_cdm_context()
-    engine = create_cdm_engine(resolved)
+    engine, vocab_engine = create_cdm_engines(resolved)
+    conn = MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=vocab_engine)
     try:
-        # actual work here
-        results = do_work(engine, db_schema=resolved.schema_name)
+        results = do_work(conn)
         console.print(render_results(results))
     except Exception as exc:
         handle_error(exc)
+    finally:
+        for owned in conn.engines:
+            owned.dispose()
 ```
 
 With the decorator, the function body is all that matters:
@@ -89,8 +93,8 @@ With the decorator, the function body is all that matters:
 ```python
 @app.command("my-command")
 @omop_command("my-command")
-def my_command(conn, engine) -> None:
-    results = do_work(engine, db_schema=conn.db_schema)
+def my_command(conn: MaintenanceContext) -> None:
+    results = do_work(conn)
     console.print(render_results(results))
 ```
 
@@ -98,9 +102,11 @@ def my_command(conn, engine) -> None:
 
 ## The `conn` object
 
-`conn` is a `_ConnContext` dataclass. It exposes:
+`conn` is a `MaintenanceContext`. It exposes:
 
 | Attribute | Description |
 |---|---|
-| `conn.db_schema` | CDM schema name from the resolved database (e.g. `"omop"`) |
+| `conn.resolved` | The resolved `ResolvedCDMDatabase`; `conn.resolved.schema_name` is the CDM schema name (e.g. `"omop"`) |
+| `conn.engine`, `conn.vocab_engine` | The primary and vocabulary engines; the same object when the vocabulary shares the primary database |
+| `conn.targets(tables)` | Each table's engine, physical schema and foreign-key feasibility. Table-level work routes through this rather than picking an engine itself |
 | `conn.athena_source` | Athena vocabulary CSV directory from `[tools.omop_alchemy]`'s `athena_source_path` field; `None` if not configured |

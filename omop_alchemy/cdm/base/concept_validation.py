@@ -8,7 +8,9 @@ class ConceptValidationMixin:
 
     A concept-bearing column is defined as:
       - column name ends with '_concept_id'
-      - value is integer-like
+      - column name does not contain 'source' (excludes *_source_concept_id)
+
+    No type check is performed; matching is by column-name pattern only.
 
     Works for:
       - ORM mapped tables
@@ -48,9 +50,6 @@ class ConceptValidationMixin:
         Defaults to the mapped table, but allows override for
         staging tables or materialised views.
         """
-        if session.bind is None:
-            raise RuntimeError("Session is not bound to an engine")
-
         mapper = sa.inspect(cls)
 
         # ORM-mapped table or MV
@@ -144,6 +143,40 @@ class ConceptValidationMixin:
 
 
     @classmethod
+    def _non_standard_concepts_across_databases(
+        cls,
+        session: so.Session,
+        *,
+        table: sa.sql.FromClause,
+        col: sa.ColumnElement,
+        domain_id: str | None,
+        vocabulary_id: str | None,
+        limit: int | None,
+    ) -> set[int]:
+        """Violating concept IDs when *table* and ``Concept`` are on two databases.
+
+        Reads the distinct referenced IDs on *table*'s side, keeps those that
+        resolve to a matching standard concept on the vocabulary side, and
+        returns the rest. Same result as the single-join form.
+        """
+        from omop_alchemy.cdm.model.vocabulary.concept import Concept
+        from omop_alchemy.cross_database import filter_by_keys
+
+        referenced = sa.select(sa.distinct(col)).select_from(table).where(col.is_not(None))
+        conforming = sa.select(Concept.concept_id).where(
+            filter_by_keys(Concept.concept_id, keys_select=referenced, session=session),
+            Concept.is_standard_expr().is_(True),
+        )
+        if domain_id:
+            conforming = conforming.where(Concept.domain_id == domain_id)
+        if vocabulary_id:
+            conforming = conforming.where(Concept.vocabulary_id == vocabulary_id)
+
+        used = {int(cid) for cid in session.scalars(referenced)}
+        bad = sorted(used - {int(cid) for cid in session.scalars(conforming)})
+        return set(bad if limit is None else bad[:limit])
+
+    @classmethod
     def referenced_concept_violations(
         cls,
         session: so.Session,
@@ -154,22 +187,41 @@ class ConceptValidationMixin:
     ) -> dict[str, set[int]]:
         """
         Return non-standard referenced concept IDs grouped by column name.
+
+        One join per column when *session* sends this table and ``Concept``
+        to one engine, two keyed reads per column when they are on separate
+        databases.
         """
+        from omop_alchemy.cdm.model.vocabulary.concept import Concept
+
         table = cls.get_queryable_table(session)
         cols = cls.concept_id_columns()
+        colocated = (
+            session.get_bind(clause=sa.select(table)).engine
+            is session.get_bind(Concept).engine
+        )
 
         violations: dict[str, set[int]] = {}
 
         for col_name, col in cols.items():
-            stmt = cls._non_standard_concepts_for_column(
-                table=table,
-                col=col,
-                domain_id=domain_id,
-                vocabulary_id=vocabulary_id,
-                limit=limit,
-            )
-
-            bad_ids = {int(cid) for (cid,) in session.execute(stmt)}
+            if colocated:
+                stmt = cls._non_standard_concepts_for_column(
+                    table=table,
+                    col=col,
+                    domain_id=domain_id,
+                    vocabulary_id=vocabulary_id,
+                    limit=limit,
+                )
+                bad_ids = {int(cid) for (cid,) in session.execute(stmt)}
+            else:
+                bad_ids = cls._non_standard_concepts_across_databases(
+                    session,
+                    table=table,
+                    col=col,
+                    domain_id=domain_id,
+                    vocabulary_id=vocabulary_id,
+                    limit=limit,
+                )
 
             if bad_ids:
                 violations[col_name] = bad_ids

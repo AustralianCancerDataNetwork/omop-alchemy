@@ -4,7 +4,7 @@ A materialized view is a persisted read model: an expensive or carefully defined
 
 ## The deployment contract
 
-The supported deployment contract is PostgreSQL with unqualified materialized-view names resolving to the `public` schema through the connection's `search_path`. Leave `schema` at its default when calling the lifecycle methods. Qualified non-`public` schemas and schema translation are not part of this package's materialized-view contract.
+The supported deployment contract is PostgreSQL with unqualified materialized-view names resolving to the `public` schema through the connection's `search_path`. Leave `schema_tag` at its default when calling the lifecycle methods. Qualified non-`public` schemas and schema translation are not part of this package's materialized-view contract.
 
 OMOP Alchemy owns the OMOP models and the query-building vocabulary. [`orm-loader`](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/) owns the generic materialized-view definition and database lifecycle. Keeping that boundary means this package can describe an OMOP read model without growing a second implementation of DDL, refresh, index creation, or dependency ordering.
 

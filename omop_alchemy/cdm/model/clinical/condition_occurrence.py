@@ -3,18 +3,21 @@ import sqlalchemy.orm as so
 from sqlalchemy.ext.declarative import declared_attr
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
+from oa_configurator import Role
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
-    PersonScoped, 
-    HealthSystemContext, 
-    FactTable, 
+    PersonScoped,
+    HealthSystemContext,
+    FactTable,
     ReferenceContext,
     CDMTableBase,
-    cdm_table, 
+    cdm_table,
     ModifierFieldConcepts,
     ClinicalEventMixin,
     merge_table_args,
     omop_index,
+    optional_concept_fk,
+    role_fk,
 )
 
 if TYPE_CHECKING:
@@ -31,22 +34,23 @@ class Condition_Occurrence(
 ):
     __tablename__ = "condition_occurrence"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "condition_concept_id"),
         omop_index(__tablename__, "visit_occurrence_id")
     )
     condition_occurrence_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    condition_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("concept.concept_id"), nullable=False)
+    condition_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
     condition_start_date: so.Mapped[date] = so.mapped_column(nullable=False)
     condition_start_datetime: so.Mapped[Optional[datetime]] = so.mapped_column()
     condition_end_date: so.Mapped[Optional[date]] = so.mapped_column()
     condition_end_datetime: so.Mapped[Optional[datetime]] = so.mapped_column()
-    condition_type_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("concept.concept_id"), nullable=False)
+    condition_type_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
     stop_reason: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20))
     condition_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
     condition_status_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
-    condition_source_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("concept.concept_id"))
-    condition_status_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("concept.concept_id"))
+    condition_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    condition_status_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
 
 class Condition_OccurrenceContext(ReferenceContext):
     condition_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_concept_id")  # type: ignore[assignment]
@@ -70,6 +74,8 @@ class Condition_OccurrenceView(
     ClinicalEventMixin
 ):
     __tablename__ = "condition_occurrence"
+    # Must match Condition_Occurrence's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
     __event_id_col__ = "condition_occurrence_id"
     __concept_id_col__ = "condition_concept_id"

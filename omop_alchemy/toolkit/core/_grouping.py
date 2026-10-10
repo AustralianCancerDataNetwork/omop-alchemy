@@ -6,16 +6,18 @@ from typing import Protocol, TypeVar
 
 RowT = TypeVar("RowT")
 SummaryT = TypeVar("SummaryT")
+_RowT_contra = TypeVar("_RowT_contra", contravariant=True)
+_SummaryT_co = TypeVar("_SummaryT_co", covariant=True)
 
 
-class _SummaryFactory(Protocol[RowT, SummaryT]):
+class _SummaryFactory(Protocol[_RowT_contra, _SummaryT_co]):
     def __call__(
         self,
-        rows: Sequence[RowT],
+        rows: Sequence[_RowT_contra],
         /,
         *,
         group_key: object,
-    ) -> SummaryT: ...
+    ) -> _SummaryT_co: ...
 
 
 def group_and_summarize(

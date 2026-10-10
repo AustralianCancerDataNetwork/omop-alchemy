@@ -214,7 +214,6 @@ def test_as_of_observation_selection_requires_an_anchor():
         )
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_postgresql_executes_boundary_and_side_preference_contracts(pg_session):
     start = sa.literal(date(2026, 1, 15))
     end = sa.literal(date(2026, 2, 5))

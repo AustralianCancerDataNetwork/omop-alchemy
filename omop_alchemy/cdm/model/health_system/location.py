@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from typing import Optional
 from orm_loader.helpers import Base
 
@@ -17,6 +18,7 @@ from omop_alchemy.cdm.base import (
 class Location(CDMTableBase, Base):
     __tablename__ = "location"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "country_concept_id"),
         omop_table_options(cluster_on=omop_primary_key_index_name("location")),
     )

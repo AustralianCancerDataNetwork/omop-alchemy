@@ -82,8 +82,7 @@ The single-value properties return the first modality in this order for which th
 The oncology package publishes lazy governed concept specifications for T, N,
 M, and group stage, tumour grade, and metastatic disease. Laterality and tumour
 size are exposed as governed scalar accessors. These declarations consume
-`omop-semantics`; the narrow metastatic-disease descendant group requires
-`omop-semantics` 0.6.1. Importing the module does not expand a vocabulary or
+`omop-semantics` (the package already requires `>=0.6.2`). Importing the module does not expand a vocabulary or
 contact a database.
 
 Stage selection is a query policy over an already filtered canonical modifier

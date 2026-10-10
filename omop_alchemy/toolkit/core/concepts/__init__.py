@@ -58,9 +58,8 @@ governed clinical set::
 
 Both access paths derive from one spec, so they cannot disagree.  Expansions are
 cached per *vocabulary*, not per engine, so recreating an engine against the same
-database does not re-run the closure queries — see :mod:`.identity` for how an
-engine declares which vocabulary it reads, and note that a caller building its
-own engines must register that itself.
+database does not re-run the closure queries. :mod:`.identity` derives the
+vocabulary from the engine itself.
 
 Nothing here touches a database at import time: specs are declarative and
 registries build on first request.
@@ -70,10 +69,6 @@ from .groups import (
     ConceptGroupSpec,
     ResolvedConceptGroup,
     build_concept_group,
-)
-from .identity import (
-    clear_vocabulary_identity,
-    register_vocabulary_identity,
 )
 from .lookup import (
     ConceptResolver,
@@ -109,6 +104,7 @@ from .relationships import (
 from .runtime import (
     RuntimeConceptSetSpec,
     descendant_concept_select,
+    descendant_membership,
     runtime_concept_predicate,
 )
 from .semantics import ConceptGroupAnchors, SemanticUnitRef
@@ -133,7 +129,6 @@ __all__ = [
     "RuntimeConceptSetSpec",
     "build_concept_group",
     "clear_concept_group_cache",
-    "clear_vocabulary_identity",
     "compose_normalizers",
     "concept_group_cache_stats",
     "concept_group_registry",
@@ -141,9 +136,9 @@ __all__ = [
     "make_concept_resolver",
     "make_stage",
     "normalize_default",
-    "register_vocabulary_identity",
     "resolve_concept_group",
     "descendant_concept_select",
+    "descendant_membership",
     "runtime_concept_predicate",
     "site_to_NOS",
     "strip_uicc",

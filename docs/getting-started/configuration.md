@@ -29,15 +29,38 @@ database_name = "omop_cdm"
 test_only     = false
 
 [databases.cdm_db]
-kind        = "cdm"
-connection  = "cdm"
-schema_name = "omop"
+kind       = "cdm"
+connection = "cdm"
+cdm_schema = "omop"
 
 [tools.omop_alchemy]
 cdm_db = "cdm_db"
 ```
 
 You can also write or edit this file manually. It follows the `oa-configurator` pattern of [physical]->[logical] resource definition, where one connection may serve multiple databases, and each application may define its own database resource, or choose to cross reference an existing one that will be resolved upon connection in the consuming application.
+
+## CDM table roles
+
+OMOP_Alchemy tags every table with a logical role, matching the [OMOP CDM v5.4](https://ohdsi.github.io/CommonDataModel/cdm54.html)
+categories:
+
+- **Clinical/derived tables** (`Role.PRIMARY`):
+    - All other tables not captured by the configurations below
+    - Controlled by `cdm_schema` in the configuration.
+- **Vocabulary tables** (`Role.VOCAB`):
+    - `concept`, `concept_ancestor`, `concept_class`, `concept_relationship`, `concept_synonym`, `domain`, `drug_strength`, `relationship`, `source_to_concept_map`, `vocabulary`
+    - Controlled by `vocab_schema` in the configuration.
+- **Results/analytics tables** (`Role.RESULTS`):
+    - `cohort`, `cohort_definition`
+    - Controlled by `results_schema` in the configuration.
+
+![OMOP CDM v5.4](https://ohdsi.github.io/CommonDataModel/man/images/cdm55.png)
+
+Each role folds back to `cdm_schema` when its own field is unset, so a minimal config needs no extra fields. 
+Setting `vocab_schema`/`results_schema` routes just that role's tables elsewhere. See [oa_configurator's schema translate map guide](https://AustralianCancerDataNetwork.github.io/oa-configurator/architecture/#schema-translate-map) for how the routing itself works, and [Common Use Cases](common-use-cases.md) for worked examples of splitting these onto different schemas or servers.
+
+!!! info "Misconfiguration prevention"
+    Misconfiguring which schema a role points at doesn't corrupt data. [`oa-configurator`'s schema provenance guard](https://AustralianCancerDataNetwork.github.io/oa-configurator/architecture/#schema-provenance-guard) refuses the DDL.
 
 ## Vocabulary loading
 
@@ -76,5 +99,6 @@ See the [oa-configurator integration guide](https://AustralianCancerDataNetwork.
 
 ## Further reading
 
+- [Common Use Cases](common-use-cases.md): worked examples for vocab/results schema splits, a separate vocabulary server, and migrating an existing deployment's schema layout
 - [oa_configurator quickstart](https://AustralianCancerDataNetwork.github.io/oa-configurator/quickstart/): full config reference, CLI walkthrough
 - [oa_configurator integration guide](https://AustralianCancerDataNetwork.github.io/oa-configurator/integration/): multi-package setups
