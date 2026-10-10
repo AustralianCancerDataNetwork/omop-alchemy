@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 
 import sqlalchemy as sa
 
-from .tables import TableCategory, qualified_table_name, select_omop_tables
+from oa_configurator import qualified
+from .context import MaintenanceContext
+from .tables import TableCategory, select_omop_tables
 
 
 @dataclass(frozen=True)
@@ -15,6 +18,7 @@ class TableSummaryResult:
 
     table_name: str
     category: TableCategory
+    schema_tag: str
     model_name: str
     primary_key_columns: tuple[str, ...]
     exists: bool
@@ -22,29 +26,32 @@ class TableSummaryResult:
 
 
 def collect_data_summary(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    db_schema: str | None = None,
     vocabulary_included: bool = False,
     existing_only: bool = True,
 ) -> list[TableSummaryResult]:
-    """Return row counts and existence state for each ORM-managed table in the target database."""
-    inspector = sa.inspect(engine)
+    """Return row counts and existence state for each ORM-managed table, each read on its own engine."""
     tables = select_omop_tables(vocabulary_included=vocabulary_included)
 
     results: list[TableSummaryResult] = []
-    with engine.connect() as connection:
-        for table in tables:
-            exists = inspector.has_table(table.table_name, schema=db_schema)
+    with ExitStack() as stack:
+        connections: dict[sa.Engine, sa.Connection] = {}
+        for target in context.targets(tables):
+            table = target.table
+            exists = target.exists()
             if not exists and existing_only:
                 continue
 
             row_count: int | None = None
             if exists:
+                if target.bind not in connections:
+                    connections[target.bind] = stack.enter_context(target.bind.connect())
+                connection = connections[target.bind]
                 row_count = int(
                     connection.execute(
                         sa.text(
-                            f"SELECT COUNT(*) FROM {qualified_table_name(table.table_name, db_schema)}"
+                            f"SELECT COUNT(*) FROM {qualified(connection, table.table_name, physical_schema=target.physical_schema)}"
                         )
                     ).scalar_one()
                 )
@@ -53,6 +60,7 @@ def collect_data_summary(
                 TableSummaryResult(
                     table_name=table.table_name,
                     category=table.category,
+                    schema_tag=table.schema_tag,
                     model_name=table.model_name,
                     primary_key_columns=table.primary_key_names,
                     exists=exists,

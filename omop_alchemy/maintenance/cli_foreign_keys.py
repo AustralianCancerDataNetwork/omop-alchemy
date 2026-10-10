@@ -7,11 +7,13 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 import typer
 
+from oa_configurator import physical_schema_of
 from ..backends import Backend, resolve_backend, require_backend_support, backend_support_note
-from ._cli_utils import Status, dry_label, dry_status, omop_command, reject_reserved_schema
+from ._cli_utils import Status, dry_label, dry_status, omop_command
+from .context import MaintenanceContext
 from .tables import (
     TableCategory,
-    existing_maintenance_tables,
+    existing_maintenance_targets,
 )
 from .ui import (
     console,
@@ -32,6 +34,7 @@ class ForeignKeyBase:
 
     table_name: str
     category: TableCategory
+    schema_tag: str
 
 
 @dataclass(frozen=True)
@@ -85,26 +88,28 @@ class ForeignKeyValidationReport:
 
 
 def _collect_fk_info(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    db_schema: str | None = None,
     vocabulary_included: bool = False,
+    vocabulary_only: bool = False,
 ) -> list[_FKTableInfo]:
     """Return all ORM-managed tables that participate in at least one FK relationship (outgoing or incoming)."""
-    inspector = sa.inspect(engine)
-
-    selected_tables = existing_maintenance_tables(
-        inspector,
-        db_schema=db_schema,
+    selected_targets = existing_maintenance_targets(
+        context,
         vocabulary_included=vocabulary_included,
+        categories=(TableCategory.VOCABULARY,) if vocabulary_only else None,
     )
-    selected_names = {table.table_name for table in selected_tables}
+    selected_tables = [target.table for target in selected_targets]
+    selected_names = {target.table_name for target in selected_targets}
 
     incoming_counts = {name: 0 for name in selected_names}
     outgoing_counts = {name: 0 for name in selected_names}
 
-    for table_name in selected_names:
-        foreign_keys = inspector.get_foreign_keys(table_name, schema=db_schema)
+    for target in selected_targets:
+        table_name = target.table_name
+        foreign_keys = sa.inspect(target.bind).get_foreign_keys(
+            table_name, schema=target.physical_schema
+        )
         relevant_foreign_keys = [
             foreign_key
             for foreign_key in foreign_keys
@@ -128,6 +133,7 @@ def _collect_fk_info(
             _FKTableInfo(
                 table_name=table.table_name,
                 category=table.category,
+                schema_tag=table.schema_tag,
                 outgoing_constraint_count=outgoing_count,
                 incoming_constraint_count=incoming_count,
             )
@@ -140,28 +146,35 @@ def _collect_strict_validation_failures(
     connection: sa.Connection,
     backend: Backend,
     *,
-    db_schema: str | None,
-    vocabulary_included: bool,
+    targets: list[_FKTableInfo],
 ) -> dict[str, list[ForeignKeyConstraintViolation]]:
-    """Query every FK constraint across selected tables and return a mapping of table name → violation list.
+    """Query every FK constraint across targets and return a mapping of table name → violation list.
 
     Only tables with at least one violation are included in the returned dict.
     Used by manage_foreign_key_triggers (strict=True) and validate_foreign_key_constraints.
+
+    Parameters
+    ----------
+    targets : list[_FKTableInfo]
+        Already selected by the caller and scoped to this connection's own
+        physical database. A referred table living on a different
+        connection (a genuine cross-server FK) is silently skipped, same as
+        it always structurally has to be: no single-connection SQL query
+        can validate a constraint spanning two servers.
     """
     inspector = sa.inspect(connection)
-    selected_tables = existing_maintenance_tables(
-        inspector,
-        db_schema=db_schema,
-        vocabulary_included=vocabulary_included,
-    )
-    selected_names = {table.table_name for table in selected_tables}
+    tables_by_name = {table.table_name: table for table in targets}
+    selected_names = set(tables_by_name)
     failures: dict[str, list[ForeignKeyConstraintViolation]] = {
         table_name: []
         for table_name in selected_names
     }
 
     for table_name in sorted(selected_names):
-        for foreign_key in inspector.get_foreign_keys(table_name, schema=db_schema):
+        source_schema_tag = tables_by_name[table_name].schema_tag
+        for foreign_key in inspector.get_foreign_keys(
+            table_name, schema=physical_schema_of(connection, schema_tag=source_schema_tag)
+        ):
             referred_table = foreign_key.get("referred_table")
             constrained_columns = foreign_key.get("constrained_columns") or []
             referred_columns = foreign_key.get("referred_columns") or []
@@ -179,7 +192,8 @@ def _collect_strict_validation_failures(
                 str(referred_table),
                 list(constrained_columns),
                 list(referred_columns),
-                db_schema,
+                source_schema_tag=source_schema_tag,
+                referred_schema_tag=tables_by_name[str(referred_table)].schema_tag,
             )
 
             if violation_count == 0:
@@ -218,29 +232,44 @@ def _fk_violation_detail(
     return f"{prefix}{total} violating row(s) across {len(violations)} constraint(s): {constraint_summary}"
 
 
+def _by_engine(
+    context: MaintenanceContext, targets: list[_FKTableInfo]
+) -> dict[sa.Engine, list[_FKTableInfo]]:
+    """Group *targets* by the engine hosting each, in first-seen order.
+
+    A foreign key never spans two databases, so each group is complete on
+    its own engine's connection.
+    """
+    groups: dict[sa.Engine, list[_FKTableInfo]] = {}
+    for target in targets:
+        groups.setdefault(context.engine_for(target.schema_tag), []).append(target)
+    return groups
+
+
+def _backends(context: MaintenanceContext, capability: str, label: str) -> dict[sa.Engine, Backend]:
+    """Each engine's backend, required to support *capability*."""
+    backends = {engine: resolve_backend(engine) for engine in context.engines}
+    for backend in backends.values():
+        require_backend_support(backend, capability, label)
+    return backends
+
+
 def validate_foreign_key_constraints(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    db_schema: str | None = None,
     vocabulary_included: bool = False,
 ) -> ForeignKeyValidationReport:
     """Count rows that violate each FK constraint and return a full per-table validation report."""
-    backend = resolve_backend(engine)
-    require_backend_support(backend, "count_fk_violations", "FK constraint validation")
+    engine_backends = _backends(context, "count_fk_violations", "FK constraint validation")
+    targets = _collect_fk_info(context, vocabulary_included=vocabulary_included)
 
-    targets = _collect_fk_info(
-        engine,
-        db_schema=db_schema,
-        vocabulary_included=vocabulary_included,
-    )
-
-    with engine.connect() as connection:
-        validation_failures = _collect_strict_validation_failures(
-            connection,
-            backend,
-            db_schema=db_schema,
-            vocabulary_included=vocabulary_included,
-        )
+    validation_failures: dict[str, list[ForeignKeyConstraintViolation]] = {}
+    for group_engine, group_targets in _by_engine(context, targets).items():
+        group_backend = engine_backends[group_engine]
+        with group_engine.connect() as connection:
+            validation_failures.update(
+                _collect_strict_validation_failures(connection, group_backend, targets=group_targets)
+            )
 
     results: list[ForeignKeyValidationResult] = []
     all_violations: list[ForeignKeyConstraintViolation] = []
@@ -253,6 +282,7 @@ def validate_foreign_key_constraints(
             ForeignKeyValidationResult(
                 table_name=target.table_name,
                 category=target.category,
+                schema_tag=target.schema_tag,
                 outgoing_constraint_count=target.outgoing_constraint_count,
                 incoming_constraint_count=target.incoming_constraint_count,
                 violating_constraint_count=violating_constraint_count,
@@ -277,111 +307,113 @@ def validate_foreign_key_constraints(
 
 
 def manage_foreign_key_triggers(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
     enable: bool = False,
-    db_schema: str | None = None,
     vocabulary_included: bool = False,
+    vocabulary_only: bool = False,
     dry_run: bool = False,
     strict: bool = False,
 ) -> list[ForeignKeyManagementResult]:
     """Enable or disable RI trigger enforcement. With strict=True, aborts on any FK violation."""
-    reject_reserved_schema(db_schema)
-    backend = resolve_backend(engine)
-    require_backend_support(backend, "toggle_fk_triggers", "FK trigger management")
-
+    group_backends = _backends(context, "toggle_fk_triggers", "FK trigger management")
     targets = _collect_fk_info(
-        engine,
-        db_schema=db_schema,
+        context,
         vocabulary_included=vocabulary_included,
+        vocabulary_only=vocabulary_only,
     )
+    groups = _by_engine(context, targets).items()
 
     results: list[ForeignKeyManagementResult] = []
-    with engine.begin() as connection:
-        if enable and strict:
-            validation_failures = _collect_strict_validation_failures(
-                connection,
-                backend,
-                db_schema=db_schema,
-                vocabulary_included=vocabulary_included,
-            )
-            if validation_failures:
-                for target in targets:
-                    violations = validation_failures.get(target.table_name)
-                    results.append(
-                        ForeignKeyManagementResult(
-                            table_name=target.table_name,
-                            category=target.category,
-                            outgoing_constraint_count=target.outgoing_constraint_count,
-                            incoming_constraint_count=target.incoming_constraint_count,
-                            enable=enable,
-                            status=Status.FAILED if violations else Status.SKIPPED,
-                            detail=(
-                                _fk_violation_detail(violations, strict_abort=True)
-                                if violations
-                                else "Strict validation failed on other tables; no FK triggers were enabled."
-                            ),
-                        )
+
+    if enable and strict:
+        validation_failures: dict[str, list[ForeignKeyConstraintViolation]] = {}
+        for group_engine, group_targets in groups:
+            with group_engine.connect() as connection:
+                validation_failures.update(
+                    _collect_strict_validation_failures(
+                        connection, group_backends[group_engine], targets=group_targets
                     )
-                return results
-        
-
-        fk_planned_applied: dict[tuple[bool, bool], tuple[str, str]] = {
-            (False, False): ("FK trigger enforcement would be disabled", "FK trigger enforcement disabled"),
-            (True,  False): ("FK trigger enforcement would be enabled", "FK trigger enforcement enabled"),
-            (True,  True):  ("Strict FK validation passed; trigger enforcement would be enabled", "Strict FK validation passed; trigger enforcement enabled"),
-        }
-        for target in targets:
-            if not dry_run:
-                backend.toggle_fk_triggers(connection, target.table_name, db_schema, enable=enable)
-
-            results.append(
-                ForeignKeyManagementResult(
-                    table_name=target.table_name,
-                    category=target.category,
-                    outgoing_constraint_count=target.outgoing_constraint_count,
-                    incoming_constraint_count=target.incoming_constraint_count,
-                    enable=enable,
-                    status=dry_status(dry_run),
-                    detail=dry_label(dry_run, *fk_planned_applied[(enable, enable and strict)]),
                 )
-            )
+        if validation_failures:
+            for target in targets:
+                violations = validation_failures.get(target.table_name)
+                results.append(
+                    ForeignKeyManagementResult(
+                        table_name=target.table_name,
+                        category=target.category,
+                        schema_tag=target.schema_tag,
+                        outgoing_constraint_count=target.outgoing_constraint_count,
+                        incoming_constraint_count=target.incoming_constraint_count,
+                        enable=enable,
+                        status=Status.FAILED if violations else Status.SKIPPED,
+                        detail=(
+                            _fk_violation_detail(violations, strict_abort=True)
+                            if violations
+                            else "Strict validation failed on other tables; no FK triggers were enabled."
+                        ),
+                    )
+                )
+            return results
+
+    fk_planned_applied: dict[tuple[bool, bool], tuple[str, str]] = {
+        (False, False): ("FK trigger enforcement would be disabled", "FK trigger enforcement disabled"),
+        (True,  False): ("FK trigger enforcement would be enabled", "FK trigger enforcement enabled"),
+        (True,  True):  ("Strict FK validation passed; trigger enforcement would be enabled", "Strict FK validation passed; trigger enforcement enabled"),
+    }
+    for group_engine, group_targets in groups:
+        group_backend = group_backends[group_engine]
+        with group_engine.begin() as connection:
+            for target in group_targets:
+                if not dry_run:
+                    group_backend.toggle_fk_triggers(
+                        connection, target.table_name, enable=enable, schema_tag=target.schema_tag
+                    )
+
+                results.append(
+                    ForeignKeyManagementResult(
+                        table_name=target.table_name,
+                        category=target.category,
+                        schema_tag=target.schema_tag,
+                        outgoing_constraint_count=target.outgoing_constraint_count,
+                        incoming_constraint_count=target.incoming_constraint_count,
+                        enable=enable,
+                        status=dry_status(dry_run),
+                        detail=dry_label(dry_run, *fk_planned_applied[(enable, enable and strict)]),
+                    )
+                )
 
     return results
 
 
 def collect_foreign_key_trigger_status(
-    engine: sa.Engine,
+    context: MaintenanceContext,
     *,
-    db_schema: str | None = None,
     vocabulary_included: bool = False,
 ) -> list[ForeignKeyStatusResult]:
     """Query pg_trigger to count disabled vs enabled RI triggers for each participating table."""
-    backend = resolve_backend(engine)
-    require_backend_support(backend, "get_fk_trigger_counts", "FK trigger status inspection")
-
-    targets = _collect_fk_info(
-        engine,
-        db_schema=db_schema,
-        vocabulary_included=vocabulary_included,
-    )
+    group_backends = _backends(context, "get_fk_trigger_counts", "FK trigger status inspection")
+    targets = _collect_fk_info(context, vocabulary_included=vocabulary_included)
     results: list[ForeignKeyStatusResult] = []
 
-    with engine.connect() as connection:
-        for target in targets:
-            disabled_count, enabled_count = backend.get_fk_trigger_counts(
-                connection, target.table_name, db_schema
-            )
-            results.append(
-                ForeignKeyStatusResult(
-                    table_name=target.table_name,
-                    category=target.category,
-                    disabled_trigger_count=disabled_count,
-                    enabled_trigger_count=enabled_count,
-                    outgoing_constraint_count=target.outgoing_constraint_count,
-                    incoming_constraint_count=target.incoming_constraint_count,
+    for group_engine, group_targets in _by_engine(context, targets).items():
+        group_backend = group_backends[group_engine]
+        with group_engine.connect() as connection:
+            for target in group_targets:
+                disabled_count, enabled_count = group_backend.get_fk_trigger_counts(
+                    connection, target.table_name, schema_tag=target.schema_tag
                 )
-            )
+                results.append(
+                    ForeignKeyStatusResult(
+                        table_name=target.table_name,
+                        category=target.category,
+                        schema_tag=target.schema_tag,
+                        disabled_trigger_count=disabled_count,
+                        enabled_trigger_count=enabled_count,
+                        outgoing_constraint_count=target.outgoing_constraint_count,
+                        incoming_constraint_count=target.incoming_constraint_count,
+                    )
+                )
 
     return results
 
@@ -398,8 +430,7 @@ app = typer.Typer(
 @app.command("disable")
 @omop_command("foreign-keys disable", dry_run=True)
 def disable_foreign_keys_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -415,9 +446,8 @@ def disable_foreign_keys_command(
     """Disable PostgreSQL RI trigger enforcement for all participating OMOP tables."""
     with console.status("Managing PostgreSQL foreign key trigger enforcement..."):
         results = manage_foreign_key_triggers(
-            engine,
+            conn,
             enable=False,
-            db_schema=conn.db_schema,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
             strict=strict,
@@ -430,8 +460,7 @@ def disable_foreign_keys_command(
 @app.command("enable")
 @omop_command("foreign-keys enable", dry_run=True)
 def enable_foreign_keys_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -452,9 +481,8 @@ def enable_foreign_keys_command(
     )
     with console.status(status_msg):
         results = manage_foreign_key_triggers(
-            engine,
+            conn,
             enable=True,
-            db_schema=conn.db_schema,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
             strict=strict,
@@ -467,8 +495,7 @@ def enable_foreign_keys_command(
 @app.command("status")
 @omop_command("foreign-keys status", mode_label="inspect")
 def foreign_key_status_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -478,8 +505,7 @@ def foreign_key_status_command(
     """Show the current enabled/disabled state of RI triggers for each participating OMOP table."""
     with console.status("Inspecting foreign key trigger status..."):
         results = collect_foreign_key_trigger_status(
-            engine,
-            db_schema=conn.db_schema,
+            conn,
             vocabulary_included=vocabulary_included,
         )
     console.print(render_foreign_key_status_results(results))
@@ -489,8 +515,7 @@ def foreign_key_status_command(
 @app.command("validate")
 @omop_command("foreign-keys validate", mode_label="inspect")
 def foreign_key_validate_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -500,8 +525,7 @@ def foreign_key_validate_command(
     """Validate FK constraints on selected tables and report any rows that violate referential integrity."""
     with console.status("Validating selected foreign key relationships..."):
         report = validate_foreign_key_constraints(
-            engine,
-            db_schema=conn.db_schema,
+            conn,
             vocabulary_included=vocabulary_included,
         )
     console.print(render_foreign_key_validation_results(report.results))

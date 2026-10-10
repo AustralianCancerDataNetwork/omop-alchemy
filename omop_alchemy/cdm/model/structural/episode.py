@@ -1,10 +1,12 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from sqlalchemy.ext.declarative import declared_attr
 from typing import ClassVar, Optional, TYPE_CHECKING, List
 from datetime import date
 from orm_loader.helpers import Base 
 from omop_alchemy.cdm.base import (
+    role_fk,
     cdm_table,
     CDMTableBase, 
     required_concept_fk,
@@ -30,6 +32,7 @@ if TYPE_CHECKING:
 class Episode(CDMTableBase, Base, PersonScoped):
     __tablename__ = "episode"
     __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "episode_concept_id"),
         # following indices are not specified in the cdm but are likely to be useful for query performance
@@ -39,7 +42,7 @@ class Episode(CDMTableBase, Base, PersonScoped):
     )
 
     episode_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    episode_parent_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("episode.episode_id"), nullable=True)
+    episode_parent_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "episode.episode_id")), nullable=True)
 
     episode_start_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
     episode_start_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
@@ -112,6 +115,8 @@ class EpisodeView(Episode, EpisodeContext, DomainValidationMixin, ModifierTarget
     """
 
     __tablename__ = "episode"
+    # Must match Episode's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
     __mapper_args__ = {"concrete": False}
     __event_id_col__ = "episode_id"
     __concept_id_col__ = "episode_concept_id"

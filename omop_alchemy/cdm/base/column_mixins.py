@@ -4,6 +4,9 @@ from datetime import date, datetime
 from typing import Optional, Any
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
+
+from .column_helpers import role_fk
 
 
 """
@@ -23,7 +26,7 @@ class PersonScoped:
 
     Encodes the standard `person_id` foreign key and indexing pattern.
     """
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("person.person_id"), nullable=False)
+    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
 
 class ConceptTyped:
     """
@@ -60,7 +63,7 @@ class ValueMixin:
     This helps when building generic tooling that needs to handle values flexibly but then normalise for analysis.
     """
     value_as_number: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, nullable=True)
-    value_as_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("concept.concept_id"), nullable=True)
+    value_as_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=True)
 
 class DatedEvent:
     """
@@ -87,9 +90,9 @@ class HealthSystemContext:
 
     Used across many clinical event tables to provide consistent join points into the health system structure.
     """
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("provider.provider_id"), nullable=True)
-    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("visit_occurrence.visit_occurrence_id"), nullable=True)
-    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("visit_detail.visit_detail_id"), nullable=True)
+    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")), nullable=True)
+    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")), nullable=True)
+    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id")), nullable=True)
 
 class FactTable:
     """
@@ -116,7 +119,7 @@ class SourceAttribution:
     Mixin for *_source_value and *_source_concept_id patterns.
     """
     source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String, nullable=True)
-    source_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("concept.concept_id"), nullable=True)     
+    source_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=True)
 
 class UnitConcept:
     """
@@ -124,4 +127,4 @@ class UnitConcept:
     
     Mixin for unit_concept_id.
     """
-    unit_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("concept.concept_id"), nullable=True)
+    unit_concept_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=True)

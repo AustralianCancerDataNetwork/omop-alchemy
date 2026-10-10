@@ -5,10 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
+from oa_configurator import Dialect
 
-from omop_alchemy.backends.resolve import SupportedDialect
-
+from ..backends import backend_supports, resolve_backend
 from ._cli_utils import Status
+from .context import MaintenanceContext
 from .cli_foreign_keys import (
     ForeignKeyStatusResult,
     ForeignKeyValidationReport,
@@ -24,6 +25,7 @@ from .cli_schema_reconcile import (
     is_blocking_issue,
     reconcile_schema,
 )
+from .tables import select_maintenance_tables
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +103,18 @@ def _build_recommendations(
                     action="Review `omop-alchemy reconcile-schema` output before continuing with ETL or maintenance work.",
                 )
             )
+        if any(issue.status == Status.RELOCATED for issue in reconciliation.issues):
+            recommendations.append(
+                DoctorRecommendation(
+                    status=Status.WARNING,
+                    summary="Some tables were found under a different schema than expected.",
+                    action=(
+                        "Run `omop-config acknowledge-schema-migration` if this was a "
+                        "deliberate change, or `omop-config drop-orphan-schema-tables` to "
+                        "clean up an orphaned copy."
+                    ),
+                )
+            )
 
     if foreign_key_status is not None and any(
         item.disabled_trigger_count > 0 for item in foreign_key_status
@@ -128,7 +142,7 @@ def _build_recommendations(
             )
         )
 
-    if info.backend == SupportedDialect.POSTGRESQL and info.pg_dump_path is None:
+    if info.backend == Dialect.POSTGRESQL and info.pg_dump_path is None:
         recommendations.append(
             DoctorRecommendation(
                 status=Status.WARNING,
@@ -138,7 +152,7 @@ def _build_recommendations(
         )
 
     if (
-        info.backend == SupportedDialect.POSTGRESQL
+        info.backend == Dialect.POSTGRESQL
         and info.pg_restore_path is None
         and info.psql_path is None
     ):
@@ -162,11 +176,36 @@ def _build_recommendations(
     return tuple(recommendations)
 
 
+def find_shadow_tables(context: MaintenanceContext) -> tuple[str, ...]:
+    """Tables of a role sitting on a database that does not host that role.
+
+    A pre-split copy of the vocabulary left on the primary database is the
+    usual cause, and it is the dangerous one: a statement reaching across
+    the boundary finds the stale copy and returns its rows instead of
+    failing. Every engine is checked. Reported as ``schema_tag.table_name``,
+    sorted.
+
+    Returns an empty tuple on a colocated deployment, where every role is
+    hosted on the one database and no table can be a shadow.
+    """
+    physical_schemas = context.resolved.resolved_physical_schemas()
+    shadows = []
+    for engine in context.engines:
+        with engine.connect() as connection:
+            hosted = {role.value for role in context.resolved.roles_on_connection(connection)}
+            inspector = sa.inspect(connection)
+            for table in select_maintenance_tables():
+                tag = table.schema_tag
+                if tag in hosted:
+                    continue
+                if inspector.has_table(table.table_name, schema=physical_schemas.get(tag)):
+                    shadows.append(f"{tag}.{table.table_name}")
+    return tuple(sorted(shadows))
+
+
 def collect_doctor_report(
+    context: MaintenanceContext,
     *,
-    engine: sa.engine.Engine,
-    db_schema: str | None = None,
-    resource_name: str | None = None,
     vocabulary_included: bool = True,
     deep: bool = False,
 ) -> DoctorReport:
@@ -174,22 +213,13 @@ def collect_doctor_report(
 
     Parameters
     ----------
-    engine : sa.engine.Engine
-        Already-resolved CDM engine (e.g. from the ``@omop_command`` decorator),
-        reused for all database checks instead of re-resolving config. The
-        caller retains ownership; this function does not dispose it.
-    db_schema : str, optional
-        CDM schema associated with ``engine``. Omit to use its default schema.
-    resource_name : str, optional
-        Configured database resource name. Programmatic callers that construct
-        an engine directly may omit this.
+    context : MaintenanceContext
+        Reused for every check; the caller keeps ownership of its engines.
+    vocabulary_included : bool, optional
+    deep : bool, optional
+        Also reconcile the schema and validate foreign keys.
     """
-    info = collect_maintenance_info(
-        engine=engine,
-        db_schema=db_schema,
-        resource_name=resource_name,
-        vocabulary_included=vocabulary_included,
-    )
+    info = collect_maintenance_info(context, vocabulary_included=vocabulary_included)
 
     checks = [
         DoctorCheck(
@@ -198,7 +228,7 @@ def collect_doctor_report(
             detail=(
                 "Target database connection succeeded."
                 if info.connection_ready
-                else info.connection_error or info.engine_error or "Connection could not be established."
+                else info.connection_error or "Connection could not be established."
             ),
         )
     ]
@@ -208,7 +238,6 @@ def collect_doctor_report(
     foreign_key_validation: ForeignKeyValidationReport | None = None
 
     if info.connection_ready:
-        db_schema = info.db_schema
         missing_table_count = info.missing_table_count or 0
         checks.append(
             DoctorCheck(
@@ -222,12 +251,23 @@ def collect_doctor_report(
             )
         )
 
-        if deep:
-            reconciliation = reconcile_schema(
-                engine,
-                db_schema=db_schema,
-                vocabulary_included=vocabulary_included,
+        shadow_tables = find_shadow_tables(context)
+        checks.append(
+            DoctorCheck(
+                name="shadow tables",
+                status=Status.PASSED if not shadow_tables else Status.WARNING,
+                detail=(
+                    "No tables of a role hosted elsewhere are present here."
+                    if not shadow_tables
+                    else f"{len(shadow_tables)} stale table(s) of a role hosted on "
+                    f"another database are present here: {', '.join(shadow_tables)}. "
+                    "A query crossing the boundary can read these instead of failing."
+                ),
             )
+        )
+
+        if deep:
+            reconciliation = reconcile_schema(context, vocabulary_included=vocabulary_included)
             blocking_issue_count = sum(
                 1 for issue in reconciliation.issues if is_blocking_issue(issue)
             )
@@ -255,12 +295,11 @@ def collect_doctor_report(
                 )
             )
 
-        if info.backend == SupportedDialect.POSTGRESQL:
+        backend = resolve_backend(context.engine)
+        if backend_supports(backend, "get_fk_trigger_counts"):
             foreign_key_status = tuple(
                 collect_foreign_key_trigger_status(
-                    engine,
-                    db_schema=db_schema,
-                    vocabulary_included=vocabulary_included,
+                    context, vocabulary_included=vocabulary_included
                 )
             )
             disabled_tables = sum(
@@ -280,11 +319,9 @@ def collect_doctor_report(
                 )
             )
 
-            if deep:
+            if deep and backend_supports(backend, "count_fk_violations"):
                 foreign_key_validation = validate_foreign_key_constraints(
-                    engine,
-                    db_schema=db_schema,
-                    vocabulary_included=vocabulary_included,
+                    context, vocabulary_included=vocabulary_included
                 )
                 violating_tables = sum(
                     result.status == Status.FAILED
@@ -305,6 +342,14 @@ def collect_doctor_report(
                         ),
                     )
                 )
+            elif deep:
+                checks.append(
+                    DoctorCheck(
+                        name="foreign key validation",
+                        status=Status.SKIPPED,
+                        detail="Foreign key validation isn't supported on this backend.",
+                    )
+                )
             else:
                 checks.append(
                     DoctorCheck(
@@ -318,14 +363,14 @@ def collect_doctor_report(
                 DoctorCheck(
                     name="foreign keys",
                     status=Status.SKIPPED,
-                    detail="Foreign key trigger inspection is only available on PostgreSQL.",
+                    detail="Foreign key trigger inspection isn't supported on this backend.",
                 )
             )
             checks.append(
                 DoctorCheck(
                     name="foreign key validation",
                     status=Status.SKIPPED,
-                    detail="Foreign key validation is only available on PostgreSQL.",
+                    detail="Foreign key validation isn't supported on this backend.",
                 )
             )
     else:
@@ -351,10 +396,15 @@ def collect_doctor_report(
                     status=Status.SKIPPED,
                     detail="Skipped because the database connection is not ready.",
                 ),
+                DoctorCheck(
+                    name="shadow tables",
+                    status=Status.SKIPPED,
+                    detail="Skipped because the database connection is not ready.",
+                ),
             )
         )
 
-    if info.backend == SupportedDialect.POSTGRESQL:
+    if info.backend == Dialect.POSTGRESQL:
         backup_tools_ready = info.pg_dump_path is not None and (
             info.pg_restore_path is not None or info.psql_path is not None
         )

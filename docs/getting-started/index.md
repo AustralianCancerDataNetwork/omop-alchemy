@@ -9,5 +9,7 @@ These pages cover installation, maintenance tooling, and a minimal quickstart fo
 ## Orientation
 
 - [Installation](installation.md)
+- [Configuration](configuration.md)
 - [Maintenance CLI](maintenance.md)
+- [Common Use Cases](common-use-cases.md)
 - [Quickstart](quickstart.md)

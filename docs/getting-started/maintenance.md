@@ -16,7 +16,7 @@ Some commands depend on PostgreSQL-specific features and will return an error if
 
 | Command group | Requires PostgreSQL | Why |
 | --- | --- | --- |
-| `load-vocab-source` | No (PostgreSQL + SQLite) | Uses ORM CSV loader; `--bulk-mode` and `--db-schema` are PostgreSQL-only |
+| `load-vocab-source` | No (PostgreSQL + SQLite) | Uses ORM CSV loader; `--bulk-mode` is PostgreSQL-only |
 | `indexes` | No (cluster apply is PostgreSQL-only) | Index DDL is standard SQL; `CLUSTER` is PostgreSQL |
 | `create-missing-tables`, `reconcile-schema`, `data-summary`, `info`, `doctor` | No | Pure SQLAlchemy metadata operations |
 | `reset-sequences` | Yes | PostgreSQL sequences (`SETVAL`) |
@@ -271,6 +271,13 @@ omop-alchemy reset-sequences --vocab  # vocabulary tables only
 
 ---
 
+!!! note "Schema-drift protection"
+    `fulltext install`, `indexes enable`/`disable`/`cluster`, `truncate-tables`, and
+    vocabulary-table creation each guard their DDL against the configured schema having
+    silently drifted since it was last recorded, and raise `SchemaDriftError` if it has.
+    See [Schema drift](#schema-drift) below for the remediation path
+    (`omop-config acknowledge-schema-migration`).
+
 ## Command reference
 
 | Command | Purpose | Key options | Backend |
@@ -290,6 +297,7 @@ omop-alchemy reset-sequences --vocab  # vocabulary tables only
 | `analyze-tables` | Refresh planner statistics | `--scope`, `--table`, `--vacuum` | PostgreSQL, SQLite (`--vacuum` PostgreSQL-only) |
 | `indexes disable` | Drop ORM-defined secondary indexes | `--vocab`, `--dry-run` | All |
 | `indexes enable` | Recreate ORM-defined secondary indexes | `--vocab`, `--dry-run` | All (cluster on PostgreSQL) |
+| `indexes cluster` | Physically rewrite tables sorted by their cluster index | `--vocab`, `--dry-run` | PostgreSQL |
 | `fulltext install` | Add tsvector sidecar columns to vocabulary tables | `--regconfig`, `--no-create-indexes` | PostgreSQL |
 | `fulltext populate` | Populate sidecar tsvector vectors | `--regconfig` | PostgreSQL |
 | `fulltext drop` | Remove tsvector sidecar columns and indexes | | PostgreSQL |

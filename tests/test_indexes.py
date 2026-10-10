@@ -1,13 +1,31 @@
+
 import pytest
 import sqlalchemy as sa
 from typer.testing import CliRunner
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, StackConfig
+from oa_configurator import (
+    CDMDatabaseConfig,
+    ConnectionConfig,
+    Resolver,
+    Role,
+    SchemaOwnershipError,
+    StackConfig,
+    physical_schema_of,
+    qualified,
+)
+from oa_configurator.testing import (
+    DIALECT_PARAMS,
+    reset_schema_registry_rows,
+    resolve_with_role_schemas,
+    scoped_test_schema,
+)
 
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY, omop_index_name
+from omop_alchemy.config import create_cdm_engines
 from omop_alchemy.maintenance.cli import app
-from omop_alchemy.maintenance.cli_schema import create_missing_tables
-from omop_alchemy.maintenance._cli_utils import ReservedSchema, Status, reject_reserved_schema
+from omop_alchemy.maintenance.cli_schema import _create_missing_tables
+from omop_alchemy.config import MAINTENANCE_SCHEMA
+from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.ui import render_index_summary
 from omop_alchemy.maintenance.cli_indexes import (
     IndexManagementResult,
@@ -22,11 +40,13 @@ from omop_alchemy.maintenance.cli_indexes import (
     _resolve_physical_cluster_name,
     _schema_metadata_indexes,
     collect_index_targets,
-    manage_indexes,
+    _manage_indexes,
 )
 from omop_alchemy.maintenance.tables import collect_maintenance_tables
 from omop_alchemy.maintenance.tables import TableCategory
 from omop_alchemy.maintenance.tables import select_omop_tables
+from omop_alchemy.maintenance.context import MaintenanceContext
+
 
 
 runner = CliRunner()
@@ -37,19 +57,77 @@ CONCEPT_NAME_LOWER_INDEX = "ix_concept_concept_name_lower"
 CONCEPT_SYNONYM_NAME_LOWER_INDEX = "ix_concept_synonym_concept_synonym_name_lower"
 
 
-def _fresh_engine(tmp_path):
-    db_path = tmp_path / "indexes.db"
-    engine = sa.create_engine(f"sqlite:///{db_path}", future=True)
-    create_missing_tables(engine)
-    return engine
+@pytest.fixture(params=DIALECT_PARAMS)
+def indexed_engine(request):
+    """Every OMOP table, with its full ORM-declared index set, created on
+    both a real Postgres backend and SQLite: index bookkeeping/capture/
+    clustering is dialect-portable logic, not SQLite-specific.
+
+    Postgres gets its own fresh, dropped-after-test schema via
+    scoped_test_schema rather than pg_session's shared public schema, since
+    some tests here rename an ORM-declared index and a shared schema would
+    carry that rename into later tests.
+
+    MAINTENANCE_SCHEMA (the dropped-index bookkeeping table's fixed
+    schema) isn't reset by scoped_test_schema, so it's dropped explicitly
+    both before running and via cleanup_after_test.
+    """
+    if request.param == "postgresql":
+        pg_engine = request.getfixturevalue("pg_engine")
+        bookkeeping_schema = get_bookkeeping_schema(pg_engine)
+        cleanup_after_test = request.getfixturevalue("cleanup_after_test")
+        table_ref = qualified(pg_engine, _DROPPED_INDEXES_TABLE_NAME, physical_schema=bookkeeping_schema)
+
+        def _drop_bookkeeping_table() -> None:
+            with pg_engine.begin() as connection:
+                connection.exec_driver_sql(f"DROP TABLE IF EXISTS {table_ref}")
+
+        _drop_bookkeeping_table()
+        cleanup_after_test(_drop_bookkeeping_table)
+
+        pg_db = request.getfixturevalue("pg_db")
+        with scoped_test_schema(pg_db.resolved, prefix="indexed_engine") as scoped:
+            _create_missing_tables(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
+            yield scoped.engine
+    else:
+        engine = request.getfixturevalue("fresh_engine")
+        _create_missing_tables(MaintenanceContext(resolved=request.getfixturevalue("fresh_resolved"), engine=engine, vocab_engine=engine))
+        yield engine
 
 
-def test_collect_index_targets_excludes_vocabulary_by_default(tmp_path):
+@pytest.fixture
+def indexed_resolved(indexed_engine, request):
+    """ResolvedCDMDatabase paired with indexed_engine, matching whatever
+    schema indexed_engine actually built.
+
+    On Postgres this is pg_db's test-only entry, so the provenance guard
+    skips this disposable, per-test schema.
+    """
+    if indexed_engine.dialect.name == "postgresql":
+        pg_db = request.getfixturevalue("pg_db")
+        schema = physical_schema_of(indexed_engine, schema_tag=Role.PRIMARY)
+        return resolve_with_role_schemas(pg_db.resolved, {Role.PRIMARY: schema})
+    return request.getfixturevalue("fresh_resolved")
+
+
+@pytest.fixture
+def sqlite_indexed_engine(fresh_engine, fresh_resolved):
+    """fresh_engine with every OMOP table already created.
+
+    For the handful of tests that monkeypatch SQLiteBackend's own methods,
+    or assert SQLite-specific reflection limitations directly, since those
+    are dialect-specific by construction, not candidates for indexed_engine.
+    """
+    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine))
+    return fresh_engine
+
+
+def test_collect_index_targets_excludes_vocabulary_by_default(indexed_engine, indexed_resolved):
     """Test collect index targets excludes vocabulary by default."""
-    engine = _fresh_engine(tmp_path)
+    engine = indexed_engine
     targets = {
         (target.table_name, target.index_name)
-        for target in collect_index_targets(engine)
+        for target in collect_index_targets(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine))
     }
 
     assert ("person", PERSON_GENDER_INDEX) in targets
@@ -59,7 +137,7 @@ def test_collect_index_targets_excludes_vocabulary_by_default(tmp_path):
 @pytest.mark.filterwarnings(
     "ignore:Skipped unsupported reflection of expression-based index:sqlalchemy.exc.SAWarning"
 )
-def test_collect_index_targets_can_include_vocabulary(tmp_path):
+def test_collect_index_targets_can_include_vocabulary(indexed_engine, indexed_resolved):
     """Test collect index targets can include vocabulary.
     
     Notes
@@ -71,10 +149,10 @@ def test_collect_index_targets_can_include_vocabulary(tmp_path):
     for coverage of the indexes themselves.
     
     """
-    engine = _fresh_engine(tmp_path)
+    engine = indexed_engine
     targets = {
         (target.table_name, target.index_name)
-        for target in collect_index_targets(engine, vocabulary_included=True)
+        for target in collect_index_targets(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), vocabulary_included=True)
     }
 
     assert ("concept", CONCEPT_DOMAIN_INDEX) in targets
@@ -99,25 +177,18 @@ def test_orm_index_metadata_carries_cluster_configuration():
 
 
 def test_schema_metadata_indexes_keys_match_unadjusted_indexes():
-    """Test schema metadata indexes keys match unadjusted indexes.
-
-    manage_indexes() looks up schema-adjusted indexes using names taken from
-    the original, unadjusted ORM tables. If a column's index name is resolved
-    implicitly (e.g. via `index=True` rather than an explicit omop_index()),
-    SQLAlchemy's naming convention embeds the schema into the generated name,
-    so the schema-adjusted copy gets a different name and the lookup misses.
-    """
+    """Every table/index pair from ORM metadata is present in the result."""
     tables = select_omop_tables(vocabulary_included=True)
-    indexes = _schema_metadata_indexes(tables, db_schema="public")
+    indexes = _schema_metadata_indexes(tables)
 
     for table in tables:
         for index in table.table.indexes:
             assert (table.table_name, str(index.name)) in indexes
 
 
-def test_manage_indexes_disable_and_enable_on_sqlite(tmp_path):
+def test_manage_indexes_disable_and_enable_on_sqlite(sqlite_indexed_engine, fresh_resolved):
     """Test manage indexes disable and enable on sqlite."""
-    engine = _fresh_engine(tmp_path)
+    engine = sqlite_indexed_engine
 
     inspector = sa.inspect(engine)
     before = {
@@ -126,8 +197,8 @@ def test_manage_indexes_disable_and_enable_on_sqlite(tmp_path):
     }
     assert PERSON_GENDER_INDEX in before
 
-    disabled = manage_indexes(
-        engine,
+    disabled = _manage_indexes(
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
         enable=False,
     )
     assert disabled
@@ -139,8 +210,8 @@ def test_manage_indexes_disable_and_enable_on_sqlite(tmp_path):
     }
     assert PERSON_GENDER_INDEX not in after_disable
 
-    enabled = manage_indexes(
-        engine,
+    enabled = _manage_indexes(
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
         enable=True,
     )
     assert enabled
@@ -162,39 +233,39 @@ def test_manage_indexes_disable_and_enable_on_sqlite(tmp_path):
     assert PERSON_GENDER_INDEX in after_enable
 
 
-def test_manage_indexes_enable_analyzes_tables_with_new_indexes(tmp_path, monkeypatch):
+def test_manage_indexes_enable_analyzes_tables_with_new_indexes(sqlite_indexed_engine, fresh_resolved, monkeypatch):
     """Test manage indexes enable analyzes tables with new indexes."""
-    engine = _fresh_engine(tmp_path)
-    manage_indexes(engine, enable=False)
+    engine = sqlite_indexed_engine
+    _manage_indexes(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), enable=False)
 
     analyzed_tables: list[str] = []
     original_analyze = SQLiteBackend.analyze_table
 
-    def recording_analyze(self, conn, table_name, db_schema, *, vacuum=False):
+    def recording_analyze(self, conn, table_name, *, vacuum=False, schema_tag=Role.PRIMARY.value):
         analyzed_tables.append(table_name)
-        return original_analyze(self, conn, table_name, db_schema, vacuum=vacuum)
+        return original_analyze(self, conn, table_name, vacuum=vacuum, schema_tag=schema_tag)
 
     monkeypatch.setattr(SQLiteBackend, "analyze_table", recording_analyze)
 
-    manage_indexes(engine, enable=True)
+    _manage_indexes(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), enable=True)
 
     assert "person" in analyzed_tables
 
 
-def test_manage_indexes_enable_skips_analyze_when_nothing_created(tmp_path, monkeypatch):
+def test_manage_indexes_enable_skips_analyze_when_nothing_created(sqlite_indexed_engine, fresh_resolved, monkeypatch):
     """Test manage indexes enable skips analyze when nothing created."""
-    engine = _fresh_engine(tmp_path)
+    engine = sqlite_indexed_engine
 
     analyzed_tables: list[str] = []
     monkeypatch.setattr(
         SQLiteBackend,
         "analyze_table",
-        lambda self, conn, table_name, db_schema, *, vacuum=False: analyzed_tables.append(table_name),
+        lambda self, conn, table_name, *, vacuum=False: analyzed_tables.append(table_name),
     )
 
     # All ORM-defined indexes already exist on a freshly created schema, so
     # enabling again should be a no-op and must not trigger any ANALYZE calls.
-    manage_indexes(engine, enable=True)
+    _manage_indexes(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), enable=True)
 
     assert analyzed_tables == []
 
@@ -202,19 +273,19 @@ def test_manage_indexes_enable_skips_analyze_when_nothing_created(tmp_path, monk
 @pytest.mark.filterwarnings(
     "ignore:Skipped unsupported reflection of expression-based index:sqlalchemy.exc.SAWarning"
 )
-def test_manage_indexes_enable_is_idempotent_for_expression_indexes(tmp_path):
+def test_manage_indexes_enable_is_idempotent_for_expression_indexes(sqlite_indexed_engine, fresh_resolved):
     """Test manage indexes enable is idempotent for expression indexes.
 
     SQLite cannot reflect expression-based indexes (e.g. lower(concept_name)),
-    so manage_indexes can never see them as already existing via
+    so _manage_indexes can never see them as already existing via
     inspector.get_indexes(). Re-running 'enable' must not crash on the
     resulting duplicate-create attempt and must report it as skipped rather
     than falsely claiming the index was (re)created.
     """
-    engine = _fresh_engine(tmp_path)
+    engine = sqlite_indexed_engine
 
     for _ in range(2):
-        results = manage_indexes(engine, enable=True, vocabulary_included=True)
+        results = _manage_indexes(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), enable=True, vocabulary_included=True)
         lower_index_results = {
             result.index_name: result
             for result in results
@@ -232,7 +303,7 @@ def test_manage_indexes_enable_is_idempotent_for_expression_indexes(tmp_path):
 @pytest.mark.filterwarnings(
     "ignore:Skipped unsupported reflection of expression-based index:sqlalchemy.exc.SAWarning"
 )
-def test_manage_indexes_disable_drops_expression_indexes_on_sqlite(tmp_path):
+def test_manage_indexes_disable_drops_expression_indexes_on_sqlite(sqlite_indexed_engine, fresh_resolved):
     """Test manage indexes disable drops expression indexes on sqlite.
 
     SQLite can't reflect expression-based indexes, so `disable` must not gate
@@ -242,7 +313,7 @@ def test_manage_indexes_disable_drops_expression_indexes_on_sqlite(tmp_path):
     the same way. The index must actually be removed, and a result row must
     always be reported.
     """
-    engine = _fresh_engine(tmp_path)
+    engine = sqlite_indexed_engine
 
     def _index_exists(name: str) -> bool:
         with engine.connect() as connection:
@@ -255,7 +326,7 @@ def test_manage_indexes_disable_drops_expression_indexes_on_sqlite(tmp_path):
     assert _index_exists(CONCEPT_NAME_LOWER_INDEX)
     assert _index_exists(CONCEPT_SYNONYM_NAME_LOWER_INDEX)
 
-    results = manage_indexes(engine, enable=False, vocabulary_included=True)
+    results = _manage_indexes(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), enable=False, vocabulary_included=True)
     lower_index_results = {
         result.index_name: result
         for result in results
@@ -275,12 +346,12 @@ def test_manage_indexes_disable_drops_expression_indexes_on_sqlite(tmp_path):
 @pytest.mark.filterwarnings(
     "ignore:Skipped unsupported reflection of expression-based index:sqlalchemy.exc.SAWarning"
 )
-def test_manage_indexes_disable_is_idempotent_on_sqlite(tmp_path):
+def test_manage_indexes_disable_is_idempotent_on_sqlite(indexed_engine, indexed_resolved):
     """A second disable run should report already-absent indexes as skipped."""
-    engine = _fresh_engine(tmp_path)
+    engine = indexed_engine
 
-    first_results = manage_indexes(engine, enable=False, vocabulary_included=True)
-    second_results = manage_indexes(engine, enable=False, vocabulary_included=True)
+    first_results = _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=False, vocabulary_included=True)
+    second_results = _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=False, vocabulary_included=True)
 
     first_lower = {
         result.index_name: result
@@ -301,7 +372,7 @@ def test_manage_indexes_disable_is_idempotent_on_sqlite(tmp_path):
         assert "already absent" in result.detail
 
 
-def test_manage_indexes_enable_clusters_then_analyzes(tmp_path, monkeypatch):
+def test_manage_indexes_enable_clusters_then_analyzes(sqlite_indexed_engine, fresh_resolved, monkeypatch):
     """Test manage indexes enable clusters then analyzes, even with nothing created.
 
     `indexes enable --cluster` must ANALYZE a table whenever it was clustered,
@@ -310,14 +381,14 @@ def test_manage_indexes_enable_clusters_then_analyzes(tmp_path, monkeypatch):
     clustering so planner stats reflect the final physical layout -- matching
     the standalone `indexes cluster` command's order.
     """
-    engine = _fresh_engine(tmp_path)
+    engine = sqlite_indexed_engine
 
     calls: list[str] = []
 
-    def fake_cluster_table(self, conn, table_name, index_name, db_schema):
+    def fake_cluster_table(self, conn, table_name, index_name, *, schema_tag=Role.PRIMARY.value):
         calls.append(f"cluster:{table_name}")
 
-    def fake_analyze_table(self, conn, table_name, db_schema, *, vacuum=False):
+    def fake_analyze_table(self, conn, table_name, *, vacuum=False, schema_tag=Role.PRIMARY.value):
         calls.append(f"analyze:{table_name}")
 
     monkeypatch.setattr(SQLiteBackend, "cluster_table", fake_cluster_table)
@@ -325,7 +396,7 @@ def test_manage_indexes_enable_clusters_then_analyzes(tmp_path, monkeypatch):
 
     # All ORM-defined indexes already exist on a freshly created schema, so
     # `created_any` stays False -- only the cluster step causes any change.
-    manage_indexes(engine, enable=True, cluster=True)
+    _manage_indexes(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), enable=True, cluster=True)
 
     assert "cluster:person" in calls
     assert "analyze:person" in calls
@@ -339,7 +410,7 @@ def test_disable_indexes_cli_invokes_management(monkeypatch):
 
     cfg = StackConfig.for_session(
         connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
-        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -349,10 +420,12 @@ def test_disable_indexes_cli_invokes_management(monkeypatch):
     def fake_manage_indexes(
         engine: object,
         *,
+        vocab_engine: object = None,
         enable: bool,
         db_schema: str | None = None,
         vocabulary_included: bool = False,
         dry_run: bool = False,
+        resolved: object = None,
     ) -> list[IndexManagementResult]:
         calls["engine"] = engine
         calls["enable"] = enable
@@ -364,6 +437,7 @@ def test_disable_indexes_cli_invokes_management(monkeypatch):
                 operation="index",
                 table_name="person",
                 category=TableCategory.CLINICAL,
+                schema_tag=Role.PRIMARY.value,
                 index_name=PERSON_GENDER_INDEX,
                 column_names=("gender_concept_id",),
                 unique=False,
@@ -375,7 +449,7 @@ def test_disable_indexes_cli_invokes_management(monkeypatch):
         ]
 
     monkeypatch.setattr(
-        "omop_alchemy.maintenance.cli_indexes.manage_indexes",
+        "omop_alchemy.maintenance.cli_indexes._manage_indexes",
         fake_manage_indexes,
     )
 
@@ -403,7 +477,7 @@ def test_enable_indexes_cli_no_cluster_flag_passes_through(monkeypatch):
 
     cfg = StackConfig.for_session(
         connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
-        databases={"cdm_db": CDMDatabaseConfig(connection="db", schema_name="main")},
+        databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
         "omop_alchemy.config.load_stack_config",
@@ -413,11 +487,13 @@ def test_enable_indexes_cli_no_cluster_flag_passes_through(monkeypatch):
     def fake_manage_indexes(
         engine: object,
         *,
+        vocab_engine: object = None,
         enable: bool,
         db_schema: str | None = None,
         vocabulary_included: bool = False,
         dry_run: bool = False,
         cluster: bool = True,
+        resolved: object = None,
     ) -> list[IndexManagementResult]:
         calls["enable"] = enable
         calls["vocabulary_included"] = vocabulary_included
@@ -428,6 +504,7 @@ def test_enable_indexes_cli_no_cluster_flag_passes_through(monkeypatch):
                 operation="index",
                 table_name="person",
                 category=TableCategory.CLINICAL,
+                schema_tag=Role.PRIMARY.value,
                 index_name=PERSON_GENDER_INDEX,
                 column_names=("gender_concept_id",),
                 unique=False,
@@ -439,7 +516,7 @@ def test_enable_indexes_cli_no_cluster_flag_passes_through(monkeypatch):
         ]
 
     monkeypatch.setattr(
-        "omop_alchemy.maintenance.cli_indexes.manage_indexes",
+        "omop_alchemy.maintenance.cli_indexes._manage_indexes",
         fake_manage_indexes,
     )
 
@@ -499,6 +576,20 @@ def test_is_plain_index_false_for_non_btree_index():
     assert _is_plain_index(_NON_BTREE) is False
 
 
+def test_is_plain_index_false_for_sqlite_partial_index():
+    """A SQLite partial index, reflected with a sqlite_where dialect
+    option, must not be classified as plain. Treating it as plain would
+    make it look safe to drop and recreate from a bare column list, which
+    would silently lose its WHERE predicate."""
+    sqlite_partial = {
+        "name": "idx_partial_sqlite",
+        "column_names": ["gender_concept_id"],
+        "unique": False,
+        "dialect_options": {"sqlite_where": "gender_concept_id IS NOT NULL"},
+    }
+    assert _is_plain_index(sqlite_partial) is False
+
+
 def test_find_equivalent_index_is_order_sensitive():
     existing = [{"name": "idx_ab", "column_names": ["b", "a"], "unique": False}]
     assert _find_equivalent_index(existing, ("a", "b"), False) is None
@@ -529,19 +620,47 @@ def test_describe_shape_conflict_mentions_reason():
     assert "non-btree access method 'gin'" in _describe_shape_conflict(_NON_BTREE)
 
 
+def test_describe_shape_conflict_mentions_reason_for_sqlite_dialect_options():
+    """The conflict reason for a SQLite index must name the actual cause
+    (a WHERE predicate or a non-btree access method), read from its
+    sqlite_where/sqlite_using dialect options, not just Postgres's."""
+    sqlite_partial = {
+        "dialect_options": {"sqlite_where": "gender_concept_id IS NOT NULL"},
+    }
+    sqlite_non_btree = {
+        "dialect_options": {"sqlite_using": "gin"},
+    }
+    assert "partial WHERE predicate" in _describe_shape_conflict(sqlite_partial)
+    assert "non-btree access method 'gin'" in _describe_shape_conflict(sqlite_non_btree)
+
+
 # ── Reserved schema guard ────────────────────────────────────────────────────────
+# Confirms create_cdm_engines() reserves MAINTENANCE_SCHEMA and oa-configurator
+# enforces that reservation against an unrelated, colliding database on the
+# same connection. The check itself lives in oa_configurator.
 
 
-def test_reject_reserved_schema_rejects_staging_and_maintenance():
-    with pytest.raises(RuntimeError):
-        reject_reserved_schema(ReservedSchema.STAGING.value)
-    with pytest.raises(RuntimeError):
-        reject_reserved_schema(ReservedSchema.MAINTENANCE.value)
+def test_resolving_cdm_database_with_maintenance_schema_name_raises(
+    pg_db, pg_unscoped_resolved, cleanup_after_test
+):
+    """
+    Notes
+    -----
+    Overrides pg_db's own CDM entry in place since two CDM
+    entries sharing one physical connection is itself unconfigurable (see
+    StackConfig's entry-exclusivity checks)"""
+    reset_schema_registry_rows(cleanup_after_test, pg_db.committing_engine, [MAINTENANCE_SCHEMA])
+    create_cdm_engines(pg_unscoped_resolved)[0].dispose()
 
-
-def test_reject_reserved_schema_allows_ordinary_schema():
-    reject_reserved_schema("public")
-    reject_reserved_schema(None)
+    colliding_resolved = Resolver.from_active_config().with_overrides(
+        databases={
+            pg_db.resolved.name: CDMDatabaseConfig(
+                connection=pg_db.resolved.connection.name, cdm_schema=MAINTENANCE_SCHEMA
+            )
+        },
+    ).resolve_database(pg_db.resolved.name)
+    with pytest.raises(SchemaOwnershipError, match=f"{MAINTENANCE_SCHEMA!r}.*omop_alchemy"):
+        colliding_resolved.create_engines()
 
 
 # ── Foreign-named equivalent index reconciliation ────────────────────────────────
@@ -550,11 +669,20 @@ def test_reject_reserved_schema_allows_ordinary_schema():
 def _replace_with_foreign_index(engine: sa.Engine, *, foreign_name: str) -> None:
     """Simulate a prepopulated database indexed by the official OHDSI CDM DDL
     script: drop OMOP_Alchemy's own person.gender_concept_id index and create a
-    plain, differently-named index covering the same column instead."""
+    plain, differently-named index covering the same column instead.
+
+    Schema-qualified explicitly: schema_translate_map only rewrites
+    SQLAlchemy Core/ORM-compiled statements, never exec_driver_sql's raw
+    text, so this can't rely on the connection's own default search_path
+    matching wherever indexed_engine's tables actually live.
+    """
+    physical_schema = physical_schema_of(engine, schema_tag=Role.PRIMARY)
+    person_ref = qualified(engine, "person", physical_schema=physical_schema)
+    index_ref = qualified(engine, PERSON_GENDER_INDEX, physical_schema=physical_schema)
     with engine.begin() as connection:
-        connection.exec_driver_sql(f"DROP INDEX {PERSON_GENDER_INDEX}")
+        connection.exec_driver_sql(f"DROP INDEX {index_ref}")
         connection.exec_driver_sql(
-            f"CREATE INDEX {foreign_name} ON person (gender_concept_id)"
+            f"CREATE INDEX {foreign_name} ON {person_ref} (gender_concept_id)"
         )
 
 
@@ -570,24 +698,24 @@ def _person_gender_result(results: list[IndexManagementResult]) -> IndexManageme
     return matches[0]
 
 
-def test_collect_index_targets_reports_foreign_named_equivalent_index(tmp_path):
-    engine = _fresh_engine(tmp_path)
+def test_collect_index_targets_reports_foreign_named_equivalent_index(indexed_engine, indexed_resolved):
+    engine = indexed_engine
     _replace_with_foreign_index(engine, foreign_name="idx_gender")
 
     targets = {
         (target.table_name, target.index_name)
-        for target in collect_index_targets(engine)
+        for target in collect_index_targets(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine))
     }
 
     assert ("person", "idx_gender") in targets
     assert ("person", PERSON_GENDER_INDEX) not in targets
 
 
-def test_manage_indexes_enable_skips_creation_when_foreign_equivalent_exists(tmp_path):
-    engine = _fresh_engine(tmp_path)
+def test_manage_indexes_enable_skips_creation_when_foreign_equivalent_exists(indexed_engine, indexed_resolved):
+    engine = indexed_engine
     _replace_with_foreign_index(engine, foreign_name="idx_gender")
 
-    results = manage_indexes(engine, enable=True, cluster=False)
+    results = _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=True, cluster=False)
     result = _person_gender_result(results)
 
     assert result.status == "skipped"
@@ -595,23 +723,23 @@ def test_manage_indexes_enable_skips_creation_when_foreign_equivalent_exists(tmp
     assert result.index_name == "idx_gender"
 
     inspector = sa.inspect(engine)
-    index_names = {index["name"] for index in inspector.get_indexes("person")}
+    index_names = {index["name"] for index in inspector.get_indexes("person", schema=physical_schema_of(engine, schema_tag=Role.PRIMARY))}
     assert "idx_gender" in index_names
     assert PERSON_GENDER_INDEX not in index_names
 
 
-def test_manage_indexes_disable_captures_and_drops_foreign_equivalent_index(tmp_path):
-    engine = _fresh_engine(tmp_path)
+def test_manage_indexes_disable_captures_and_drops_foreign_equivalent_index(indexed_engine, indexed_resolved):
+    engine = indexed_engine
     _replace_with_foreign_index(engine, foreign_name="idx_gender")
 
-    results = manage_indexes(engine, enable=False)
+    results = _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=False)
     result = _person_gender_result(results)
 
     assert result.status == "captured"
     assert result.index_name == "idx_gender"
 
     inspector = sa.inspect(engine)
-    index_names = {index["name"] for index in inspector.get_indexes("person")}
+    index_names = {index["name"] for index in inspector.get_indexes("person", schema=physical_schema_of(engine, schema_tag=Role.PRIMARY))}
     assert "idx_gender" not in index_names
 
     bookkeeping = _dropped_indexes_rows(engine)
@@ -620,48 +748,48 @@ def test_manage_indexes_disable_captures_and_drops_foreign_equivalent_index(tmp_
     assert bookkeeping[0]["index_name"] == "idx_gender"
 
 
-def test_manage_indexes_enable_restores_captured_foreign_index(tmp_path):
-    engine = _fresh_engine(tmp_path)
+def test_manage_indexes_enable_restores_captured_foreign_index(indexed_engine, indexed_resolved):
+    engine = indexed_engine
     _replace_with_foreign_index(engine, foreign_name="idx_gender")
 
-    manage_indexes(engine, enable=False)
+    _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=False)
 
-    # A second, independent manage_indexes() call -- simulating a fresh CLI
+    # A second, independent _manage_indexes() call -- simulating a fresh CLI
     # process -- must still be able to restore, since the capture lives in the
     # database rather than in process memory.
-    results = manage_indexes(engine, enable=True, cluster=False)
+    results = _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=True, cluster=False)
     result = _person_gender_result(results)
 
     assert result.status == "restored"
     assert result.index_name == "idx_gender"
 
     inspector = sa.inspect(engine)
-    index_names = {index["name"] for index in inspector.get_indexes("person")}
+    index_names = {index["name"] for index in inspector.get_indexes("person", schema=physical_schema_of(engine, schema_tag=Role.PRIMARY))}
     assert "idx_gender" in index_names
     assert PERSON_GENDER_INDEX not in index_names
 
     assert _dropped_indexes_rows(engine) == []
 
 
-def test_manage_indexes_disable_enable_round_trip_is_idempotent_with_capture(tmp_path):
-    engine = _fresh_engine(tmp_path)
+def test_manage_indexes_disable_enable_round_trip_is_idempotent_with_capture(indexed_engine, indexed_resolved):
+    engine = indexed_engine
     _replace_with_foreign_index(engine, foreign_name="idx_gender")
 
     for _ in range(2):
-        manage_indexes(engine, enable=False)
-        manage_indexes(engine, enable=True, cluster=False)
+        _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=False)
+        _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=True, cluster=False)
 
     inspector = sa.inspect(engine)
-    index_names = [index["name"] for index in inspector.get_indexes("person")]
+    index_names = [index["name"] for index in inspector.get_indexes("person", schema=physical_schema_of(engine, schema_tag=Role.PRIMARY))]
     assert index_names.count("idx_gender") == 1
     assert _dropped_indexes_rows(engine) == []
 
 
-def test_manage_indexes_dry_run_previews_foreign_equivalent_without_mutating(tmp_path):
-    engine = _fresh_engine(tmp_path)
+def test_manage_indexes_dry_run_previews_foreign_equivalent_without_mutating(indexed_engine, indexed_resolved):
+    engine = indexed_engine
     _replace_with_foreign_index(engine, foreign_name="idx_gender")
 
-    results = manage_indexes(engine, enable=True, dry_run=True, cluster=False)
+    results = _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=True, dry_run=True, cluster=False)
     result = _person_gender_result(results)
 
     assert result.status == "skipped"
@@ -669,24 +797,24 @@ def test_manage_indexes_dry_run_previews_foreign_equivalent_without_mutating(tmp
 
     inspector = sa.inspect(engine)
     assert not inspector.has_table(
-        _DROPPED_INDEXES_TABLE_NAME, schema=get_bookkeeping_schema(SQLiteBackend())
+        _DROPPED_INDEXES_TABLE_NAME, schema=get_bookkeeping_schema(engine)
     )
 
 
-def test_bookkeeping_table_not_created_when_nothing_to_capture(tmp_path):
-    engine = _fresh_engine(tmp_path)
+def test_bookkeeping_table_not_created_when_nothing_to_capture(indexed_engine, indexed_resolved):
+    engine = indexed_engine
 
-    manage_indexes(engine, enable=False)
-    manage_indexes(engine, enable=True, cluster=False)
+    _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=False)
+    _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=True, cluster=False)
 
     inspector = sa.inspect(engine)
     assert not inspector.has_table(
-        _DROPPED_INDEXES_TABLE_NAME, schema=get_bookkeeping_schema(SQLiteBackend())
+        _DROPPED_INDEXES_TABLE_NAME, schema=get_bookkeeping_schema(engine)
     )
 
 
-def test_manage_indexes_enable_cluster_uses_restored_physical_name(tmp_path, monkeypatch):
-    engine = _fresh_engine(tmp_path)
+def test_manage_indexes_enable_cluster_uses_restored_physical_name(sqlite_indexed_engine, fresh_resolved, monkeypatch):
+    engine = sqlite_indexed_engine
 
     with engine.begin() as connection:
         connection.exec_driver_sql(f"DROP INDEX {EPISODE_PERSON_INDEX}")
@@ -694,34 +822,37 @@ def test_manage_indexes_enable_cluster_uses_restored_physical_name(tmp_path, mon
             "CREATE INDEX idx_episode_person_id_1 ON episode (person_id)"
         )
 
-    manage_indexes(engine, enable=False)
+    _manage_indexes(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), enable=False)
 
     calls: list[tuple[str, str]] = []
 
-    def fake_cluster_table(self, conn, table_name, index_name, db_schema):
+    def fake_cluster_table(self, conn, table_name, index_name, *, schema_tag=Role.PRIMARY.value):
         calls.append((table_name, index_name))
 
     monkeypatch.setattr(SQLiteBackend, "cluster_table", fake_cluster_table)
     monkeypatch.setattr(
         SQLiteBackend,
         "analyze_table",
-        lambda self, conn, table_name, db_schema, *, vacuum=False: None,
+        lambda self, conn, table_name, *, vacuum=False, schema_tag=Role.PRIMARY.value: None,
     )
 
-    manage_indexes(engine, enable=True, cluster=True)
+    _manage_indexes(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), enable=True, cluster=True)
 
     assert ("episode", "idx_episode_person_id_1") in calls
 
 
 def test_manage_indexes_disable_warns_and_leaves_unsupported_foreign_index_in_place(
-    tmp_path, monkeypatch
+    indexed_engine, indexed_resolved, monkeypatch
 ):
-    engine = _fresh_engine(tmp_path)
+    engine = indexed_engine
 
+    physical_schema = physical_schema_of(engine, schema_tag=Role.PRIMARY)
+    person_ref = qualified(engine, "person", physical_schema=physical_schema)
+    index_ref = qualified(engine, PERSON_GENDER_INDEX, physical_schema=physical_schema)
     with engine.begin() as connection:
-        connection.exec_driver_sql(f"DROP INDEX {PERSON_GENDER_INDEX}")
+        connection.exec_driver_sql(f"DROP INDEX {index_ref}")
         connection.exec_driver_sql(
-            "CREATE INDEX idx_gender_partial ON person (gender_concept_id)"
+            f"CREATE INDEX idx_gender_partial ON {person_ref} (gender_concept_id)"
         )
 
     original_get_indexes = sa.Inspector.get_indexes
@@ -738,7 +869,7 @@ def test_manage_indexes_disable_warns_and_leaves_unsupported_foreign_index_in_pl
 
     monkeypatch.setattr(sa.Inspector, "get_indexes", fake_get_indexes)
 
-    results = manage_indexes(engine, enable=False)
+    results = _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=False)
     result = _person_gender_result(results)
 
     assert result.status == "warning"
@@ -746,7 +877,7 @@ def test_manage_indexes_disable_warns_and_leaves_unsupported_foreign_index_in_pl
     assert "partial WHERE predicate" in result.detail
 
     inspector = sa.inspect(engine)
-    index_names = {index["name"] for index in inspector.get_indexes("person")}
+    index_names = {index["name"] for index in inspector.get_indexes("person", schema=physical_schema_of(engine, schema_tag=Role.PRIMARY))}
     assert "idx_gender_partial" in index_names
     assert _dropped_indexes_rows(engine) == []
 
@@ -756,13 +887,14 @@ def test_manage_indexes_disable_warns_and_leaves_unsupported_foreign_index_in_pl
 
 
 def _dropped_indexes_rows(engine: sa.Engine) -> list[dict[str, object]]:
-    bookkeeping_schema = get_bookkeeping_schema(SQLiteBackend())
+    bookkeeping_schema = get_bookkeeping_schema(engine)
     inspector = sa.inspect(engine)
     if not inspector.has_table(_DROPPED_INDEXES_TABLE_NAME, schema=bookkeeping_schema):
         return []
+    table_ref = qualified(engine, _DROPPED_INDEXES_TABLE_NAME, physical_schema=bookkeeping_schema)
     with engine.connect() as connection:
         rows = connection.exec_driver_sql(
-            f"SELECT table_name, index_name FROM {_DROPPED_INDEXES_TABLE_NAME}"
+            f"SELECT table_name, index_name FROM {table_ref}"
         ).mappings().all()
     return [dict(row) for row in rows]
 
@@ -781,6 +913,7 @@ def _warning_result() -> IndexManagementResult:
         operation="index",
         table_name="person",
         category=TableCategory.CLINICAL,
+        schema_tag=Role.PRIMARY.value,
         index_name="idx_gender_partial",
         column_names=("gender_concept_id",),
         unique=False,
@@ -802,6 +935,7 @@ def test_render_index_summary_omits_warnings_row_when_none():
         operation="index",
         table_name="person",
         category=TableCategory.CLINICAL,
+        schema_tag=Role.PRIMARY.value,
         index_name=PERSON_GENDER_INDEX,
         column_names=("gender_concept_id",),
         unique=False,
@@ -833,51 +967,51 @@ def test_is_plain_index_false_for_constraint_backed_index():
     assert "constraint" in _describe_shape_conflict(constraint_backed)
 
 
-def test_manage_indexes_disable_second_run_without_enable_degrades_to_warning(tmp_path):
+def test_manage_indexes_disable_second_run_without_enable_degrades_to_warning(indexed_engine, indexed_resolved):
     """A second disable run, without an intervening enable, that finds a
     different foreign index than the one already captured must not crash.
     It must leave the second index in place and report a warning, since the
     bookkeeping table can only track one pending capture per table/column-set."""
-    engine = _fresh_engine(tmp_path)
+    engine = indexed_engine
     _replace_with_foreign_index(engine, foreign_name="idx_gender_v1")
 
-    first = manage_indexes(engine, enable=False)
+    first = _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=False)
     assert _person_gender_result(first).status == "captured"
 
+    person_ref = qualified(engine, "person", physical_schema=physical_schema_of(engine, schema_tag=Role.PRIMARY))
     with engine.begin() as connection:
-        connection.exec_driver_sql("CREATE INDEX idx_gender_v2 ON person (gender_concept_id)")
+        connection.exec_driver_sql(f"CREATE INDEX idx_gender_v2 ON {person_ref} (gender_concept_id)")
 
-    second = manage_indexes(engine, enable=False)
+    second = _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=False)
     result = _person_gender_result(second)
     assert result.status == "warning"
     assert "idx_gender_v2" in result.detail
 
     inspector = sa.inspect(engine)
-    index_names = {index["name"] for index in inspector.get_indexes("person")}
+    index_names = {index["name"] for index in inspector.get_indexes("person", schema=physical_schema_of(engine, schema_tag=Role.PRIMARY))}
     assert "idx_gender_v2" in index_names, "the untrackable second foreign index must be left in place"
 
     # The originally captured index (idx_gender_v1) must still be restorable.
-    third = manage_indexes(engine, enable=True, cluster=False)
+    third = _manage_indexes(MaintenanceContext(resolved=indexed_resolved, engine=engine, vocab_engine=engine), enable=True, cluster=False)
     restored = _person_gender_result(third)
     assert restored.status == "restored"
     assert restored.index_name == "idx_gender_v1"
 
 
-def test_record_captured_index_scopes_by_db_schema(tmp_path):
+def test_record_captured_index_scopes_by_db_schema(indexed_engine):
     """Two different schemas capturing an equivalent foreign index for a
     same-named table/column-set must not collide. Each capture is independent
     and neither should be rejected by the other's bookkeeping row."""
-    engine = _fresh_engine(tmp_path)
-    backend = SQLiteBackend()
+    engine = indexed_engine
 
     with engine.begin() as connection:
         captured_a = _record_captured_index(
-            connection, backend,
+            connection,
             table_name="person", db_schema="site_a", index_name="idx_a",
             column_names=("gender_concept_id",), unique=False,
         )
         captured_b = _record_captured_index(
-            connection, backend,
+            connection,
             table_name="person", db_schema="site_b", index_name="idx_b",
             column_names=("gender_concept_id",), unique=False,
         )
@@ -886,11 +1020,10 @@ def test_record_captured_index_scopes_by_db_schema(tmp_path):
     assert captured_b is True
 
     # Capturing again for the *same* schema, with a different foreign name, must
-    # still be rejected (this is the case test_manage_indexes_disable_second_run_
-    # without_enable_degrades_to_warning covers end-to-end).
+    # still be rejected.
     with engine.begin() as connection:
         captured_a_again = _record_captured_index(
-            connection, backend,
+            connection,
             table_name="person", db_schema="site_a", index_name="idx_a_v2",
             column_names=("gender_concept_id",), unique=False,
         )
@@ -929,14 +1062,9 @@ def test_resolve_physical_cluster_name_ignores_uniqueness_for_pk_based_target():
 
 
 def test_vocabulary_domain_concept_class_relationship_cluster_on_primary_key():
-    """vocabulary/domain/concept_class/relationship previously declared a
-    redundant secondary index as their cluster target (same column as their own
-    primary key), inconsistently with person/location/care_site/provider/concept
-    which cluster directly on the primary key's own index. Normalized onto the
-    latter: Alchemy never creates that redundant index itself, and index
-    reconciliation is what recognizes a database that has the OHDSI-standard
-    duplicate (see _resolve_physical_cluster_name_falls_back_to_equivalent)
-    as an equivalent cluster target."""
+    """vocabulary/domain/concept_class/relationship must cluster directly on
+    their own primary key's index, the same as person/location/care_site/
+    provider/concept do, not on a separate, redundant same-column index."""
     tables = {table.table_name: table for table in collect_maintenance_tables()}
     for table_name, pk_column in (
         ("vocabulary", "vocabulary_id"),

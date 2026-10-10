@@ -1,4 +1,4 @@
-# vocaubulary Models
+# vocabulary Models
 
 This section contains ORM models corresponding to OMOP CDM
 vocabulary tables.

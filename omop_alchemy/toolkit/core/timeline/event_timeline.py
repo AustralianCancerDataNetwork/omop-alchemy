@@ -5,10 +5,11 @@ from omop_alchemy.cdm.model.clinical import (
     Drug_Exposure,
     Observation,
 )
+from oa_configurator import Role
 from sqlalchemy.orm import object_session
 from sqlalchemy import select
 from datetime import datetime, time, date
-from typing import Optional, Mapping, Any, List, cast
+from typing import Optional, Mapping, Any, List, Unpack, cast
 import json
 from dataclasses import dataclass
 from typing import Protocol, Union, Literal
@@ -16,6 +17,7 @@ from types import EllipsisType
 
 from omop_alchemy.cdm.model.clinical.event_metadata import clinical_event_model_spec
 from omop_alchemy.toolkit.core.events import ClinicalEventRow
+from orm_loader.tables.typing import ToDictKwargs
 
 
 TemporalKind = Literal["point", "interval"]
@@ -82,8 +84,14 @@ class ClinicalEventProtocol(ClinicalEventRow, Protocol):
 
     def event_metadata(self) -> Mapping[str, Any]: ...
 
-    def to_dict(self) -> dict[str, Any]: ...
-    def to_json(self) -> str: ...
+    def to_dict(
+        self,
+        *,
+        include_nulls: bool = False,
+        only: set[str] | None = None,
+        exclude: set[str] | None = None,
+    ) -> dict[str, Any]: ...
+    def to_json(self, **kwargs: Unpack[ToDictKwargs]) -> str: ...
 
 
 @dataclass
@@ -268,12 +276,18 @@ class ClinicalEvent:
             f"value={value_str}>"
         )
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(
+        self,
+        *,
+        include_nulls: bool = False,
+        only: set[str] | None = None,
+        exclude: set[str] | None = None,
+    ) -> dict[str, Any]:
         event = cast(ClinicalEventProtocol, self)
         et = event.event_time
         ev = event.event_value()
 
-        return {
+        data = {
             "person_id": event.person_id,
             "event_id": event.event_id,
             "event_source_table": event.event_source_table,
@@ -287,9 +301,18 @@ class ClinicalEvent:
             },
             "metadata": dict(event.event_metadata() or {}),
         }
+        # Fields other than `event_end` are never null, and `event_end` being
+        # None is itself meaningful (a point rather than an interval event),
+        # so `include_nulls` has no bearing on this fixed-shape dict. It is
+        # accepted only to satisfy SerialisableTableInterface's signature.
+        if only is not None:
+            data = {k: v for k, v in data.items() if k in only}
+        if exclude is not None:
+            data = {k: v for k, v in data.items() if k not in exclude}
+        return data
 
-    def to_json(self) -> str:
-        return json.dumps(self.to_dict(), ensure_ascii=False)
+    def to_json(self, **kwargs: Unpack[ToDictKwargs]) -> str:
+        return json.dumps(self.to_dict(**kwargs), ensure_ascii=False)
 
 
 class Condition_Event(ClinicalEvent, Condition_Occurrence):
@@ -297,6 +320,12 @@ class Condition_Event(ClinicalEvent, Condition_Occurrence):
 
 
 class Measurement_Event(ClinicalEvent, Measurement):
+    # Measurement's ModifierSourceMixin carries __abstract__ = True; without
+    # redeclaring these, SQLAlchemy silently builds a second, unlinked Table
+    # object for a subclass that doesn't otherwise declare its own table.
+    __tablename__ = "measurement"
+    __table_args__ = {"schema": Role.PRIMARY.value}
+
     _mapping = EventMapping.from_model(
         Measurement,
         value_fields=[
@@ -325,6 +354,12 @@ class Drug_Exposure_Event(ClinicalEvent, Drug_Exposure):
 
 
 class Observation_Event(ClinicalEvent, Observation):
+    # Observation's ModifierSourceMixin carries __abstract__ = True; without
+    # redeclaring these, SQLAlchemy silently builds a second, unlinked Table
+    # object for a subclass that doesn't otherwise declare its own table.
+    __tablename__ = "observation"
+    __table_args__ = {"schema": Role.PRIMARY.value}
+
     _mapping = EventMapping.from_model(
         Observation,
         value_fields=["value_as_concept_id", "value_as_number", "value_as_string"],

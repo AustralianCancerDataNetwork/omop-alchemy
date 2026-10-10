@@ -1,10 +1,11 @@
-"""Schema subapp: thin shim re-exporting all domain types and wiring five CLI commands."""
+"""Schema subapp: thin shim re-exporting all domain types and wiring seven CLI commands."""
 
 from __future__ import annotations
 
 import typer
 
 from ._cli_utils import omop_command
+from .context import MaintenanceContext
 from .cli_schema_doctor import (
     DoctorCheck as DoctorCheck,
     DoctorReport as DoctorReport,
@@ -30,7 +31,7 @@ from .cli_schema_summary import (
 from .cli_schema_tables import (
     TableCreationResult as TableCreationResult,
     collect_missing_tables as collect_missing_tables,
-    create_missing_tables,
+    _create_missing_tables,
 )
 from .ui import (
     console,
@@ -63,8 +64,7 @@ app = typer.Typer(rich_markup_mode="rich")
 @app.command("info")
 @omop_command("info", mode_label="inspect")
 def info_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -73,7 +73,7 @@ def info_command(
 ) -> None:
     """Inspect maintenance CLI readiness, backend compatibility, and current installation state."""
     with console.status("Inspecting maintenance environment..."):
-        info = collect_maintenance_info(vocabulary_included=vocabulary_included)
+        info = collect_maintenance_info(conn, vocabulary_included=vocabulary_included)
     console.print(render_info_environment(info))
     console.print(render_info_database(info))
     console.print(render_info_dependencies(info))
@@ -84,8 +84,7 @@ def info_command(
 @app.command("doctor")
 @omop_command("doctor", mode_label="inspect")
 def doctor_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -99,13 +98,7 @@ def doctor_command(
 ) -> None:
     """Run a read-only maintenance health check across connection readiness, schema drift, and FK state."""
     with console.status("Running maintenance doctor checks..."):
-        report = collect_doctor_report(
-            engine=engine,
-            db_schema=conn.db_schema,
-            resource_name=conn.resource_name,
-            vocabulary_included=vocabulary_included,
-            deep=deep,
-        )
+        report = collect_doctor_report(conn, vocabulary_included=vocabulary_included, deep=deep)
     console.print(render_info_environment(report.info))
     console.print(render_info_database(report.info))
     console.print(render_doctor_checks(report.checks))
@@ -118,8 +111,7 @@ def doctor_command(
 @app.command("reconcile-schema")
 @omop_command("reconcile-schema", mode_label="inspect")
 def reconcile_schema_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -128,7 +120,7 @@ def reconcile_schema_command(
 ) -> None:
     """Compare ORM-managed SQLAlchemy metadata against the current target database schema."""
     with console.status("Reconciling ORM metadata against target database schema..."):
-        report = reconcile_schema(engine, db_schema=conn.db_schema, vocabulary_included=vocabulary_included)
+        report = reconcile_schema(conn, vocabulary_included=vocabulary_included)
     console.print(render_reconciliation_results(report.table_results))
     console.print(render_reconciliation_issues(report.issues))
     console.print(render_reconciliation_summary(report))
@@ -137,8 +129,7 @@ def reconcile_schema_command(
 @app.command("create-missing-tables")
 @omop_command("create-missing-tables", dry_run=True)
 def create_missing_tables_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         True,
         "--vocab/--no-vocab",
@@ -148,9 +139,8 @@ def create_missing_tables_command(
 ) -> None:
     """Create missing ORM-managed OMOP tables from metadata."""
     with console.status("Creating missing tables..."):
-        results = create_missing_tables(
-            engine,
-            db_schema=conn.db_schema,
+        results = _create_missing_tables(
+            conn,
             vocabulary_included=vocabulary_included,
             dry_run=dry_run,
         )
@@ -161,8 +151,7 @@ def create_missing_tables_command(
 @app.command("data-summary")
 @omop_command("data-summary", mode_label="inspect")
 def data_summary_command(
-    conn,
-    engine,
+    conn: MaintenanceContext,
     vocabulary_included: bool = typer.Option(
         False,
         "--vocab/--no-vocab",
@@ -177,10 +166,11 @@ def data_summary_command(
     """Summarise ORM-managed OMOP tables present in the target database."""
     with console.status("Collecting table summary..."):
         results = collect_data_summary(
-            engine,
-            db_schema=conn.db_schema,
+            conn,
             vocabulary_included=vocabulary_included,
             existing_only=not include_missing,
         )
     console.print(render_data_summary_results(results))
     console.print(render_data_summary_summary(results))
+
+

@@ -10,9 +10,12 @@ from oa_configurator import (
     RefTo,
     Resolver,
     ResolvedCDMDatabase,
-    Role,
+    SchemaClaim,
     load_stack_config,
 )
+from orm_loader.backends import staging_schema_claim
+
+MAINTENANCE_SCHEMA: str = "omop_alchemy_maintenance"
 
 
 class OmopAlchemyConfig(PackageConfigBase):
@@ -26,9 +29,18 @@ class OmopAlchemyConfig(PackageConfigBase):
     ----------
     cdm_db : str
         Name of the ``[databases.*]`` entry holding the CDM database.
-    test_cdm_db : str, optional
+    test_cdm_db_pg : str, optional
         Name of the ``[databases.*]`` entry holding the test CDM database,
-        marked ``RefTo(CDMDatabaseConfig, is_test=True)``.
+        marked ``RefTo(CDMDatabaseConfig, is_test=True)``. Must resolve to a
+        real PostgreSQL connection; used for real integration testing of
+        Postgres-only behavior (FK triggers, catalog queries, ALTER, etc.).
+    test_cdm_db_sqlite : str, optional
+        Same shape as ``test_cdm_db_pg``, for tests that must always run
+        against SQLite specifically (dialect-behavior tests), regardless of
+        what ``test_cdm_db_pg`` happens to be configured to. Left
+        unconfigured by design in every environment, since
+        ``isolated_test_database(..., dialect="sqlite")`` provisions a
+        disposable instance with no config needed at all.
 
     Notes
     -----
@@ -40,9 +52,21 @@ class OmopAlchemyConfig(PackageConfigBase):
     extra_logging_namespaces: ClassVar[tuple[str, ...]] = ("orm_loader",)
 
     cdm_db: Annotated[str, RefTo(CDMDatabaseConfig)] = "cdm_db"
-    test_cdm_db: Annotated[
+    test_cdm_db_pg: Annotated[
         str | None, RefTo(CDMDatabaseConfig, is_test=True)
-    ] = None
+    ] = Field(
+        default=None,
+        description="Real PostgreSQL test CDM database, for Postgres-only integration testing.",
+    )
+    test_cdm_db_sqlite: Annotated[
+        str | None, RefTo(CDMDatabaseConfig, is_test=True)
+    ] = Field(
+        default=None,
+        description=(
+            "Disposable SQLite test database; left unconfigured by design "
+            "(isolated_test_database(..., dialect='sqlite') provisions one automatically)."
+        ),
+    )
 
     athena_source_path: str | None = Field(
         default=None,
@@ -50,12 +74,14 @@ class OmopAlchemyConfig(PackageConfigBase):
     )
 
 
-def get_cdm_context() -> tuple[OmopAlchemyConfig, ResolvedCDMDatabase]:
+def get_cdm_context(database: str | None = None) -> tuple[OmopAlchemyConfig, ResolvedCDMDatabase]:
     """Return (pkg_config, resolved_cdm_database), loading config once.
 
-    The CDM database is always whatever ``OmopAlchemyConfig.cdm_db`` resolves
-    to -- point a deployment at a second CDM instance via that field's own
-    ``--cdm-db`` flag at configure time, not a call-site override.
+    Parameters
+    ----------
+    database : str, optional
+        Name of a database entry to resolve instead of ``OmopAlchemyConfig.cdm_db``.
+        Omit to use the configured default.
 
     Raises
     ------
@@ -71,7 +97,7 @@ def get_cdm_context() -> tuple[OmopAlchemyConfig, ResolvedCDMDatabase]:
         ) from exc
     resolver = Resolver(stack)
     pkg_config = resolver.resolve_package_config(OmopAlchemyConfig)
-    resolved = resolver.resolve_database(pkg_config.cdm_db)
+    resolved = resolver.resolve_database(database or pkg_config.cdm_db)
     if not isinstance(resolved, ResolvedCDMDatabase):
         raise TypeError(
             f"OmopAlchemyConfig.cdm_db must resolve to a CDM database, got "
@@ -80,81 +106,41 @@ def get_cdm_context() -> tuple[OmopAlchemyConfig, ResolvedCDMDatabase]:
     return pkg_config, resolved
 
 
-def vocabulary_identity(resolved: ResolvedCDMDatabase) -> str | None:
-    """Stable identity for the vocabulary dataset ``resolved`` reads, or None.
+def _maintenance_schema_claims() -> list[SchemaClaim]:
+    """Schema claims every engine doing maintenance work needs, on both engines."""
+    return [
+        SchemaClaim(
+            schema_tag=MAINTENANCE_SCHEMA,
+            physical_schema=MAINTENANCE_SCHEMA,
+            reserved=True,
+        ),
+        staging_schema_claim(),
+    ]
 
-    Concept-set expansions are a function of the vocabulary, so caching them
-    against this identity means recreating an engine against the same dataset
-    reuses the expansion instead of re-running ``concept_ancestor`` traversals.
 
-    Composed from the **vocab** role rather than the primary one, because
-    ``concept_ancestor`` is a vocabulary table. On any deployment that does not
-    configure a separate vocabulary target this resolves to the CDM database, so
-    it costs nothing today and stays correct if vocabulary routing is ever
-    honoured by the ORM. Do not "simplify" it to ``resolved.connection``.
+def create_cdm_engines(
+    resolved: ResolvedCDMDatabase, *, register_claims: bool = True
+) -> tuple[sa.Engine, sa.Engine]:
+    """Create ``(primary, vocab)`` with the maintenance schemas claimed on both.
 
-    Uses ``safe_url``, the credential-redacted form, so no password reaches a
-    cache key.
+    The vocabulary engine is the primary engine itself when the vocabulary
+    is not on its own database.
 
-    **Returns None wherever sharing would be unsafe, so every caller inherits
-    that judgement.** Exported precisely so that packages building their own
-    engines compose the identity the same way — two spellings of one dataset
-    would produce two cache entries that each look authoritative. That only works
-    if the safety conditions live here rather than at one call site.
+    Parameters
+    ----------
+    resolved : ResolvedCDMDatabase
+    register_claims : bool, optional
+        Forwarded to ``create_engines()``. False only checks the claims
+        without writing them.
+        - For read-only access: False. Does not require CREATE privilege
+        - For read/write access: True. Requires CREATE privilege, and will
+        raise if the staging schema is already claimed by another package.
 
-    Two conditions yield None:
-
-    *Split vocabulary target.* Vocabulary models use the primary logical schema,
-    and one SQLAlchemy engine cannot route tables to a second physical
-    connection, so a declared vocabulary target that differs from the primary is
-    not what the engine actually reads. Returning its identity would let two
-    different primary databases that name the same external vocabulary share
-    expansions — one database's concept sets served for another. Such a
-    deployment falls back to per-engine caching until ORM routing supports it.
-
-    *Ephemeral database.* In-memory SQLite, where two engines built from
-    identical configuration are genuinely separate databases.
-
-    Both cases are correct-but-unshared rather than wrong.
+    Returns
+    -------
+    tuple[sqlalchemy.Engine, sqlalchemy.Engine]
     """
-    vocab_target = resolved.connection_target(Role.VOCAB)
-
-    if (
-        vocab_target.safe_url != resolved.connection.safe_url
-        or resolved.vocab_schema != resolved.schema_name
-    ):
-        return None
-
-    if _is_ephemeral_url(vocab_target.safe_url):
-        return None
-
-    return f"{vocab_target.safe_url}|{resolved.vocab_schema}"
-
-
-def _is_ephemeral_url(safe_url: str) -> bool:
-    """Whether ``safe_url`` names a database that cannot be shared across engines."""
-    lowered = safe_url.lower()
-    if not lowered.startswith("sqlite"):
-        return False
-    _, _, target = lowered.partition("://")
-    target = target.lstrip("/")
-    return target in ("", ":memory:") or "mode=memory" in lowered
-
-
-def create_cdm_engine(resolved: ResolvedCDMDatabase) -> sa.Engine:
-    """Create the CDM engine and register its vocabulary cache identity."""
-    engine = resolved.create_engine()
-
-    # Imported here rather than at module scope: toolkit.core.concepts reaches
-    # cdm.model, and `import omop_alchemy` runs this module, so a module-level
-    # import would pull the entire CDM model tree into package init.
-    from omop_alchemy.toolkit.core.concepts import register_vocabulary_identity
-
-    # Register against the engine we return: create_engine may hand back a derived
-    # OptionEngine, and that is the object sessions bind to. vocabulary_identity
-    # returns None wherever sharing would be unsafe, so there is no extra
-    # condition to apply here -- and no condition for other registrars to forget.
-    identity = vocabulary_identity(resolved)
-    if identity is not None:
-        register_vocabulary_identity(engine, identity)
-    return engine
+    return resolved.create_engines(
+        schema_claims=_maintenance_schema_claims(),
+        register_claims=register_claims,
+    )

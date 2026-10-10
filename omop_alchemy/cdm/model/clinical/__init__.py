@@ -6,6 +6,7 @@ from .condition_occurrence import (
 from .drug_exposure import Drug_Exposure, Drug_ExposureContext, Drug_ExposureView
 from .measurement import Measurement, MeasurementContext, MeasurementView
 from .observation import Observation, ObservationContext, ObservationView
+from .observation_period import Observation_Period
 from .person import Person, PersonView
 from .procedure_occurrence import (
     Procedure_Occurrence,
@@ -22,6 +23,7 @@ __all__ = [
     "Condition_Occurrence",
     "Condition_OccurrenceContext",
     "Condition_OccurrenceView",
+    "Observation_Period",
     "Drug_Exposure",
     "Drug_ExposureContext",
     "Drug_ExposureView",

@@ -362,7 +362,7 @@ def test_diagnostics_explain_person_mismatches_and_fallback_outcomes(session):
     "session_fixture",
     [
         "session",
-        pytest.param("pg_session", marks=pytest.mark.requires_database("test_cdm_db")),
+        pytest.param("pg_session", marks=[pytest.mark.postgresql, pytest.mark.db_dialect]),
     ],
 )
 @pytest.mark.parametrize("copies", [(2, 1), (1, 2), (2, 2)])
@@ -560,7 +560,7 @@ def _attachment_rows(session, queries) -> set[tuple[int, int, str]]:
     "session_fixture",
     [
         "session",
-        pytest.param("pg_session", marks=pytest.mark.db_dialect),
+        pytest.param("pg_session", marks=[pytest.mark.postgresql, pytest.mark.db_dialect]),
     ],
 )
 def test_ranked_fallback_admits_only_the_fallback_source(request, session_fixture):
@@ -594,7 +594,7 @@ def test_ranked_fallback_admits_only_the_fallback_source(request, session_fixtur
     "session_fixture",
     [
         "session",
-        pytest.param("pg_session", marks=pytest.mark.db_dialect),
+        pytest.param("pg_session", marks=[pytest.mark.postgresql, pytest.mark.db_dialect]),
     ],
 )
 @pytest.mark.parametrize(
@@ -797,7 +797,13 @@ def test_upcoming_preference_boundaries_and_recent_started_winner(
     assert _attachment_rows(session, queries) == {(8, expected, "fallback")}
 
 
-@pytest.mark.parametrize("session_fixture", ["session", "pg_session"])
+@pytest.mark.parametrize(
+    "session_fixture",
+    [
+        "session",
+        pytest.param("pg_session", marks=[pytest.mark.postgresql, pytest.mark.db_dialect]),
+    ],
+)
 def test_upcoming_preference_preserves_explicit_identity_and_diagnostics(request, session_fixture):
     session = request.getfixturevalue(session_fixture)
     anchor = date(2026, 1, 20)

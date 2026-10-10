@@ -2,13 +2,27 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 import sqlalchemy as sa
+
+if TYPE_CHECKING:
+    from .context import MaintenanceContext
 
 
 class TableCategory(StrEnum):
     """An OMOP CDM table's structural category, carrying its render style.
+
+    Represents a logical grouping of tables as defined by the 
+    [OMOP CDM spec](https://ohdsi.github.io/CommonDataModel/). 
+    The grouping is also reflected in the subpackage under 
+    ``omop_alchemy.cdm.model``, where the same logical grouping is used
+    to organize the ORM classes. 
+
+    Notes
+    -----
+    This logical grouping is independent of the physical schema in
+    which the table's data is stored (its own ``schema_tag``).
 
     Parameters
     ----------
@@ -46,6 +60,21 @@ class MaintenanceTable:
     primary_key_columns: tuple[sa.Column[object], ...]
 
     @property
+    def schema_tag(self) -> str:
+        """The schema_translate_map key this table's data physically lives
+        under, read off its own declared schema tag.
+
+        Independent of TableCategory: category is a logical/folder grouping
+        (e.g. cohort/cohort_definition are RESULTS-category despite
+        classifying as "derived" in the CDM sense), schema_tag is where the
+        table's rows physically live.
+        """
+        tag = self.table.schema
+        if tag is None:
+            raise TypeError(f"{self.table_name}: table has no schema tag.")
+        return tag
+
+    @property
     def is_vocabulary(self) -> bool:
         return self.category is TableCategory.VOCABULARY
 
@@ -71,11 +100,70 @@ class MaintenanceTable:
         )
 
 
-def qualified_table_name(table_name: str, db_schema: str | None) -> str:
-    if db_schema:
-        quoted_schema = '"' + db_schema.replace('"', '""') + '"'
-        return f"{quoted_schema}.{table_name}"
-    return table_name
+def all_table_names(bindable: sa.Engine | sa.Connection, *, schema: str | None) -> set[str]:
+    """Every table name visible in *schema*, ordinary and foreign alike.
+
+    ``get_table_names`` omits foreign tables, so a vocabulary exposed
+    through a federated wrapper would look absent without this. Foreign
+    tables are a PostgreSQL concept, so the second lookup is skipped where
+    the inspector does not offer it.
+    """
+    inspector = sa.inspect(bindable)
+    names = set(inspector.get_table_names(schema=schema))
+    foreign_table_names = getattr(inspector, "get_foreign_table_names", None)
+    if foreign_table_names is not None:
+        names |= set(foreign_table_names(schema=schema))
+    return names
+
+
+@dataclass(frozen=True)
+class TableTarget:
+    """Where one table's maintenance work has to run.
+
+    Built only by ``MaintenanceContext.targets()``, so every command reads
+    the same answer instead of re-deriving it.
+
+    Attributes
+    ----------
+    table : MaintenanceTable
+        The table this target describes.
+    bind : sqlalchemy.Engine
+        Engine hosting this table, already routed by schema tag.
+    physical_schema : str or None
+        Schema the tag resolves to on *bind*. None for a dialect with no
+        real schema concept.
+    foreign_keys_creatable : bool
+        Whether this table's foreign keys to other tags can physically
+        exist. False for a key crossing a database boundary, which lets
+        reconciliation tell an impossible constraint from a broken one.
+    """
+
+    table: MaintenanceTable
+    bind: sa.Engine
+    physical_schema: str | None
+    foreign_keys_creatable: bool
+
+    @property
+    def schema_tag(self) -> str:
+        return self.table.schema_tag
+
+    @property
+    def table_name(self) -> str:
+        return self.table.table_name
+
+    def exists(self) -> bool:
+        """Is this table physically present on its own bind?
+
+        Unions ordinary and foreign tables, so a vocabulary exposed through
+        a federated wrapper is not reported absent. Foreign tables are a
+        PostgreSQL concept, so the lookup is skipped on a dialect whose
+        inspector does not offer it.
+        """
+        if sa.inspect(self.bind).has_table(self.table_name, schema=self.physical_schema):
+            return True
+        return self.table_name in all_table_names(
+            self.bind, schema=self.physical_schema
+        )
 
 
 def _mapped_cdm_table_classes() -> Iterable[type]:
@@ -229,51 +317,46 @@ def select_omop_tables(
     )
 
 
-def existing_maintenance_tables(
-    inspector: sa.Inspector,
+def existing_maintenance_targets(
+    context: MaintenanceContext,
     *,
-    db_schema: str | None,
     vocabulary_included: bool,
+    categories: Iterable[TableCategory] | None = None,
     require_single_integer_primary_key: bool = False,
-) -> list[MaintenanceTable]:
-    return [
-        table
-        for table in select_omop_tables(
+) -> list[TableTarget]:
+    """Targets for ORM-managed tables that already exist on their own engine.
+
+    Parameters
+    ----------
+    context : MaintenanceContext
+    vocabulary_included : bool
+        Include vocabulary tables. Ignored when *categories* is given.
+    categories : Iterable[TableCategory], optional
+        When given, selects tables by category via
+        :func:`select_maintenance_tables` instead of *vocabulary_included*.
+    require_single_integer_primary_key : bool, optional
+    """
+    selected = (
+        select_maintenance_tables(
+            categories=categories, require_single_integer_primary_key=require_single_integer_primary_key
+        )
+        if categories is not None
+        else select_omop_tables(
             vocabulary_included=vocabulary_included,
             require_single_integer_primary_key=require_single_integer_primary_key,
         )
-        if inspector.has_table(table.table_name, schema=db_schema)
-    ]
+    )
+    return [target for target in context.targets(selected) if target.exists()]
 
 
-def missing_maintenance_tables(
-    inspector: sa.Inspector,
+def missing_maintenance_targets(
+    context: MaintenanceContext,
     *,
-    db_schema: str | None,
     vocabulary_included: bool,
-) -> list[MaintenanceTable]:
+) -> list[TableTarget]:
+    """Targets for ORM-managed tables absent from their own engine."""
     return [
-        table
-        for table in select_omop_tables(vocabulary_included=vocabulary_included)
-        if not inspector.has_table(table.table_name, schema=db_schema)
+        target
+        for target in context.targets(select_omop_tables(vocabulary_included=vocabulary_included))
+        if not target.exists()
     ]
-
-
-def schema_adjusted_metadata(
-    tables: Iterable[MaintenanceTable],
-    *,
-    db_schema: str | None,
-) -> tuple[sa.MetaData, dict[str, sa.Table]]:
-    metadata = sa.MetaData()
-    adjusted_tables: dict[str, sa.Table] = {}
-
-    for maintenance_table in tables:
-        adjusted_tables[maintenance_table.table_name] = maintenance_table.table.to_metadata(
-            metadata,
-            schema=db_schema,  # ty: ignore[invalid-argument-type]
-            referred_schema_fn=(
-                lambda _table, to_schema, _constraint, _referred_schema: to_schema
-            ),
-        )
-
-    return metadata, adjusted_tables

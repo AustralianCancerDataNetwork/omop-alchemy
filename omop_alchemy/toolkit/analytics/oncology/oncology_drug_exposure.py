@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from sqlalchemy.ext.hybrid import hybrid_property
 
+from oa_configurator import Role
+
 from omop_alchemy.cdm.model.clinical.drug_exposure import Drug_ExposureView
 
 from .concept_sets import SACT_DRUGS, resolve_sact_drug_concept_ids
@@ -19,6 +21,11 @@ class OncologyDrugExposure(Drug_ExposureView):
     expansion, on the class it emits a ``concept_ancestor`` subquery. Both come
     from one governed ``ConceptGroupSpec``, including its exclusions.
     """
+
+    __tablename__ = "drug_exposure"
+    # Must match Drug_Exposure's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = {"schema": Role.PRIMARY.value}
+    __mapper_args__ = {"concrete": False}
 
     @hybrid_property
     def is_sact(self) -> bool:

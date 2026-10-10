@@ -16,7 +16,6 @@ from .cli_indexes import (
     IndexManagementResult,
     IndexTarget,
     collect_index_targets,
-    manage_indexes,
 )
 from .cli_schema import (
     CommandSupport,
@@ -34,7 +33,6 @@ from .cli_schema import (
     collect_doctor_report,
     collect_maintenance_info,
     collect_missing_tables,
-    create_missing_tables,
     reconcile_schema,
 )
 from .cli_tables import (
@@ -45,7 +43,6 @@ from .cli_tables import (
     analyze_tables,
     collect_sequence_targets,
     reset_model_sequences,
-    truncate_tables,
 )
 from .cli_vocab import VocabularyLoadReport, VocabularyLoadResult, load_vocab_source
 from .tables import MaintenanceTable, TableCategory, collect_maintenance_tables, select_maintenance_tables
@@ -62,13 +59,10 @@ __all__ = [
     "collect_missing_tables",
     "reconcile_schema",
     "collect_sequence_targets",
-    "create_missing_tables",
     "manage_foreign_key_triggers",
-    "manage_indexes",
     "load_vocab_source",
     "reset_model_sequences",
     "select_maintenance_tables",
-    "truncate_tables",
     "AnalyzeTableResult",
     "BackupFormat",
     "BackupResult",

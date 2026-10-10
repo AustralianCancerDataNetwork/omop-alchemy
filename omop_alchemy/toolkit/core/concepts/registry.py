@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections import OrderedDict
 from dataclasses import dataclass
+from threading import RLock
 from typing import Callable, Generic, Protocol, TypeVar
 from weakref import WeakKeyDictionary
 
@@ -10,7 +11,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 
 from .groups import ConceptGroupSpec, ResolvedConceptGroup, build_concept_group
-from .identity import cache_scope
+from .identity import cache_scope, vocabulary_engine_of
 from .lookup import ConceptResolver
 
 logger = logging.getLogger(__name__)
@@ -69,29 +70,29 @@ class _LazyBoundedRegistry(Generic[T]):
     to use its share.
     """
 
-    def __init__(
-        self,
-        engine: sa.Engine,
-        *,
-        max_bytes: int = DEFAULT_MAX_CACHE_BYTES,
-    ) -> None:
-        self.engine = engine
+    def __init__(self, *, max_bytes: int = DEFAULT_MAX_CACHE_BYTES) -> None:
         self.max_bytes = max_bytes
         self._cache: "OrderedDict[str, T]" = OrderedDict()
         self._builders: dict[str, Callable[[so.Session], T]] = {}
         self._evicted: set[str] = set()
         self.stats = CacheStats()
+        self._lock = RLock()
 
     def register(self, name: str, builder: Callable[[so.Session], T]) -> None:
         """Record how to build ``name``, without building it."""
-        if name in self._builders:
-            raise KeyError(f"Resolver '{name}' is already registered")
-        self._builders[name] = builder
+        with self._lock:
+            if name in self._builders:
+                raise KeyError(f"Resolver '{name}' is already registered")
+            self._builders[name] = builder
 
-    def get(self, name: str) -> T:
+    def _get(self, name: str, engine: sa.Engine) -> T:
+        with self._lock:
+            return self._get_locked(name, engine)
+
+    def _get_locked(self, name: str, engine: sa.Engine) -> T:
         """Return ``name``, building and caching it on first request.
 
-        Builds in a **new** session on this registry's engine rather than in a
+        Builds in a **new** session on *engine* rather than in a
         caller's session, so populating the cache never joins or affects a
         caller's transaction. The consequence is that uncommitted data is not
         visible: correct for vocabulary tables, which are committed reference
@@ -119,7 +120,7 @@ class _LazyBoundedRegistry(Generic[T]):
                 self.max_bytes,
             )
 
-        with so.Session(self.engine) as session:
+        with so.Session(engine) as session:
             value = self._builders[name](session)
 
         self._store(name, value)
@@ -149,12 +150,10 @@ class _LazyBoundedRegistry(Generic[T]):
             )
 
     def clear(self) -> None:
-        self._cache.clear()
-        self._evicted.clear()
-        self.stats = CacheStats()
-
-    def __getitem__(self, name: str) -> T:
-        return self.get(name)
+        with self._lock:
+            self._cache.clear()
+            self._evicted.clear()
+            self.stats = CacheStats()
 
     def __contains__(self, name: str) -> bool:
         return name in self._builders
@@ -169,51 +168,68 @@ class ConceptResolverRegistry(_LazyBoundedRegistry[ConceptResolver]):
     ensuring vocab lookups are built once per database.
     """
 
+    def __init__(self, engine: sa.Engine, *, max_bytes: int = DEFAULT_MAX_CACHE_BYTES) -> None:
+        super().__init__(max_bytes=max_bytes)
+        self.engine = engine
+
+    def get(self, name: str) -> ConceptResolver:
+        """Return resolver *name*, built on this registry's engine on first request."""
+        return self._get(name, self.engine)
+
+    def __getitem__(self, name: str) -> ConceptResolver:
+        return self.get(name)
+
 
 class ConceptGroupRegistry(_LazyBoundedRegistry[ResolvedConceptGroup]):
     """Lazy registry for governed concept groups, scoped to one vocabulary.
 
     Obtain one through :func:`concept_group_registry` rather than constructing
-    it directly, so registries are shared per vocabulary identity instead of
-    per engine.
+    it directly, so registries are shared per vocabulary instead of per engine.
     """
 
     def register_spec(self, spec: ConceptGroupSpec) -> None:
         """Register ``spec`` under its governed name, if not already present."""
-        if spec.name in self._builders:
-            return
-        self.register(spec.name, lambda session: build_concept_group(session, spec))
+        with self._lock:
+            if spec.name in self._builders:
+                return
+            self.register(spec.name, lambda session: build_concept_group(session, spec))
+
+    def get(self, name: str, *, engine: sa.Engine) -> ResolvedConceptGroup:
+        """Return group *name*, built on *engine* on first request.
+
+        *engine* is the caller's vocabulary engine, so a registry shared
+        across engines never builds on one a caller has since disposed.
+        """
+        return self._get(name, engine)
 
 
 _BY_IDENTITY: dict[str, ConceptGroupRegistry] = {}
 _BY_ENGINE: "WeakKeyDictionary[sa.Engine, ConceptGroupRegistry]" = WeakKeyDictionary()
+_REGISTRIES_LOCK = RLock()
 
 
 def concept_group_registry(session: so.Session) -> ConceptGroupRegistry:
     """Return the group registry for the vocabulary behind ``session``.
 
-    Registries are keyed on vocabulary identity where one has been registered
-    (see :mod:`.identity`), so recreating an engine against the same dataset
-    reuses expansions.  Otherwise they are keyed weakly on the engine, which is
-    still built-once-per-engine but is not shared across engines.
-
-    In-memory SQLite intentionally lands in the second case: two such engines
-    are separate databases despite identical configuration, so cross-engine
-    sharing would serve one database's concept sets for another.
+    Registries are keyed on the physical vocabulary (see :mod:`.identity`),
+    so recreating an engine against the same dataset reuses expansions. An
+    engine that cannot name its vocabulary, such as in-memory SQLite, is keyed
+    weakly on itself instead.
     """
     scope = cache_scope(session)
-    if isinstance(scope, str):
-        registry = _BY_IDENTITY.get(scope)
-        if registry is None:
-            registry = ConceptGroupRegistry(session.get_bind().engine)
-            _BY_IDENTITY[scope] = registry
-        return registry
+    with _REGISTRIES_LOCK:
+        if isinstance(scope, str):
+            registry = _BY_IDENTITY.get(scope)
+            if registry is None:
+                registry = ConceptGroupRegistry()
+                _BY_IDENTITY[scope] = registry
+            return registry
 
-    registry = _BY_ENGINE.get(scope)
-    if registry is None:
-        registry = ConceptGroupRegistry(scope)
-        _BY_ENGINE[scope] = registry
-    return registry
+        registry = _BY_ENGINE.get(scope)
+        if registry is None:
+            registry = ConceptGroupRegistry()
+            _BY_ENGINE[scope] = registry
+        return registry
 
 
 def resolve_concept_group(
@@ -228,22 +244,23 @@ def resolve_concept_group(
     """
     registry = concept_group_registry(session)
     registry.register_spec(spec)
-    return registry.get(spec.name)
+    return registry.get(spec.name, engine=vocabulary_engine_of(session))
 
 
 def clear_concept_group_cache() -> None:
     """Drop every cached group expansion, across all vocabularies.
 
-    Per-vocabulary keying means this is rarely needed — moving database gives a
-    different identity and therefore a different registry.  It remains an escape
-    hatch for a dataset reloaded in place under an unchanged identity.
+    Per-vocabulary keying means this is rarely needed: moving database gives a
+    different scope and therefore a different registry. It remains an escape
+    hatch for a vocabulary reloaded in place.
     """
-    for registry in _BY_IDENTITY.values():
-        registry.clear()
-    for registry in _BY_ENGINE.values():
-        registry.clear()
-    _BY_IDENTITY.clear()
-    _BY_ENGINE.clear()
+    with _REGISTRIES_LOCK:
+        for registry in _BY_IDENTITY.values():
+            registry.clear()
+        for registry in _BY_ENGINE.values():
+            registry.clear()
+        _BY_IDENTITY.clear()
+        _BY_ENGINE.clear()
 
 
 def concept_group_cache_stats() -> dict[str | int, dict[str, int]]:
@@ -253,10 +270,11 @@ def concept_group_cache_stats() -> dict[str | int, dict[str, int]]:
     holding, and if it climbs the per-scope byte totals are the evidence for
     raising it or splitting the budget by payload kind.
     """
-    stats: dict[str | int, dict[str, int]] = {
-        identity: registry.stats.as_dict()
-        for identity, registry in _BY_IDENTITY.items()
-    }
-    for engine, registry in _BY_ENGINE.items():
-        stats[id(engine)] = registry.stats.as_dict()
-    return stats
+    with _REGISTRIES_LOCK:
+        stats: dict[str | int, dict[str, int]] = {
+            identity: registry.stats.as_dict()
+            for identity, registry in _BY_IDENTITY.items()
+        }
+        for engine, registry in _BY_ENGINE.items():
+            stats[id(engine)] = registry.stats.as_dict()
+        return stats

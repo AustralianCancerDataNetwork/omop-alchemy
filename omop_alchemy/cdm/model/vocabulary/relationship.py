@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from oa_configurator import Role
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     ReferenceTable,
@@ -8,6 +9,7 @@ from omop_alchemy.cdm.base import (
     merge_table_args,
     omop_primary_key_index_name,
     omop_table_options,
+    role_fk,
 )
 from omop_alchemy.cdm.model.flags import BooleanFlag, normalised_flag_expr, normalised_flag
 
@@ -16,13 +18,14 @@ class Relationship(Base, ReferenceTable, CDMTableBase):
     __tablename__ = "relationship"
     __table_args__ = merge_table_args(
         omop_table_options(cluster_on=omop_primary_key_index_name("relationship")),
+        {"schema": Role.VOCAB.value},
     )
     relationship_id: so.Mapped[str] = so.mapped_column(sa.String(20), primary_key=True)
     relationship_name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
     is_hierarchical: so.Mapped[str] = so.mapped_column(sa.String(1), nullable=False)
     defines_ancestry: so.Mapped[str] = so.mapped_column(sa.String(1), nullable=False)
-    reverse_relationship_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey("relationship.relationship_id"),nullable=False)
-    relationship_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("concept.concept_id"),nullable=False,)
+    reverse_relationship_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "relationship.relationship_id")),nullable=False)
+    relationship_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),nullable=False,)
 
     def __repr__(self):
         return f"<Relationship {self.relationship_id}>"

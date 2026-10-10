@@ -1,23 +1,46 @@
 """
 PostgreSQL integration tests for OMOP_Alchemy vocabulary loading.
 
-These tests require a dedicated ``test_cdm_db`` PostgreSQL resource configured
-with ``test_only = true``. Then run:
-    pytest -m requires_database
+These tests require a running PostgreSQL container. Start one with:
+    docker compose -f tests/docker-compose.yaml up -d
+
+Excluded from the default `pytest` invocation (addopts = "-m 'not
+db_dialect'", see oa_configurator.testing). Run explicitly:
+    pytest -m postgresql
 """
 
 from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
+from oa_configurator import Role
+from oa_configurator.testing import drop_schema_if_exists, resolve_with_role_schemas
 
 from omop_alchemy.backends.postgres import PostgresBackend
 from omop_alchemy.cdm.model.vocabulary import Concept
+from omop_alchemy.config import create_cdm_engines
 from omop_alchemy.maintenance.cli_vocab import (
     _load_vocab_model_csv,
     load_vocab_source,
 )
 from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
+from omop_alchemy.maintenance.context import MaintenanceContext
+
+pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
+
+
+@pytest.fixture
+def pg_engine(pg_unscoped_resolved):
+    """
+    Notes
+    -----
+    Overrides conftest's bare-engine pg_engine for this module: every test
+    here loads vocabulary data via load_vocab_source(), which (like every
+    real CLI command) expects to run on an engine built through
+    create_cdm_engines()."""
+    engine, _ = create_cdm_engines(pg_unscoped_resolved)
+    yield engine
+    engine.dispose()
 
 
 def _copy_fixture_source(base_dir: Path) -> Path:
@@ -73,11 +96,10 @@ def _make_concept_source(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.requires_database("test_cdm_db")
-def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
+def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, pg_resolved, tmp_path):
     """load_vocab_source() completes end-to-end on real Postgres via orm-loader>=0.4.0."""
     source_path = _copy_fixture_source(tmp_path)
-    report = load_vocab_source(pg_engine, source_path=source_path)
+    report = load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path)
 
     assert report.merge_strategy == "replace"
     assert all(r.status == "loaded" for r in report.results if r.required)
@@ -87,9 +109,8 @@ def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, tmp_path):
     assert count == 7
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_default_quote_mode_preserves_literal_quotes_on_postgres(
-    pg_session, pg_engine, tmp_path
+    pg_session, pg_engine, pg_resolved, tmp_path
 ):
     """
     The default by_delimiter mode preserves quotes in tab-delimited Athena data.
@@ -123,7 +144,7 @@ def test_default_quote_mode_preserves_literal_quotes_on_postgres(
         {col: (val,) for col, val in zip(concept_cols, concept_row)},
     )
 
-    load_vocab_source(pg_engine, source_path=source_path)
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path)
 
     concept_name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
@@ -131,9 +152,8 @@ def test_default_quote_mode_preserves_literal_quotes_on_postgres(
     assert concept_name == quoted_name
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
-    pg_session, pg_engine, tmp_path
+    pg_session, pg_engine, pg_resolved, tmp_path
 ):
     """Explicit csv mode keeps support for genuinely RFC-4180-wrapped fields."""
     source_path = tmp_path / "athena_source"
@@ -163,7 +183,7 @@ def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
         {col: (val,) for col, val in zip(concept_cols, concept_row)},
     )
 
-    load_vocab_source(pg_engine, source_path=source_path, quote_mode="csv")
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path, quote_mode="csv")
 
     concept_name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
@@ -171,7 +191,6 @@ def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
     assert concept_name == long_name
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
     """
     _load_vocab_model_csv loads data correctly on a real PostgreSQL session.
@@ -195,10 +214,10 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
     assert count == 7
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
     pg_session,
     pg_engine,
+    pg_resolved,
     tmp_path,
 ):
     """replace updates matching PKs without deleting rows absent from the next source."""
@@ -216,9 +235,9 @@ def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
         tmp_path / "v2", concept_id=concept_id, concept_name="name_v2"
     )
 
-    load_vocab_source(pg_engine, source_path=source_absent, merge_strategy="replace")
-    load_vocab_source(pg_engine, source_path=source_v1, merge_strategy="replace")
-    load_vocab_source(pg_engine, source_path=source_v2, merge_strategy="replace")
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_absent, merge_strategy="replace")
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v1, merge_strategy="replace")
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v2, merge_strategy="replace")
 
     names = dict(
         pg_session.execute(
@@ -233,8 +252,7 @@ def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
     assert names[source_absent_id] == "preserved"
 
 
-@pytest.mark.requires_database("test_cdm_db")
-def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
+def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, pg_resolved, tmp_path):
     """merge_strategy='upsert' preserves existing rows on second load with same PKs."""
     concept_id = 99998
     source_v1 = _make_concept_source(
@@ -244,8 +262,8 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
         tmp_path / "v2", concept_id=concept_id, concept_name="name_v2"
     )
 
-    load_vocab_source(pg_engine, source_path=source_v1, merge_strategy="upsert")
-    load_vocab_source(pg_engine, source_path=source_v2, merge_strategy="upsert")
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v1, merge_strategy="upsert")
+    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v2, merge_strategy="upsert")
 
     name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = :cid"),
@@ -256,26 +274,34 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, tmp_path):
     )
 
 
-@pytest.mark.requires_database("test_cdm_db")
-def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
+def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cleanup_after_test):
     """
     load_vocab_source with db_schema creates vocabulary tables in the requested
     PostgreSQL schema and loads data into them correctly.
+
+    schema_translate_map, not db_schema alone, is what actually routes
+    ORM-managed table creation: a real deployment sets it once, at engine
+    construction (ResolvedCDMDatabase.create_engines()), not per call. This
+    scopes it here the same way, matching orm-loader's own
+    test_schema_translate_map.py regression test.
     """
     schema = "VocabTest"
     source_path = _copy_fixture_source(tmp_path)
     quoted_schema = '"' + schema.replace('"', '""') + '"'
 
-    with pg_engine.connect() as conn:
-        conn.execute(sa.text(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE"))
+    drop_schema_if_exists(pg_engine, schema)
+    cleanup_after_test(lambda: drop_schema_if_exists(pg_engine, schema))
+    with pg_engine.begin() as conn:
         conn.execute(sa.text(f"CREATE SCHEMA {quoted_schema}"))
-        conn.commit()
+
+    # A single-schema deployment: vocab/results fall back to the CDM schema.
+    scoped_resolved = resolve_with_role_schemas(pg_resolved, {Role.PRIMARY: schema})
+    scoped_engine, _ = create_cdm_engines(scoped_resolved)
 
     try:
         report = load_vocab_source(
-            pg_engine,
+            MaintenanceContext(resolved=scoped_resolved, engine=scoped_engine, vocab_engine=scoped_engine),
             source_path=source_path,
-            db_schema=schema,
         )
 
         assert any(r.status == "loaded" for r in report.results if r.required)
@@ -291,12 +317,9 @@ def test_db_schema_search_path_on_postgres(pg_engine, tmp_path):
             ).scalar()
         assert count == 7
     finally:
-        with pg_engine.connect() as conn:
-            conn.execute(sa.text(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE"))
-            conn.commit()
+        scoped_engine.dispose()
 
 
-@pytest.mark.requires_database("test_cdm_db")
 def test_postgres_catalog_queries_accept_explicit_schema(pg_engine):
     """Schema-qualified catalog checks must bind cleanly with psycopg/PostgreSQL."""
     backend = PostgresBackend()
@@ -305,12 +328,10 @@ def test_postgres_catalog_queries_accept_explicit_schema(pg_engine):
         disabled, enabled = backend.get_fk_trigger_counts(
             connection,
             "concept",
-            "public",
         )
         clustered_index = backend.get_clustered_index_name(
             connection,
             "concept",
-            "public",
         )
 
     assert disabled >= 0

@@ -43,3 +43,34 @@ validation, and reuse.
 - [Drug Era](derived/drug_era.md)
 - [Dose Era](derived/dose_era.md)
 - [Cohort & Cohort Definitions](derived/cohort.md)
+
+---
+
+## Health Economic
+
+- [Cost](health_economic/cost.md)
+- [Payer Plan Period](health_economic/payer_plan_period.md)
+
+---
+
+## Metadata
+
+- [CDM Source](metadata/cdm_source.md)
+- [Metadata](metadata/metadata.md)
+
+---
+
+## Structural
+
+- [Episode](structural/episode.md)
+- [Episode Event](structural/episode_event.md)
+- [Fact Relationship](structural/fact_relationship.md)
+
+---
+
+## Unstructured
+
+- [Note](unstructured/note.md)
+- [Note NLP](unstructured/note_nlp.md)
+- [Image](unstructured/image.md)
+- [Image Feature](unstructured/image_feature.md)

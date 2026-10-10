@@ -5,8 +5,7 @@ OMOP Alchemy includes an **optional** PostgreSQL full-text search integration fo
 This feature is deliberately bolt-on:
 
 - OMOP_Alchemy works without the full-text search feature (i.e. optional)
-- the ORM models do not require the extra database columns
-- the query helpers can fall back to inline `to_tsvector(...)` expressions when the sidecar columns are not installed
+- the ORM models never carry the extra database columns
 
 This is useful when you want faster repeated text-search workloads on PostgreSQL, without forcing every environment to carry extra full-text infrastructure.
 
@@ -19,20 +18,18 @@ The current full-text support targets:
 - `concept.concept_name`
 - `concept_synonym.concept_synonym_name`
 
-These helpers are methods on the resolved `Backend` instance:
+The stored column of a target table is looked up on the resolved `Backend` instance:
 
 ```python
 from omop_alchemy.backends import resolve_backend
+from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Synonym
 
 backend = resolve_backend(engine)
-backend.concept_name_tsvector_expression()
-backend.concept_synonym_name_tsvector_expression()
+backend.fulltext_vector_column(engine, Concept.__table__)
+backend.fulltext_vector_column(engine, Concept_Synonym.__table__)
 ```
 
-These helpers return the best available expression for the configured environment:
-
-- if the optional sidecar `tsvector` columns are registered in metadata, they return the stored column
-- otherwise they fall back to an inline computed PostgreSQL expression using `to_tsvector(...)`
+`fulltext_vector_column()` checks that the column exists in the database behind `engine` and raises `FullTextError` otherwise. The returned column is bound to its table, so it is schema-qualified and follows the engine's schema translation, but it is never attached to the ORM table: `Concept.__table__` is identical in every process, whether or not full-text search is installed anywhere.
 
 ### Example (PostgreSQL Documentation)
 
@@ -55,15 +52,6 @@ omop-alchemy fulltext install
 omop-alchemy fulltext populate
 ```
 
-If your running Python process should use the stored sidecar columns through ORM metadata, register them once at startup:
-
-```python
-from omop_alchemy.backends import resolve_backend
-
-backend = resolve_backend(engine)
-backend.register_fulltext_metadata()
-```
-
 That is enough to activate the feature. The rest of this page explains when to use it and how to operate it safely.
 
 ## When To Use It
@@ -72,7 +60,6 @@ Use the optional full-text feature when:
 
 - you are on PostgreSQL
 - you run repeated vocabulary-name or synonym-name search workloads
-- inline `to_tsvector(...)` search is becoming a bottleneck
 
 Skip it when:
 
@@ -91,58 +78,15 @@ Full-text search is useful, but it also introduces operational tradeoffs:
 - explicit backfill / refresh work
 - PostgreSQL-specific behavior
 
-Many users only need occasional text matching and are perfectly fine with inline search expressions. Others want fast repeated full-text lookups across large vocabularies and are happy to manage the extra schema objects.
+Many users only need occasional text matching. Others want fast repeated full-text lookups across large vocabularies and are happy to manage the extra schema objects.
 
 OMOP Alchemy therefore treats full-text sidecars as an **optional PostgreSQL enhancement**, not as part of the core required OMOP schema.
 
 ---
 
-## Two Modes
+## Stored Columns
 
-### 1. Inline Expression Mode
-
-This requires no schema changes.
-
-```python
-import sqlalchemy as sa
-from sqlalchemy.orm import Session
-
-from omop_alchemy.backends import resolve_backend
-from omop_alchemy.cdm.model.vocabulary import Concept
-
-backend = resolve_backend(engine)
-query = sa.func.plainto_tsquery("english", "edoxaban")
-
-with Session(engine) as session:
-    rows = (
-        session.query(Concept)
-        .filter(backend.concept_name_tsvector_expression() == query)
-        .all()
-    )
-```
-
-In practice you will often want the PostgreSQL full-text match operator rather than equality:
-
-```python
-vector = backend.concept_name_tsvector_expression()
-query = sa.func.plainto_tsquery("english", "edoxaban")
-
-stmt = sa.select(Concept).where(vector.op("@@")(query))
-```
-
-This mode is simple and portable at the library level, but PostgreSQL must compute the vector expression at query time unless the planner can otherwise optimize it.
-
-### 2. Stored Sidecar Mode
-
-This mode adds real `tsvector` columns to the database and optionally GIN indexes.
-
-Once installed and registered, the helper functions point at the stored columns instead of recomputing vectors inline.
-
-This is the mode you want when:
-
-- you run frequent vocabulary search queries
-- you care about PostgreSQL full-text query performance
-- you are comfortable managing the sidecar lifecycle
+Full-text search uses real `tsvector` columns in the database, with optional GIN indexes. `backend.fulltext_vector_column()` returns the stored column; it raises `FullTextError` when the column is not installed.
 
 ---
 
@@ -203,7 +147,7 @@ from omop_alchemy.backends import resolve_backend
 from omop_alchemy.cdm.model.vocabulary import Concept
 
 backend = resolve_backend(engine)
-vector = backend.concept_name_tsvector_expression()
+vector = backend.fulltext_vector_column(engine, Concept.__table__)
 query = sa.func.plainto_tsquery("english", "direct oral anticoagulant")
 
 stmt = (
@@ -221,28 +165,13 @@ with Session(engine) as session:
     rows = session.execute(stmt).all()
 ```
 
-The same idea applies to `backend.concept_synonym_name_tsvector_expression()`.
+The same applies to `Concept_Synonym.__table__`.
 
 ---
 
-## Metadata Registration
+## ORM Boundary
 
-If your process will use the stored sidecar columns directly, register them into the ORM metadata:
-
-```python
-from omop_alchemy.backends import resolve_backend
-
-backend = resolve_backend(engine)
-backend.register_fulltext_metadata()
-```
-
-If you later remove the columns from the database in the same process and want query helpers to fall back cleanly again:
-
-```python
-backend.unregister_fulltext_metadata()
-```
-
-This only affects SQLAlchemy metadata in the current Python process. It does not alter the database by itself.
+The stored column is usable in `WHERE` and `ORDER BY` expressions only. The ORM does not know it: `Concept` has no `concept_name_tsvector` attribute, and loading `Concept` entities never selects it. Installing full-text search in one database therefore never affects loads into another database or schema in the same process.
 
 ---
 
@@ -254,7 +183,7 @@ This feature is PostgreSQL-specific in its database form because it relies on:
 - PostgreSQL full-text query functions such as `to_tsvector` and `plainto_tsquery`
 - optional GIN indexes
 
-The helper expressions can still be imported safely, but the sidecar install / populate / drop lifecycle is only meaningful on PostgreSQL.
+On other backends `fulltext_vector_column()` raises `FeatureNotSupportedError`, and the sidecar install / populate / drop lifecycle is only meaningful on PostgreSQL.
 
 ---
 

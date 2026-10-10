@@ -1,4 +1,4 @@
-# oubservation
+# observation
 
 > Documentation coming soon.
 
