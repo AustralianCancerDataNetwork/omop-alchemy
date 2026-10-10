@@ -455,6 +455,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../getting-started/common-use-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../getting-started/maintenance/" class="md-nav__link">
         
   
@@ -3261,7 +3289,7 @@
 <h1 id="materialized-views">Materialized views<a class="headerlink" href="#materialized-views" title="Permanent link">&para;</a></h1>
 <p>A materialized view is a persisted read model: an expensive or carefully defined query is computed once and then read like a table. This is useful when the same analytical shape is consumed repeatedly, but it also introduces a deployment lifecycle that ordinary query construction does not have.</p>
 <h2 id="the-deployment-contract">The deployment contract<a class="headerlink" href="#the-deployment-contract" title="Permanent link">&para;</a></h2>
-<p>The supported deployment contract is PostgreSQL with unqualified materialized-view names resolving to the <code>public</code> schema through the connection's <code>search_path</code>. Leave <code>schema</code> at its default when calling the lifecycle methods. Qualified non-<code>public</code> schemas and schema translation are not part of this package's materialized-view contract.</p>
+<p>The supported deployment contract is PostgreSQL with unqualified materialized-view names resolving to the <code>public</code> schema through the connection's <code>search_path</code>. Leave <code>schema_tag</code> at its default when calling the lifecycle methods. Qualified non-<code>public</code> schemas and schema translation are not part of this package's materialized-view contract.</p>
 <p>OMOP Alchemy owns the OMOP models and the query-building vocabulary. <a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/"><code>orm-loader</code></a> owns the generic materialized-view definition and database lifecycle. Keeping that boundary means this package can describe an OMOP read model without growing a second implementation of DDL, refresh, index creation, or dependency ordering.</p>
 <p>This page explains how an OMOP Alchemy query becomes a managed read model. The linked <a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/"><code>orm-loader</code> materialized-view guide</a> is the authoritative reference for the complete API, supported options, backend behavior, and generated reference documentation.</p>
 <p>The important design decision is the shape of the result. Give the view a stable name, build its contents with the same SQLAlchemy expressions used elsewhere in the toolkit, and make the row grain explicit in the query. The example below creates one row per person and measurement concept, which makes the unique index meaningful as well as useful for concurrent refresh.</p>

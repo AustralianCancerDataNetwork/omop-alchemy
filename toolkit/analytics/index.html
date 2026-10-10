@@ -455,6 +455,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../getting-started/common-use-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../getting-started/maintenance/" class="md-nav__link">
         
   
@@ -3404,8 +3432,7 @@
 <p>The oncology package publishes lazy governed concept specifications for T, N,
 M, and group stage, tumour grade, and metastatic disease. Laterality and tumour
 size are exposed as governed scalar accessors. These declarations consume
-<code>omop-semantics</code>; the narrow metastatic-disease descendant group requires
-<code>omop-semantics</code> 0.6.1. Importing the module does not expand a vocabulary or
+<code>omop-semantics</code> (the package already requires <code>&gt;=0.6.2</code>). Importing the module does not expand a vocabulary or
 contact a database.</p>
 <p>Stage selection is a query policy over an already filtered canonical modifier
 source enriched with <code>modifier_concept_code</code>. By default, pathological codes

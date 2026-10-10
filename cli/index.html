@@ -455,6 +455,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../getting-started/common-use-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../getting-started/maintenance/" class="md-nav__link">
         
   
@@ -3398,49 +3426,53 @@ omop-alchemy load-vocab-source -v   # ✗ flag is ignored
 </div>
 <hr />
 <h2 id="the-omop_command-decorator">The <code>@omop_command</code> decorator<a class="headerlink" href="#the-omop_command-decorator" title="Permanent link">&para;</a></h2>
-<p>Most commands are decorated with <code>@omop_command</code>. This decorator handles all connection boilerplate so the command function body only needs to work with <code>conn</code> and <code>engine</code>.</p>
+<p>Most commands are decorated with <code>@omop_command</code>. This decorator handles all connection boilerplate so the command function body only works with <code>conn</code>.</p>
 <h3 id="what-it-injects">What it injects<a class="headerlink" href="#what-it-injects" title="Permanent link">&para;</a></h3>
 <p>Every decorated command receives:</p>
 <ul>
-<li><code>conn</code> — a <code>_ConnContext</code> dataclass (see below)</li>
-<li><code>engine</code> — a SQLAlchemy <code>Engine</code> ready to use</li>
-<li><code>--dry-run</code> — injected on commands that support preview mode</li>
+<li><code>conn</code>: a <code>MaintenanceContext</code> (see below)</li>
+<li><code>--dry-run</code>: injected on commands that support preview mode</li>
+<li><code>--database</code>: picks a database entry other than the configured default</li>
 </ul>
 <p>No connection flags are injected; all configuration comes from oa_configurator.</p>
 <h3 id="what-it-does-behind-the-scenes">What it does behind the scenes<a class="headerlink" href="#what-it-does-behind-the-scenes" title="Permanent link">&para;</a></h3>
 <p>When a decorated command is invoked:</p>
 <ol>
 <li>Calls <code>get_cdm_context()</code>, which loads <code>~/.config/omop/config.toml</code> (via <code>load_stack_config()</code>) and resolves whatever <code>OmopAlchemyConfig.cdm_db</code> currently names, returning <code>(pkg_config, resolved)</code>. Raises <code>RuntimeError</code> with a helpful message if no config file exists yet.</li>
-<li>Calls <code>create_cdm_engine(resolved)</code> to build a SQLAlchemy engine (<code>resolved.create_engine()</code>, with <code>schema_translate_map</code> applied) and register its vocabulary cache identity.</li>
-<li>Builds <code>conn</code> (<code>db_schema=resolved.schema_name</code>, <code>athena_source=pkg_config.athena_source_path</code>).</li>
+<li>Calls <code>create_cdm_engines(resolved)</code> to build the primary and vocabulary engines (<code>resolved.create_engines()</code>, with <code>schema_translate_map</code> applied and the maintenance schemas claimed on both).</li>
+<li>Builds <code>conn</code> from <code>resolved</code> and both engines.</li>
 <li>Prints a command header showing the connection, CDM schema, and run mode.</li>
-<li>Calls the original function body with <code>(conn, engine, ...)</code>.</li>
+<li>Calls the original function body with <code>(conn, ...)</code>, and disposes both engines afterwards.</li>
 <li>Catches <code>RuntimeError</code>, <code>SQLAlchemyError</code>, and <code>BackendNotSupportedError</code>; renders them as formatted errors and exits with code 1.</li>
 </ol>
 <h3 id="before-and-after">Before and after<a class="headerlink" href="#before-and-after" title="Permanent link">&para;</a></h3>
 <p>Without the decorator, every command would need this boilerplate:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_cdm_engine</span><span class="p">,</span> <span class="n">get_cdm_context</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_cdm_engines</span><span class="p">,</span> <span class="n">get_cdm_context</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.maintenance.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">MaintenanceContext</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">my_command</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">pkg_config</span><span class="p">,</span> <span class="n">resolved</span> <span class="o">=</span> <span class="n">get_cdm_context</span><span class="p">()</span>
-    <span class="n">engine</span> <span class="o">=</span> <span class="n">create_cdm_engine</span><span class="p">(</span><span class="n">resolved</span><span class="p">)</span>
+    <span class="n">engine</span><span class="p">,</span> <span class="n">vocab_engine</span> <span class="o">=</span> <span class="n">create_cdm_engines</span><span class="p">(</span><span class="n">resolved</span><span class="p">)</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">MaintenanceContext</span><span class="p">(</span><span class="n">resolved</span><span class="o">=</span><span class="n">resolved</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="n">engine</span><span class="p">,</span> <span class="n">vocab_engine</span><span class="o">=</span><span class="n">vocab_engine</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># actual work here</span>
-        <span class="n">results</span> <span class="o">=</span> <span class="n">do_work</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">db_schema</span><span class="o">=</span><span class="n">resolved</span><span class="o">.</span><span class="n">schema_name</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">do_work</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
         <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">render_results</span><span class="p">(</span><span class="n">results</span><span class="p">))</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
         <span class="n">handle_error</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">owned</span> <span class="ow">in</span> <span class="n">conn</span><span class="o">.</span><span class="n">engines</span><span class="p">:</span>
+            <span class="n">owned</span><span class="o">.</span><span class="n">dispose</span><span class="p">()</span>
 </code></pre></div>
 <p>With the decorator, the function body is all that matters:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">(</span><span class="s2">&quot;my-command&quot;</span><span class="p">)</span>
 <span class="nd">@omop_command</span><span class="p">(</span><span class="s2">&quot;my-command&quot;</span><span class="p">)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">my_command</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">engine</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="n">results</span> <span class="o">=</span> <span class="n">do_work</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">db_schema</span><span class="o">=</span><span class="n">conn</span><span class="o">.</span><span class="n">db_schema</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">my_command</span><span class="p">(</span><span class="n">conn</span><span class="p">:</span> <span class="n">MaintenanceContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">do_work</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
     <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">render_results</span><span class="p">(</span><span class="n">results</span><span class="p">))</span>
 </code></pre></div>
 <hr />
 <h2 id="the-conn-object">The <code>conn</code> object<a class="headerlink" href="#the-conn-object" title="Permanent link">&para;</a></h2>
-<p><code>conn</code> is a <code>_ConnContext</code> dataclass. It exposes:</p>
+<p><code>conn</code> is a <code>MaintenanceContext</code>. It exposes:</p>
 <table>
 <thead>
 <tr>
@@ -3450,8 +3482,16 @@ omop-alchemy load-vocab-source -v   # ✗ flag is ignored
 </thead>
 <tbody>
 <tr>
-<td><code>conn.db_schema</code></td>
-<td>CDM schema name from the resolved database (e.g. <code>"omop"</code>)</td>
+<td><code>conn.resolved</code></td>
+<td>The resolved <code>ResolvedCDMDatabase</code>; <code>conn.resolved.schema_name</code> is the CDM schema name (e.g. <code>"omop"</code>)</td>
+</tr>
+<tr>
+<td><code>conn.engine</code>, <code>conn.vocab_engine</code></td>
+<td>The primary and vocabulary engines; the same object when the vocabulary shares the primary database</td>
+</tr>
+<tr>
+<td><code>conn.targets(tables)</code></td>
+<td>Each table's engine, physical schema and foreign-key feasibility. Table-level work routes through this rather than picking an engine itself</td>
 </tr>
 <tr>
 <td><code>conn.athena_source</code></td>

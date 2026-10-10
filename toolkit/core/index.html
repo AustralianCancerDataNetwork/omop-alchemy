@@ -455,6 +455,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../getting-started/common-use-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../getting-started/maintenance/" class="md-nav__link">
         
   
@@ -3400,9 +3428,8 @@ group.expression(Procedure_Occurrence.procedure_concept_id)   # SQL
 </code></pre></div>
 <p>Both access paths derive from one spec, so they cannot disagree.  Expansions are
 cached per <em>vocabulary</em>, not per engine, so recreating an engine against the same
-database does not re-run the closure queries — see :mod:<code>.identity</code> for how an
-engine declares which vocabulary it reads, and note that a caller building its
-own engines must register that itself.</p>
+database does not re-run the closure queries. :mod:<code>.identity</code> derives the
+vocabulary from the engine itself.</p>
 <p>Nothing here touches a database at import time: specs are declarative and
 registries build on first request.</p>
 
@@ -3596,9 +3623,7 @@ stays at zero the bound is correct.</p>
 
 <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">ConceptGroupRegistry</span><span class="p">(</span>
-    <span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">max_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_CACHE_BYTES</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span> <span class="n">max_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_CACHE_BYTES</span>
 <span class="p">)</span>
 </code></pre></div>
 
@@ -3615,8 +3640,7 @@ stays at zero the bound is correct.</p>
 
         <p>Lazy registry for governed concept groups, scoped to one vocabulary.</p>
 <p>Obtain one through :func:<code>concept_group_registry</code> rather than constructing
-it directly, so registries are shared per vocabulary identity instead of
-per engine.</p>
+it directly, so registries are shared per vocabulary instead of per engine.</p>
 
 
 
@@ -3638,6 +3662,28 @@ per engine.</p>
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.get" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupRegistry.get" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">get</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ResolvedConceptGroup</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return group <em>name</em>, built on <em>engine</em> on first request.</p>
+<p><em>engine</em> is the caller's vocabulary engine, so a registry shared
+across engines never builds on one a caller has since disposed.</p>
+
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-function">
 
@@ -3876,16 +3922,19 @@ node (ATC, for example) without silently losing it.  Has no effect unless
 <a href="#omop_alchemy.toolkit.core.concepts.ConceptGroupSpec.expression_for" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">expression_for</span><span class="p">(</span>
     <span class="n">column</span><span class="p">:</span> <span class="n">SQLColumnExpression</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>SQL membership for this group, as a subquery over <code>concept_ancestor</code>.</p>
-<p>Available on the spec because the SQL form needs no session: the
-traversal is performed by the database when the query runs.  That is
-what lets a <code>hybrid_property</code> expose the same governed set at class
-level, where no session exists.</p>
+        <p>SQL membership for this group, traversing <code>concept_ancestor</code>.</p>
+<p>Without <em>session</em> the traversal is a subquery performed by the
+database when the query runs, which is what lets a <code>hybrid_property</code>
+expose the set at class level. That form needs <em>column</em> on the
+vocabulary's database. Pass <em>session</em> when it may not be; see
+:func:<code>~.runtime.descendant_membership</code>.</p>
 <p>Deliberately a subquery rather than a literal <code>IN</code> list built from a
 resolved group: a closure of tens of thousands of IDs degrades query
 plans and can exceed driver parameter limits.</p>
@@ -4244,6 +4293,26 @@ ensuring vocab lookups are built once per database.</p>
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h5 id="omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry.get" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.ConceptResolverRegistry.get" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">get</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConceptResolver</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return resolver <em>name</em>, built on this registry's engine on first request.</p>
+
+
+    </div>
+
+</div>
 
 
 
@@ -4987,12 +5056,14 @@ concept IDs: a distinct <code>PyLong</code> each, plus hash-table overhead at a
 <a href="#omop_alchemy.toolkit.core.concepts.ResolvedConceptGroup.expression" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">expression</span><span class="p">(</span>
     <span class="n">column</span><span class="p">:</span> <span class="n">SQLColumnExpression</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>SQL membership for this group — delegates to the spec.</p>
+        <p>SQL membership for this group, delegating to the spec.</p>
 <p>Kept here so a caller holding a resolved group can reach either
 rendering without going back to the spec, but the definition lives in
 one place.</p>
@@ -5304,29 +5375,9 @@ through the cache in <code>registry</code> rather than calling this directly.</p
     <div class="doc doc-contents ">
 
         <p>Drop every cached group expansion, across all vocabularies.</p>
-<p>Per-vocabulary keying means this is rarely needed — moving database gives a
-different identity and therefore a different registry.  It remains an escape
-hatch for a dataset reloaded in place under an unchanged identity.</p>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">clear_vocabulary_identity</span>
-
-
-<a href="#omop_alchemy.toolkit.core.concepts.clear_vocabulary_identity" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">clear_vocabulary_identity</span><span class="p">(</span><span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Forget <code>engine</code>'s registered identity, if it had one.</p>
+<p>Per-vocabulary keying means this is rarely needed: moving database gives a
+different scope and therefore a different registry. It remains an escape
+hatch for a vocabulary reloaded in place.</p>
 
 
     </div>
@@ -5374,13 +5425,10 @@ raising it or splitting the budget by payload kind.</p>
     <div class="doc doc-contents ">
 
         <p>Return the group registry for the vocabulary behind <code>session</code>.</p>
-<p>Registries are keyed on vocabulary identity where one has been registered
-(see :mod:<code>.identity</code>), so recreating an engine against the same dataset
-reuses expansions.  Otherwise they are keyed weakly on the engine, which is
-still built-once-per-engine but is not shared across engines.</p>
-<p>In-memory SQLite intentionally lands in the second case: two such engines
-are separate databases despite identical configuration, so cross-engine
-sharing would serve one database's concept sets for another.</p>
+<p>Registries are keyed on the physical vocabulary (see :mod:<code>.identity</code>),
+so recreating an engine against the same dataset reuses expansions. An
+engine that cannot name its vocabulary, such as in-memory SQLite, is keyed
+weakly on itself instead.</p>
 
 
     </div>
@@ -5406,6 +5454,37 @@ sharing would serve one database's concept sets for another.</p>
     <div class="doc doc-contents ">
 
         <p>Select each descendant ID once for the supplied ancestors.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.concepts.descendant_membership" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">descendant_membership</span>
+
+
+<a href="#omop_alchemy.toolkit.core.concepts.descendant_membership" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">descendant_membership</span><span class="p">(</span>
+    <span class="n">column</span><span class="p">:</span> <span class="n">SQLColumnExpression</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">ancestor_ids</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">require_standard</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">include_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p><em>column</em> is a descendant of one of <em>ancestor_ids</em>.</p>
+<p>Without <em>session</em> this is a <code>concept_ancestor</code> subquery, which needs
+<em>column</em> on the vocabulary's database. With one it goes through
+:func:<code>~omop_alchemy.cross_database.filter_by_keys</code>, so it also works when
+the vocabulary lives on its own database.</p>
 
 
     </div>
@@ -5765,38 +5844,6 @@ to normalisation and lookup</p>
 <div class="doc doc-object doc-function">
 
 
-<h4 id="omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">register_vocabulary_identity</span>
-
-
-<a href="#omop_alchemy.toolkit.core.concepts.register_vocabulary_identity" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">register_vocabulary_identity</span><span class="p">(</span>
-    <span class="n">engine</span><span class="p">:</span> <span class="n">Engine</span><span class="p">,</span> <span class="n">identity</span><span class="p">:</span> <span class="nb">str</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Declare which vocabulary dataset <code>engine</code> reads.</p>
-<p>Concept-set caches keyed on this identity are shared by every engine
-registered under it, so recreating an engine reuses the expansion.</p>
-<p>Pass the engine your factory <em>returns</em>.
-<code>ResolvedCDMDatabase.create_engine</code> ends with
-<code>execution_options(schema_translate_map=...)</code>, which yields a derived
-<code>OptionEngine</code>; that is the object sessions bind to, and the one lookups
-will see.</p>
-<p>Do not register an identity for an ephemeral database — notably in-memory
-SQLite, where two engines built from identical configuration are genuinely
-separate databases.  Those correctly fall back to per-engine caching.</p>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
 <h4 id="omop_alchemy.toolkit.core.concepts.resolve_concept_group" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">resolve_concept_group</span>
 
@@ -5830,12 +5877,16 @@ label.</p>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">runtime_concept_predicate</span><span class="p">(</span>
     <span class="n">column</span><span class="p">:</span> <span class="n">SQLColumnExpression</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
     <span class="n">spec</span><span class="p">:</span> <span class="n">RuntimeConceptSetSpec</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sa</span><span class="o">.</span><span class="n">ColumnElement</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Render runtime concept membership entirely as database predicates.</p>
+        <p>Render runtime concept membership as database predicates.</p>
+<p>Pass <em>session</em> when <em>column</em> may be on another database than the
+vocabulary; see :func:<code>descendant_membership</code>.</p>
 
 
     </div>

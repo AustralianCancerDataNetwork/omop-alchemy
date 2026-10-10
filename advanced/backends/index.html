@@ -79,6 +79,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#backend-compatibility" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -430,6 +435,34 @@
     
   
     Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/common-use-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Use Cases
   
 
     
@@ -2918,6 +2951,26 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backends
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -2935,6 +2988,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-means-in-practice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this means in practice
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -3049,6 +3132,27 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-means-in-practice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this means in practice
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -3116,9 +3220,101 @@
   
 
 
-  <h1>Backends</h1>
-
-
+<h1 id="backend-compatibility">Backend Compatibility<a class="headerlink" href="#backend-compatibility" title="Permanent link">&para;</a></h1>
+<p>Every maintenance operation goes through a <code>Backend</code> (<code>PostgresBackend</code> or
+<code>SQLiteBackend</code>). PostgreSQL implements the full <code>Backend</code> interface.
+SQLite implements only what SQLite itself can do; everything else raises
+<code>FeatureNotSupportedError</code> at call time rather than failing silently or
+producing a partial result.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>PostgreSQL</th>
+<th>SQLite</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Index existence check</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Drop index if exists</td>
+<td>Yes</td>
+<td>Yes (unqualified — no schema concept)</td>
+</tr>
+<tr>
+<td><code>ANALYZE</code></td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>VACUUM ANALYZE</code></td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>FK trigger management / status</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>FK constraint violation counting</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Table clustering (<code>CLUSTER</code>)</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Cluster index inspection</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Functional-index expression normalization</td>
+<td>Yes</td>
+<td>No (SQLite never reflects expression-based indexes)</td>
+</tr>
+<tr>
+<td><code>TRUNCATE ... RESTART IDENTITY / CASCADE</code></td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Sequence lookup / reset</td>
+<td>Yes</td>
+<td>No (SQLite has no sequences)</td>
+</tr>
+<tr>
+<td>Full-text search</td>
+<td>Yes — see <a href="../fulltext/">PostgreSQL Full-Text Search</a></td>
+<td>No</td>
+</tr>
+<tr>
+<td>Database backup / restore</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<h2 id="what-this-means-in-practice">What this means in practice<a class="headerlink" href="#what-this-means-in-practice" title="Permanent link">&para;</a></h2>
+<p>Maintenance CLI commands that rely on a not-supported feature raise
+<code>FeatureNotSupportedError</code> on SQLite rather than doing nothing. In
+particular, against a SQLite database:</p>
+<ul>
+<li><code>indexes cluster</code> and the clustering step of <code>indexes enable</code>
+  are unavailable.</li>
+<li><code>truncate-tables</code> cannot use <code>RESTART IDENTITY</code>/<code>CASCADE</code>.</li>
+<li><code>fulltext install</code> is unavailable entirely.</li>
+<li><code>backup-database</code>/<code>restore-database</code> are unavailable entirely.</li>
+<li>FK trigger toggling and FK violation counting are unavailable.</li>
+</ul>
+<p>SQLite remains fully supported for the core ORM/CDM layer (models, queries, <code>create-missing-tables</code>, schema-drift detection at engine construction). These limitations are specific to the maintenance operations listed above, which assume a PostgreSQL-grade catalog.</p>
 
 
 

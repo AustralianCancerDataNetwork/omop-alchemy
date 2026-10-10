@@ -455,6 +455,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../getting-started/common-use-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../getting-started/maintenance/" class="md-nav__link">
         
   
@@ -3548,7 +3576,7 @@ but allows an explicit “unknown” value (<code>concept_id = 0</code>).</p>
 <li>Must exist</li>
 <li>Unknown allowed (concept_id = 0)</li>
 <li>Matches CDM Field-Level spec</li>
-<li>foreign key to <code>concept.concept_id</code></li>
+<li>foreign key to <code>concept.concept_id</code>, always in the Role.VOCAB schema</li>
 </ul>
 <p>To index this column, add an explicit <code>omop_index(...)</code> to the
 model's <code>__table_args__</code> rather than indexing the column directly —
@@ -3568,6 +3596,7 @@ see <code>omop_alchemy.cdm.base.indexing</code>.</p>
 
         <p><em>optional_concept_fk</em></p>
 <p>Used when a concept reference is genuinely optional.</p>
+<p>foreign key to <code>concept.concept_id</code>, always in the Role.VOCAB schema.</p>
 <p>To index this column, add an explicit <code>omop_index(...)</code> to the
 model's <code>__table_args__</code> rather than indexing the column directly —
 see <code>omop_alchemy.cdm.base.indexing</code>.</p>
@@ -3589,6 +3618,8 @@ see <code>omop_alchemy.cdm.base.indexing</code>.</p>
 
         <p><em>optional_fk</em></p>
 <p>Optional foreign keys to non-concept tables.</p>
+<p>target must already be schema-qualified (see role_fk()) if it points
+into a Role-tagged table.</p>
 <p>To index this column, add an explicit <code>omop_index(...)</code> to the
 model's <code>__table_args__</code> rather than indexing the column directly —
 see <code>omop_alchemy.cdm.base.indexing</code>.</p>

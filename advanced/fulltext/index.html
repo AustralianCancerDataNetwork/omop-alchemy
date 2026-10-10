@@ -455,6 +455,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../getting-started/common-use-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../getting-started/maintenance/" class="md-nav__link">
         
   
@@ -3094,41 +3122,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#two-modes" class="md-nav__link">
+  <a href="#stored-columns" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Two Modes
+        Stored Columns
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Two Modes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-inline-expression-mode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Inline Expression Mode
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-stored-sidecar-mode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Stored Sidecar Mode
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3166,10 +3166,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#metadata-registration" class="md-nav__link">
+  <a href="#orm-boundary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Metadata Registration
+        ORM Boundary
       
     </span>
   </a>
@@ -3330,41 +3330,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#two-modes" class="md-nav__link">
+  <a href="#stored-columns" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Two Modes
+        Stored Columns
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Two Modes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-inline-expression-mode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Inline Expression Mode
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-stored-sidecar-mode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Stored Sidecar Mode
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3402,10 +3374,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#metadata-registration" class="md-nav__link">
+  <a href="#orm-boundary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Metadata Registration
+        ORM Boundary
       
     </span>
   </a>
@@ -3507,8 +3479,7 @@
 <p>This feature is deliberately bolt-on:</p>
 <ul>
 <li>OMOP_Alchemy works without the full-text search feature (i.e. optional)</li>
-<li>the ORM models do not require the extra database columns</li>
-<li>the query helpers can fall back to inline <code>to_tsvector(...)</code> expressions when the sidecar columns are not installed</li>
+<li>the ORM models never carry the extra database columns</li>
 </ul>
 <p>This is useful when you want faster repeated text-search workloads on PostgreSQL, without forcing every environment to carry extra full-text infrastructure.</p>
 <hr />
@@ -3518,18 +3489,15 @@
 <li><code>concept.concept_name</code></li>
 <li><code>concept_synonym.concept_synonym_name</code></li>
 </ul>
-<p>These helpers are methods on the resolved <code>Backend</code> instance:</p>
+<p>The stored column of a target table is looked up on the resolved <code>Backend</code> instance:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.backends</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_backend</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model.vocabulary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Concept</span><span class="p">,</span> <span class="n">Concept_Synonym</span>
 
 <span class="n">backend</span> <span class="o">=</span> <span class="n">resolve_backend</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
-<span class="n">backend</span><span class="o">.</span><span class="n">concept_name_tsvector_expression</span><span class="p">()</span>
-<span class="n">backend</span><span class="o">.</span><span class="n">concept_synonym_name_tsvector_expression</span><span class="p">()</span>
+<span class="n">backend</span><span class="o">.</span><span class="n">fulltext_vector_column</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">Concept</span><span class="o">.</span><span class="n">__table__</span><span class="p">)</span>
+<span class="n">backend</span><span class="o">.</span><span class="n">fulltext_vector_column</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">Concept_Synonym</span><span class="o">.</span><span class="n">__table__</span><span class="p">)</span>
 </code></pre></div>
-<p>These helpers return the best available expression for the configured environment:</p>
-<ul>
-<li>if the optional sidecar <code>tsvector</code> columns are registered in metadata, they return the stored column</li>
-<li>otherwise they fall back to an inline computed PostgreSQL expression using <code>to_tsvector(...)</code></li>
-</ul>
+<p><code>fulltext_vector_column()</code> checks that the column exists in the database behind <code>engine</code> and raises <code>FullTextError</code> otherwise. The returned column is bound to its table, so it is schema-qualified and follows the engine's schema translation, but it is never attached to the ORM table: <code>Concept.__table__</code> is identical in every process, whether or not full-text search is installed anywhere.</p>
 <h3 id="example-postgresql-documentation">Example (PostgreSQL Documentation)<a class="headerlink" href="#example-postgresql-documentation" title="Permanent link">&para;</a></h3>
 <p>A <code>tsvector</code> value is a sorted list of distinct lexemes (normalised word forms). Sorting and duplicate elimination are applied automatically during input.</p>
 <div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="s1">&#39;a fat cat sat on a mat and ate a fat rat&#39;</span><span class="p">::</span><span class="n">tsvector</span><span class="p">;</span>
@@ -3543,19 +3511,12 @@
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>install
 omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 </code></pre></div>
-<p>If your running Python process should use the stored sidecar columns through ORM metadata, register them once at startup:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.backends</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_backend</span>
-
-<span class="n">backend</span> <span class="o">=</span> <span class="n">resolve_backend</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
-<span class="n">backend</span><span class="o">.</span><span class="n">register_fulltext_metadata</span><span class="p">()</span>
-</code></pre></div>
 <p>That is enough to activate the feature. The rest of this page explains when to use it and how to operate it safely.</p>
 <h2 id="when-to-use-it">When To Use It<a class="headerlink" href="#when-to-use-it" title="Permanent link">&para;</a></h2>
 <p>Use the optional full-text feature when:</p>
 <ul>
 <li>you are on PostgreSQL</li>
 <li>you run repeated vocabulary-name or synonym-name search workloads</li>
-<li>inline <code>to_tsvector(...)</code> search is becoming a bottleneck</li>
 </ul>
 <p>Skip it when:</p>
 <ul>
@@ -3572,44 +3533,11 @@ omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 <li>explicit backfill / refresh work</li>
 <li>PostgreSQL-specific behavior</li>
 </ul>
-<p>Many users only need occasional text matching and are perfectly fine with inline search expressions. Others want fast repeated full-text lookups across large vocabularies and are happy to manage the extra schema objects.</p>
+<p>Many users only need occasional text matching. Others want fast repeated full-text lookups across large vocabularies and are happy to manage the extra schema objects.</p>
 <p>OMOP Alchemy therefore treats full-text sidecars as an <strong>optional PostgreSQL enhancement</strong>, not as part of the core required OMOP schema.</p>
 <hr />
-<h2 id="two-modes">Two Modes<a class="headerlink" href="#two-modes" title="Permanent link">&para;</a></h2>
-<h3 id="1-inline-expression-mode">1. Inline Expression Mode<a class="headerlink" href="#1-inline-expression-mode" title="Permanent link">&para;</a></h3>
-<p>This requires no schema changes.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sa</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Session</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.backends</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_backend</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model.vocabulary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Concept</span>
-
-<span class="n">backend</span> <span class="o">=</span> <span class="n">resolve_backend</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
-<span class="n">query</span> <span class="o">=</span> <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">plainto_tsquery</span><span class="p">(</span><span class="s2">&quot;english&quot;</span><span class="p">,</span> <span class="s2">&quot;edoxaban&quot;</span><span class="p">)</span>
-
-<span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
-    <span class="n">rows</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Concept</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">backend</span><span class="o">.</span><span class="n">concept_name_tsvector_expression</span><span class="p">()</span> <span class="o">==</span> <span class="n">query</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">all</span><span class="p">()</span>
-    <span class="p">)</span>
-</code></pre></div>
-<p>In practice you will often want the PostgreSQL full-text match operator rather than equality:</p>
-<div class="highlight"><pre><span></span><code><span class="n">vector</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">concept_name_tsvector_expression</span><span class="p">()</span>
-<span class="n">query</span> <span class="o">=</span> <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">plainto_tsquery</span><span class="p">(</span><span class="s2">&quot;english&quot;</span><span class="p">,</span> <span class="s2">&quot;edoxaban&quot;</span><span class="p">)</span>
-
-<span class="n">stmt</span> <span class="o">=</span> <span class="n">sa</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Concept</span><span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">vector</span><span class="o">.</span><span class="n">op</span><span class="p">(</span><span class="s2">&quot;@@&quot;</span><span class="p">)(</span><span class="n">query</span><span class="p">))</span>
-</code></pre></div>
-<p>This mode is simple and portable at the library level, but PostgreSQL must compute the vector expression at query time unless the planner can otherwise optimize it.</p>
-<h3 id="2-stored-sidecar-mode">2. Stored Sidecar Mode<a class="headerlink" href="#2-stored-sidecar-mode" title="Permanent link">&para;</a></h3>
-<p>This mode adds real <code>tsvector</code> columns to the database and optionally GIN indexes.</p>
-<p>Once installed and registered, the helper functions point at the stored columns instead of recomputing vectors inline.</p>
-<p>This is the mode you want when:</p>
-<ul>
-<li>you run frequent vocabulary search queries</li>
-<li>you care about PostgreSQL full-text query performance</li>
-<li>you are comfortable managing the sidecar lifecycle</li>
-</ul>
+<h2 id="stored-columns">Stored Columns<a class="headerlink" href="#stored-columns" title="Permanent link">&para;</a></h2>
+<p>Full-text search uses real <code>tsvector</code> columns in the database, with optional GIN indexes. <code>backend.fulltext_vector_column()</code> returns the stored column; it raises <code>FullTextError</code> when the column is not installed.</p>
 <hr />
 <h2 id="lifecycle">Lifecycle<a class="headerlink" href="#lifecycle" title="Permanent link">&para;</a></h2>
 <p>The maintenance CLI manages the full-text sidecars through:</p>
@@ -3647,7 +3575,7 @@ omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 <span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model.vocabulary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Concept</span>
 
 <span class="n">backend</span> <span class="o">=</span> <span class="n">resolve_backend</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
-<span class="n">vector</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">concept_name_tsvector_expression</span><span class="p">()</span>
+<span class="n">vector</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">fulltext_vector_column</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">Concept</span><span class="o">.</span><span class="n">__table__</span><span class="p">)</span>
 <span class="n">query</span> <span class="o">=</span> <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">plainto_tsquery</span><span class="p">(</span><span class="s2">&quot;english&quot;</span><span class="p">,</span> <span class="s2">&quot;direct oral anticoagulant&quot;</span><span class="p">)</span>
 
 <span class="n">stmt</span> <span class="o">=</span> <span class="p">(</span>
@@ -3664,19 +3592,10 @@ omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 <span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
     <span class="n">rows</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">stmt</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 </code></pre></div>
-<p>The same idea applies to <code>backend.concept_synonym_name_tsvector_expression()</code>.</p>
+<p>The same applies to <code>Concept_Synonym.__table__</code>.</p>
 <hr />
-<h2 id="metadata-registration">Metadata Registration<a class="headerlink" href="#metadata-registration" title="Permanent link">&para;</a></h2>
-<p>If your process will use the stored sidecar columns directly, register them into the ORM metadata:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.backends</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_backend</span>
-
-<span class="n">backend</span> <span class="o">=</span> <span class="n">resolve_backend</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
-<span class="n">backend</span><span class="o">.</span><span class="n">register_fulltext_metadata</span><span class="p">()</span>
-</code></pre></div>
-<p>If you later remove the columns from the database in the same process and want query helpers to fall back cleanly again:</p>
-<div class="highlight"><pre><span></span><code><span class="n">backend</span><span class="o">.</span><span class="n">unregister_fulltext_metadata</span><span class="p">()</span>
-</code></pre></div>
-<p>This only affects SQLAlchemy metadata in the current Python process. It does not alter the database by itself.</p>
+<h2 id="orm-boundary">ORM Boundary<a class="headerlink" href="#orm-boundary" title="Permanent link">&para;</a></h2>
+<p>The stored column is usable in <code>WHERE</code> and <code>ORDER BY</code> expressions only. The ORM does not know it: <code>Concept</code> has no <code>concept_name_tsvector</code> attribute, and loading <code>Concept</code> entities never selects it. Installing full-text search in one database therefore never affects loads into another database or schema in the same process.</p>
 <hr />
 <h2 id="postgresql-scope">PostgreSQL Scope<a class="headerlink" href="#postgresql-scope" title="Permanent link">&para;</a></h2>
 <p>This feature is PostgreSQL-specific in its database form because it relies on:</p>
@@ -3685,7 +3604,7 @@ omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 <li>PostgreSQL full-text query functions such as <code>to_tsvector</code> and <code>plainto_tsquery</code></li>
 <li>optional GIN indexes</li>
 </ul>
-<p>The helper expressions can still be imported safely, but the sidecar install / populate / drop lifecycle is only meaningful on PostgreSQL.</p>
+<p>On other backends <code>fulltext_vector_column()</code> raises <code>FeatureNotSupportedError</code>, and the sidecar install / populate / drop lifecycle is only meaningful on PostgreSQL.</p>
 <hr />
 <h2 id="operational-notes">Operational Notes:<a class="headerlink" href="#operational-notes" title="Permanent link">&para;</a></h2>
 <ul>

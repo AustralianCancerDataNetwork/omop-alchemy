@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://AustralianCancerDataNetwork.github.io/OMOP_Alchemy/getting-started/maintenance/">
       
       
-        <link rel="prev" href="../quickstart/">
+        <link rel="prev" href="../common-use-cases/">
       
       
         <link rel="next" href="../../cli/">
@@ -435,6 +435,34 @@
     
   
     Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../common-use-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Use Cases
   
 
     
@@ -3544,7 +3572,7 @@
 <tr>
 <td><code>load-vocab-source</code></td>
 <td>No (PostgreSQL + SQLite)</td>
-<td>Uses ORM CSV loader; <code>--bulk-mode</code> and <code>--db-schema</code> are PostgreSQL-only</td>
+<td>Uses ORM CSV loader; <code>--bulk-mode</code> is PostgreSQL-only</td>
 </tr>
 <tr>
 <td><code>indexes</code></td>
@@ -3791,6 +3819,14 @@ omop-alchemy<span class="w"> </span>reset-sequences<span class="w"> </span>--voc
 </code></pre></div>
 <p><code>reset-sequences</code> sets each owned sequence to <code>MAX(pk) + 1</code>. It reports every table it touches and the old/new sequence positions.</p>
 <hr />
+<div class="admonition note">
+<p class="admonition-title">Schema-drift protection</p>
+<p><code>fulltext install</code>, <code>indexes enable</code>/<code>disable</code>/<code>cluster</code>, <code>truncate-tables</code>, and
+vocabulary-table creation each guard their DDL against the configured schema having
+silently drifted since it was last recorded, and raise <code>SchemaDriftError</code> if it has.
+See <a href="#schema-drift">Schema drift</a> below for the remediation path
+(<code>omop-config acknowledge-schema-migration</code>).</p>
+</div>
 <h2 id="command-reference">Command reference<a class="headerlink" href="#command-reference" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -3891,6 +3927,12 @@ omop-alchemy<span class="w"> </span>reset-sequences<span class="w"> </span>--voc
 <td>Recreate ORM-defined secondary indexes</td>
 <td><code>--vocab</code>, <code>--dry-run</code></td>
 <td>All (cluster on PostgreSQL)</td>
+</tr>
+<tr>
+<td><code>indexes cluster</code></td>
+<td>Physically rewrite tables sorted by their cluster index</td>
+<td><code>--vocab</code>, <code>--dry-run</code></td>
+<td>PostgreSQL</td>
 </tr>
 <tr>
 <td><code>fulltext install</code></td>

@@ -470,6 +470,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cdm-table-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CDM table roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#vocabulary-loading" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -537,6 +548,34 @@
     
   
     Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../common-use-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Use Cases
   
 
     
@@ -3169,6 +3208,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cdm-table-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CDM table roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#vocabulary-loading" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3300,14 +3350,41 @@
 <span class="n">test_only</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 
 <span class="k">[databases.cdm_db]</span>
-<span class="n">kind</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cdm&quot;</span>
-<span class="n">connection</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cdm&quot;</span>
-<span class="n">schema_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;omop&quot;</span>
+<span class="n">kind</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cdm&quot;</span>
+<span class="n">connection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cdm&quot;</span>
+<span class="n">cdm_schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;omop&quot;</span>
 
 <span class="k">[tools.omop_alchemy]</span>
 <span class="n">cdm_db</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cdm_db&quot;</span>
 </code></pre></div>
 <p>You can also write or edit this file manually. It follows the <code>oa-configurator</code> pattern of [physical]-&gt;[logical] resource definition, where one connection may serve multiple databases, and each application may define its own database resource, or choose to cross reference an existing one that will be resolved upon connection in the consuming application.</p>
+<h2 id="cdm-table-roles">CDM table roles<a class="headerlink" href="#cdm-table-roles" title="Permanent link">&para;</a></h2>
+<p>OMOP_Alchemy tags every table with a logical role, matching the <a href="https://ohdsi.github.io/CommonDataModel/cdm54.html">OMOP CDM v5.4</a>
+categories:</p>
+<ul>
+<li><strong>Clinical/derived tables</strong> (<code>Role.PRIMARY</code>):<ul>
+<li>All other tables not captured by the configurations below</li>
+<li>Controlled by <code>cdm_schema</code> in the configuration.</li>
+</ul>
+</li>
+<li><strong>Vocabulary tables</strong> (<code>Role.VOCAB</code>):<ul>
+<li><code>concept</code>, <code>concept_ancestor</code>, <code>concept_class</code>, <code>concept_relationship</code>, <code>concept_synonym</code>, <code>domain</code>, <code>drug_strength</code>, <code>relationship</code>, <code>source_to_concept_map</code>, <code>vocabulary</code></li>
+<li>Controlled by <code>vocab_schema</code> in the configuration.</li>
+</ul>
+</li>
+<li><strong>Results/analytics tables</strong> (<code>Role.RESULTS</code>):<ul>
+<li><code>cohort</code>, <code>cohort_definition</code></li>
+<li>Controlled by <code>results_schema</code> in the configuration.</li>
+</ul>
+</li>
+</ul>
+<p><img alt="OMOP CDM v5.4" src="https://ohdsi.github.io/CommonDataModel/man/images/cdm55.png" /></p>
+<p>Each role folds back to <code>cdm_schema</code> when its own field is unset, so a minimal config needs no extra fields. 
+Setting <code>vocab_schema</code>/<code>results_schema</code> routes just that role's tables elsewhere. See <a href="https://AustralianCancerDataNetwork.github.io/oa-configurator/architecture/#schema-translate-map">oa_configurator's schema translate map guide</a> for how the routing itself works, and <a href="../common-use-cases/">Common Use Cases</a> for worked examples of splitting these onto different schemas or servers.</p>
+<div class="admonition info">
+<p class="admonition-title">Misconfiguration prevention</p>
+<p>Misconfiguring which schema a role points at doesn't corrupt data. <a href="https://AustralianCancerDataNetwork.github.io/oa-configurator/architecture/#schema-provenance-guard"><code>oa-configurator</code>'s schema provenance guard</a> refuses the DDL.</p>
+</div>
 <h2 id="vocabulary-loading">Vocabulary loading<a class="headerlink" href="#vocabulary-loading" title="Permanent link">&para;</a></h2>
 <p>If you plan to load OMOP vocabulary from Athena CSV files, add the path to <code>[tools.omop_alchemy]</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[tools.omop_alchemy]</span>
@@ -3329,6 +3406,7 @@ omop-config<span class="w"> </span>configure<span class="w"> </span>omop_alchemy
 <p>See the <a href="https://AustralianCancerDataNetwork.github.io/oa-configurator/integration/#multiple-environments">oa-configurator integration guide</a> for the full multi-environment guide.</p>
 <h2 id="further-reading">Further reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
 <ul>
+<li><a href="../common-use-cases/">Common Use Cases</a>: worked examples for vocab/results schema splits, a separate vocabulary server, and migrating an existing deployment's schema layout</li>
 <li><a href="https://AustralianCancerDataNetwork.github.io/oa-configurator/quickstart/">oa_configurator quickstart</a>: full config reference, CLI walkthrough</li>
 <li><a href="https://AustralianCancerDataNetwork.github.io/oa-configurator/integration/">oa_configurator integration guide</a>: multi-package setups</li>
 </ul>
