@@ -224,7 +224,7 @@ def merge_table_args(*parts: TableArg) -> tuple[TableArg, ...]:
             return
 
         if isinstance(part, tuple):
-            for item in part:
+            for item in cast(tuple[TableArg, ...], part):
                 consume(item)
             return
 
