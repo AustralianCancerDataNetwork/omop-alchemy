@@ -18,6 +18,7 @@ from oa_configurator import (
     claimed_schema_tags,
     declared_schema_tags,
     physical_schema_of,
+    qualified,
 )
 from orm_loader.backends import STAGING_SCHEMA, resolve_backend
 from orm_loader.helpers import create_tables
@@ -470,10 +471,8 @@ def load_vocab_source(
                             # Schema-qualified explicitly so this targets the CDM table
                             # regardless of search_path ordering -- vocab_schema, since
                             # this session and the table itself both live on vocab_engine.
-                            table_ref = (
-                                f'"{vocab_schema}"."{model.__tablename__}"'
-                                if vocab_schema
-                                else f'"{model.__tablename__}"'
+                            table_ref = qualified(
+                                session, model.__tablename__, physical_schema=vocab_schema
                             )
                             session.execute(sa.text(f"TRUNCATE TABLE {table_ref}"))
                             session.commit()
@@ -525,6 +524,10 @@ def load_vocab_source(
                 table_count=table_count,
             )
     finally:
+        if not dry_run:
+            from omop_alchemy.toolkit.core.concepts import clear_concept_group_cache
+
+            clear_concept_group_cache()
         if _use_bulk_mode:
             _emit(
                 progress_callback,

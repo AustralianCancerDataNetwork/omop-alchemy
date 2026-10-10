@@ -24,10 +24,14 @@ def _resolved_cdm_database(
         dialect="sqlite",
         database_name=primary_database,
     ).resolve("primary")
-    vocab = ConnectionConfig(
-        dialect="sqlite",
-        database_name=vocab_database or primary_database,
-    ).resolve("vocab")
+    vocab = (
+        primary
+        if vocab_database is None
+        else ConnectionConfig(
+            dialect="sqlite",
+            database_name=vocab_database,
+        ).resolve("vocab")
+    )
     return ResolvedCDMDatabase(
         name="cdm_db",
         connection=primary,
@@ -43,6 +47,18 @@ def test_create_cdm_engines_supports_sqlite():
     primary, vocab = create_cdm_engines(resolved)
     assert vocab is primary
     primary.dispose()
+
+
+def test_create_cdm_engines_keeps_distinct_in_memory_connections_separate():
+    resolved = _resolved_cdm_database(
+        primary_database=":memory:", vocab_database=":memory:"
+    )
+    primary, vocab = create_cdm_engines(resolved)
+    try:
+        assert primary is not vocab
+    finally:
+        primary.dispose()
+        vocab.dispose()
 
 
 def test_get_cdm_context_resolves_the_typed_database_field(monkeypatch) -> None:
@@ -87,6 +103,14 @@ def test_cache_scope_for_a_split_vocabulary_is_the_vocabulary_database(tmp_path)
     )
 
     assert _scope(resolved) == f":/{vocab_database}|"
+
+
+def test_cache_scope_resolves_relative_sqlite_paths(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    first = _resolved_cdm_database(primary_database="./vocab.db")
+    second = _resolved_cdm_database(primary_database="vocab.db")
+
+    assert _scope(first) == _scope(second)
 
 
 def test_primaries_sharing_one_vocabulary_share_a_scope(tmp_path) -> None:

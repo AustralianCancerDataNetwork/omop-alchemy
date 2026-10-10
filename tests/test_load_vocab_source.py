@@ -115,6 +115,32 @@ def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
     assert inspector.has_table("concept")
 
 
+def test_load_vocab_source_clears_concept_group_cache(
+    fresh_engine, fresh_resolved, monkeypatch, tmp_path
+):
+    cleared = False
+
+    def clear_cache():
+        nonlocal cleared
+        cleared = True
+
+    monkeypatch.setattr(
+        "omop_alchemy.toolkit.core.concepts.clear_concept_group_cache",
+        clear_cache,
+    )
+    load_vocab_source(
+        MaintenanceContext(
+            resolved=fresh_resolved,
+            engine=fresh_engine,
+            vocab_engine=fresh_engine,
+        ),
+        source_path=_build_required_athena_source(tmp_path),
+        bulk_mode=False,
+    )
+
+    assert cleared
+
+
 def test_load_vocab_source_requires_full_required_athena_fixture(fresh_engine, fresh_resolved, tmp_path):
     """Test load vocab source requires full required athena fixture."""
     engine = fresh_engine

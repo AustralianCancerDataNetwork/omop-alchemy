@@ -10,7 +10,12 @@ import subprocess
 
 import sqlalchemy as sa
 import typer
-from oa_configurator import ResolvedCDMDatabase
+from oa_configurator import (
+    SCHEMA_REGISTRY_SCHEMA,
+    ResolvedCDMDatabase,
+    SchemaDriftError,
+    ensure_schema,
+)
 
 from ..backends import (
     resolve_backend, 
@@ -24,6 +29,7 @@ from ._cli_utils import (
     omop_command
 )
 from .context import MaintenanceContext
+from ..config import MAINTENANCE_SCHEMA
 from .ui import (
     console,
     render_backup_result,
@@ -91,6 +97,8 @@ def _single_connection_backup(
     resolved_output_path = resolved_output_path.expanduser().resolve()
     with engine.connect() as connection:
         schemas = sorted(resolved.occupied_schemas(connection))
+    if engine.dialect.name == "postgresql":
+        schemas = sorted({*schemas, MAINTENANCE_SCHEMA, SCHEMA_REGISTRY_SCHEMA})
 
     tool_path, command, env, database_name = backend.prepare_backup(
         engine,
@@ -127,6 +135,49 @@ def _single_connection_backup(
     )
 
 
+def _ensure_custom_restore_schemas(engine: sa.Engine, schemas: list[str]) -> None:
+    """Create target schemas before a custom-format PostgreSQL restore."""
+    with engine.begin() as connection:
+        for schema in schemas:
+            ensure_schema(connection, schema)
+
+
+def _require_empty_plain_restore_target(engine: sa.Engine, schemas: list[str]) -> None:
+    """Reject plain PostgreSQL restores when a dumped schema already exists."""
+    collisions = sorted(set(sa.inspect(engine).get_schema_names()).intersection(schemas))
+    if collisions:
+        raise RuntimeError(
+            "Plain-format restore needs an empty target; these dumped schemas "
+            f"already exist: {', '.join(collisions)}. Drop those schemas or use custom format."
+        )
+
+
+def _execute_restore(
+    engine: sa.Engine,
+    schemas: list[str],
+    backup_format: BackupFormat,
+    prepared_restore: tuple[str, list[str], dict[str, str], str],
+) -> None:
+    """Run a restore after applying format-specific target preparation."""
+    tool_path, command, env, _database_name = prepared_restore
+    if backup_format is BackupFormat.PLAIN and engine.dialect.name == "postgresql":
+        _require_empty_plain_restore_target(engine, schemas)
+    elif backup_format is BackupFormat.CUSTOM:
+        _ensure_custom_restore_schemas(engine, schemas)
+    try:
+        subprocess.run(command, env=env, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").strip()
+        raise RuntimeError(
+            "Database restore failed." + (f" {stderr}" if stderr else "")
+        ) from exc
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            f"Restore executable not found at {tool_path!r}. "
+            "It may have been removed from PATH after being resolved."
+        ) from exc
+
+
 def _single_connection_restore(
     engine: sa.Engine,
     resolved: ResolvedCDMDatabase,
@@ -144,6 +195,8 @@ def _single_connection_restore(
         raise RuntimeError(f"Backup artifact not found: {resolved_input_path}")
     with engine.connect() as connection:
         schemas = sorted(resolved.occupied_schemas(connection))
+    if engine.dialect.name == "postgresql":
+        schemas = sorted({*schemas, MAINTENANCE_SCHEMA, SCHEMA_REGISTRY_SCHEMA})
 
     tool_path, command, env, database_name = backend.prepare_restore(
         engine,
@@ -153,18 +206,7 @@ def _single_connection_restore(
     )
 
     if not dry_run:
-        try:
-            subprocess.run(command, env=env, check=True, capture_output=True, text=True)
-        except subprocess.CalledProcessError as exc:
-            stderr = (exc.stderr or "").strip()
-            raise RuntimeError(
-                "Database restore failed." + (f" {stderr}" if stderr else "")
-            ) from exc
-        except FileNotFoundError as exc:
-            raise RuntimeError(
-                f"Restore executable not found at {tool_path!r}. "
-                "It may have been removed from PATH after being resolved."
-            ) from exc
+        _execute_restore(engine, schemas, backup_format, (tool_path, command, env, database_name))
 
     return BackupResult(
         file_path=str(resolved_input_path),
@@ -225,6 +267,33 @@ def create_database_backup(
     return results
 
 
+def _register_restored_schemas(context: MaintenanceContext, input_path: str | Path) -> None:
+    """Register restored claims or explain how to baseline an older backup."""
+    from ..config import create_cdm_engines
+
+    try:
+        primary, vocab = create_cdm_engines(context.resolved, register_claims=True)
+    except SchemaDriftError as exc:
+        error_text = str(exc).lower()
+        missing_baseline = any(
+            marker in error_text
+            for marker in (
+                "no schema-registry baseline",
+                "no schema-registry record exists",
+            )
+        )
+        if not missing_baseline:
+            raise
+        database_name = context.resource_name or context.resolved.name
+        raise RuntimeError(
+            "Restore complete, but this backup has no schema-registry baseline. "
+            f'Run: omop-config acknowledge-schema-migration --database {database_name} '
+            f'--reason "restored from {Path(input_path).expanduser().resolve()}"'
+        ) from exc
+    for engine in {primary, vocab}:
+        engine.dispose()
+
+
 def restore_database_backup(
     context: MaintenanceContext,
     *,
@@ -273,6 +342,9 @@ def restore_database_backup(
             )
         )
 
+    if not dry_run:
+        _register_restored_schemas(context, input_path)
+
     return results
 
 
@@ -318,7 +390,7 @@ def backup_database_command(
 
 
 @app.command("restore-database")
-@omop_command("restore-database", dry_run=True)
+@omop_command("restore-database", dry_run=True, writes=False)
 def restore_database_command(
     conn: MaintenanceContext,
     input_path: str = typer.Argument(help="Path to the backup artifact (.dump or .sql) to restore."),

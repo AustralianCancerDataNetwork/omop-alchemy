@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections import OrderedDict
 from dataclasses import dataclass
+from threading import RLock
 from typing import Callable, Generic, Protocol, TypeVar
 from weakref import WeakKeyDictionary
 
@@ -75,14 +76,20 @@ class _LazyBoundedRegistry(Generic[T]):
         self._builders: dict[str, Callable[[so.Session], T]] = {}
         self._evicted: set[str] = set()
         self.stats = CacheStats()
+        self._lock = RLock()
 
     def register(self, name: str, builder: Callable[[so.Session], T]) -> None:
         """Record how to build ``name``, without building it."""
-        if name in self._builders:
-            raise KeyError(f"Resolver '{name}' is already registered")
-        self._builders[name] = builder
+        with self._lock:
+            if name in self._builders:
+                raise KeyError(f"Resolver '{name}' is already registered")
+            self._builders[name] = builder
 
     def _get(self, name: str, engine: sa.Engine) -> T:
+        with self._lock:
+            return self._get_locked(name, engine)
+
+    def _get_locked(self, name: str, engine: sa.Engine) -> T:
         """Return ``name``, building and caching it on first request.
 
         Builds in a **new** session on *engine* rather than in a
@@ -143,9 +150,10 @@ class _LazyBoundedRegistry(Generic[T]):
             )
 
     def clear(self) -> None:
-        self._cache.clear()
-        self._evicted.clear()
-        self.stats = CacheStats()
+        with self._lock:
+            self._cache.clear()
+            self._evicted.clear()
+            self.stats = CacheStats()
 
     def __contains__(self, name: str) -> bool:
         return name in self._builders
@@ -181,9 +189,10 @@ class ConceptGroupRegistry(_LazyBoundedRegistry[ResolvedConceptGroup]):
 
     def register_spec(self, spec: ConceptGroupSpec) -> None:
         """Register ``spec`` under its governed name, if not already present."""
-        if spec.name in self._builders:
-            return
-        self.register(spec.name, lambda session: build_concept_group(session, spec))
+        with self._lock:
+            if spec.name in self._builders:
+                return
+            self.register(spec.name, lambda session: build_concept_group(session, spec))
 
     def get(self, name: str, *, engine: sa.Engine) -> ResolvedConceptGroup:
         """Return group *name*, built on *engine* on first request.
@@ -196,6 +205,7 @@ class ConceptGroupRegistry(_LazyBoundedRegistry[ResolvedConceptGroup]):
 
 _BY_IDENTITY: dict[str, ConceptGroupRegistry] = {}
 _BY_ENGINE: "WeakKeyDictionary[sa.Engine, ConceptGroupRegistry]" = WeakKeyDictionary()
+_REGISTRIES_LOCK = RLock()
 
 
 def concept_group_registry(session: so.Session) -> ConceptGroupRegistry:
@@ -207,18 +217,19 @@ def concept_group_registry(session: so.Session) -> ConceptGroupRegistry:
     weakly on itself instead.
     """
     scope = cache_scope(session)
-    if isinstance(scope, str):
-        registry = _BY_IDENTITY.get(scope)
+    with _REGISTRIES_LOCK:
+        if isinstance(scope, str):
+            registry = _BY_IDENTITY.get(scope)
+            if registry is None:
+                registry = ConceptGroupRegistry()
+                _BY_IDENTITY[scope] = registry
+            return registry
+
+        registry = _BY_ENGINE.get(scope)
         if registry is None:
             registry = ConceptGroupRegistry()
-            _BY_IDENTITY[scope] = registry
+            _BY_ENGINE[scope] = registry
         return registry
-
-    registry = _BY_ENGINE.get(scope)
-    if registry is None:
-        registry = ConceptGroupRegistry()
-        _BY_ENGINE[scope] = registry
-    return registry
 
 
 def resolve_concept_group(
@@ -243,12 +254,13 @@ def clear_concept_group_cache() -> None:
     different scope and therefore a different registry. It remains an escape
     hatch for a vocabulary reloaded in place.
     """
-    for registry in _BY_IDENTITY.values():
-        registry.clear()
-    for registry in _BY_ENGINE.values():
-        registry.clear()
-    _BY_IDENTITY.clear()
-    _BY_ENGINE.clear()
+    with _REGISTRIES_LOCK:
+        for registry in _BY_IDENTITY.values():
+            registry.clear()
+        for registry in _BY_ENGINE.values():
+            registry.clear()
+        _BY_IDENTITY.clear()
+        _BY_ENGINE.clear()
 
 
 def concept_group_cache_stats() -> dict[str | int, dict[str, int]]:
@@ -258,10 +270,11 @@ def concept_group_cache_stats() -> dict[str | int, dict[str, int]]:
     holding, and if it climbs the per-scope byte totals are the evidence for
     raising it or splitting the budget by payload kind.
     """
-    stats: dict[str | int, dict[str, int]] = {
-        identity: registry.stats.as_dict()
-        for identity, registry in _BY_IDENTITY.items()
-    }
-    for engine, registry in _BY_ENGINE.items():
-        stats[id(engine)] = registry.stats.as_dict()
-    return stats
+    with _REGISTRIES_LOCK:
+        stats: dict[str | int, dict[str, int]] = {
+            identity: registry.stats.as_dict()
+            for identity, registry in _BY_IDENTITY.items()
+        }
+        for engine, registry in _BY_ENGINE.items():
+            stats[id(engine)] = registry.stats.as_dict()
+        return stats

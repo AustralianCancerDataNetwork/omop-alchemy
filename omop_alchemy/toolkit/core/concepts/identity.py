@@ -12,6 +12,7 @@ or an engine with no ``vocab`` entry in its translate map.
 
 from __future__ import annotations
 
+from pathlib import Path
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role, UnregisteredSchemaTagError, connection_key, is_ephemeral_url, physical_schema_of
@@ -41,4 +42,7 @@ def cache_scope(session: so.Session) -> str | sa.Engine:
         schema = physical_schema_of(engine, schema_tag=Role.VOCAB.value)
     except UnregisteredSchemaTagError:
         return engine
-    return f"{connection_key(engine.url)}|{schema or ''}"
+    url = engine.url
+    if url.get_backend_name() == "sqlite" and url.database and not url.database.startswith(("/", ":")):
+        url = url.set(database=str(Path(url.database).expanduser().resolve()))
+    return f"{connection_key(url)}|{schema or ''}"

@@ -485,6 +485,50 @@ class SplitCDM(NamedTuple):
     vocab: sa.Engine
 
 
+class SplitSQLite(NamedTuple):
+    """Two-file SQLite CDM fixture with a maintenance context."""
+
+    resolved: ResolvedCDMDatabase
+    primary: sa.Engine
+    vocab: sa.Engine
+    context: MaintenanceContext
+
+
+@pytest.fixture
+def sqlite_split(tmp_path) -> Iterator[SplitSQLite]:
+    """Create primary.db and vocab.db through the normal resolver path."""
+    from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Resolver, StackConfig
+
+    from omop_alchemy.config import create_cdm_engines
+
+    connections = {
+        "primary": ConnectionConfig(
+            dialect="sqlite", database_name=str(tmp_path / "primary.db")
+        ),
+        "vocab": ConnectionConfig(
+            dialect="sqlite", database_name=str(tmp_path / "vocab.db")
+        ),
+    }
+    stack = StackConfig.for_session(
+        connections=connections,
+        databases={
+            "split_cdm": CDMDatabaseConfig(
+                connection="primary",
+                vocab_connection="vocab",
+            )
+        },
+    )
+    resolved = Resolver(stack).resolve_database("split_cdm")
+    assert isinstance(resolved, ResolvedCDMDatabase)
+    primary, vocab = create_cdm_engines(resolved)
+    context = MaintenanceContext(resolved=resolved, engine=primary, vocab_engine=vocab)
+    try:
+        yield SplitSQLite(resolved, primary, vocab, context)
+    finally:
+        primary.dispose()
+        vocab.dispose()
+
+
 @pytest.fixture
 def pg_split(pg_db, tmp_path) -> Iterator[SplitCDM]:
     """Primary and vocabulary on two fresh PostgreSQL databases, every CDM

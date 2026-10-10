@@ -25,8 +25,23 @@ jobs:
     uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-postgres-v2.yml@main
     with:
       ty-src: omop_alchemy
+      postgres-image: postgres:17
       postgres-db: omop_alchemy_ci
       setup-commands: |
+        sudo apt-get update
+        sudo apt-get install -y curl ca-certificates
+        sudo install -d /usr/share/postgresql-common/pgdg
+        sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        echo "Types: deb
+        URIs: https://apt.postgresql.org/pub/repos/apt
+        Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")-pgdg
+        Architectures: $(dpkg --print-architecture)
+        Components: main
+        Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc" | sudo tee /etc/apt/sources.list.d/pgdg.sources
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client-17
+        echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+        pg_dump --version
         uv run omop-config connections add ci_pg \
           --dialect postgresql+psycopg \
           --host localhost \

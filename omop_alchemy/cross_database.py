@@ -71,11 +71,13 @@ class CDMSession(so.Session):
         Raises
         ------
         sqlalchemy.exc.UnboundExecutionError
-            If neither names a schema-tagged table, e.g. raw ``text()`` or a
-            bare ``session.connection()``, since no engine can be chosen.
+            If neither names a schema-tagged table and the roles use separate
+            engines, since no engine can be chosen.
         """
         if bind is not None:
             return bind
+        if self._primary is self._vocab:
+            return self._primary
         tags = sorted(statement_schema_tags(clause)) if clause is not None else []
         if not tags and mapper is not None:
             tags = sorted(
@@ -84,12 +86,18 @@ class CDMSession(so.Session):
         if not tags:
             raise sa_exc.UnboundExecutionError(
                 "This session binds each table to the engine hosting it, and this "
-                "statement names no schema-tagged table. Name one, e.g. "
-                "session.connection(bind_arguments={'mapper': Concept}), or run raw "
-                "SQL on the engine you mean."
+                "statement names no schema-tagged table. On split databases, pass "
+                "a mapper or tagged clause, or run raw SQL on the engine you mean."
             )
+        role_tags = {tag for tag in tags if tag in (Role.PRIMARY.value, Role.VOCAB.value)}
+        if Role.VOCAB.value in role_tags:
+            selected_tag = Role.VOCAB.value
+        elif Role.PRIMARY.value in role_tags:
+            selected_tag = Role.PRIMARY.value
+        else:
+            selected_tag = tags[0]
         return self._resolved.route_for_schema_tag(
-            tags[0], vocab=self._vocab, primary=self._primary
+            selected_tag, vocab=self._vocab, primary=self._primary
         )
 
 

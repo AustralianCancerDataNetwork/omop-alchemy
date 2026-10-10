@@ -96,7 +96,7 @@ Rule of thumb: are you working with rows or with tables?
 | You are... | Use | Example |
 |---|---|---|
 | Reading or writing rows of mapped classes | a session from `cdm_sessionmaker()` | `session.scalars(select(Concept).where(...))`, `session.add(Condition_Occurrence(...))`, `condition.condition_concept.concept_name` |
-| Changing or inspecting tables themselves | the engine for that table's tag, from `create_engines()` | CREATE/DROP/TRUNCATE, ANALYZE, ALTER, CREATE INDEX, `has_table`, `COUNT(*)` over a table, raw `text()` SQL |
+| Changing or inspecting tables themselves | the engine for that table's role, from `create_engines()` | CREATE/DROP/TRUNCATE, ANALYZE, ALTER, CREATE INDEX, `has_table`, `COUNT(*)` over a table, raw `text()` SQL |
 
 ```python
 from omop_alchemy.config import get_cdm_context
@@ -109,7 +109,7 @@ sessions = cdm_sessionmaker(resolved, primary=primary, vocab=vocab)
 
 In practice:
 
-- Application code works with rows, so it uses `cdm_sessionmaker()`. The session sends each statement to the database that hosts its table.
+- Application code works with rows, so it uses `cdm_sessionmaker()`. The session routes by role tag; vocabulary wins when a statement also names staging or another custom tag.
 - Table-level work picks its engine explicitly: `vocab` for vocabulary tables, `primary` for everything else. The `omop-alchemy` maintenance commands already do this for you.
 
 ### Limits
@@ -117,7 +117,7 @@ In practice:
 - To filter one side by the other, use `filter_by_keys()`.
 - Concept-set expressions on a clinical column (`expression_for()`, `runtime_concept_predicate()`) need `session=` to work across the two databases.
 - A query joining tables from both databases raises `CrossDatabaseStatementError`. So does a statement sent to an engine that does not host its table.
-- Raw `text()` SQL is not checked.
+- On a split deployment, raw `text()` SQL without a schema-tagged table is refused because the session cannot choose an engine. Use the primary or vocab engine directly for raw SQL. On a colocated deployment, the session uses the shared engine.
 - No transaction covers both databases.
 - Foreign keys between the two databases are not created, and `reconcile-schema` does not report them as missing.
 
@@ -155,5 +155,3 @@ In practice:
    Omit `--confirm` first to preview what would be dropped.
 
    Both commands live in `oa-configurator`, not `omop-alchemy` as they're generic over any `[databases.*]` entry, not CDM-specific.
-
-

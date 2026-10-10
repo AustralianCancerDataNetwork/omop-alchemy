@@ -34,7 +34,7 @@ dependencies = [
   "pandas>=2.0",
   "pyyaml>=6.0",
   "oa-configurator>=1.0.0,<2.0.0",
-  "typer>=0.12",
+  "typer>=0.19",
   "rich>=13.0",
   "orm-loader>=1.2.0,<2.0.0",
   "typing-extensions>=4.5",
@@ -93,4 +93,3 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 
 [tool.pytest.ini_options]
 addopts = "-m 'not db_dialect'"
-
