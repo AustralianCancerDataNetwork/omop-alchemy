@@ -34,6 +34,7 @@ from .contracts import (
     TemporalRankingSpec,
     TemporalSelectionPolicy,
     TemporalSidePreference,
+    UpcomingEpisodePreference,
 )
 from .observations import (
     observation_eligibility_predicate,
@@ -78,6 +79,8 @@ __all__ = [
     "TemporalRankingSpec",
     "TemporalSelectionPolicy",
     "TemporalSidePreference",
+    "UpcomingEpisodePreference",
+    "UnsupportedEventFieldConceptError",
     "absolute_day_delta",
     "bounded_temporal_predicate",
     "canonical_episode_projection",
