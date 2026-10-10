@@ -35,4 +35,4 @@ particular, against a SQLite database:
 - `backup-database`/`restore-database` are unavailable entirely.
 - FK trigger toggling and FK violation counting are unavailable.
 
-SQLite remains fully supported for the core ORM/CDM layer (models, queries,`create-missing-tables`, schema-drift detection at engine construction). Tthese limitations are specific to the maintenance operations listed above, which assume a PostgreSQL-grade catalog.
+SQLite remains fully supported for the core ORM/CDM layer (models, queries, `create-missing-tables`, schema-drift detection at engine construction). These limitations are specific to the maintenance operations listed above, which assume a PostgreSQL-grade catalog.

@@ -1,38 +1,26 @@
-"""Schema-provenance enforcement reaching _create_missing_tables(),
-_install_fulltext_columns(), _manage_indexes(), and _truncate_tables().
-
-Live-Postgres regression: proves a reconfigured schema is caught before any
-of these functions can run DDL, rather than passing by coincidence.
-
-Enforcement now happens at create_engine() construction time: 
-the SchemaDriftError below is raised while building scoped_b's own engine,
-before any of these functions are even reached. One case per call site is 
-still kept here, each proving the specific downstream function genuinely 
-never runs. A regression in any one of them reaching the database before 
-construction could otherwise go unnoticed.
-"""
+"""Exercise omop-alchemy's engine and maintenance CLI schema-drift paths."""
 
 from __future__ import annotations
 
-from contextlib import AbstractContextManager
+import uuid
 
 import pytest
-from oa_configurator import SchemaDriftError
+import sqlalchemy as sa
+from oa_configurator import Role, SchemaDriftError
 from oa_configurator.testing import (
-    ScopedTestSchema,
     guarded_resolver,
     reset_schema_registry_rows,
-    scoped_test_schema,
+    resolve_with_role_schemas,
 )
+from typer.testing import CliRunner
 
-from omop_alchemy.maintenance.cli_fulltext import _install_fulltext_columns
-from omop_alchemy.maintenance.cli_indexes import _manage_indexes
-from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
-from omop_alchemy.maintenance.cli_tables import _truncate_tables
-from omop_alchemy.maintenance.tables import TableCategory
-from omop_alchemy.maintenance.context import MaintenanceContext
+from omop_alchemy.config import OmopAlchemyConfig, create_cdm_engines
+from omop_alchemy.maintenance import _cli_utils
+from omop_alchemy.maintenance.cli import app
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
+
+runner = CliRunner()
 
 
 @pytest.fixture(autouse=True)
@@ -40,87 +28,57 @@ def _fresh_role_rows(pg_db, cleanup_after_test):
     reset_schema_registry_rows(cleanup_after_test, pg_db.committing_engine)
 
 
-def _guarded_schema(pg_db, prefix: str) -> AbstractContextManager[ScopedTestSchema]:
-    """scoped_test_schema() on pg_db's entry with test_only=False connections, so the guard runs."""
+@pytest.mark.parametrize("schema", ["pr57_drift_primary_a", "pr57_drift_primary_b"])
+def test_create_cdm_engines_rejects_primary_schema_drift(pg_db, schema):
+    engines = create_cdm_engines(pg_db.resolved)
+    for engine in set(engines):
+        engine.dispose()
+
     resolver = guarded_resolver(pg_db.resolved)
-    return scoped_test_schema(resolver.resolve_database(pg_db.resolved.name), prefix=prefix, resolver=resolver)
+    guarded = resolver.resolve_database(pg_db.resolved.name)
+    drifted = resolve_with_role_schemas(
+        guarded, {Role.PRIMARY: schema}, resolver=resolver
+    )
 
-
-def test_create_missing_tables_guard_fires_on_reconfigured_schema(pg_db):
-    with _guarded_schema(pg_db, "guard_wiring_a") as scoped_a:
-        _create_missing_tables(MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine))
-
-    # Drift is now caught at create_engine() construction time before
-    # _create_missing_tables() is even reachable.
     with pytest.raises(SchemaDriftError):
-        with _guarded_schema(pg_db, "guard_wiring_b"):
-            pass
+        create_cdm_engines(drifted)
 
 
-def test_install_fulltext_columns_guard_fires_on_reconfigured_schema(pg_db):
-    with _guarded_schema(pg_db, "guard_wiring_ft_a") as scoped_a:
-        # Guarded create establishes the provenance baseline for schema_a; an
-        # unguarded create here would leave _install_fulltext_columns's own guard
-        # seeing "tables exist but no record", a false first-time-drift positive.
-        _create_missing_tables(
-            MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine),
-            vocabulary_included=True,
+def test_create_missing_tables_cli_rejects_drift_before_creating_tables(pg_db, monkeypatch):
+    engines = create_cdm_engines(pg_db.resolved)
+    for engine in set(engines):
+        engine.dispose()
+
+    schema = f"pr57_cli_drift_{uuid.uuid4().hex[:10]}"
+    with pg_db.committing_engine.begin() as connection:
+        connection.exec_driver_sql(f'CREATE SCHEMA "{schema}"')
+
+    try:
+        resolver = guarded_resolver(pg_db.resolved)
+        guarded = resolver.resolve_database(pg_db.resolved.name)
+        drifted = resolve_with_role_schemas(
+            guarded, {Role.PRIMARY: schema}, resolver=resolver
         )
-        _install_fulltext_columns(MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine))
-
-    # Drift is now caught at create_engine() construction time, before
-    # _install_fulltext_columns() is even reachable.
-    with pytest.raises(SchemaDriftError):
-        with _guarded_schema(pg_db, "guard_wiring_ft_b"):
-            pass
-
-
-def test_manage_indexes_enable_guard_fires_on_reconfigured_schema(pg_db):
-    with _guarded_schema(pg_db, "guard_wiring_idx_a") as scoped_a:
-        _create_missing_tables(
-            MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine),
-            vocabulary_included=True,
+        monkeypatch.setattr(
+            "omop_alchemy.config.get_cdm_context",
+            lambda database=None: (OmopAlchemyConfig(), drifted),
         )
-        _manage_indexes(MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine), enable=True, cluster=False)
+        handled_errors = []
+        original_handle_error = _cli_utils.handle_error
 
-    # Drift is now caught at create_engine() construction time, before
-    # _manage_indexes() is even reachable.
-    with pytest.raises(SchemaDriftError):
-        with _guarded_schema(pg_db, "guard_wiring_idx_b"):
-            pass
+        def capture_handle_error(error):
+            handled_errors.append(error)
+            original_handle_error(error)
 
+        monkeypatch.setattr(_cli_utils, "handle_error", capture_handle_error)
 
-def test_manage_indexes_disable_guard_fires_on_reconfigured_schema(pg_db):
-    """Regression for the disable path specifically: _manage_indexes(enable=False)
-    used to build no guard at all, regardless of resolved."""
-    with _guarded_schema(pg_db, "guard_wiring_idxd_a") as scoped_a:
-        _create_missing_tables(
-            MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine),
-            vocabulary_included=True,
-        )
-        _manage_indexes(MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine), enable=False)
+        result = runner.invoke(app, ["create-missing-tables"])
 
-    # Drift is now caught at create_engine() construction time, before
-    # _manage_indexes() is even reachable.
-    with pytest.raises(SchemaDriftError):
-        with _guarded_schema(pg_db, "guard_wiring_idxd_b"):
-            pass
-
-
-def test_truncate_tables_guard_fires_on_reconfigured_schema(pg_db):
-    with _guarded_schema(pg_db, "guard_wiring_trunc_a") as scoped_a:
-        _create_missing_tables(
-            MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine),
-            vocabulary_included=True,
-        )
-        _truncate_tables(
-            MaintenanceContext(resolved=scoped_a.resolved, engine=scoped_a.engine, vocab_engine=scoped_a.engine),
-            scope=TableCategory.VOCABULARY,
-            cascade=True,
-        )
-
-    # Drift is now caught at create_engine() construction time, before
-    # _truncate_tables() is even reachable.
-    with pytest.raises(SchemaDriftError):
-        with _guarded_schema(pg_db, "guard_wiring_trunc_b"):
-            pass
+        assert result.exit_code == 1
+        assert len(handled_errors) == 1
+        assert isinstance(handled_errors[0], SchemaDriftError)
+        assert "Schema drift detected" in result.output
+        assert sa.inspect(pg_db.committing_engine).get_table_names(schema=schema) == []
+    finally:
+        with pg_db.committing_engine.begin() as connection:
+            connection.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')

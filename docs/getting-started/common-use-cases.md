@@ -1,6 +1,6 @@
 # Common Use Cases
 
-This pages details common use-cases and setups for users and how to wrap their established OMOP CDM with `omop-alchemy` and configure it with `oa-configurator`. 
+This page details common use-cases and setups for users and how to wrap their established OMOP CDM with `omop-alchemy` and configure it with `oa-configurator`.
 
 !!! note "Important References"
     - [**`oa-configurator` config reference**](https://AustralianCancerDataNetwork.github.io/oa-configurator/config-reference/): Information about the config file created and stored by default at `~/.config/omop/config.toml`
@@ -54,14 +54,14 @@ No issues. Just re-run the configuration command again:
 omop-config configure omop_alchemy
 ```
 
-The CLI wizard will guide you through the entire setup again. You can changed/modify settings. Previously configured fields are now the default and can just be accepted by pressing 'Enter'.
+The CLI wizard will guide you through the entire setup again. You can change/modify settings. Previously configured fields are now the default and can just be accepted by pressing 'Enter'.
 
 ---
 
 ## Vocabulary on an entirely separate server
 
 !!! example "Scenario"
-    - Your entire CDM vocabulary lives on a separate physical DB server (e.g. a shared vocabnulary instance resued across multiple CDM deployments)
+    - Your entire CDM vocabulary lives on a separate physical DB server (e.g. a shared vocabulary instance reused across multiple CDM deployments)
     - You checked the documentation for [supported dialects in `omop-alchemy`](https://AustralianCancerDataNetwork.github.io/oa-configurator/config-reference/#supported-dialects ) and confirmed that your separate DB server is supported
 
 
@@ -132,7 +132,7 @@ In practice:
         - your database for the CDM is named `my_db` in `config.toml`
             - there is an entry called `[databases.my_db]`, and
             - `[tools.omop_alchemy]` lists it as `cdm_db="my_db"`
-        - you want to move all your tables governed by the interal `vocab` schema to schema `myvocab`
+        - you want to move all your tables governed by the internal `vocab` schema to schema `myvocab`
 
 ### Solution
 
@@ -150,7 +150,7 @@ In practice:
    ```
 4. Once you've confirmed the new schema is correct, clean up the old one:
    ```bash
-   omop-config drop-orphan-schema-tables --database cdm_db --schema old_vocab_schema --confirm
+   omop-config drop-orphan-schema-tables --database my_db --schema old_vocab_schema --confirm
    ```
    Omit `--confirm` first to preview what would be dropped.
 
