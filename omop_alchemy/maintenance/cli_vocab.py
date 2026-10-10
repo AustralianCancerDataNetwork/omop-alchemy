@@ -170,7 +170,7 @@ def _is_missing_staging_table_error(
     session: so.Session,
 ) -> bool:
     """Return True if the exception is a ProgrammingError caused by the staging table not existing yet."""
-    staging_table_name = resolve_backend(session).staging_name_for_table(
+    staging_table_name = resolve_backend(session, mapper=model).staging_name_for_table(
         model.__tablename__
     )
     message = str(exc).lower()
