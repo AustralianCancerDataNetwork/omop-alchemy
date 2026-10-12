@@ -15,6 +15,7 @@ from omop_alchemy.cdm.base import CDMExtensionTableBase, CDMTableBase
 from omop_alchemy.cdm.base.cdm_table_base import MODEL_MODULE_PREFIX, _redeclares_a_tagged_ancestors_table
 from omop_alchemy.config import CDM_EXTENSION_SCHEMA, CDM_EXTENSION_SCHEMA_OWNER
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
+from omop_alchemy.maintenance.context import MaintenanceContext
 from omop_alchemy.maintenance.tables import _mapped_cdm_table_classes, collect_maintenance_tables
 
 
@@ -196,20 +197,24 @@ def test_extension_table_created_via_create_missing_tables_on_sqlite(fresh_resol
     unqualified, not a literal 'extension.' prefix SQLite can't create.
 
     fresh_engine isn't used here: it has no claim for CDM_EXTENSION_SCHEMA
-    (that claim is create_cdm_engine()'s own responsibility, covered by
+    (that claim is create_cdm_engines()'s own responsibility, covered by
     test_config_driver.py), so this builds its own engine with the tag
-    explicitly claimed, matching how a real CDM engine resolves it.
+    explicitly claimed, matching how a real CDM engine resolves it. The
+    class definition sits inside the cleanup block too, so a failure in
+    create_engines() itself can't leave the table mapped on the shared
+    Base.metadata for the rest of the test session.
     """
-    class _FakeExtensionSqlite(CDMExtensionTableBase):
-        __module__ = "tests.fake_extension_pkg.sqlite_smoke"
-        __tablename__ = "zz_test_cdm_table_base_sqlite_smoke"
-        id: so.Mapped[int] = so.mapped_column(primary_key=True)
-
-    engine = fresh_resolved.create_engine(
-        schema_claims=[SchemaClaim(schema_tag=CDM_EXTENSION_SCHEMA, physical_schema=CDM_EXTENSION_SCHEMA, reserved=True)]
-    )
     with _cleanup_table("zz_test_cdm_table_base_sqlite_smoke", schema=CDM_EXTENSION_SCHEMA):
-        results = _create_missing_tables(engine, vocab_engine=engine, resolved=fresh_resolved)
+        class _FakeExtensionSqlite(CDMExtensionTableBase):
+            __module__ = "tests.fake_extension_pkg.sqlite_smoke"
+            __tablename__ = "zz_test_cdm_table_base_sqlite_smoke"
+            id: so.Mapped[int] = so.mapped_column(primary_key=True)
+
+        engine, vocab_engine = fresh_resolved.create_engines(
+            schema_claims=[SchemaClaim(schema_tag=CDM_EXTENSION_SCHEMA, physical_schema=CDM_EXTENSION_SCHEMA, reserved=True)]
+        )
+        context = MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=vocab_engine)
+        results = _create_missing_tables(context)
         result_by_name = {result.table_name: result for result in results}
 
         assert result_by_name["zz_test_cdm_table_base_sqlite_smoke"].status == "created"
@@ -233,7 +238,7 @@ def test_extension_table_creates_its_schema_on_postgres(pg_db, pg_engine, cleanu
     assert extension_schema not in sa.inspect(pg_engine).get_schema_names()
 
     with _cleanup_table("zz_test_cdm_table_base_pg_smoke", schema=CDM_EXTENSION_SCHEMA):
-        engine = pg_db.resolved.create_engine(
+        engine, vocab_engine = pg_db.resolved.create_engines(
             schema_claims=[SchemaClaim(
                 schema_tag=CDM_EXTENSION_SCHEMA,
                 physical_schema=extension_schema,
@@ -243,7 +248,8 @@ def test_extension_table_creates_its_schema_on_postgres(pg_db, pg_engine, cleanu
         try:
             assert extension_schema in sa.inspect(engine).get_schema_names()
 
-            _create_missing_tables(engine, vocab_engine=engine, resolved=pg_db.resolved)
+            context = MaintenanceContext(resolved=pg_db.resolved, engine=engine, vocab_engine=vocab_engine)
+            _create_missing_tables(context)
 
             inspector = sa.inspect(engine)
             assert extension_schema in inspector.get_schema_names()
