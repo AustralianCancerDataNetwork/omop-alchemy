@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Iterable
 
 import sqlalchemy as sa
 from pydantic import Field
@@ -128,7 +128,10 @@ def _maintenance_schema_claims() -> list[SchemaClaim]:
 
 
 def create_cdm_engines(
-    resolved: ResolvedCDMDatabase, *, register_claims: bool = True
+    resolved: ResolvedCDMDatabase,
+    *,
+    schema_claims: Iterable[SchemaClaim] = (),
+    register_claims: bool = True,
 ) -> tuple[sa.Engine, sa.Engine]:
     """Create ``(primary, vocab)`` with the maintenance schemas claimed on both.
 
@@ -138,6 +141,13 @@ def create_cdm_engines(
     Parameters
     ----------
     resolved : ResolvedCDMDatabase
+    schema_claims : Iterable[SchemaClaim], optional
+        Extra claims, e.g. a test's own test-isolated CDM_EXTENSION_SCHEMA
+        claim. Each one replaces the default claim for its own schema_tag
+        rather than being added alongside it: registering both the literal
+        default and an override for the same tag in one call would make
+        the default register first and then immediately drift against the
+        override.
     register_claims : bool, optional
         Forwarded to ``create_engines()``. False only checks the claims
         without writing them.
@@ -149,7 +159,12 @@ def create_cdm_engines(
     -------
     tuple[sqlalchemy.Engine, sqlalchemy.Engine]
     """
+    overridden_tags = {claim.schema_tag for claim in schema_claims}
+    defaults = [
+        claim for claim in _maintenance_schema_claims()
+        if claim.schema_tag not in overridden_tags
+    ]
     return resolved.create_engines(
-        schema_claims=_maintenance_schema_claims(),
+        schema_claims=[*defaults, *schema_claims],
         register_claims=register_claims,
     )
