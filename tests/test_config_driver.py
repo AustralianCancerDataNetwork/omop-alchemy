@@ -63,9 +63,9 @@ def test_create_cdm_engines_keeps_distinct_in_memory_connections_separate():
         vocab.dispose()
 
 
-def test_create_cdm_engine_claims_the_extension_schema():
-    """The extension schema tag is claimed alongside the maintenance schema,
-    and folds to unqualified on SQLite rather than a literal, unresolvable prefix.
+def test_create_cdm_engines_includes_a_claim_for_the_extension_schema():
+    """create_cdm_engines() claims CDM_EXTENSION_SCHEMA by default; otherwise
+    physical_schema_of() would raise UnregisteredSchemaTagError.
     """
     resolved = _resolved_cdm_database(primary_database=":memory:")
     primary, vocab = create_cdm_engines(resolved)

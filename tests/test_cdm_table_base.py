@@ -193,16 +193,9 @@ def test_category_and_extension_table_owner_are_mutually_exclusive():
 # ---------------------------------------------------------------------------
 
 def test_extension_table_created_via_create_missing_tables_on_sqlite(fresh_resolved):
-    """SQLite has no schema concept: the extension tag must resolve to
-    unqualified, not a literal 'extension.' prefix SQLite can't create.
-
-    fresh_engine isn't used here: it has no claim for CDM_EXTENSION_SCHEMA
-    (that claim is create_cdm_engines()'s own responsibility, covered by
-    test_config_driver.py), so this builds its own engine with the tag
-    explicitly claimed, matching how a real CDM engine resolves it. The
-    class definition sits inside the cleanup block too, so a failure in
-    create_engines() itself can't leave the table mapped on the shared
-    Base.metadata for the rest of the test session.
+    """SQLite has no schema concept, so the extension tag must resolve to an
+    unqualified table. Builds its own engine with the tag explicitly claimed,
+    since create_cdm_engines() isn't used here.
     """
     with _cleanup_table("zz_test_cdm_table_base_sqlite_smoke", schema=CDM_EXTENSION_SCHEMA):
         class _FakeExtensionSqlite(CDMExtensionTableBase):
