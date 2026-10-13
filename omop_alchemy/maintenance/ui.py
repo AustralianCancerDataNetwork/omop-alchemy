@@ -14,6 +14,8 @@ from ..backends.resolve import backend_label
 from .ascii import render_banner
 from .tables import TableCategory
 
+CDM_EXTENSION_SCHEMA_STYLE: str = "cyan"
+
 if TYPE_CHECKING:
     from ._cli_utils import Status
     from .cli_backup import BackupResult
@@ -65,7 +67,16 @@ def _bool_label(value: bool) -> Text:
     return Text("yes" if value else "no", style="green" if value else "dim")
 
 
-def _category_label(category: TableCategory) -> Text:
+def _category_label(category: TableCategory | None, schema_tag: str) -> Text:
+    """Render category, or the table's own schema tag when category is None.
+
+    Notes
+    -----
+    Every table outside the CDM model (currently only extension tables) has
+    category=None; its schema tag is rendered in its place.
+    """
+    if category is None:
+        return Text(schema_tag, style=CDM_EXTENSION_SCHEMA_STYLE)
     return Text(
         category.value.replace("_", " "),
         style=category.style,
@@ -281,7 +292,7 @@ def render_reconciliation_results(results: Iterable[TableReconciliationResult]) 
         table.add_row(
             _status_text(result.status),
             result.table_name,
-            _category_label(result.category),
+            _category_label(result.category, result.schema_tag),
             str(result.issue_count),
             result.detail,
         )
@@ -499,7 +510,7 @@ def render_sequence_reset_results(results: Iterable[SequenceResetResult]) -> Ren
         table.add_row(
             Text(result.status.upper(), style=style),
             f"{result.table_name}.{result.pk_column_name}",
-            _category_label(result.category),
+            _category_label(result.category, result.schema_tag),
             result.sequence_name or "-",
             str(result.next_value) if result.next_value is not None else "-",
             result.detail,
@@ -540,7 +551,7 @@ def render_data_summary_results(results: Iterable[TableSummaryResult]) -> Render
     for result in items:
         table.add_row(
             result.table_name,
-            _category_label(result.category),
+            _category_label(result.category, result.schema_tag),
             "-" if result.row_count is None else f"{result.row_count:,}",
             ", ".join(result.primary_key_columns),
             result.model_name,
@@ -660,7 +671,7 @@ def render_foreign_key_results(results: Iterable[ForeignKeyManagementResult]) ->
             Text(result.status.upper(), style=style),
             "Enable" if result.enable else "Disable",
             result.table_name,
-            _category_label(result.category),
+            _category_label(result.category, result.schema_tag),
             str(result.outgoing_constraint_count),
             str(result.incoming_constraint_count),
         )
@@ -727,7 +738,7 @@ def render_foreign_key_status_results(results: Iterable[ForeignKeyStatusResult])
     for result in items:
         table.add_row(
             result.table_name,
-            _category_label(result.category),
+            _category_label(result.category, result.schema_tag),
             str(result.disabled_trigger_count),
             str(result.enabled_trigger_count),
             str(result.outgoing_constraint_count),
@@ -767,7 +778,7 @@ def render_foreign_key_validation_results(
         table.add_row(
             _status_text(result.status),
             result.table_name,
-            _category_label(result.category),
+            _category_label(result.category, result.schema_tag),
             str(result.violating_constraint_count),
             str(result.violating_row_count),
             result.detail,
@@ -860,7 +871,7 @@ def render_table_creation_results(results: Iterable[TableCreationResult]) -> Ren
         table.add_row(
             Text(result.status.upper(), style=style),
             result.table_name,
-            _category_label(result.category),
+            _category_label(result.category, result.schema_tag),
             result.model_name,
             result.detail,
         )
@@ -899,7 +910,7 @@ def render_index_results(results: Iterable[IndexManagementResult]) -> Renderable
             "Enable" if result.enable else "Disable",
             result.table_name,
             result.index_name,
-            _category_label(result.category),
+            _category_label(result.category, result.schema_tag),
             ", ".join(result.column_names),
             result.detail,
         )
@@ -1025,7 +1036,7 @@ def render_truncate_results(results: Iterable[TruncateTableResult]) -> Renderabl
         table.add_row(
             _status_text(result.status),
             result.table_name,
-            _category_label(result.category),
+            _category_label(result.category, result.schema_tag),
             "-" if result.row_count is None else f"{result.row_count:,}",
             result.detail,
         )
@@ -1101,7 +1112,7 @@ def render_analyze_results(results: Iterable[AnalyzeTableResult]) -> RenderableT
         table.add_row(
             _status_text(result.status),
             result.table_name,
-            _category_label(result.category),
+            _category_label(result.category, result.schema_tag),
             result.operation,
             result.detail,
         )

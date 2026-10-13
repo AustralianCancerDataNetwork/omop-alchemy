@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import inspect
 from enum import StrEnum
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, NamedTuple, TypeVar
 
 import typer
 from sqlalchemy.exc import SQLAlchemyError
@@ -248,15 +248,30 @@ def dry_label(dry_run: bool, planned: str, applied: str) -> str:
     return planned if dry_run else applied
 
 
+class Selection(NamedTuple):
+    """Result of resolving the three mutually exclusive table selectors."""
+
+    scope: TableCategory | None
+    tables: tuple[str, ...] | None
+    cdm_extension: bool
+
+
 def resolve_selection(
     *,
     scope: TableCategory | None,
     tables: list[str] | None,
+    cdm_extension: bool = False,
     default_scope: TableCategory | None = None,
-) -> tuple[TableCategory | None, tuple[str, ...] | None]:
-    if scope is not None and tables:
-        raise RuntimeError("Use either `--scope` or `--table`, not both.")
-    selected = tuple(tables) if tables else None
-    if selected is not None:
-        return None, selected
-    return scope or default_scope, None
+) -> Selection:
+    """Resolve the three mutually exclusive table selectors.
+
+    `--table` beats `--scope`/`--cdm-extension`; `--cdm-extension` beats `--scope`;
+    `default_scope` only applies when none of the three was given.
+    """
+    if sum([scope is not None, bool(tables), cdm_extension]) > 1:
+        raise RuntimeError("Use only one of `--scope`, `--table`, or `--cdm-extension`.")
+    if tables:
+        return Selection(None, tuple(tables), False)
+    if cdm_extension:
+        return Selection(None, None, True)
+    return Selection(scope or default_scope, None, False)

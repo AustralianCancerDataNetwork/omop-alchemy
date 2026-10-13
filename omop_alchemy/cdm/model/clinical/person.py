@@ -7,11 +7,9 @@ from datetime import date
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.sql import ColumnElement
-from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
     role_fk,
-    cdm_table,
     CDMTableBase, 
     required_concept_fk,
     optional_concept_fk,
@@ -32,8 +30,7 @@ from ..health_system import Location, Provider, Care_Site
 from .death import Death
 from .observation_period import Observation_Period
 
-@cdm_table
-class Person(CDMTableBase,Base,HealthSystemContext):
+class Person(CDMTableBase,HealthSystemContext):
     __tablename__ = "person"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

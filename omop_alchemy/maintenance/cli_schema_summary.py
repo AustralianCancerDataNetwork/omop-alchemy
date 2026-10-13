@@ -17,7 +17,7 @@ class TableSummaryResult:
     """Row count and existence data for one ORM-managed OMOP table."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
     schema_tag: str
     model_name: str
     primary_key_columns: tuple[str, ...]

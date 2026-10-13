@@ -4,20 +4,17 @@ from oa_configurator import Role
 from typing import Optional
 from datetime import date
 
-from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
     role_fk,
     CDMTableBase,
-    cdm_table, 
     optional_concept_fk,
     merge_table_args,
     omop_index,
 )
 
 
-@cdm_table
-class Note_NLP(CDMTableBase, Base):
+class Note_NLP(CDMTableBase):
     __tablename__ = "note_nlp"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

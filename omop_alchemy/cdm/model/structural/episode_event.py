@@ -3,9 +3,7 @@ import sqlalchemy.orm as so
 from typing import TYPE_CHECKING, Any, Type
 from functools import cached_property
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
-    cdm_table,
     CDMTableBase,
     ReferenceContext,
     DomainValidationMixin,
@@ -27,8 +25,7 @@ def clear_episode_event_target_class_cache() -> None:
     """Retain the former cache hook; stable event metadata needs no invalidation."""
 
 
-@cdm_table
-class Episode_Event(CDMTableBase, Base):
+class Episode_Event(CDMTableBase):
     __tablename__ = "episode_event"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

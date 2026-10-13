@@ -40,7 +40,7 @@ class IndexTarget:
     """An ORM-defined index that currently exists in the target database."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
     schema_tag: str
     index_name: str
     column_names: tuple[str, ...]

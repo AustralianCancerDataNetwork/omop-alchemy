@@ -3,10 +3,8 @@ import sqlalchemy.orm as so
 from typing import Optional
 from datetime import date
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     ReferenceTable,
-    cdm_table,
     CDMTableBase,
     merge_table_args,
     omop_index,
@@ -15,12 +13,10 @@ from omop_alchemy.cdm.base import (
 )
 from omop_alchemy.cdm.model.flags import InvalidReasonMixin
 
-@cdm_table
 class Drug_Strength(
     CDMTableBase,
     ReferenceTable,
     InvalidReasonMixin,
-    Base,
 ):
     """
     Defines the strength and composition of drug products.

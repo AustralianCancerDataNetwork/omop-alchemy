@@ -4,14 +4,12 @@ from sqlalchemy.ext.declarative import declared_attr
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     PersonScoped,
     HealthSystemContext,
     FactTable,
     ReferenceContext,
     CDMTableBase,
-    cdm_table,
     ModifierFieldConcepts,
     ClinicalEventMixin,
     merge_table_args,
@@ -24,13 +22,11 @@ if TYPE_CHECKING:
     from ..vocabulary import Concept
     from ..health_system import Visit_Occurrence
 
-@cdm_table
 class Condition_Occurrence(
     PersonScoped,
     HealthSystemContext,
     CDMTableBase,
     FactTable,
-    Base,
 ):
     __tablename__ = "condition_occurrence"
     __table_args__ = merge_table_args(

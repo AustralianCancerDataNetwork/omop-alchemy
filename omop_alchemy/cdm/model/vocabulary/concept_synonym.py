@@ -1,18 +1,15 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     ReferenceTable,
-    cdm_table,
     CDMTableBase,
     merge_table_args,
     omop_index,
     role_fk,
 )
 
-@cdm_table
-class Concept_Synonym(Base, ReferenceTable, CDMTableBase):
+class Concept_Synonym(ReferenceTable, CDMTableBase):
     __tablename__ = "concept_synonym"
     __table_args__ = merge_table_args(
         {"schema": Role.VOCAB.value},

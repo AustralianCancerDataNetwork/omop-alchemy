@@ -44,7 +44,7 @@ class ReconciliationIssue:
     """A single schema drift detail: column, index, FK, or cluster mismatch between ORM metadata and the database."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
     component: str
     object_name: str
     status: Status
@@ -58,7 +58,8 @@ class TableReconciliationResult:
     """Per-table schema reconciliation summary: whether ORM metadata matches the live database."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
+    schema_tag: str
     status: Status
     issue_count: int
     detail: str
@@ -263,6 +264,7 @@ def reconcile_schema(
                         TableReconciliationResult(
                             table_name=maintenance_table.table_name,
                             category=maintenance_table.category,
+                            schema_tag=maintenance_table.schema_tag,
                             status=Status.RELOCATED,
                             issue_count=1,
                             detail=detail,
@@ -286,6 +288,7 @@ def reconcile_schema(
                     TableReconciliationResult(
                         table_name=maintenance_table.table_name,
                         category=maintenance_table.category,
+                        schema_tag=maintenance_table.schema_tag,
                         status=Status.MISSING,
                         issue_count=1,
                         detail="Table is missing from the target database.",
@@ -592,6 +595,7 @@ def reconcile_schema(
                 TableReconciliationResult(
                     table_name=maintenance_table.table_name,
                     category=maintenance_table.category,
+                    schema_tag=maintenance_table.schema_tag,
                     status=table_status,
                     issue_count=len(table_issues),
                     detail=(

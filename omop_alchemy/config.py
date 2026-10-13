@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Iterable
 
 import sqlalchemy as sa
 from pydantic import Field
@@ -12,10 +12,21 @@ from oa_configurator import (
     ResolvedCDMDatabase,
     SchemaClaim,
     load_stack_config,
+    reject_claimed_tags,
 )
 from orm_loader.backends import staging_schema_claim
 
 MAINTENANCE_SCHEMA: str = "omop_alchemy_maintenance"
+CDM_EXTENSION_SCHEMA: str = "cdm_extension"
+# Fixed owner for the CDM_EXTENSION_SCHEMA claim
+CDM_EXTENSION_SCHEMA_OWNER: str = "omop_alchemy"
+
+CDM_EXTENSION_SCHEMA_CLAIM: SchemaClaim = SchemaClaim(
+    schema_tag=CDM_EXTENSION_SCHEMA,
+    physical_schema=CDM_EXTENSION_SCHEMA,
+    reserved=True,
+    owner=CDM_EXTENSION_SCHEMA_OWNER,
+)
 
 
 class OmopAlchemyConfig(PackageConfigBase):
@@ -106,20 +117,11 @@ def get_cdm_context(database: str | None = None) -> tuple[OmopAlchemyConfig, Res
     return pkg_config, resolved
 
 
-def _maintenance_schema_claims() -> list[SchemaClaim]:
-    """Schema claims every engine doing maintenance work needs, on both engines."""
-    return [
-        SchemaClaim(
-            schema_tag=MAINTENANCE_SCHEMA,
-            physical_schema=MAINTENANCE_SCHEMA,
-            reserved=True,
-        ),
-        staging_schema_claim(),
-    ]
-
-
 def create_cdm_engines(
-    resolved: ResolvedCDMDatabase, *, register_claims: bool = True
+    resolved: ResolvedCDMDatabase,
+    *,
+    schema_claims: Iterable[SchemaClaim] = (),
+    register_claims: bool = True,
 ) -> tuple[sa.Engine, sa.Engine]:
     """Create ``(primary, vocab)`` with the maintenance schemas claimed on both.
 
@@ -129,6 +131,8 @@ def create_cdm_engines(
     Parameters
     ----------
     resolved : ResolvedCDMDatabase
+    schema_claims : Iterable[SchemaClaim], optional
+        Extra claims alongside the maintenance/extension/staging defaults.
     register_claims : bool, optional
         Forwarded to ``create_engines()``. False only checks the claims
         without writing them.
@@ -136,11 +140,37 @@ def create_cdm_engines(
         - For read/write access: True. Requires CREATE privilege, and will
         raise if the staging schema is already claimed by another package.
 
+    Notes
+    -----
+    - Includes MAINTENANCE_SCHEMA, CDM_EXTENSION_SCHEMA, and staging schema claims by default.
+
     Returns
     -------
     tuple[sqlalchemy.Engine, sqlalchemy.Engine]
+
+    Raises
+    ------
+    ValueError
+        If schema_claims includes one of the schema tags claimed by
+        default (MAINTENANCE_SCHEMA, CDM_EXTENSION_SCHEMA, staging). Build
+        engines via ``resolved.create_engines()`` directly to use a
+        different claim for one of those.
     """
+    defaults = [
+        SchemaClaim(
+            schema_tag=MAINTENANCE_SCHEMA,
+            physical_schema=MAINTENANCE_SCHEMA,
+            reserved=True,
+        ),
+        CDM_EXTENSION_SCHEMA_CLAIM,
+        staging_schema_claim(),
+    ]
+    reject_claimed_tags(
+        defaults=defaults,
+        extras=schema_claims,
+        context="create_cdm_engines() always claims those by default",
+    )
     return resolved.create_engines(
-        schema_claims=_maintenance_schema_claims(),
+        schema_claims=[*defaults, *schema_claims],
         register_claims=register_claims,
     )

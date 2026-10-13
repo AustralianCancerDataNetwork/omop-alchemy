@@ -47,7 +47,7 @@ class AnalyzeTableResult:
     """Outcome of an ANALYZE or VACUUM ANALYZE operation for one ORM-managed table."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
     schema_tag: str
     operation: str
     status: Status
@@ -59,18 +59,19 @@ def analyze_tables(
     *,
     scope: TableCategory | None = None,
     table_names: tuple[str, ...] | None = None,
+    cdm_extension_only: bool = False,
     vacuum: bool = False,
     dry_run: bool = False,
 ) -> list[AnalyzeTableResult]:
     """Run ANALYZE (or VACUUM ANALYZE) on selected ORM-managed tables to refresh planner statistics.
 
-    Runs on every ORM-managed table if both scope and table_names are omitted.
+    Runs on every ORM-managed table if scope, table_names, and cdm_extension_only are all omitted.
     Each table is analysed on the engine hosting it, one connection per engine.
     """
-    if scope is not None and table_names is not None:
-        raise RuntimeError("Use either `scope` or `table_names`, not both.")
+    if sum([scope is not None, table_names is not None, cdm_extension_only]) > 1:
+        raise RuntimeError("Use only one of `scope`, `table_names`, or `cdm_extension_only`.")
 
-    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names)
+    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names, cdm_extension_only=cdm_extension_only)
     operation = "VACUUM ANALYZE" if vacuum else "ANALYZE"
     results: list[AnalyzeTableResult] = []
 
@@ -122,7 +123,7 @@ class TruncateTableResult:
     """Outcome of truncating one ORM-managed table, with the pre-truncation row count."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
     schema_tag: str
     row_count: int | None
     status: Status
@@ -181,6 +182,7 @@ def _truncate_tables(
     *,
     scope: TableCategory | None = None,
     table_names: tuple[str, ...] | None = None,
+    cdm_extension_only: bool = False,
     restart_identities: bool = False,
     cascade: bool = False,
     dry_run: bool = False,
@@ -197,12 +199,12 @@ def _truncate_tables(
     - No provenance guard as the engines were just built in `omop_command`. There is no
     possibility of schema drift between their creation and this command's execution.
     """
-    if scope is not None and table_names is not None:
-        raise RuntimeError("Use either `scope` or `table_names`, not both.")
-    if scope is None and table_names is None:
-        raise RuntimeError("Select tables to truncate with `scope` or `table_names`.")
+    if sum([scope is not None, table_names is not None, cdm_extension_only]) > 1:
+        raise RuntimeError("Use only one of `scope`, `table_names`, or `cdm_extension_only`.")
+    if scope is None and table_names is None and not cdm_extension_only:
+        raise RuntimeError("Select tables to truncate with `scope`, `table_names`, or `cdm_extension_only`.")
 
-    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names)
+    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names, cdm_extension_only=cdm_extension_only)
     groups = context.targets_by_engine(selected_tables)
     for engine in groups:
         require_backend_support(resolve_backend(engine), "truncate_table_batch", "Table truncation")
@@ -274,7 +276,7 @@ class SequenceTarget:
     """An ORM-managed table with a single-column integer primary key that owns a PostgreSQL sequence."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
     schema_tag: str
     pk_column_name: str
 
@@ -284,7 +286,7 @@ class SequenceResetResult:
     """Outcome of resetting one PostgreSQL sequence to table max + 1."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
     schema_tag: str
     pk_column_name: str
     sequence_name: str | None
@@ -419,6 +421,11 @@ def analyze_tables_command(
         "--table",
         help="Specific ORM-managed table name to analyze. Repeat to target multiple tables.",
     ),
+    cdm_extension: bool = typer.Option(
+        False,
+        "--cdm-extension",
+        help="Analyze only CDM extension tables (third-party tables outside the pre-defined CDM domain categories).",
+    ),
     vacuum: bool = typer.Option(
         False,
         "--vacuum",
@@ -427,12 +434,13 @@ def analyze_tables_command(
     dry_run: bool = False,
 ) -> None:
     """Analyse selected ORM-managed tables to update planner statistics."""
-    resolved_scope, resolved_tables = resolve_selection(scope=scope, tables=table)
+    selection = resolve_selection(scope=scope, tables=table, cdm_extension=cdm_extension)
     with console.status("Refreshing planner statistics for selected tables..."):
         results = analyze_tables(
             conn,
-            scope=resolved_scope,
-            table_names=resolved_tables,
+            scope=selection.scope,
+            table_names=selection.tables,
+            cdm_extension_only=selection.cdm_extension,
             vacuum=vacuum,
             dry_run=dry_run,
         )
@@ -484,6 +492,11 @@ def truncate_tables_command(
         "--table",
         help="Specific ORM-managed table name to truncate. Repeat to target multiple tables.",
     ),
+    cdm_extension: bool = typer.Option(
+        False,
+        "--cdm-extension",
+        help="Truncate only CDM extension tables (third-party tables outside the pre-defined CDM domain categories).",
+    ),
     restart_identities: bool = typer.Option(
         False,
         "--restart-identities",
@@ -502,10 +515,10 @@ def truncate_tables_command(
     dry_run: bool = False,
 ) -> None:
     """Truncate selected ORM-managed OMOP tables. Aborts if external FK references would block unless --cascade is set."""
-    resolved_scope, resolved_tables = resolve_selection(scope=scope, tables=table)
-    if resolved_scope is None and resolved_tables is None:
+    selection = resolve_selection(scope=scope, tables=table, cdm_extension=cdm_extension)
+    if selection.scope is None and selection.tables is None and not selection.cdm_extension:
         console.print(
-            render_error("Select tables to truncate with `--scope` or one or more `--table` values.")
+            render_error("Select tables to truncate with `--scope`, one or more `--table` values, or `--cdm-extension`.")
         )
         raise typer.Exit(code=1)
     if not dry_run and not yes:
@@ -516,8 +529,9 @@ def truncate_tables_command(
     with console.status("Truncating selected tables..."):
         results = _truncate_tables(
             conn,
-            scope=resolved_scope,
-            table_names=resolved_tables,
+            scope=selection.scope,
+            table_names=selection.tables,
+            cdm_extension_only=selection.cdm_extension,
             restart_identities=restart_identities,
             cascade=cascade,
             dry_run=dry_run,

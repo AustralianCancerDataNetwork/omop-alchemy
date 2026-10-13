@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, cast
 
 import sqlalchemy as sa
 
 if TYPE_CHECKING:
     from .context import MaintenanceContext
+
+from omop_alchemy.cdm.base import CDMTableBase
 
 
 class TableCategory(StrEnum):
@@ -55,7 +57,8 @@ class MaintenanceTable:
     table_name: str
     model_name: str
     model_module: str
-    category: TableCategory
+    category: TableCategory | None
+    extension_table_owner: str | None
     table: sa.Table
     primary_key_columns: tuple[sa.Column[object], ...]
 
@@ -73,6 +76,10 @@ class MaintenanceTable:
         if tag is None:
             raise TypeError(f"{self.table_name}: table has no schema tag.")
         return tag
+
+    @property
+    def is_extension(self) -> bool:
+        return self.extension_table_owner is not None
 
     @property
     def is_vocabulary(self) -> bool:
@@ -166,19 +173,23 @@ class TableTarget:
         )
 
 
-def _mapped_cdm_table_classes() -> Iterable[type]:
+def _mapped_cdm_table_classes() -> Iterable[type[CDMTableBase]]:
     import omop_alchemy.cdm.model  # noqa: F401
     from orm_loader.helpers import Base
 
     return [
-        mapper.class_
+        cast(type[CDMTableBase], mapper.class_)
         for mapper in Base.registry.mappers
         if getattr(mapper.class_, "__omop_is_cdm_table__", False)
     ]
 
 
-def _table_category(mapped_class: type) -> TableCategory:
-    category_name = getattr(mapped_class, "__omop_table_category__", None)
+def _table_category(mapped_class: type[CDMTableBase]) -> TableCategory | None:
+    """Determine the category of a mapped CDM table class."""
+    if mapped_class.__omop_extension_owner__ is not None:
+        # These are third-party tables outside the CDM domain categories
+        return None
+    category_name = mapped_class.__omop_table_category__
     if category_name is None:
         raise RuntimeError(
             f"{mapped_class.__name__} is missing __omop_table_category__"
@@ -191,15 +202,16 @@ def collect_maintenance_tables() -> list[MaintenanceTable]:
 
     for mapped_class in sorted(
         _mapped_cdm_table_classes(),
-        key=lambda cls: cls.__table__.name,  # ty: ignore[unresolved-attribute]
+        key=lambda cls: cast(sa.Table, cls.__table__).name,
     ):
-        table = mapped_class.__table__  # ty: ignore[unresolved-attribute]
+        table = cast(sa.Table, mapped_class.__table__)
         tables.append(
             MaintenanceTable(
                 table_name=table.name,
                 model_name=mapped_class.__name__,
                 model_module=mapped_class.__module__,
                 category=_table_category(mapped_class),
+                extension_table_owner=mapped_class.__omop_extension_owner__,
                 table=table,
                 primary_key_columns=tuple(table.primary_key.columns),
             )
@@ -231,6 +243,7 @@ def select_maintenance_tables(
     categories: Iterable[TableCategory] | None = None,
     exclude_categories: Iterable[TableCategory] | None = None,
     require_single_integer_primary_key: bool = False,
+    cdm_extension_only: bool = False,
 ) -> list[MaintenanceTable]:
     selected = collect_maintenance_tables()
 
@@ -254,6 +267,9 @@ def select_maintenance_tables(
             if table.has_single_integer_primary_key
         ]
 
+    if cdm_extension_only:
+        selected = [table for table in selected if table.is_extension]
+
     return selected
 
 
@@ -262,6 +278,7 @@ def resolve_maintenance_tables(
     table_names: Iterable[str] | None = None,
     scope: TableCategory | None = None,
     require_single_integer_primary_key: bool = False,
+    cdm_extension_only: bool = False,
 ) -> list[MaintenanceTable]:
     if table_names is not None:
         selected_by_name = maintenance_table_map()
@@ -299,6 +316,7 @@ def resolve_maintenance_tables(
 
     return select_maintenance_tables(
         require_single_integer_primary_key=require_single_integer_primary_key,
+        cdm_extension_only=cdm_extension_only,
     )
 
 
