@@ -148,7 +148,6 @@ class Backend(ABC):
 
     # ── Table operations ─────────────────────────────────────────────────────
 
-    @abstractmethod
     def analyze_table(
         self,
         conn: sa.Connection,
@@ -156,7 +155,8 @@ class Backend(ABC):
         *,
         vacuum: bool = False,
         schema_tag: str = Role.PRIMARY.value,
-    ) -> None: ...
+    ) -> None:
+        raise FeatureNotSupportedError("Table statistics refresh", self)
 
     def index_exists(
         self,
