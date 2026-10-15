@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from oa_configurator import Dialect, Role, physical_schema_of, qualified
+from sqlalchemy.schema import CreateSequence, DropSequence
 
 from .base import Backend, FeatureNotSupportedError
 
@@ -52,29 +53,24 @@ def _split_schema_qualified(name: str) -> tuple[str | None, str]:
 
 def _sequence_backed_columns(conn: sa.Connection, table_name: str, *, schema_tag: str = Role.PRIMARY.value) -> list[str]:
     """Names of table_name's columns whose DEFAULT is a nextval() call."""
-    return list(
-        conn.execute(
-            sa.text(
-                """
-                SELECT column_name
-                FROM duckdb_columns()
-                WHERE table_name = :table_name
-                  AND schema_name = :db_schema
-                  AND column_default LIKE 'nextval(%'
-                """
-            ),
-            {"table_name": table_name, "db_schema": physical_schema_of(conn, schema_tag=schema_tag)},
-        ).scalars()
+    columns = sa.func.duckdb_columns().table_valued("table_name", "column_name", "schema_name", "column_default")
+    stmt = sa.select(columns.c.column_name).where(
+        columns.c.table_name == table_name,
+        columns.c.schema_name == physical_schema_of(conn, schema_tag=schema_tag),
+        columns.c.column_default.like("nextval(%"),
     )
+    return list(conn.execute(stmt).scalars())
 
 
 def _sequence_start_value(conn: sa.Connection, sequence_name: str, *, schema_tag: str = Role.PRIMARY.value) -> int:
     """The START value sequence_name (bare or schema-qualified) was created with."""
     physical_schema, bare_name = _split_schema_qualified(sequence_name)
-    return conn.execute(
-        sa.text("SELECT start_value FROM duckdb_sequences() WHERE sequence_name = :name AND schema_name = :db_schema"),
-        {"name": bare_name, "db_schema": physical_schema or physical_schema_of(conn, schema_tag=schema_tag)},
-    ).scalar_one()
+    sequences = sa.func.duckdb_sequences().table_valued("sequence_name", "schema_name", "start_value")
+    stmt = sa.select(sequences.c.start_value).where(
+        sequences.c.sequence_name == bare_name,
+        sequences.c.schema_name == (physical_schema or physical_schema_of(conn, schema_tag=schema_tag)),
+    )
+    return conn.execute(stmt).scalar_one()
 
 
 class DuckDBBackend(Backend):
@@ -129,13 +125,12 @@ class DuckDBBackend(Backend):
         *,
         schema_tag: str = Role.PRIMARY.value,
     ) -> bool:
-        row = conn.execute(
-            sa.text(
-                "SELECT 1 FROM duckdb_indexes() WHERE index_name = :index_name AND schema_name = :db_schema"
-            ),
-            {"index_name": index_name, "db_schema": physical_schema_of(conn, schema_tag=schema_tag)},
-        ).fetchone()
-        return row is not None
+        indexes = sa.func.duckdb_indexes().table_valued("index_name", "schema_name")
+        stmt = sa.select(sa.literal(1)).select_from(indexes).where(
+            indexes.c.index_name == index_name,
+            indexes.c.schema_name == physical_schema_of(conn, schema_tag=schema_tag),
+        )
+        return conn.execute(stmt).fetchone() is not None
 
     def drop_index_if_exists(
         self, conn: sa.Connection, index_name: str, *, schema_tag: str = Role.PRIMARY.value
@@ -173,6 +168,12 @@ class DuckDBBackend(Backend):
         """
         if cascade:
             raise FeatureNotSupportedError("TRUNCATE with CASCADE", self)
+        if conn.in_transaction():
+            raise RuntimeError(
+                "truncate_table_batch requires a connection from engine.connect(), "
+                "not engine.begin() (it commits between statements). Pass "
+                "engine.connect() instead."
+            )
         ordered = _truncate_order(conn, tables)
         for schema_tag, table_name in ordered:
             sql = f"TRUNCATE {qualified(conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}"
@@ -199,22 +200,13 @@ class DuckDBBackend(Backend):
         *,
         schema_tag: str = Role.PRIMARY.value,
     ) -> str | None:
-        result = conn.execute(
-            sa.text(
-                """
-                SELECT column_default
-                FROM duckdb_columns()
-                WHERE table_name = :table_name
-                  AND column_name = :column_name
-                  AND schema_name = :db_schema
-                """
-            ),
-            {
-                "table_name": table_name,
-                "column_name": column_name,
-                "db_schema": physical_schema_of(conn, schema_tag=schema_tag),
-            },
-        ).scalar_one_or_none()
+        columns = sa.func.duckdb_columns().table_valued("table_name", "column_name", "schema_name", "column_default")
+        stmt = sa.select(columns.c.column_default).where(
+            columns.c.table_name == table_name,
+            columns.c.column_name == column_name,
+            columns.c.schema_name == physical_schema_of(conn, schema_tag=schema_tag),
+        )
+        result = conn.execute(stmt).scalar_one_or_none()
         if result is None or not result.startswith("nextval("):
             return None
         return result[len("nextval('") : -2]
@@ -245,16 +237,17 @@ class DuckDBBackend(Backend):
         def nextval_ref(name: str) -> str:
             return f"{physical_schema}.{name}" if physical_schema else name
 
-        conn.exec_driver_sql(f"CREATE SEQUENCE {qualified(conn, tmp_name, physical_schema=physical_schema)} START {value}")
-        conn.exec_driver_sql(
-            f"ALTER TABLE {qualified_table} ALTER COLUMN {column_name} SET DEFAULT nextval('{nextval_ref(tmp_name)}')"
-        )
-        conn.exec_driver_sql(f"DROP SEQUENCE {qualified(conn, bare_name, physical_schema=physical_schema)}")
-        conn.exec_driver_sql(f"CREATE SEQUENCE {qualified(conn, bare_name, physical_schema=physical_schema)} START {value}")
-        conn.exec_driver_sql(
-            f"ALTER TABLE {qualified_table} ALTER COLUMN {column_name} SET DEFAULT nextval('{nextval_ref(bare_name)}')"
-        )
-        conn.exec_driver_sql(f"DROP SEQUENCE {qualified(conn, tmp_name, physical_schema=physical_schema)}")
+        def set_default(name: str) -> None:
+            conn.exec_driver_sql(
+                f"ALTER TABLE {qualified_table} ALTER COLUMN {column_name} SET DEFAULT nextval('{nextval_ref(name)}')"
+            )
+
+        conn.execute(CreateSequence(sa.Sequence(tmp_name, start=value, schema=physical_schema)))
+        set_default(tmp_name)
+        conn.execute(DropSequence(sa.Sequence(bare_name, schema=physical_schema)))
+        conn.execute(CreateSequence(sa.Sequence(bare_name, start=value, schema=physical_schema)))
+        set_default(bare_name)
+        conn.execute(DropSequence(sa.Sequence(tmp_name, schema=physical_schema)))
 
     # ── FK violation counting (no triggers needed) ───────────────────────────
 
@@ -269,30 +262,37 @@ class DuckDBBackend(Backend):
         source_schema_tag: str = Role.PRIMARY.value,
         referred_schema_tag: str = Role.PRIMARY.value,
     ) -> int:
-        """Anti-join count to count orphaned rows in source_table that violate a foreign key to referred_table.
+        """Count rows in source_table whose FK to referred_table has no match.
 
         Notes
         -----
-        No triggers to inspect in DuckDB, requiring the anti-join query.
+        No triggers to inspect in DuckDB, so this runs the anti-join
+        directly. When source and referred are the same physical table (a
+        self-referential FK), referred must be an explicit alias of
+        source.
         """
-        source = qualified(conn, source_table, physical_schema=physical_schema_of(conn, schema_tag=source_schema_tag))
-        referred = qualified(conn, referred_table, physical_schema=physical_schema_of(conn, schema_tag=referred_schema_tag))
-        non_null_predicate = " AND ".join(f"src.{col} IS NOT NULL" for col in constrained_cols)
-        join_predicate = " AND ".join(
-            f"ref.{ref_col} = src.{src_col}"
+        source_schema = physical_schema_of(conn, schema_tag=source_schema_tag)
+        referred_schema = physical_schema_of(conn, schema_tag=referred_schema_tag)
+        self_referential = referred_table == source_table and referred_schema == source_schema
+
+        column_names = list(constrained_cols)
+        if self_referential:
+            column_names += [c for c in referred_cols if c not in constrained_cols]
+        source = sa.Table(
+            source_table, sa.MetaData(), *(sa.Column(c) for c in column_names), schema=source_schema,
+        )
+        referred = (
+            source.alias()
+            if self_referential
+            else sa.Table(referred_table, sa.MetaData(), *(sa.Column(c) for c in referred_cols), schema=referred_schema)
+        )
+
+        match = sa.and_(*(
+            referred.c[ref_col] == source.c[src_col]
             for src_col, ref_col in zip(constrained_cols, referred_cols, strict=True)
-        )
-        return int(
-            conn.exec_driver_sql(
-                f"""
-                SELECT COUNT(*)
-                FROM {source} AS src
-                WHERE {non_null_predicate}
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM {referred} AS ref
-                      WHERE {join_predicate}
-                  )
-                """
-            ).scalar_one()
-        )
+        ))
+        not_null = sa.and_(*(source.c[col].isnot(None) for col in constrained_cols))
+        orphan_exists = sa.exists(sa.select(sa.literal(1)).select_from(referred).where(match))
+        return conn.execute(
+            sa.select(sa.func.count()).select_from(source).where(not_null, ~orphan_exists)
+        ).scalar_one()
