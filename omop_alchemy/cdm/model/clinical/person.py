@@ -12,12 +12,11 @@ from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     role_fk,
     cdm_table,
-    CDMTableBase, 
+    CDMTableBase,
     required_concept_fk,
     optional_concept_fk,
     required_int,
     optional_int,
-    HealthSystemContext,
     ReferenceContext,
     DomainValidationMixin,
     ExpectedDomain,
@@ -33,7 +32,7 @@ from .death import Death
 from .observation_period import Observation_Period
 
 @cdm_table
-class Person(CDMTableBase,Base,HealthSystemContext):
+class Person(CDMTableBase, Base):
     __tablename__ = "person"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},
