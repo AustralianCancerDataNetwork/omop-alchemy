@@ -41,8 +41,15 @@ class Visit_Detail(CDMTableBase, Base):
     admitted_from_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
     discharged_to_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     discharged_to_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
-    preceding_visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id")), nullable=True)
-    parent_visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id")), nullable=True)
+    # use_alter=True on both routes this FK through ALTER TABLE ADD CONSTRAINT so DuckDB's
+    # shim can permanently skip it, since DuckDB would otherwise reject bulk-load rows
+    # inserted before their own parent row exists.
+    preceding_visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id"), use_alter=True), nullable=True,
+    )
+    parent_visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id"), use_alter=True), nullable=True,
+    )
     visit_occurrence_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")), nullable=False)
 
     def __repr__(self) -> str:

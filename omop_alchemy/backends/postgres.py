@@ -241,6 +241,9 @@ class PostgresBackend(Backend):
         conn: sa.Connection,
         sequence_name: str,
         value: int,
+        *,
+        table_name: str,
+        column_name: str,
     ) -> None:
         conn.execute(
             sa.text("SELECT setval(:sequence_name, :value, false)"),

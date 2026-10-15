@@ -60,8 +60,7 @@ CONCEPT_SYNONYM_NAME_LOWER_INDEX = "ix_concept_synonym_concept_synonym_name_lowe
 @pytest.fixture(params=DIALECT_PARAMS)
 def indexed_engine(request):
     """Every OMOP table, with its full ORM-declared index set, created on
-    both a real Postgres backend and SQLite: index bookkeeping/capture/
-    clustering is dialect-portable logic, not SQLite-specific.
+    a real dialect-specific engine.
 
     Postgres gets its own fresh, dropped-after-test schema via
     scoped_test_schema rather than pg_session's shared public schema, since
@@ -89,6 +88,11 @@ def indexed_engine(request):
         with scoped_test_schema(pg_db.resolved, prefix="indexed_engine") as scoped:
             _create_missing_tables(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
             yield scoped.engine
+    elif request.param == "duckdb":
+        engine = request.getfixturevalue("fresh_duckdb_engine")
+        resolved = request.getfixturevalue("fresh_duckdb_resolved")
+        _create_missing_tables(MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine))
+        yield engine
     else:
         engine = request.getfixturevalue("fresh_engine")
         _create_missing_tables(MaintenanceContext(resolved=request.getfixturevalue("fresh_resolved"), engine=engine, vocab_engine=engine))
@@ -107,6 +111,8 @@ def indexed_resolved(indexed_engine, request):
         pg_db = request.getfixturevalue("pg_db")
         schema = physical_schema_of(indexed_engine, schema_tag=Role.PRIMARY)
         return resolve_with_role_schemas(pg_db.resolved, {Role.PRIMARY: schema})
+    if indexed_engine.dialect.name == "duckdb":
+        return request.getfixturevalue("fresh_duckdb_resolved")
     return request.getfixturevalue("fresh_resolved")
 
 

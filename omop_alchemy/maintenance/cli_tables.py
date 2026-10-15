@@ -187,10 +187,12 @@ def _truncate_tables(
 ) -> list[TruncateTableResult]:
     """Truncate selected ORM-managed tables. Raises if non-selected tables hold blocking FK references.
 
-    Each engine's tables are counted, checked for blockers and truncated in
-    one transaction on that engine, and in one statement, since PostgreSQL's
-    RESTRICT mode requires referencing and referenced tables to be named
-    together. No transaction spans the two engines of a split deployment.
+    Each engine's tables are counted, checked for blockers and truncated on
+    one connection. 
+    - Postgres: all statements are executed in one transaction, so RESTRICT mode sees
+    all referencing and referenced tables together.
+    - DuckDB: each table's TRUNCATE must be committed before the next, so
+    RESTRICT mode sees only the current table and its referencing tables.
 
     Notes
     -----
@@ -209,7 +211,7 @@ def _truncate_tables(
 
     row_counts: dict[str, int] = {}
     with ExitStack() as stack:
-        connections = {engine: stack.enter_context(engine.begin()) for engine in groups}
+        connections = {engine: stack.enter_context(engine.connect()) for engine in groups}
         present = {
             engine: [target for target in targets if target.exists()]
             for engine, targets in groups.items()
@@ -242,6 +244,8 @@ def _truncate_tables(
                         restart_identities=restart_identities,
                         cascade=cascade,
                     )
+            for connection in connections.values():
+                connection.commit()
 
     return [
         TruncateTableResult(
@@ -363,7 +367,7 @@ def reset_model_sequences(
                             sequence_name=None,
                             next_value=None,
                             status=Status.SKIPPED,
-                            detail="no owned PostgreSQL sequence found",
+                            detail="no owned sequence found",
                         )
                     )
                     continue
@@ -380,7 +384,13 @@ def reset_model_sequences(
                 next_value = int(current_max) + 1
 
                 if not dry_run:
-                    backend.set_sequence_value(connection, sequence_name, next_value)
+                    backend.set_sequence_value(
+                        connection,
+                        sequence_name,
+                        next_value,
+                        table_name=target.table_name,
+                        column_name=target.pk_column_name,
+                    )
 
                 results.append(
                     SequenceResetResult(

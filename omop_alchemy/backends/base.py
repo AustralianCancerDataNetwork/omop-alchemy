@@ -219,7 +219,18 @@ class Backend(ABC):
         conn: sa.Connection,
         sequence_name: str,
         value: int,
+        *,
+        table_name: str,
+        column_name: str,
     ) -> None:
+        """Reset sequence_name so its next value is value.
+
+        Notes
+        -----
+        - DuckDB has no ALTER SEQUENCE ... RESTART WITH, so this method is required to
+          repoint a column's DEFAULT at a freshly recreated sequence to change its starting value.
+        - Postgres setval() can reset a sequence without repointing a column's DEFAULT
+        """
         raise FeatureNotSupportedError("Sequence value reset", self)
 
     # ── Full-text search ─────────────────────────────────────────────────────

@@ -1,13 +1,18 @@
+from datetime import date
 from typing import Iterator, NamedTuple
 
 import pytest
 import sqlalchemy as sa
+import sqlalchemy.orm as so
 
 from oa_configurator import ResolvedCDMDatabase, Role
 from oa_configurator import qualified, physical_schema_of
 from oa_configurator.testing import DIALECT_PARAMS, isolated_test_schema, scoped_test_schema
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import omop_index_name
+from omop_alchemy.cdm.model.clinical import Person
+from omop_alchemy.cdm.model.structural.episode import Episode
+from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Class, Domain, Vocabulary
 from omop_alchemy.maintenance.cli_indexes import _manage_indexes
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.cli_schema_reconcile import is_blocking_issue, reconcile_schema
@@ -24,12 +29,13 @@ class _ReconcileEngine(NamedTuple):
 
 @pytest.fixture(params=DIALECT_PARAMS)
 def reconcile_engine(request) -> Iterator[_ReconcileEngine]:
-    """Every OMOP table created, indexed, and clustered, on both Postgres and SQLite.
+    """Every OMOP table created, indexed, and clustered, on Postgres, SQLite,
+    and DuckDB.
 
     _manage_indexes(enable=True) is required on Postgres: _create_missing_tables()
     alone creates indexes but never physically CLUSTERs them, so a fresh
     database would otherwise report false cluster drift. It's a harmless
-    no-op for clustering on SQLite.
+    no-op for clustering on SQLite/DuckDB.
 
     Notes
     -----
@@ -44,8 +50,12 @@ def reconcile_engine(request) -> Iterator[_ReconcileEngine]:
             _manage_indexes(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine), enable=True)
             yield _ReconcileEngine(scoped.engine, scoped.resolved)
             return
-    engine = request.getfixturevalue("fresh_engine")
-    resolved = request.getfixturevalue("fresh_resolved")
+    if request.param == "duckdb":
+        engine = request.getfixturevalue("fresh_duckdb_engine")
+        resolved = request.getfixturevalue("fresh_duckdb_resolved")
+    else:
+        engine = request.getfixturevalue("fresh_engine")
+        resolved = request.getfixturevalue("fresh_resolved")
     _create_missing_tables(MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine))
     _manage_indexes(MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine), enable=True)
     yield _ReconcileEngine(engine, resolved)
@@ -116,6 +126,60 @@ def test_reconcile_schema_renamed_index_does_not_flip_table_to_drifted(reconcile
 
     assert person_result.status == "matched"
     assert person_result.issue_count == 1
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+def test_reconcile_schema_catches_deferred_fk_violation_on_duckdb(fresh_duckdb_engine, fresh_duckdb_resolved):
+    """Deferred FK for self-referential episode.episode_parent_id."""
+    engine, resolved = fresh_duckdb_engine, fresh_duckdb_resolved
+    _create_missing_tables(
+        MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine), vocabulary_included=True
+    )
+
+    with so.Session(engine) as session:
+        session.add(Domain(domain_id="Episode", domain_name="Episode", domain_concept_id=0))
+        session.add(Vocabulary(vocabulary_id="Episode", vocabulary_name="Episode", vocabulary_concept_id=0))
+        session.add(
+            Concept_Class(concept_class_id="Episode", concept_class_name="Episode", concept_class_concept_id=0)
+        )
+        session.commit()
+        session.add(
+            Concept(
+                concept_id=0, concept_name="test", domain_id="Episode", vocabulary_id="Episode",
+                concept_class_id="Episode", concept_code="x",
+                valid_start_date=date(2000, 1, 1), valid_end_date=date(2000, 1, 1),
+            )
+        )
+        session.commit()
+        session.add(
+            Person(person_id=1, gender_concept_id=0, year_of_birth=2000, race_concept_id=0, ethnicity_concept_id=0)
+        )
+        session.commit()
+        session.add(
+            Episode(
+                episode_id=1,
+                person_id=1,
+                episode_start_date=date(2020, 1, 1),
+                episode_concept_id=0,
+                episode_object_concept_id=0,
+                episode_type_concept_id=0,
+                episode_parent_id=999,
+            )
+        )
+        session.commit()
+
+    report = reconcile_schema(
+        MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine), vocabulary_included=True
+    )
+    episode_fk_issues = [
+        issue for issue in report.issues if issue.table_name == "episode" and issue.component == "foreign_key"
+    ]
+
+    assert len(episode_fk_issues) == 1
+    issue = episode_fk_issues[0]
+    assert issue.status == "mismatch"
+    assert "orphaned" in issue.actual
 
 
 @pytest.mark.postgresql

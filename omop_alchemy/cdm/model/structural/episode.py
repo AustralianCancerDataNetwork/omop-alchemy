@@ -42,7 +42,12 @@ class Episode(CDMTableBase, Base, PersonScoped):
     )
 
     episode_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    episode_parent_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "episode.episode_id")), nullable=True)
+    # use_alter=True routes this FK through ALTER TABLE ADD CONSTRAINT so DuckDB's shim
+    # can permanently skip it, since DuckDB would otherwise reject bulk-load rows inserted
+    # before their own parent row exists.
+    episode_parent_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "episode.episode_id"), use_alter=True), nullable=True,
+    )
 
     episode_start_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
     episode_start_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)

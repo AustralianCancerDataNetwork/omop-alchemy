@@ -10,17 +10,23 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Person
-from omop_alchemy.cdm.model.vocabulary import Concept
+from omop_alchemy.cdm.model.structural.episode import Episode
+from omop_alchemy.cdm.model.vocabulary import (
+    Concept,
+    Concept_Class,
+    Domain,
+    Relationship,
+    Vocabulary,
+)
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
+from omop_alchemy.maintenance.cli_vocab import _load_vocab_model_csv
 from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 
 
 @pytest.mark.duckdb
 @pytest.mark.db_dialect
 def test_duckdb_create_missing_tables_can_create_vocabulary(fresh_duckdb_engine, fresh_duckdb_resolved):
-    """The full CDM (clinical + vocabulary) creates successfully on DuckDB,
-    including the tables caught in genuine FK cycles (person/visit_occurrence/
-    visit_detail, concept/concept_class/domain/vocabulary)."""
     _create_missing_tables(
         MaintenanceContext(
             resolved=fresh_duckdb_resolved, engine=fresh_duckdb_engine, vocab_engine=fresh_duckdb_engine
@@ -49,8 +55,12 @@ def test_duckdb_noncircular_fk_still_enforced(fresh_duckdb_engine, fresh_duckdb_
     )
 
     with Session(fresh_duckdb_engine) as session:
-        # concept_id=0's own FKs (domain_id/vocabulary_id/concept_class_id) are
-        # part of the vocabulary cycle and unenforced, so arbitrary values are fine.
+        # Create a real concept row so the enforced FKs resolve
+        session.add(Domain(domain_id="x", domain_name="x", domain_concept_id=0))
+        session.add(Vocabulary(vocabulary_id="x", vocabulary_name="x", vocabulary_concept_id=0))
+        session.add(Concept_Class(concept_class_id="x", concept_class_name="x", concept_class_concept_id=0))
+        session.commit()
+
         session.add(
             Concept(
                 concept_id=0,
@@ -81,12 +91,8 @@ def test_duckdb_noncircular_fk_still_enforced(fresh_duckdb_engine, fresh_duckdb_
 @pytest.mark.duckdb
 @pytest.mark.db_dialect
 def test_duckdb_circular_fk_is_not_db_enforced(fresh_duckdb_engine, fresh_duckdb_resolved):
-    """person.visit_occurrence_id -> visit_occurrence is part of the genuine
-    person/visit_occurrence/visit_detail FK cycle, deferred by SQLAlchemy and
-    no-oped by oa-configurator's _skip_deferred_fk_on_duckdb shim (DuckDB
-    can't execute the ALTER TABLE ADD CONSTRAINT): an orphaned reference
-    inserts without error, the documented tradeoff for a cyclic CDM schema
-    on DuckDB."""
+    """Cyclical FK: domain.domain_concept_id -> concept. An orphaned
+    reference inserts without error through FK deferral."""
     _create_missing_tables(
         MaintenanceContext(
             resolved=fresh_duckdb_resolved, engine=fresh_duckdb_engine, vocab_engine=fresh_duckdb_engine
@@ -95,14 +101,94 @@ def test_duckdb_circular_fk_is_not_db_enforced(fresh_duckdb_engine, fresh_duckdb
     )
 
     with Session(fresh_duckdb_engine) as session:
+        session.add(Domain(domain_id="Drug", domain_name="Drug", domain_concept_id=999))
+        session.commit()
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+def test_duckdb_load_csv_self_referential_relationship_pair(fresh_duckdb_engine, fresh_duckdb_resolved, tmp_path):
+    """Self-referential relationships: relationship.reverse_relationship_id."""
+    _create_missing_tables(
+        MaintenanceContext(
+            resolved=fresh_duckdb_resolved, engine=fresh_duckdb_engine, vocab_engine=fresh_duckdb_engine
+        ),
+        vocabulary_included=True,
+    )
+
+    with Session(fresh_duckdb_engine) as session:
+        # relationship_concept_id -> concept is a real, inline-enforced FK
+        # so a real concept row needs to exist first.
+        session.add(Domain(domain_id="Episode", domain_name="Episode", domain_concept_id=0))
+        session.add(Vocabulary(vocabulary_id="Episode", vocabulary_name="Episode", vocabulary_concept_id=0))
         session.add(
-            Person(
+            Concept_Class(concept_class_id="Episode", concept_class_name="Episode", concept_class_concept_id=0)
+        )
+        session.commit()
+        session.add(
+            Concept(
+                concept_id=0, concept_name="test", domain_id="Episode", vocabulary_id="Episode",
+                concept_class_id="Episode", concept_code="x",
+                valid_start_date=date(2000, 1, 1), valid_end_date=date(2000, 1, 1),
+            )
+        )
+        session.commit()
+
+    csv_path = _write_fixture_csv(tmp_path, "relationship", _ATHENA_FIXTURE_DATA["relationship"])
+    with Session(fresh_duckdb_engine) as session:
+        rows = _load_vocab_model_csv(
+            session, model=Relationship, csv_path=csv_path, merge_strategy="upsert", quote_mode="auto"  # ty: ignore[invalid-argument-type]
+        )
+        session.commit()
+    assert rows == 2
+
+    with Session(fresh_duckdb_engine) as session:
+        rel = session.get(Relationship, "Is a")
+        assert rel is not None
+        assert rel.reverse_relationship_id == "Subsumes"
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+def test_duckdb_episode_self_reference_is_not_db_enforced(fresh_duckdb_engine, fresh_duckdb_resolved):
+    """Self-referential relationships: episode.episode_parent_id."""
+    _create_missing_tables(
+        MaintenanceContext(
+            resolved=fresh_duckdb_resolved, engine=fresh_duckdb_engine, vocab_engine=fresh_duckdb_engine
+        ),
+        vocabulary_included=True,
+    )
+
+    with Session(fresh_duckdb_engine) as session:
+        session.add(Domain(domain_id="Episode", domain_name="Episode", domain_concept_id=0))
+        session.add(Vocabulary(vocabulary_id="Episode", vocabulary_name="Episode", vocabulary_concept_id=0))
+        session.add(
+            Concept_Class(concept_class_id="Episode", concept_class_name="Episode", concept_class_concept_id=0)
+        )
+        session.commit()
+        session.add(
+            Concept(
+                concept_id=0, concept_name="test", domain_id="Episode", vocabulary_id="Episode",
+                concept_class_id="Episode", concept_code="x",
+                valid_start_date=date(2000, 1, 1), valid_end_date=date(2000, 1, 1),
+            )
+        )
+        session.commit()
+
+        session.add(
+            Person(person_id=1, gender_concept_id=0, year_of_birth=2000, race_concept_id=0, ethnicity_concept_id=0)
+        )
+        session.commit()
+
+        session.add(
+            Episode(
+                episode_id=1,
                 person_id=1,
-                gender_concept_id=0,
-                year_of_birth=2000,
-                race_concept_id=0,
-                ethnicity_concept_id=0,
-                visit_occurrence_id=999,
+                episode_start_date=date(2020, 1, 1),
+                episode_concept_id=0,
+                episode_object_concept_id=0,
+                episode_type_concept_id=0,
+                episode_parent_id=999,
             )
         )
         session.commit()
