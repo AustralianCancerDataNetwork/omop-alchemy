@@ -123,8 +123,8 @@ REQUIRED_VOCAB_MODELS: tuple[VocabularyModel, ...] = cast(
         Domain,
         Vocabulary,
         Concept_Class,
-        Relationship,
         Concept,
+        Relationship,
         Concept_Ancestor,
         Concept_Relationship,
         Concept_Synonym,
@@ -192,6 +192,7 @@ def _load_vocab_model_csv(
     index_strategy: str = "auto",
     merge_batch_size: int | None = None,
     staging_schema_tag: str | None = None,
+    validate_deferred_fks: bool = True,
 ) -> int:
     """Call model.load_csv. If the staging table is absent, create it and retry once."""
     load_kwargs: dict[str, object] = {
@@ -200,6 +201,7 @@ def _load_vocab_model_csv(
         "index_strategy": index_strategy,
         "merge_batch_size": merge_batch_size,
         "staging_schema_tag": staging_schema_tag,
+        "validate_deferred_fks": validate_deferred_fks,
     }
     if chunksize is not None:
         load_kwargs["chunksize"] = chunksize
@@ -406,6 +408,33 @@ def load_vocab_source(
     if not dry_run:
         created_table_count = _create_missing_vocabulary_tables(context)
 
+    backend = resolve_backend(vocab_engine)
+    all_model_tables = {m.__table__ for m in all_models}
+
+    def _covered_by_this_load(model: VocabularyModel) -> bool:
+        """True if every table model's deferred FKs point at is also being
+        loaded in this call, so validating model right after its own commit
+        would false-positive on a reference that just hasn't loaded yet.
+
+        False means nothing later in this call could satisfy the
+        reference anyway, so model is validated inline instead (see the
+        main loop below), rolling back its own commit if it's a real
+        orphan rather than committing and raising afterward.
+        """
+        referred_tables = {
+            fk.elements[0].column.table for fk in backend.deferred_fk_constraints(model)
+        }
+        return bool(referred_tables) and referred_tables.issubset(all_model_tables)
+
+    if not dry_run and merge_strategy == "replace":
+        # Pre-check against every table that will be loaded to avoid
+        # partial loads leaving some tables replaced and others not
+        # Runs after table creation as it queries row counts.
+        with so.Session(vocab_engine) as preflight_session:
+            for model in all_models:
+                if _find_vocab_csv_path(resolved_source_path, model.__tablename__) is not None:
+                    backend.check_replace_feasible(model, model.pk_names(), preflight_session)
+
     try:
         for model in all_models:
             csv_path = _find_vocab_csv_path(resolved_source_path, model.__tablename__)
@@ -486,6 +515,7 @@ def load_vocab_source(
                             chunksize=chunksize,
                             merge_batch_size=merge_batch_size,
                             staging_schema_tag=STAGING_SCHEMA,
+                            validate_deferred_fks=not _covered_by_this_load(model),
                         )
                         session.commit()
                     break
@@ -523,6 +553,13 @@ def load_vocab_source(
                 rows_this_table=row_count,
                 table_count=table_count,
             )
+
+        if not dry_run:
+            deferred_models = [m for m in all_models if _covered_by_this_load(m)]
+            if deferred_models:
+                with so.Session(vocab_engine) as session:
+                    for model in deferred_models:
+                        backend.validate_deferred_fks(model, session)
     finally:
         if not dry_run:
             from omop_alchemy.toolkit.core.concepts import clear_concept_group_cache

@@ -19,6 +19,7 @@ from omop_alchemy.maintenance.tables import TableCategory
 from omop_alchemy.maintenance.context import MaintenanceContext
 from omop_alchemy.config import MAINTENANCE_SCHEMA
 from oa_configurator import SCHEMA_REGISTRY_SCHEMA
+from omop_alchemy.backends.base import Backend
 from omop_alchemy.maintenance.cli_backup import BackupFormat, _single_connection_backup
 
 
@@ -28,7 +29,10 @@ pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 def test_backup_includes_maintenance_schema(pg_engine, pg_resolved, monkeypatch, tmp_path):
     captured = {}
 
-    class FakeBackend:
+    class FakeBackend(Backend):
+        name = "Fake"
+        dialect = "fake"
+
         def prepare_backup(self, engine, path, backup_format, *, schemas):
             captured["schemas"] = schemas
             return "pg_dump", [], {}, engine.url.database

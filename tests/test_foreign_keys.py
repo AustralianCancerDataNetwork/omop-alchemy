@@ -1,6 +1,8 @@
 import pytest
+import sqlalchemy.orm as so
 from typer.testing import CliRunner
 
+from omop_alchemy.cdm.model.vocabulary import Domain
 from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
@@ -29,6 +31,29 @@ def test_collect_fk_info_finds_participating_tables(fresh_engine, fresh_resolved
 
     assert "person" in targets
     assert targets["person"].incoming_constraint_count > 0
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+def test_validate_foreign_key_constraints_catches_deferred_fk_violation_on_duckdb(
+    fresh_duckdb_engine, fresh_duckdb_resolved
+):
+    """Cyclical FK:domain.domain_concept_id -> concept. """
+    context = MaintenanceContext(resolved=fresh_duckdb_resolved, engine=fresh_duckdb_engine, vocab_engine=fresh_duckdb_engine)
+    _create_missing_tables(context, vocabulary_included=True)
+
+    targets = {target.table_name: target for target in _collect_fk_info(context, vocabulary_included=True)}
+    assert "domain" in targets
+
+    with so.Session(fresh_duckdb_engine) as session:
+        session.add(Domain(domain_id="Episode", domain_name="Episode", domain_concept_id=999))
+        session.commit()
+
+    report = validate_foreign_key_constraints(context, vocabulary_included=True)
+    domain_result = next(r for r in report.results if r.table_name == "domain")
+
+    assert domain_result.status == "failed"
+    assert any(v.source_table_name == "domain" for v in report.violations)
 
 
 def test_manage_foreign_key_triggers_supports_dry_run(fresh_engine, fresh_resolved):
@@ -166,7 +191,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_strict_validation_failures",
-        lambda connection, backend, *, targets=(), vocabulary_included=False: {
+        lambda connection, backend, *, targets=(), table_map=None, vocabulary_included=False: {
             "visit_occurrence": [
                 ForeignKeyConstraintViolation(
                     source_table_name="visit_occurrence",
@@ -232,7 +257,7 @@ def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(monke
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_strict_validation_failures",
-        lambda connection, backend, *, targets=(), vocabulary_included=False: {},
+        lambda connection, backend, *, targets=(), table_map=None, vocabulary_included=False: {},
     )
 
     results = manage_foreign_key_triggers(
@@ -341,7 +366,7 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch, fresh_re
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_strict_validation_failures",
-        lambda connection, backend, *, targets=(), vocabulary_included=False: {
+        lambda connection, backend, *, targets=(), table_map=None, vocabulary_included=False: {
             "visit_occurrence": [
                 ForeignKeyConstraintViolation(
                     source_table_name="visit_occurrence",

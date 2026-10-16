@@ -86,12 +86,45 @@ def fresh_resolved(fresh_db: IsolatedTestDatabase) -> ResolvedCDMDatabase:
     return fresh_db.resolved
 
 
+@pytest.fixture
+def fresh_duckdb_db(request) -> Iterator[IsolatedTestDatabase]:
+    """Fresh, empty, function-scoped DuckDB database.
+
+    Unlike SQLite, DuckDB's supports_alter=True means create_all() can
+    corrupt shared metadata process-wide (SQLAlchemy's AddConstraint
+    permanently disables a deferred FK's inline rendering on the shared
+    constraint object, not just for this call), so every consuming test
+    must carry pytest.mark.duckdb + pytest.mark.db_dialect. request is
+    forwarded so isolated_test_database() enforces that at setup time.
+    """
+    with isolated_test_database(
+        OmopAlchemyConfig,
+        "test_cdm_db_duckdb",
+        dialect="duckdb",
+        request=request,
+    ) as db:
+        yield db
+
+
+@pytest.fixture
+def fresh_duckdb_engine(fresh_duckdb_db: IsolatedTestDatabase) -> sa.Engine:
+    """fresh_duckdb_db's engine."""
+    return fresh_duckdb_db.connection.engine
+
+
+@pytest.fixture
+def fresh_duckdb_resolved(fresh_duckdb_db: IsolatedTestDatabase) -> ResolvedCDMDatabase:
+    """fresh_duckdb_db's ResolvedCDMDatabase, for maintenance functions that require one."""
+    assert isinstance(fresh_duckdb_db.resolved, ResolvedCDMDatabase)
+    return fresh_duckdb_db.resolved
+
+
 ATHENA_LOAD_ORDER = [
     Domain,
     Vocabulary,
     Concept_Class,
-    Relationship,
     Concept,
+    Relationship,
     Concept_Ancestor,
     Concept_Relationship,
 ]

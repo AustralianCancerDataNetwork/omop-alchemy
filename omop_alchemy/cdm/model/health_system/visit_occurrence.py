@@ -59,7 +59,12 @@ class Visit_Occurrence(CDMTableBase, Base):
     discharged_to_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     discharged_to_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
 
-    preceding_visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")), nullable=True)
+    # use_alter=True routes this FK through ALTER TABLE ADD CONSTRAINT so DuckDB's shim
+    # can permanently skip it, since DuckDB would otherwise reject bulk-load rows inserted
+    # before their own parent row exists.
+    preceding_visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id"), use_alter=True), nullable=True,
+    )
 
     def __repr__(self) -> str:
         return f"<VisitOccurrence {self.visit_occurrence_id}>"

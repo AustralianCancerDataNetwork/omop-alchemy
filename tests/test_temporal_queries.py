@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from datetime import date
 
+import duckdb_sqlalchemy
 import pytest
 import sqlalchemy as sa
+from oa_configurator.testing import assert_compiles_for_every_dialect
 from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.exc import UnsupportedCompilationError
 
@@ -23,6 +25,14 @@ from omop_alchemy.toolkit.episodes.derivation import (
     signed_day_delta,
     temporal_order_expressions,
 )
+from omop_alchemy.toolkit.episodes.derivation.temporal import _ShiftDate, _SignedDayDelta
+
+
+def test_signed_day_delta_and_shift_date_cover_every_oa_configurator_dialect():
+    """Catches a "registered for postgresql and sqlite, forgot duckdb" regression
+    at test time."""
+    assert_compiles_for_every_dialect(_SignedDayDelta)
+    assert_compiles_for_every_dialect(_ShiftDate)
 
 
 def _temporal_candidates() -> sa.CTE:
@@ -38,7 +48,7 @@ def _temporal_candidates() -> sa.CTE:
     ).cte("temporal_candidates")
 
 
-@pytest.mark.parametrize("dialect", [sqlite.dialect(), postgresql.dialect()])
+@pytest.mark.parametrize("dialect", [sqlite.dialect(), postgresql.dialect(), duckdb_sqlalchemy.Dialect()])
 def test_day_delta_compiles_for_supported_dialects(dialect):
     statement = sa.select(
         signed_day_delta(sa.literal(date(2026, 1, 21)), sa.literal(date(2026, 1, 20))),
@@ -89,6 +99,24 @@ def test_day_delta_executes_as_signed_calendar_days(session):
     ).one()
 
     assert tuple(values) == (1, -5)
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+def test_day_delta_and_shift_date_execute_on_duckdb(fresh_duckdb_engine):
+    """DuckDB's DATE - DATE returns a plain integer day count and not an INTERVAL."""
+    with fresh_duckdb_engine.connect() as connection:
+        delta_values = connection.execute(
+            sa.select(
+                signed_day_delta(sa.literal(date(2026, 1, 21)), sa.literal(date(2026, 1, 20))),
+                signed_day_delta(sa.literal(date(2026, 1, 15)), sa.literal(date(2026, 1, 20))),
+            )
+        ).one()
+        assert tuple(delta_values) == (1, -5)
+
+        lower, upper = episode_window_bounds(sa.literal(date(2026, 1, 15)), sa.literal(None, type_=sa.Date()))
+        bounds = connection.execute(sa.select(lower, upper)).one()
+        assert bounds == (date(2025, 10, 17), date(2027, 1, 15))
 
 
 def test_side_preference_is_applied_before_absolute_distance(session):

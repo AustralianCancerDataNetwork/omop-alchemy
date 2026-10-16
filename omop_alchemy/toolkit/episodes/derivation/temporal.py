@@ -27,14 +27,14 @@ class _SignedDayDelta(FunctionElement[int]):
 
 
 @compiles(_SignedDayDelta, "postgresql")
+@compiles(_SignedDayDelta, "duckdb")
 def _compile_signed_day_delta(
     element: _SignedDayDelta,
     compiler: SQLCompiler,
     **kwargs: Any,
 ) -> str:
-    # PostgreSQL dates subtract to an integer; casting first makes timestamp
-    # inputs obey the toolkit's calendar-day contract instead of elapsed-time
-    # semantics.
+    # Cast both sides to DATE before subtracting, so a timestamp input is
+    # truncated to a whole-day count instead of counting elapsed time.
     candidate, anchor = list(element.clauses)
     return (
         f"(CAST({compiler.process(candidate, **kwargs)} AS DATE) - "
@@ -66,13 +66,14 @@ class _ShiftDate(FunctionElement[Any]):
 
 
 @compiles(_ShiftDate, "postgresql")
+@compiles(_ShiftDate, "duckdb")
 def _compile_shift_date(
     element: _ShiftDate,
     compiler: SQLCompiler,
     **kwargs: Any,
 ) -> str:
-    # Keep the date cast on the value and integer cast on the offset explicit;
-    # this avoids PostgreSQL choosing timestamp/interval semantics implicitly.
+    # Cast the value to DATE and the offset to INTEGER explicitly, so this
+    # adds whole days instead of falling back to timestamp/interval math.
     value, days = list(element.clauses)
     return (
         f"(CAST({compiler.process(value, **kwargs)} AS DATE) + "

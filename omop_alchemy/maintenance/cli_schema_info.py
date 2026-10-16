@@ -9,10 +9,9 @@ import shutil
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from oa_configurator import Dialect
 from oa_configurator.loader import DEFAULT_CONFIG_PATH
 
-from ..backends.resolve import backend_label
+from ..backends import Backend, BackendNotSupportedError, backend_support_note, backend_supports, resolve_backend
 from ._cli_utils import Status
 from .context import MaintenanceContext
 from .cli_schema_tables import collect_missing_tables
@@ -98,160 +97,112 @@ def _external_dependency_status(name: str, executable_name: str) -> DependencySt
 
 def _command_support_for_backend(
     *,
-    backend: str,
+    backend: Backend | None,
+    backend_label: str,
     connection_ready: bool,
     connection_error: str | None,
     pg_dump_path: str | None,
     pg_restore_path: str | None,
     psql_path: str | None,
 ) -> tuple[CommandSupport, ...]:
-    """Compute the readiness status of every CLI command given the current backend, connection state, and tool availability."""
-    current_backend = backend_label(backend)
+    """Compute the readiness status of every CLI command given the current backend, 
+    connection state, and tool availability.
+    """
     blocked_detail = (
-        f"Backend resolved to {current_backend}, but the connection test failed: {connection_error}"
+        f"Backend resolved to {backend_label}, but the connection test failed: {connection_error}"
         if connection_error
-        else f"Backend resolved to {current_backend}, but the connection test failed."
+        else f"Backend resolved to {backend_label}, but the connection test failed."
     )
     portable_status = Status.READY if connection_ready else Status.BLOCKED
-    portable_detail = (
-        f"Ready on {current_backend}." if connection_ready else blocked_detail
-    )
+    portable_detail = f"Ready on {backend_label}." if connection_ready else blocked_detail
 
-    if backend == Dialect.POSTGRESQL:
-        analyze_status = portable_status
-        analyze_detail = (
-            "Ready on PostgreSQL; ANALYZE and VACUUM ANALYZE are both supported."
-            if connection_ready
-            else blocked_detail
-        )
-        enable_indexes_status = portable_status
-        enable_indexes_detail = (
-            "Ready on PostgreSQL; index DDL and clustering metadata are both supported."
-            if connection_ready
-            else blocked_detail
-        )
-        postgresql_status = portable_status
-        postgresql_detail = "Ready on PostgreSQL." if connection_ready else blocked_detail
-        vocab_load_status = portable_status
-        vocab_load_detail = (
-            "Ready on PostgreSQL when an Athena source path is configured."
-            if connection_ready
-            else blocked_detail
-        )
-    elif backend == Dialect.SQLITE:
-        analyze_status = Status.LIMITED if connection_ready else Status.BLOCKED
-        analyze_detail = (
-            "Ready on SQLite; ANALYZE is supported, but `--vacuum` is unavailable."
-            if connection_ready
-            else blocked_detail
-        )
-        enable_indexes_status = Status.LIMITED if connection_ready else Status.BLOCKED
-        enable_indexes_detail = (
-            "Ready on SQLite; index DDL is supported, but clustering metadata will be skipped."
-            if connection_ready
-            else blocked_detail
-        )
-        postgresql_status = Status.UNSUPPORTED if connection_ready else Status.BLOCKED
-        postgresql_detail = (
-            f"Requires PostgreSQL. Current backend: {current_backend}."
-            if connection_ready
-            else blocked_detail
-        )
-        vocab_load_status = portable_status
-        vocab_load_detail = (
-            "Ready on SQLite when an Athena source path is configured."
-            if connection_ready
-            else blocked_detail
-        )
-    else:
-        analyze_status = Status.UNSUPPORTED if connection_ready else Status.BLOCKED
-        analyze_detail = (
-            f"Requires PostgreSQL or SQLite. Current backend: {current_backend}."
-            if connection_ready
-            else blocked_detail
-        )
-        enable_indexes_status = Status.LIMITED if connection_ready else Status.BLOCKED
-        enable_indexes_detail = (
-            f"Ready on {current_backend}; index DDL is supported, but clustering metadata will be skipped."
-            if connection_ready
-            else blocked_detail
-        )
-        postgresql_status = Status.UNSUPPORTED if connection_ready else Status.BLOCKED
-        postgresql_detail = (
-            f"Requires PostgreSQL. Current backend: {current_backend}."
-            if connection_ready
-            else blocked_detail
-        )
-        vocab_load_status = Status.UNSUPPORTED if connection_ready else Status.BLOCKED
-        vocab_load_detail = (
-            f"Requires SQLite or PostgreSQL plus a configured Athena source path. Current backend: {current_backend}."
-            if connection_ready
-            else blocked_detail
-        )
+    def supports(method_name: str) -> bool:
+        return backend is not None and backend_supports(backend, method_name)
+
+    def gated(method_name: str) -> tuple[Status, str]:
+        """READY/UNSUPPORTED/BLOCKED status and detail for a command that needs method_name."""
+        if not connection_ready:
+            return Status.BLOCKED, blocked_detail
+        if supports(method_name):
+            return Status.READY, f"Ready on {backend_label}."
+        return Status.UNSUPPORTED, f"{backend_support_note(method_name)} Current backend: {backend_label}."
+
+    analyze_status, analyze_detail = gated("analyze_table")
+    enable_indexes_status, enable_indexes_detail = (
+        (Status.BLOCKED, blocked_detail)
+        if not connection_ready
+        else (Status.READY, f"Ready on {backend_label}; index DDL and clustering metadata are both supported.")
+        if supports("cluster_table")
+        else (Status.LIMITED, f"Ready on {backend_label}; index DDL is supported, but clustering metadata will be skipped.")
+    )
+    backup_status, backup_detail = (
+        (Status.BLOCKED, blocked_detail)
+        if not connection_ready
+        else (Status.READY, f"Ready on {backend_label}; backup runs in-process, no external tool required.")
+        if supports("backup_tables")
+        else (Status.UNSUPPORTED, f"{backend_support_note('prepare_backup', 'backup_tables')} Current backend: {backend_label}.")
+        if not supports("prepare_backup")
+        else (Status.READY, f"Ready on {backend_label}; `pg_dump` is available.")
+        if pg_dump_path is not None
+        else (Status.BLOCKED, f"{backend_label} is configured, but `pg_dump` is not on PATH.")
+    )
+    restore_status, restore_detail = (
+        (Status.BLOCKED, blocked_detail)
+        if not connection_ready
+        else (Status.READY, f"Ready on {backend_label}; restore runs in-process, no external tool required.")
+        if supports("restore_tables")
+        else (Status.UNSUPPORTED, f"{backend_support_note('prepare_restore', 'restore_tables')} Current backend: {backend_label}.")
+        if not supports("prepare_restore")
+        else (Status.READY, f"Ready on {backend_label}; restore client tooling is available.")
+        if pg_restore_path is not None or psql_path is not None
+        else (Status.BLOCKED, f"{backend_label} is configured, but neither `pg_restore` nor `psql` is on PATH.")
+    )
+    fulltext_status, fulltext_detail = gated("install_fulltext_on_table")
+    reset_sequences_status, reset_sequences_detail = gated("set_sequence_value")
+    truncate_status, truncate_detail = gated("truncate_table_batch")
+    fk_trigger_status, fk_trigger_detail = gated("toggle_fk_triggers")
+    fk_status_status, fk_status_detail = gated("get_fk_trigger_counts")
+    fk_validate_status, fk_validate_detail = gated("count_fk_violations")
 
     return (
         CommandSupport("doctor", "Any SQLAlchemy backend", portable_status, portable_detail),
         CommandSupport("data-summary", "Any SQLAlchemy backend", portable_status, portable_detail),
-        CommandSupport("analyze-tables", "PostgreSQL/SQLite", analyze_status, analyze_detail),
+        CommandSupport("analyze-tables", backend_support_note("analyze_table"), analyze_status, analyze_detail),
         CommandSupport("create-missing-tables", "Any SQLAlchemy backend", portable_status, portable_detail),
         CommandSupport("indexes disable", "Any SQLAlchemy backend", portable_status, portable_detail),
         CommandSupport("indexes enable", "Any SQLAlchemy backend", enable_indexes_status, enable_indexes_detail),
         CommandSupport("reconcile-schema", "Any SQLAlchemy backend", portable_status, portable_detail),
-        CommandSupport("load-vocab-source", "SQLite/PostgreSQL + Athena CSV source", vocab_load_status, vocab_load_detail),
         CommandSupport(
-            "backup-database",
-            "PostgreSQL + pg_dump",
-            (
-                Status.READY
-                if connection_ready and backend == Dialect.POSTGRESQL and pg_dump_path is not None
-                else Status.BLOCKED
-                if backend == Dialect.POSTGRESQL
-                else Status.UNSUPPORTED
-                if connection_ready
-                else Status.BLOCKED
-            ),
-            (
-                "Ready on PostgreSQL; `pg_dump` is available."
-                if connection_ready and backend == Dialect.POSTGRESQL and pg_dump_path is not None
-                else "PostgreSQL is configured, but `pg_dump` is not on PATH."
-                if connection_ready and backend == Dialect.POSTGRESQL
-                else f"Requires PostgreSQL. Current backend: {current_backend}."
-                if connection_ready
-                else blocked_detail
-            ),
+            "load-vocab-source",
+            "Any SQLAlchemy backend + Athena CSV source",
+            portable_status,
+            f"Ready on {backend_label} when an Athena source path is configured." if connection_ready else blocked_detail,
+        ),
+        CommandSupport(
+            "backup-database", f"{backend_support_note('prepare_backup', 'backup_tables')} pg_dump, or in-process", backup_status, backup_detail
         ),
         CommandSupport(
             "restore-database",
-            "PostgreSQL + pg_restore/psql",
-            (
-                Status.READY
-                if connection_ready and backend == Dialect.POSTGRESQL and (pg_restore_path is not None or psql_path is not None)
-                else Status.BLOCKED
-                if backend == Dialect.POSTGRESQL
-                else Status.UNSUPPORTED
-                if connection_ready
-                else Status.BLOCKED
-            ),
-            (
-                "Ready on PostgreSQL; restore client tooling is available."
-                if connection_ready and backend == Dialect.POSTGRESQL and (pg_restore_path is not None or psql_path is not None)
-                else "PostgreSQL is configured, but neither `pg_restore` nor `psql` is on PATH."
-                if connection_ready and backend == Dialect.POSTGRESQL
-                else f"Requires PostgreSQL. Current backend: {current_backend}."
-                if connection_ready
-                else blocked_detail
-            ),
+            f"{backend_support_note('prepare_restore', 'restore_tables')} pg_restore/psql, or in-process",
+            restore_status,
+            restore_detail,
         ),
-        CommandSupport("fulltext install", "PostgreSQL", postgresql_status, postgresql_detail),
-        CommandSupport("fulltext populate", "PostgreSQL", postgresql_status, postgresql_detail),
-        CommandSupport("fulltext drop", "PostgreSQL", postgresql_status, postgresql_detail),
-        CommandSupport("reset-sequences", "PostgreSQL", postgresql_status, postgresql_detail),
-        CommandSupport("truncate-tables", "PostgreSQL", postgresql_status, postgresql_detail),
-        CommandSupport("foreign-keys disable", "PostgreSQL", postgresql_status, postgresql_detail),
-        CommandSupport("foreign-keys enable", "PostgreSQL", postgresql_status, postgresql_detail),
-        CommandSupport("foreign-keys enable --strict", "PostgreSQL", postgresql_status, postgresql_detail),
-        CommandSupport("foreign-keys status", "PostgreSQL", postgresql_status, postgresql_detail),
-        CommandSupport("foreign-keys validate", "PostgreSQL", postgresql_status, postgresql_detail),
+        CommandSupport("fulltext install", backend_support_note("install_fulltext_on_table"), fulltext_status, fulltext_detail),
+        CommandSupport("fulltext populate", backend_support_note("populate_fulltext_on_table"), fulltext_status, fulltext_detail),
+        CommandSupport("fulltext drop", backend_support_note("drop_fulltext_on_table"), fulltext_status, fulltext_detail),
+        CommandSupport(
+            "reset-sequences", backend_support_note("set_sequence_value"), reset_sequences_status, reset_sequences_detail
+        ),
+        CommandSupport("truncate-tables", backend_support_note("truncate_table_batch"), truncate_status, truncate_detail),
+        CommandSupport("foreign-keys disable", backend_support_note("toggle_fk_triggers"), fk_trigger_status, fk_trigger_detail),
+        CommandSupport("foreign-keys enable", backend_support_note("toggle_fk_triggers"), fk_trigger_status, fk_trigger_detail),
+        CommandSupport(
+            "foreign-keys enable --strict", backend_support_note("toggle_fk_triggers"), fk_trigger_status, fk_trigger_detail
+        ),
+        CommandSupport("foreign-keys status", backend_support_note("get_fk_trigger_counts"), fk_status_status, fk_status_detail),
+        CommandSupport(
+            "foreign-keys validate", backend_support_note("count_fk_violations"), fk_validate_status, fk_validate_detail
+        ),
     )
 
 
@@ -271,7 +222,6 @@ def collect_maintenance_info(
         _dependency_status("typer", "typer"),
         _dependency_status("rich", "rich"),
         _dependency_status("psycopg", "psycopg"),
-        _dependency_status("psycopg2-binary", "psycopg2"),
         _external_dependency_status("pg_dump", "pg_dump"),
         _external_dependency_status("pg_restore", "pg_restore"),
         _external_dependency_status("psql", "psql"),
@@ -283,6 +233,12 @@ def collect_maintenance_info(
 
     engine_url = engine.url.render_as_string(hide_password=True)
     backend = engine.url.get_backend_name()
+    try:
+        backend_instance: Backend | None = resolve_backend(engine)
+        resolved_backend_label = backend_instance.name
+    except BackendNotSupportedError:
+        backend_instance = None
+        resolved_backend_label = backend
     connection_ready = False
     connection_error: str | None = None
     existing_table_count: int | None = None
@@ -302,7 +258,8 @@ def collect_maintenance_info(
         connection_error = str(exc)
 
     command_support = _command_support_for_backend(
-        backend=backend,
+        backend=backend_instance,
+        backend_label=resolved_backend_label,
         connection_ready=connection_ready,
         connection_error=connection_error,
         pg_dump_path=pg_dump_path,

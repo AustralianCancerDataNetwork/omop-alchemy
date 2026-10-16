@@ -8,12 +8,16 @@ import sqlalchemy as sa
 import typer
 
 from oa_configurator import physical_schema_of
+from orm_loader.backends import resolve_backend as resolve_loader_backend
 from ..backends import Backend, resolve_backend, require_backend_support, backend_support_note
 from ._cli_utils import Status, dry_label, dry_status, omop_command
+from .cli_schema_reconcile import _deferred_fk_signatures
 from .context import MaintenanceContext
 from .tables import (
+    MaintenanceTable,
     TableCategory,
     existing_maintenance_targets,
+    maintenance_table_map,
 )
 from .ui import (
     console,
@@ -93,7 +97,8 @@ def _collect_fk_info(
     vocabulary_included: bool = False,
     vocabulary_only: bool = False,
 ) -> list[_FKTableInfo]:
-    """Return all ORM-managed tables that participate in at least one FK relationship (outgoing or incoming)."""
+    """Return all ORM-managed tables that participate in at least one FK relationship
+    (outgoing or incoming), enforced by the database or deferred on this backend."""
     selected_targets = existing_maintenance_targets(
         context,
         vocabulary_included=vocabulary_included,
@@ -121,6 +126,14 @@ def _collect_fk_info(
             if referred_table is not None:
                 incoming_counts[referred_table] += 1
 
+        # FKs deferred by this backend still gets selected as a validation target
+        # by counting them here
+        deferred = _deferred_fk_signatures(resolve_loader_backend(target.bind), target.table.model_cls)
+        relevant_deferred = [signature for signature in deferred if signature[1] in selected_names]
+        outgoing_counts[table_name] += len(relevant_deferred)
+        for _, referred_table, _ in relevant_deferred:
+            incoming_counts[referred_table] += 1
+
     results: list[_FKTableInfo] = []
     for table in selected_tables:
         if table.table_name not in selected_names:
@@ -147,11 +160,11 @@ def _collect_strict_validation_failures(
     backend: Backend,
     *,
     targets: list[_FKTableInfo],
+    table_map: dict[str, MaintenanceTable],
 ) -> dict[str, list[ForeignKeyConstraintViolation]]:
     """Query every FK constraint across targets and return a mapping of table name → violation list.
-
-    Only tables with at least one violation are included in the returned dict.
-    Used by manage_foreign_key_triggers (strict=True) and validate_foreign_key_constraints.
+    Checks enforced FKs (via reflection) and deferred FKs (via anti-join). Only tables with at 
+    least one violation are included in the returned dict.
 
     Parameters
     ----------
@@ -161,6 +174,9 @@ def _collect_strict_validation_failures(
         connection (a genuine cross-server FK) is silently skipped, same as
         it always structurally has to be: no single-connection SQL query
         can validate a constraint spanning two servers.
+    table_map : dict[str, MaintenanceTable]
+        Looked up by table name to resolve each target's ORM model class,
+        needed to find its deferred FK constraints.
     """
     inspector = sa.inspect(connection)
     tables_by_name = {table.table_name: table for table in targets}
@@ -169,16 +185,33 @@ def _collect_strict_validation_failures(
         table_name: []
         for table_name in selected_names
     }
+    loader_backend = resolve_loader_backend(connection)
 
     for table_name in sorted(selected_names):
         source_schema_tag = tables_by_name[table_name].schema_tag
-        for foreign_key in inspector.get_foreign_keys(
-            table_name, schema=physical_schema_of(connection, schema_tag=source_schema_tag)
-        ):
-            referred_table = foreign_key.get("referred_table")
-            constrained_columns = foreign_key.get("constrained_columns") or []
-            referred_columns = foreign_key.get("referred_columns") or []
+        candidates = [
+            (
+                str(foreign_key.get("name") or "(unnamed constraint)"),
+                foreign_key.get("referred_table"),
+                list(foreign_key.get("constrained_columns") or []),
+                list(foreign_key.get("referred_columns") or []),
+            )
+            for foreign_key in inspector.get_foreign_keys(
+                table_name, schema=physical_schema_of(connection, schema_tag=source_schema_tag)
+            )
+        ]
+        candidates.extend(
+            (
+                str(constraint.name) if isinstance(constraint.name, str) else "(unnamed constraint)",
+                referred_table,
+                list(constrained_columns),
+                list(referred_columns),
+            )
+            for (constrained_columns, referred_table, referred_columns), constraint in
+            _deferred_fk_signatures(loader_backend, table_map[table_name].model_cls).items()
+        )
 
+        for constraint_name, referred_table, constrained_columns, referred_columns in candidates:
             if (
                 referred_table not in selected_names
                 or len(constrained_columns) == 0
@@ -190,8 +223,8 @@ def _collect_strict_validation_failures(
                 connection,
                 table_name,
                 str(referred_table),
-                list(constrained_columns),
-                list(referred_columns),
+                constrained_columns,
+                referred_columns,
                 source_schema_tag=source_schema_tag,
                 referred_schema_tag=tables_by_name[str(referred_table)].schema_tag,
             )
@@ -203,7 +236,7 @@ def _collect_strict_validation_failures(
                 ForeignKeyConstraintViolation(
                     source_table_name=table_name,
                     referred_table_name=str(referred_table),
-                    constraint_name=foreign_key.get("name") or "(unnamed constraint)",
+                    constraint_name=constraint_name,
                     violation_count=violation_count,
                 )
             )
@@ -262,13 +295,16 @@ def validate_foreign_key_constraints(
     """Count rows that violate each FK constraint and return a full per-table validation report."""
     engine_backends = _backends(context, "count_fk_violations", "FK constraint validation")
     targets = _collect_fk_info(context, vocabulary_included=vocabulary_included)
+    table_map = maintenance_table_map()
 
     validation_failures: dict[str, list[ForeignKeyConstraintViolation]] = {}
     for group_engine, group_targets in _by_engine(context, targets).items():
         group_backend = engine_backends[group_engine]
         with group_engine.connect() as connection:
             validation_failures.update(
-                _collect_strict_validation_failures(connection, group_backend, targets=group_targets)
+                _collect_strict_validation_failures(
+                    connection, group_backend, targets=group_targets, table_map=table_map
+                )
             )
 
     results: list[ForeignKeyValidationResult] = []
@@ -327,12 +363,13 @@ def manage_foreign_key_triggers(
     results: list[ForeignKeyManagementResult] = []
 
     if enable and strict:
+        table_map = maintenance_table_map()
         validation_failures: dict[str, list[ForeignKeyConstraintViolation]] = {}
         for group_engine, group_targets in groups:
             with group_engine.connect() as connection:
                 validation_failures.update(
                     _collect_strict_validation_failures(
-                        connection, group_backends[group_engine], targets=group_targets
+                        connection, group_backends[group_engine], targets=group_targets, table_map=table_map
                     )
                 )
         if validation_failures:
