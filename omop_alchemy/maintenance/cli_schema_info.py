@@ -138,7 +138,9 @@ def _command_support_for_backend(
     backup_status, backup_detail = (
         (Status.BLOCKED, blocked_detail)
         if not connection_ready
-        else (Status.UNSUPPORTED, f"{backend_support_note('prepare_backup')} Current backend: {backend_label}.")
+        else (Status.READY, f"Ready on {backend_label}; backup runs in-process, no external tool required.")
+        if supports("backup_tables")
+        else (Status.UNSUPPORTED, f"{backend_support_note('prepare_backup', 'backup_tables')} Current backend: {backend_label}.")
         if not supports("prepare_backup")
         else (Status.READY, f"Ready on {backend_label}; `pg_dump` is available.")
         if pg_dump_path is not None
@@ -147,7 +149,9 @@ def _command_support_for_backend(
     restore_status, restore_detail = (
         (Status.BLOCKED, blocked_detail)
         if not connection_ready
-        else (Status.UNSUPPORTED, f"{backend_support_note('prepare_restore')} Current backend: {backend_label}.")
+        else (Status.READY, f"Ready on {backend_label}; restore runs in-process, no external tool required.")
+        if supports("restore_tables")
+        else (Status.UNSUPPORTED, f"{backend_support_note('prepare_restore', 'restore_tables')} Current backend: {backend_label}.")
         if not supports("prepare_restore")
         else (Status.READY, f"Ready on {backend_label}; restore client tooling is available.")
         if pg_restore_path is not None or psql_path is not None
@@ -174,9 +178,14 @@ def _command_support_for_backend(
             portable_status,
             f"Ready on {backend_label} when an Athena source path is configured." if connection_ready else blocked_detail,
         ),
-        CommandSupport("backup-database", f"{backend_support_note('prepare_backup')} pg_dump", backup_status, backup_detail),
         CommandSupport(
-            "restore-database", f"{backend_support_note('prepare_restore')} pg_restore/psql", restore_status, restore_detail
+            "backup-database", f"{backend_support_note('prepare_backup', 'backup_tables')} pg_dump, or in-process", backup_status, backup_detail
+        ),
+        CommandSupport(
+            "restore-database",
+            f"{backend_support_note('prepare_restore', 'restore_tables')} pg_restore/psql, or in-process",
+            restore_status,
+            restore_detail,
         ),
         CommandSupport("fulltext install", backend_support_note("install_fulltext_on_table"), fulltext_status, fulltext_detail),
         CommandSupport("fulltext populate", backend_support_note("populate_fulltext_on_table"), fulltext_status, fulltext_detail),

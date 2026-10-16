@@ -264,8 +264,8 @@ Create a database backup that can be restored with `restore-database`.
 
 | Flag | Type / Choices | Default | Description |
 |---|---|---|---|
-| `--output-path` | str (optional) | timestamped file in cwd | Output path for the backup artifact. Defaults to a timestamped file in the current directory. |
-| `--format` | `custom` / `plain` | `custom` | pg_dump output format. `custom` produces a binary `.dump` file. `plain` produces a plain SQL `.sql` file. |
+| `--output-path` | str (optional) | timestamped path in cwd | Output path for the backup artifact (a directory on DuckDB). Defaults to a timestamped path in the current directory. |
+| `--format` | `custom` / `plain` | `custom` | pg_dump output format on PostgreSQL. `custom` produces a binary `.dump` file. `plain` produces a plain SQL `.sql` file. Ignored on DuckDB, which always backs up to a Parquet directory. |
 | `--dry-run` | bool | `False` | Preview planned actions without applying any changes to the database. |
 
 ---
@@ -276,9 +276,13 @@ Restore a database backup that was created with `backup-database`.
 
 | Argument / Flag | Type / Choices | Default | Description |
 |---|---|---|---|
-| `PATH` (argument) | str | (required) | Path to the backup artifact (`.dump` or `.sql`) to restore. |
-| `--format` | `custom` / `plain` | (required) | Format of the artifact to restore. Must match the format used when the backup was created. |
+| `PATH` (argument) | str | (required) | Path to the backup artifact to restore (`.dump`/`.sql` file, or a Parquet directory on DuckDB). |
+| `--format` | `custom` / `plain` | (required) | Format of the artifact to restore on PostgreSQL; must match the format used when the backup was created. Ignored on DuckDB. |
 | `--dry-run` | bool | `False` | Preview planned actions without applying any changes to the database. |
+
+
+!!! note
+    On DuckDB, each target table must already exist (e.g. via `create-missing-tables`); restore loads row data only and resets owned sequences afterward.
 
 ---
 

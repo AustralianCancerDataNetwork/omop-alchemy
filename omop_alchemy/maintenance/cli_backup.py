@@ -1,4 +1,4 @@
-"""Backup and restore commands wrapping pg_dump, pg_restore, and psql."""
+"""Backup and restore commands: pg_dump/pg_restore/psql on PostgreSQL, in-process on DuckDB."""
 
 from __future__ import annotations
 
@@ -19,9 +19,11 @@ from oa_configurator import (
 )
 
 from ..backends import (
-    resolve_backend, 
-    require_backend_support, 
-    backend_support_note
+    Backend,
+    resolve_backend,
+    require_backend_support,
+    backend_support_note,
+    backend_supports,
 )
 from ._cli_utils import (
     Status,
@@ -29,6 +31,7 @@ from ._cli_utils import (
     dry_status,
     omop_command
 )
+from .cli_tables import reset_model_sequences
 from .context import MaintenanceContext
 from ..config import MAINTENANCE_SCHEMA
 from .ui import (
@@ -41,15 +44,22 @@ from .ui import (
 
 
 class BackupFormat(StrEnum):
-    """Supported pg_dump/psql output formats."""
+    """Supported backup artifact formats.
+
+    CUSTOM and PLAIN are pg_dump/psql output formats, PostgreSQL only.
+    PARQUET is currently DuckDB-only: one Parquet file per table, produced
+    in-process rather than by an external tool.
+    """
 
     CUSTOM = "custom"
     PLAIN = "plain"
+    PARQUET = "parquet"
 
 
 FORMAT_SUFFIXES = {
     BackupFormat.CUSTOM: ".dump",
     BackupFormat.PLAIN: ".sql",
+    BackupFormat.PARQUET: "",  # artifact is a directory of per-table files, not one file, so no file suffix applies
 }
 
 
@@ -82,6 +92,38 @@ def _vocab_sibling_path(primary_path: str, backup_format: BackupFormat) -> Path:
     return primary.with_name(f"{stem}-vocab{suffix}")
 
 
+def _in_process_backup(
+    engine: sa.Engine,
+    backend: Backend,
+    schemas: list[str],
+    *,
+    output_path: str | Path | None,
+    dry_run: bool,
+) -> BackupResult:
+    """Back up every schema this database entry claims, writing directly
+    over engine's own connection instead of running an external tool."""
+    resolved_output_path = Path(output_path) if output_path is not None else _default_output_path(BackupFormat.PARQUET)
+    resolved_output_path = resolved_output_path.expanduser().resolve()
+    if not dry_run:
+        resolved_output_path.mkdir(parents=True, exist_ok=True)
+        backend.backup_tables(engine, str(resolved_output_path), schemas=schemas)
+    return BackupResult(
+        file_path=str(resolved_output_path),
+        backup_format=BackupFormat.PARQUET,
+        status=dry_status(dry_run, applied=Status.CREATED),
+        detail=dry_label(
+            dry_run,
+            f"Database backup would be created in-process by the {backend.name} backend.",
+            f"Database backup created in-process by the {backend.name} backend.",
+        ),
+        database_name=str(engine.url.database),
+        backend=engine.dialect.name,
+        schema_names=tuple(schemas),
+        command=(),
+        tool_path="in-process",
+    )
+
+
 def _single_connection_backup(
     engine: sa.Engine,
     resolved: ResolvedCDMDatabase,
@@ -91,15 +133,20 @@ def _single_connection_backup(
     dry_run: bool,
 ) -> BackupResult:
     """Back up every schema this database entry claims on engine's own
-    physical server, in one pg_dump invocation."""
+    physical server, in one pg_dump invocation, or in-process for a
+    backend with no external dump tool."""
     backend = resolve_backend(engine)
-    require_backend_support(backend, "prepare_backup", "Database backup")
-    resolved_output_path = Path(output_path) if output_path is not None else _default_output_path(backup_format)
-    resolved_output_path = resolved_output_path.expanduser().resolve()
     with engine.connect() as connection:
         schemas = sorted(resolved.occupied_schemas(connection))
     if engine.dialect.name == Dialect.POSTGRESQL:
         schemas = sorted({*schemas, MAINTENANCE_SCHEMA, SCHEMA_REGISTRY_SCHEMA})
+
+    if backend_supports(backend, "backup_tables"):
+        return _in_process_backup(engine, backend, schemas, output_path=output_path, dry_run=dry_run)
+
+    require_backend_support(backend, "prepare_backup", "Database backup")
+    resolved_output_path = Path(output_path) if output_path is not None else _default_output_path(backup_format)
+    resolved_output_path = resolved_output_path.expanduser().resolve()
 
     tool_path, command, env, database_name = backend.prepare_backup(
         engine,
@@ -179,6 +226,38 @@ def _execute_restore(
         ) from exc
 
 
+def _in_process_restore(
+    engine: sa.Engine,
+    backend: Backend,
+    schemas: list[str],
+    *,
+    input_path: str | Path,
+    dry_run: bool,
+) -> BackupResult:
+    """Restore every schema this database entry claims, reading directly
+    over engine's own connection instead of running an external tool."""
+    resolved_input_path = Path(input_path).expanduser().resolve()
+    if not resolved_input_path.is_dir():
+        raise RuntimeError(f"Backup artifact not found or not a directory: {resolved_input_path}")
+    if not dry_run:
+        backend.restore_tables(engine, str(resolved_input_path), schemas=schemas)
+    return BackupResult(
+        file_path=str(resolved_input_path),
+        backup_format=BackupFormat.PARQUET,
+        status=dry_status(dry_run),
+        detail=dry_label(
+            dry_run,
+            f"Database restore would be executed in-process by the {backend.name} backend.",
+            f"Database restore completed in-process by the {backend.name} backend.",
+        ),
+        database_name=str(engine.url.database),
+        backend=engine.dialect.name,
+        schema_names=tuple(schemas),
+        command=(),
+        tool_path="in-process",
+    )
+
+
 def _single_connection_restore(
     engine: sa.Engine,
     resolved: ResolvedCDMDatabase,
@@ -188,16 +267,21 @@ def _single_connection_restore(
     dry_run: bool,
 ) -> BackupResult:
     """Restore every schema this database entry claims on engine's own
-    physical server, from one backup artifact."""
+    physical server, from one backup artifact, or in-process for a
+    backend with no external restore tool."""
     backend = resolve_backend(engine)
-    require_backend_support(backend, "prepare_restore", "Database restore")
-    resolved_input_path = Path(input_path).expanduser().resolve()
-    if not resolved_input_path.exists():
-        raise RuntimeError(f"Backup artifact not found: {resolved_input_path}")
     with engine.connect() as connection:
         schemas = sorted(resolved.occupied_schemas(connection))
     if engine.dialect.name == Dialect.POSTGRESQL:
         schemas = sorted({*schemas, MAINTENANCE_SCHEMA, SCHEMA_REGISTRY_SCHEMA})
+
+    if backend_supports(backend, "restore_tables"):
+        return _in_process_restore(engine, backend, schemas, input_path=input_path, dry_run=dry_run)
+
+    require_backend_support(backend, "prepare_restore", "Database restore")
+    resolved_input_path = Path(input_path).expanduser().resolve()
+    if not resolved_input_path.exists():
+        raise RuntimeError(f"Backup artifact not found: {resolved_input_path}")
 
     tool_path, command, env, database_name = backend.prepare_restore(
         engine,
@@ -345,6 +429,11 @@ def restore_database_backup(
 
     if not dry_run:
         _register_restored_schemas(context, input_path)
+        if any(
+            backend_supports(resolve_backend(engine), "restore_tables")
+            for engine in {context.engine, context.vocab_engine}
+        ):
+            reset_model_sequences(context, vocabulary_included=True)
 
     return results
 
@@ -354,7 +443,7 @@ def restore_database_backup(
 # ---------------------------------------------------------------------------
 app = typer.Typer(
     rich_markup_mode="rich",
-    help=f"Manage database backup and restore operations. {backend_support_note('prepare_backup')}",
+    help=f"Manage database backup and restore operations. {backend_support_note('prepare_backup', 'backup_tables')}",
 )
 
 @app.command("backup-database")
@@ -363,11 +452,11 @@ def backup_database_command(
     conn: MaintenanceContext,
     output_path: str | None = typer.Option(
         None,
-        help="Output path for the backup artifact. Defaults to a timestamped file in the current directory.",
+        help="Output path for the backup artifact (a directory on DuckDB). Defaults to a timestamped path in the current directory.",
     ),
     backup_format: BackupFormat = typer.Option(
         BackupFormat.CUSTOM,
-        help="pg_dump output format. 'custom' produces a binary .dump file; 'plain' produces a plain SQL .sql file.",
+        help="pg_dump output format on PostgreSQL ('custom': binary .dump; 'plain': SQL .sql). Ignored on DuckDB, which always backs up to a Parquet directory.",
     ),
     include_vocab: bool = typer.Option(
         False,
@@ -394,10 +483,10 @@ def backup_database_command(
 @omop_command("restore-database", dry_run=True, writes=False)
 def restore_database_command(
     conn: MaintenanceContext,
-    input_path: str = typer.Argument(help="Path to the backup artifact (.dump or .sql) to restore."),
+    input_path: str = typer.Argument(help="Path to the backup artifact to restore (.dump/.sql file, or a Parquet directory on DuckDB)."),
     backup_format: BackupFormat = typer.Option(
         ...,
-        help="Format of the artifact to restore. Must match the format used when the backup was created.",
+        help="Format of the artifact to restore on PostgreSQL; must match the format used when the backup was created. Ignored on DuckDB.",
     ),
     vocab_input_path: str | None = typer.Option(
         None,

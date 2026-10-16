@@ -24,7 +24,7 @@ which methods the resolved backend class overrides.
 | `TRUNCATE ... CASCADE` | Yes | No | No, see below |
 | Sequence lookup / reset | Yes | No (SQLite has no sequences) | Yes |
 | Full-text search | Yes, see [PostgreSQL Full-Text Search](fulltext.md) | No | No |
-| Database backup / restore | Yes | No | No |
+| Database backup / restore | Yes (`pg_dump`/`pg_restore`/`psql`) | No | Yes (in-process, no external tool) |
 
 ## What this means in practice
 
@@ -40,10 +40,11 @@ A command that relies on a not-supported feature raises
 
 ## DuckDB specifics
 
-- `fulltext install`, `backup-database`/`restore-database`, table
-  clustering, and FK trigger toggling/status are unavailable, same as SQLite.
+- `fulltext install`, table clustering, and FK trigger toggling/status are
+  unavailable, same as SQLite.
 - `truncate-tables --restart-identities` works; `--cascade` does not (see below).
 - `reset-sequences` and `foreign-keys validate` both work, unlike on SQLite.
+- `backup-database`/`restore-database` work: each occupied schema's tables are copied to/from one Parquet file each, scoped to that schema. Restore is data-only; target tables must already exist.
 
 ### Deferred foreign keys
 

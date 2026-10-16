@@ -51,16 +51,18 @@ def require_backend_support(backend: "Backend", method_name: str, feature: str) 
         raise FeatureNotSupportedError(feature, backend)
 
 
-def backend_support_note(method_name: str) -> str:
-    """Return a help-text note listing which known backends support *method_name*.
+def backend_support_note(*method_names: str) -> str:
+    """Return a help-text note listing which known backends support any of method_name*.
 
-    Derived purely from the class hierarchy — no manual list to maintain.
+    Several method names cover a feature implemented differently per
+    backend (e.g. a subprocess-based method for one, an in-process method
+    for another).
     """
     from .resolve import _DIALECT_TO_BACKEND_MAP
 
     supported = sorted(
         b.name for b in _DIALECT_TO_BACKEND_MAP.values()
-        if backend_supports(b, method_name)
+        if any(backend_supports(b, method_name) for method_name in method_names)
     )
     return f"Supported backends: {', '.join(supported)}." if supported else "Not supported by any backend."
 
@@ -322,5 +324,29 @@ class Backend(ABC):
         schemas: Sequence[str],
     ) -> tuple[str, list[str], dict[str, str], str]:
         """Return (tool_path, command, env, database_name). subprocess.run stays in CLI."""
+        raise FeatureNotSupportedError("Database restore", self)
+
+    def backup_tables(
+        self,
+        engine: sa.Engine,
+        output_path: str,
+        *,
+        schemas: Sequence[str],
+    ) -> None:
+        """Write every table in schemas to output_path, one artifact per table.
+
+        For backends with no external dump tool: runs in-process over
+        engine's own connection instead of a subprocess.
+        """
+        raise FeatureNotSupportedError("Database backup", self)
+
+    def restore_tables(
+        self,
+        engine: sa.Engine,
+        input_path: str,
+        *,
+        schemas: Sequence[str],
+    ) -> None:
+        """Load every table in schemas from input_path's artifacts, written by backup_tables."""
         raise FeatureNotSupportedError("Database restore", self)
 

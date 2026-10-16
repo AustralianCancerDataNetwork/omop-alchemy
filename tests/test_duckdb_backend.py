@@ -1,8 +1,8 @@
 """DuckDBBackend: the maintenance-ABC methods that are actually implementable
 on DuckDB (statistics, index/sequence introspection, anti-join FK violation
-counting). Methods with no DuckDB equivalent (triggers, CLUSTER, tsvector
-fulltext, pg_dump/restore) are left raising FeatureNotSupportedError, same
-as SQLite."""
+counting, in-process backup/restore). Methods with no DuckDB equivalent
+(triggers, CLUSTER, tsvector fulltext) are left raising
+FeatureNotSupportedError, same as SQLite."""
 
 import pytest
 import sqlalchemy as sa

@@ -217,9 +217,13 @@ def render_backup_result(result: BackupResult) -> Panel:
 
 
 def render_backup_summary(result: BackupResult, *, dry_run: bool) -> Panel:
+    from .cli_backup import BackupFormat
+
     restore_hint = (
         f"Restore with `pg_restore -d <target_database> {result.file_path}`."
-        if result.backup_format.value == "custom"
+        if result.backup_format == BackupFormat.CUSTOM
+        else f"Restore with `omop-alchemy restore-database {result.file_path}`."
+        if result.backup_format == BackupFormat.PARQUET
         else f"Restore with `psql -d <target_database> -f {result.file_path}`."
     )
     grid = Table.grid(padding=(0, 2))

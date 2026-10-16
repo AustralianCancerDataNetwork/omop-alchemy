@@ -24,7 +24,7 @@ Some commands depend on PostgreSQL-specific features and will return an error if
 | `foreign-keys` | Yes | PostgreSQL internal RI trigger `ALTER TABLE ... DISABLE/ENABLE TRIGGER ALL` |
 | `analyze-tables` | No (`--vacuum` is PostgreSQL-only) | `ANALYZE` is standard; `VACUUM ANALYZE` is PostgreSQL |
 | `fulltext` | Yes | PostgreSQL `tsvector`, `tsquery`, and `GIN` indexes |
-| `backup-database`, `restore-database` | Yes | `pg_dump` / `pg_restore` / `psql` |
+| `backup-database`, `restore-database` | No (PostgreSQL + DuckDB) | `pg_dump` / `pg_restore` / `psql` on PostgreSQL; in-process on DuckDB |
 
 ---
 
@@ -198,7 +198,7 @@ For query-side usage and optional ORM metadata registration, see [PostgreSQL Ful
 
 ### Backup and restore
 
-These commands wrap `pg_dump` and `pg_restore` / `psql`. PostgreSQL client tools must be installed and on `PATH`.
+On PostgreSQL, these commands wrap `pg_dump` and `pg_restore` / `psql`; PostgreSQL client tools must be installed and on `PATH`. On DuckDB, they run in-process over the connection instead: no external tool, and `--format` is ignored.
 
 ```bash
 # Create a backup (custom format is recommended — smaller and restorable in parallel)
@@ -211,19 +211,22 @@ omop-alchemy restore-database ./cdm-backup.dump \
   --format custom
 ```
 
-**Format comparison:**
+**Format comparison (PostgreSQL):**
 
 | Format | File extension | Restore tool | Advantages |
 | --- | --- | --- | --- |
 | `custom` (default) | `.dump` | `pg_restore` | Compressed; supports parallel restore (`-j`) and selective restore |
 | `plain` | `.sql` | `psql` | Human-readable SQL; editable but much larger |
 
-**Restore caveats:**
+**Restore caveats (PostgreSQL):**
 - The target database must already exist. The CLI does not create or drop databases.
 - For `plain` format, the schema is embedded in the SQL dump; no selective schema restore is possible.
 - For `custom` format, `pg_restore` can be invoked manually with `-n <schema>` for selective schema restore.
 
 Use `--dry-run` on `backup-database` to see the `pg_dump` command that would be run without executing it.
+
+!!! note
+    **On DuckDB:** the backup artifact is a directory, one Parquet file per table, scoped to the schemas this database entry occupies. Restore is data-only and target tables must already exist (e.g. via `create-missing-tables`). The command resets owned sequences afterward to match the restored data.
 
 ---
 
@@ -301,5 +304,5 @@ omop-alchemy reset-sequences --vocab  # vocabulary tables only
 | `fulltext install` | Add tsvector sidecar columns to vocabulary tables | `--regconfig`, `--no-create-indexes` | PostgreSQL |
 | `fulltext populate` | Populate sidecar tsvector vectors | `--regconfig` | PostgreSQL |
 | `fulltext drop` | Remove tsvector sidecar columns and indexes | | PostgreSQL |
-| `backup-database` | Create a `pg_dump` backup artifact | `--output-path`, `--format`, `--dry-run` | PostgreSQL |
-| `restore-database` | Restore a backup artifact into the target DB | `--format` (required), `--dry-run` | PostgreSQL |
+| `backup-database` | Create a backup artifact (`pg_dump`, or in-process on DuckDB) | `--output-path`, `--format`, `--dry-run` | PostgreSQL, DuckDB |
+| `restore-database` | Restore a backup artifact into the target DB | `--format` (required), `--dry-run` | PostgreSQL, DuckDB |
