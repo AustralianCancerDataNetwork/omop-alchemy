@@ -350,6 +350,14 @@ def load_vocab_source(
         if _find_vocab_csv_path(resolved_source_path, m.__tablename__) is not None
     )
 
+    if not dry_run and merge_strategy == "replace":
+        # Pre-check against every table that will be loaded to avoid
+        # partial loads leaving some tables replaced and others not
+        backend = resolve_backend(vocab_engine)
+        for model in all_models:
+            if _find_vocab_csv_path(resolved_source_path, model.__tablename__) is not None:
+                backend.check_replace_feasible(model, model.pk_names())
+
     results: list[VocabularyLoadResult] = []
     created_table_count = 0
     sequence_reset_count = 0
