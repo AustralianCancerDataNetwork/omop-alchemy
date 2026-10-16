@@ -408,11 +408,28 @@ def load_vocab_source(
     if not dry_run:
         created_table_count = _create_missing_vocabulary_tables(context)
 
+    backend = resolve_backend(vocab_engine)
+    all_model_tables = {m.__table__ for m in all_models}
+
+    def _covered_by_this_load(model: VocabularyModel) -> bool:
+        """True if every table model's deferred FKs point at is also being
+        loaded in this call, so validating model right after its own commit
+        would false-positive on a reference that just hasn't loaded yet.
+
+        False means nothing later in this call could satisfy the
+        reference anyway, so model is validated inline instead (see the
+        main loop below), rolling back its own commit if it's a real
+        orphan rather than committing and raising afterward.
+        """
+        referred_tables = {
+            fk.elements[0].column.table for fk in backend.deferred_fk_constraints(model)
+        }
+        return bool(referred_tables) and referred_tables.issubset(all_model_tables)
+
     if not dry_run and merge_strategy == "replace":
         # Pre-check against every table that will be loaded to avoid
         # partial loads leaving some tables replaced and others not
         # Runs after table creation as it queries row counts.
-        backend = resolve_backend(vocab_engine)
         with so.Session(vocab_engine) as preflight_session:
             for model in all_models:
                 if _find_vocab_csv_path(resolved_source_path, model.__tablename__) is not None:
@@ -498,8 +515,7 @@ def load_vocab_source(
                             chunksize=chunksize,
                             merge_batch_size=merge_batch_size,
                             staging_schema_tag=STAGING_SCHEMA,
-                            # Validated below once for every loaded table after the whole load completes
-                            validate_deferred_fks=False
+                            validate_deferred_fks=not _covered_by_this_load(model),
                         )
                         session.commit()
                     break
@@ -539,8 +555,7 @@ def load_vocab_source(
             )
 
         if not dry_run:
-            backend = resolve_backend(vocab_engine)
-            deferred_models = [m for m in all_models if backend.deferred_fk_constraints(m)]
+            deferred_models = [m for m in all_models if _covered_by_this_load(m)]
             if deferred_models:
                 with so.Session(vocab_engine) as session:
                     for model in deferred_models:

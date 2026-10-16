@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 import sqlalchemy as sa
@@ -31,6 +31,7 @@ from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.cli_vocab import (
     REQUIRED_VOCAB_MODELS,
+    VocabularyLoadError,
     _create_missing_vocabulary_tables,
     load_vocab_source,
 )
@@ -181,9 +182,38 @@ def test_load_vocab_source_standalone_cyclic_table_load_rolls_back_on_duckdb(
     orphaned_domain = {**domain, "domain_concept_id": (999_999,) + domain["domain_concept_id"][1:]}
     csv_path = _write_fixture_csv(source, "domain", orphaned_domain)
 
-    with so.Session(staged_duckdb_engine) as session:
-        with pytest.raises(DeferredForeignKeyViolationError):
-            Domain.load_csv(session, csv_path)
+    with so.Session(staged_duckdb_engine) as session, pytest.raises(DeferredForeignKeyViolationError):
+        Domain.load_csv(session, csv_path)
+
+    with so.Session(staged_duckdb_engine) as verify_session:
+        assert verify_session.execute(sa.select(Domain)).scalars().all() == []
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+@pytest.mark.parametrize("merge_strategy", ["replace", "upsert"])
+def test_load_vocab_source_single_cyclic_table_selection_rolls_back_on_duckdb(
+    staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path, merge_strategy: Literal["replace", "upsert"]
+):
+    """`load-vocab-source --table domain` (selecting one cyclic table on its
+    own, through load_vocab_source itself rather than load_csv directly)
+    must roll back an orphaned deferred FK too: concept isn't part of this
+    call's selection, so there's nothing to gain from load_vocab_source's
+    usual after-the-whole-batch validation, and it must check inline instead.
+    """
+    source = tmp_path / "athena_source"
+    source.mkdir()
+    domain = _ATHENA_FIXTURE_DATA["domain"]
+    orphaned_domain = {**domain, "domain_concept_id": (999_999,) + domain["domain_concept_id"][1:]}
+    _write_fixture_csv(source, "domain", orphaned_domain)
+
+    context = MaintenanceContext(
+        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine
+    )
+    with pytest.raises(VocabularyLoadError, match="domain"):
+        load_vocab_source(
+            context, source_path=source, tables=["domain"], merge_strategy=merge_strategy
+        )
 
     with so.Session(staged_duckdb_engine) as verify_session:
         assert verify_session.execute(sa.select(Domain)).scalars().all() == []
