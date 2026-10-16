@@ -11,6 +11,7 @@ import sqlalchemy as sa
 from oa_configurator import (
     find_table_in_other_schemas,
     physical_schema_of,
+    reflects_float_as_double_precision,
     reflects_text_as_varchar,
     reflects_varchar_length,
     supports_schemas,
@@ -121,13 +122,16 @@ def _normalized_type(type_: sa.types.TypeEngine[object], dialect: sa.engine.Dial
     a declared VARCHAR(n) back without its length, so that comparison
     doesn't flag a difference reflection itself can never resolve. Likewise
     folds "text" into "varchar" when dialect reflects a declared TEXT
-    column back as VARCHAR.
+    column back as VARCHAR, and "float" into "doubleprecision" when dialect
+    reflects an unparameterized FLOAT column back as DOUBLE PRECISION.
     """
     normalized = type_.compile(dialect=dialect).lower().replace(" ", "")
     if not reflects_varchar_length(dialect.name):
         normalized = _VARCHAR_LENGTH.sub(r"\1", normalized)
     if reflects_text_as_varchar(dialect.name) and normalized == "text":
         normalized = "varchar"
+    if reflects_float_as_double_precision(dialect.name) and normalized == "float":
+        normalized = "doubleprecision"
     return normalized
 
 
