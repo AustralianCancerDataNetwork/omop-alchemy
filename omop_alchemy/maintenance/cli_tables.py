@@ -238,6 +238,8 @@ def _truncate_tables(
         if not dry_run:
             for engine, targets in present.items():
                 if targets:
+                    # Commit the changes before truncate for fresh connection state
+                    connections[engine].commit()
                     resolve_backend(engine).truncate_table_batch(
                         connections[engine],
                         [(target.schema_tag, target.table_name) for target in targets],

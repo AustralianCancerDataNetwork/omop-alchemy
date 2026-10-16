@@ -123,8 +123,8 @@ REQUIRED_VOCAB_MODELS: tuple[VocabularyModel, ...] = cast(
         Domain,
         Vocabulary,
         Concept_Class,
-        Relationship,
         Concept,
+        Relationship,
         Concept_Ancestor,
         Concept_Relationship,
         Concept_Synonym,
@@ -192,6 +192,7 @@ def _load_vocab_model_csv(
     index_strategy: str = "auto",
     merge_batch_size: int | None = None,
     staging_schema_tag: str | None = None,
+    validate_deferred_fks: bool = True,
 ) -> int:
     """Call model.load_csv. If the staging table is absent, create it and retry once."""
     load_kwargs: dict[str, object] = {
@@ -200,6 +201,7 @@ def _load_vocab_model_csv(
         "index_strategy": index_strategy,
         "merge_batch_size": merge_batch_size,
         "staging_schema_tag": staging_schema_tag,
+        "validate_deferred_fks": validate_deferred_fks,
     }
     if chunksize is not None:
         load_kwargs["chunksize"] = chunksize
@@ -486,6 +488,8 @@ def load_vocab_source(
                             chunksize=chunksize,
                             merge_batch_size=merge_batch_size,
                             staging_schema_tag=STAGING_SCHEMA,
+                            # Validated below once for every loaded table after the whole load completes
+                            validate_deferred_fks=False
                         )
                         session.commit()
                     break
@@ -523,6 +527,14 @@ def load_vocab_source(
                 rows_this_table=row_count,
                 table_count=table_count,
             )
+
+        if not dry_run:
+            backend = resolve_backend(vocab_engine)
+            deferred_models = [m for m in all_models if backend.deferred_fk_constraints(m)]
+            if deferred_models:
+                with so.Session(vocab_engine) as session:
+                    for model in deferred_models:
+                        backend.validate_deferred_fks(model, session)
     finally:
         if not dry_run:
             from omop_alchemy.toolkit.core.concepts import clear_concept_group_cache

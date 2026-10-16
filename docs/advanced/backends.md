@@ -12,7 +12,7 @@ which methods the resolved backend class overrides.
 | Feature | PostgreSQL | SQLite | DuckDB |
 | --- | --- | --- | --- |
 | Index existence check | Yes | Yes | Yes |
-| Drop index if exists | Yes | Yes (unqualified — no schema concept) | Yes |
+| Drop index if exists | Yes | Yes (unqualified, no schema concept) | Yes |
 | `ANALYZE` | Yes | Yes | Yes |
 | `VACUUM ANALYZE` | Yes | No | Yes |
 | FK trigger management / status | Yes | No | No (no trigger mechanism) |
@@ -21,9 +21,9 @@ which methods the resolved backend class overrides.
 | Cluster index inspection | Yes | No | No |
 | Functional-index expression normalization | Yes | No (SQLite never reflects expression-based indexes) | Yes |
 | `TRUNCATE ... RESTART IDENTITY` | Yes | No | Yes |
-| `TRUNCATE ... CASCADE` | Yes | No | No — see below |
+| `TRUNCATE ... CASCADE` | Yes | No | No, see below |
 | Sequence lookup / reset | Yes | No (SQLite has no sequences) | Yes |
-| Full-text search | Yes — see [PostgreSQL Full-Text Search](fulltext.md) | No | No |
+| Full-text search | Yes, see [PostgreSQL Full-Text Search](fulltext.md) | No | No |
 | Database backup / restore | Yes | No | No |
 
 ## What this means in practice
@@ -38,7 +38,7 @@ A command that relies on a not-supported feature raises
 - FK trigger toggling and FK violation counting are unavailable.
 
 
-## Duck-DB specifics
+## DuckDB specifics
 
 - `fulltext install`, `backup-database`/`restore-database`, table
   clustering, and FK trigger toggling/status are unavailable, same as SQLite.
@@ -55,11 +55,15 @@ Instead, we introduce a shim in oa-configurator that no-ops these statements. Ma
 
 All FKs falling into this specification are never enforced at the database level on DuckDB. `DatabaseBackend.deferred_fk_constraints()`
 - `orm-loader` is the single source of truth for which FKs this applies to: `reconcile-schema`,`foreign-keys validate`, and `doctor --deep` all consult it and run an anti-join check in its place.
+- `load_vocab_source` validates every deferred FK automatically once the whole load completes, instead of per table: a deferred FK's referenced table can load after its referencer, so checking immediately would flag rows that are only temporarily unresolved.
 
+### `relationship` must load after `concept`
 
-### `merge_strategy="replace"` requires `index_strategy` to drop indexes
+`relationship.relationship_concept_id` is an ordinary enforced FK to `concept` since it isn't part of any reference cycle. Postgres and SQLite hide this because FK checks are disabled during a bulk load; DuckDB can't disable them, so `concept` must already be loaded first. `REQUIRED_VOCAB_MODELS` and `ATHENA_LOAD_ORDER` both order `Concept` before `Relationship` for this reason.
 
-DuckDB's `replace` merge strategy updates matching rows in place as it rejects deleting a still-referenced row outright, with no FK-toggle or deferred-constraint escape hatch (unlike the delete-then-reinsert every other backend uses). That UPDATE fails against a live index on an updated column, so `index_strategy="keep"` is incompatible with `merge_strategy="replace"` on this backend specifically. Use the default `index_strategy="auto"` (which drops and rebuilds indexes around the merge) instead.
+### `merge_strategy="replace"` fails on a table that's both referenced and owns its own FK
+
+DuckDB's `replace` merge strategy updates matching rows in place, since it rejects deleting a still-referenced row outright with no FK-toggle or deferred-constraint escape hatch. That UPDATE also fails on any column that's part of one of the table's own FK constraints, whenever the row is currently referenced elsewhere, regardless of `index_strategy` (DuckDB's FK-column bookkeeping isn't a SQLAlchemy `Index` object `index_strategy` can drop). In the CDM this affects `concept`, `person`, `visit_occurrence`, `provider`, and `care_site`. `merge_replace` raises a clear error up front, before touching any data, naming the table; use `--merge-strategy upsert` instead, or reload into an empty database.
 
 ### `truncate-tables --cascade` is not supported
 

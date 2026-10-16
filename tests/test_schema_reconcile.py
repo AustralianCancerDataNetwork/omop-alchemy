@@ -87,12 +87,16 @@ def _person_gender_issues(report):
 
 
 def test_reconcile_schema_reports_no_drift_on_fresh_database(reconcile_engine):
+    """Checks the whole schema to catch a dialect-specific type reflection mismatch."""
     engine, resolved = reconcile_engine
     report = reconcile_schema(MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine))
 
     person_result = next(r for r in report.table_results if r.table_name == "person")
     assert person_result.status == "matched"
     assert person_result.issue_count == 0
+
+    blocking = [issue for issue in report.issues if is_blocking_issue(issue)]
+    assert blocking == []
 
 
 def test_reconcile_schema_reports_renamed_for_foreign_named_equivalent_index(reconcile_engine):

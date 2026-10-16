@@ -213,7 +213,6 @@ def collect_maintenance_info(
         _dependency_status("typer", "typer"),
         _dependency_status("rich", "rich"),
         _dependency_status("psycopg", "psycopg"),
-        _dependency_status("psycopg2-binary", "psycopg2"),
         _external_dependency_status("pg_dump", "pg_dump"),
         _external_dependency_status("pg_restore", "pg_restore"),
         _external_dependency_status("psql", "psql"),

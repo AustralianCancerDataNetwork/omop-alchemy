@@ -74,6 +74,10 @@ def _sequence_start_value(conn: sa.Connection, sequence_name: str, *, schema_tag
 
 
 class DuckDBBackend(Backend):
+    """Backup and restore (prepare_backup/restore_backup) are not
+    implemented here; they fall through to the base class's
+    FeatureNotSupportedError. Feasible (a plain file copy, or DuckDB's own
+    EXPORT DATABASE), just not done yet."""
 
     @property
     def name(self) -> str:
@@ -91,10 +95,10 @@ class DuckDBBackend(Backend):
         functional index's expression back, so the result compares equal to
         the ORM's own compiled expression text.
 
-        Verified live: an index on ``lower(name)`` reflects back as the
-        literal text ``'(lower("name"))'`` -- wrapped in single quotes (part
-        of the string's own content, not Python repr), wrapped in one extra
-        pair of parens, and with the identifier double-quoted.
+        An index on ``lower(name)`` reflects back as the literal text
+        ``'(lower("name"))'``: wrapped in single quotes (part of the
+        string's own content, not Python repr), wrapped in one extra pair
+        of parens, and with the identifier double-quoted.
         """
         text = sql_text.strip()
         if len(text) >= 2 and text[0] == "'" and text[-1] == "'":

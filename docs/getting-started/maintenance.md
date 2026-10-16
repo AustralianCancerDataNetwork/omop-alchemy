@@ -137,7 +137,7 @@ Adds a full FK constraint scan — it actually queries the data to find rows tha
 omop-alchemy info
 ```
 
-Shows the active engine URL, installed backend driver, OMOP Alchemy version, optional dependency state (orm-loader, psycopg2/psycopg, etc.), and which maintenance commands are available given the current backend. Run this first when diagnosing "why doesn't this command work".
+Shows the active engine URL, installed backend driver, OMOP Alchemy version, optional dependency state (orm-loader, psycopg, etc.), and which maintenance commands are available given the current backend. Run this first when diagnosing "why doesn't this command work".
 
 **When doctor reports a problem:**
 

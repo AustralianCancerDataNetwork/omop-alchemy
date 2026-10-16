@@ -81,6 +81,7 @@ def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
     ) -> int:
         loaded_tables.append(
             (model.__tablename__, merge_strategy, quote_mode, csv_path)
@@ -295,6 +296,7 @@ def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_p
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
     ):
         calls["merge_strategy"] = merge_strategy
         calls["quote_mode"] = quote_mode
@@ -342,6 +344,7 @@ def test_load_vocab_source_loads_in_fk_dependency_order(fresh_engine, fresh_reso
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
     ) -> int:
         loaded_order.append(model.__tablename__)
         return 1
@@ -378,6 +381,7 @@ def test_load_vocab_source_reports_weighted_progress(fresh_engine, fresh_resolve
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
     ) -> int:
         return 1
 
@@ -415,6 +419,7 @@ def test_load_vocab_source_wraps_failed_table_load(fresh_engine, fresh_resolved,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
     ):
         if model.__tablename__ == "domain":
             raise sa.exc.ProgrammingError(  # type: ignore[attr-defined]
@@ -470,6 +475,7 @@ def test_load_vocab_model_csv_retries_missing_staging_table(fresh_engine, monkey
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
     ):
         calls["load_csv"] += 1
         if calls["load_csv"] == 1:
@@ -561,6 +567,7 @@ def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(fresh_engine, fre
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
     ) -> int:
         received_quote_modes.append(quote_mode)
         return 1
@@ -605,6 +612,7 @@ def test_load_vocab_source_tables_single_loads_only_that_table(fresh_engine, fre
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
     ) -> int:
         loaded_tables.append(model.__tablename__)
         return 1
@@ -638,6 +646,7 @@ def test_load_vocab_source_tables_multiple_loads_exactly_those(fresh_engine, fre
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
     ) -> int:
         loaded_tables.append(model.__tablename__)
         return 1
@@ -700,7 +709,7 @@ def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, fresh
 
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_vocab._load_vocab_model_csv",
-        lambda session, *, model, csv_path, merge_strategy, quote_mode="auto", chunksize=None, index_strategy="auto", merge_batch_size=1_000_000, staging_schema_tag=None: (
+        lambda session, *, model, csv_path, merge_strategy, quote_mode="auto", chunksize=None, index_strategy="auto", merge_batch_size=1_000_000, staging_schema_tag=None, validate_deferred_fks=False: (
             1
         ),
     )

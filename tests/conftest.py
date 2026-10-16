@@ -123,8 +123,8 @@ ATHENA_LOAD_ORDER = [
     Domain,
     Vocabulary,
     Concept_Class,
-    Relationship,
     Concept,
+    Relationship,
     Concept_Ancestor,
     Concept_Relationship,
 ]

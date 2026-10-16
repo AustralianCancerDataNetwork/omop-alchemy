@@ -12,6 +12,7 @@ import sqlalchemy as sa
 import typer
 from oa_configurator import (
     SCHEMA_REGISTRY_SCHEMA,
+    Dialect,
     ResolvedCDMDatabase,
     SchemaDriftError,
     ensure_schema,
@@ -97,7 +98,7 @@ def _single_connection_backup(
     resolved_output_path = resolved_output_path.expanduser().resolve()
     with engine.connect() as connection:
         schemas = sorted(resolved.occupied_schemas(connection))
-    if engine.dialect.name == "postgresql":
+    if engine.dialect.name == Dialect.POSTGRESQL:
         schemas = sorted({*schemas, MAINTENANCE_SCHEMA, SCHEMA_REGISTRY_SCHEMA})
 
     tool_path, command, env, database_name = backend.prepare_backup(
@@ -160,7 +161,7 @@ def _execute_restore(
 ) -> None:
     """Run a restore after applying format-specific target preparation."""
     tool_path, command, env, _database_name = prepared_restore
-    if backup_format is BackupFormat.PLAIN and engine.dialect.name == "postgresql":
+    if backup_format is BackupFormat.PLAIN and engine.dialect.name == Dialect.POSTGRESQL:
         _require_empty_plain_restore_target(engine, schemas)
     elif backup_format is BackupFormat.CUSTOM:
         _ensure_custom_restore_schemas(engine, schemas)
@@ -195,7 +196,7 @@ def _single_connection_restore(
         raise RuntimeError(f"Backup artifact not found: {resolved_input_path}")
     with engine.connect() as connection:
         schemas = sorted(resolved.occupied_schemas(connection))
-    if engine.dialect.name == "postgresql":
+    if engine.dialect.name == Dialect.POSTGRESQL:
         schemas = sorted({*schemas, MAINTENANCE_SCHEMA, SCHEMA_REGISTRY_SCHEMA})
 
     tool_path, command, env, database_name = backend.prepare_restore(

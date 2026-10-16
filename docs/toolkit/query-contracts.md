@@ -203,7 +203,7 @@ Diagnostics are advisory rows and do not change the attachments. They identify c
 
 A more recent started candidate prevents the override even if another eligible cancer is older. With no started candidate, ordinary nearest-upcoming selection applies. Equal dates use the ranking's stable ID; a start on the event date is already started.
 
-The preference is accepted only with `explicit_first_ranked`, `nearest`, and `on_or_before_anchor`; incompatible combinations raise `ValueError`. Explicit links, window admission, distinct candidate counts, diagnostic columns and result identities are unchanged. Omitting it preserves the existing ranking. Generic temporal ranking and observation selectors have no preference argument. The candidate-set age is projected before the outer ranking window for PostgreSQL and SQLite portability.
+The preference is accepted only with `explicit_first_ranked`, `nearest`, and `on_or_before_anchor`; incompatible combinations raise `ValueError`. Explicit links, window admission, distinct candidate counts, diagnostic columns and result identities are unchanged. Omitting it preserves the existing ranking. Generic temporal ranking and observation selectors have no preference argument. The candidate-set age is projected before the outer ranking window for PostgreSQL, SQLite, and DuckDB portability.
 
 ## Rank fallback candidates
 
