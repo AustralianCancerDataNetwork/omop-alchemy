@@ -19,14 +19,21 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import sqlalchemy as sa
+import sqlalchemy.orm as so
 from oa_configurator import Dialect, ResolvedCDMDatabase
 from oa_configurator.testing import IsolatedTestDatabase, isolated_test_database
 from orm_loader.backends import staging_schema_claim
 from orm_loader.backends.base import DeferredForeignKeyViolationError
 
+from omop_alchemy.cdm.model.vocabulary import Domain
 from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance._cli_utils import Status
-from omop_alchemy.maintenance.cli_vocab import REQUIRED_VOCAB_MODELS, load_vocab_source
+from omop_alchemy.maintenance.cli_vocab import (
+    REQUIRED_VOCAB_MODELS,
+    _create_missing_vocabulary_tables,
+    load_vocab_source,
+)
 from omop_alchemy.maintenance.context import MaintenanceContext
 
 from .conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
@@ -109,6 +116,34 @@ def test_load_vocab_source_end_to_end_on_duckdb(staged_duckdb_engine, staged_duc
 
 @pytest.mark.duckdb
 @pytest.mark.db_dialect
+def test_load_vocab_source_repeat_replace_load_on_duckdb(
+    staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path
+):
+    source = tmp_path / "athena_source"
+    source.mkdir()
+    for table_name, data in _fixtures_with_sentinel_concept().items():
+        _write_fixture_csv(source, table_name, data)
+
+    context = MaintenanceContext(
+        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine
+    )
+    load_vocab_source(context, source_path=source)
+
+    # Not blocked: domain/vocabulary/concept_class's own FK into concept is
+    # deferred (cyclic) -> no real DuckDB constraint.
+    report = load_vocab_source(
+        context, source_path=source, tables=["domain", "vocabulary", "concept_class"]
+    )
+    assert all(result.status == Status.LOADED for result in report.results)
+
+    # Genuinely blocked: concept's own FK columns are enforced, and other
+    # tables' rows (e.g. domain, already loaded above) still reference it.
+    with pytest.raises(ValueError, match="concept"):
+        load_vocab_source(context, source_path=source, tables=["concept"])
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
 def test_load_vocab_source_raises_on_orphaned_deferred_fk_on_duckdb(
     staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path
 ):
@@ -125,3 +160,30 @@ def test_load_vocab_source_raises_on_orphaned_deferred_fk_on_duckdb(
     )
     with pytest.raises(DeferredForeignKeyViolationError):
         load_vocab_source(context, source_path=source)
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+def test_load_vocab_source_standalone_cyclic_table_load_rolls_back_on_duckdb(
+    staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path
+):
+    """Loading one cyclic table (domain) standalone must roll back an
+    orphaned deferred FK.
+    """
+    context = MaintenanceContext(
+        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine
+    )
+    _create_missing_vocabulary_tables(context)
+
+    source = tmp_path / "athena_source"
+    source.mkdir()
+    domain = _ATHENA_FIXTURE_DATA["domain"]
+    orphaned_domain = {**domain, "domain_concept_id": (999_999,) + domain["domain_concept_id"][1:]}
+    csv_path = _write_fixture_csv(source, "domain", orphaned_domain)
+
+    with so.Session(staged_duckdb_engine) as session:
+        with pytest.raises(DeferredForeignKeyViolationError):
+            Domain.load_csv(session, csv_path)
+
+    with so.Session(staged_duckdb_engine) as verify_session:
+        assert verify_session.execute(sa.select(Domain)).scalars().all() == []
