@@ -164,12 +164,15 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
         Attempt relationship access (may lazy load) to get human-readable gender code.
         """
         try:
-            gender = self.gender  # type: ignore[attr-defined]
+            gender = getattr(self, "gender", None)
+            if gender is None or gender.concept_name is None:
+                return None
             return gender.concept_name[:1].upper()
         except DetachedInstanceError:
             return None
         except Exception:
-            logger.debug("Could not derive gender_code", exc_info=True)
+            # __repr__ must not raise, so an unexpected failure is logged and hidden.
+            logger.exception("Could not derive gender_code")
             return None
 
     def __repr__(self) -> str:
