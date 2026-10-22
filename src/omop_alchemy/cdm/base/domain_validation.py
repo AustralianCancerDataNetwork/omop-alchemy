@@ -1,9 +1,12 @@
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar, cast
 
 # from .domain_rule import DomainRule
 from orm_loader.helpers import get_model_by_tablename
 from sqlalchemy import orm as so
+
+if TYPE_CHECKING:
+    from ..model.vocabulary import Concept
 
 
 @dataclass(frozen=True)
@@ -151,11 +154,11 @@ class DomainValidationMixin:
         if session is None:
             return True  # detached; best-effort
         # need to be able to query concept table but can't import directly here to avoid circular imports
-        ConceptCls = get_model_by_tablename("Concept")
+        ConceptCls = cast("type[Concept] | None", get_model_by_tablename("Concept"))
         if ConceptCls is None:
             return False
         concept = session.get(ConceptCls, concept_id)
-        return concept.domain_id in expected.domains if concept else False  # type: ignore[union-attr]
+        return concept.domain_id in expected.domains if concept else False
 
     @property
     def domain_violations(self) -> list[str]:

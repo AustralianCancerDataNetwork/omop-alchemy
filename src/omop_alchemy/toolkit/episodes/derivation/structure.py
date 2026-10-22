@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -25,8 +25,8 @@ EpisodeHierarchySource = type[Episode] | type[Episode_Event] | FromClause | Sele
 def _episode_source(source: EpisodeHierarchySource, *, name: str) -> FromClause:
     # Mapped classes contribute only their table here; relationship-bearing ORM
     # behavior is intentionally kept out of these SQL-only hierarchy builders.
-    if isinstance(source, type):
-        return cast(FromClause, source.__table__)
+    if isinstance(source, type) and issubclass(source, Episode | Episode_Event):
+        return source.__table__
     return _as_from_clause(source, name=name)
 
 

@@ -255,13 +255,13 @@ def _schema_key(db_schema: str | None) -> str:
     return db_schema or ""
 
 
-def get_bookkeeping_schema(connection: sa.Connection) -> str | None:
+def get_bookkeeping_schema(connection: sa.Connection | sa.Engine) -> str | None:
     """Return the reserved schema name for the dropped-index bookkeeping table.
 
     Parameters
     ----------
-    connection : sqlalchemy.Connection
-        The connection the bookkeeping table would be created on.
+    connection : sqlalchemy.Connection or sqlalchemy.Engine
+        The connection or engine the bookkeeping table would be created on.
 
     Returns
     -------

@@ -32,7 +32,7 @@ class InvalidModifierTargetSourceError(ValueError):
 @dataclass(frozen=True, slots=True)
 class ModifierTargetQueries:
     matches: sa.Select[Any]
-    diagnostics: SelectBase | None = None
+    diagnostics: sa.CompoundSelect[Any] | None = None
 
 
 def canonical_modifier_target_projection(model: type[Any]) -> sa.Select[Any]:

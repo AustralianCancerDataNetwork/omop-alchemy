@@ -4,7 +4,7 @@ from __future__ import annotations
 from enum import StrEnum
 from functools import cached_property
 from types import MappingProxyType
-from typing import Self, cast
+from typing import Self
 
 import sqlalchemy.orm as so
 from oa_configurator import Role
@@ -81,7 +81,7 @@ class OncologyEpisode(
 
     @declared_attr
     @classmethod
-    def children(cls) -> so.Mapped[list[OncologyEpisode]]:
+    def children(cls) -> so.Mapped[list[Self]]:
         # Not redundant with EpisodeContext.children: that declared_attr fires only
         # for EpisodeView, so inheriting it would give OncologyEpisode children
         # typed as EpisodeView. Redeclaring re-runs it with cls=OncologyEpisode.
@@ -157,14 +157,14 @@ class OncologyEpisode(
 
     @cached_property
     def child_treatment_episodes(self) -> list[Self]:
-        return [child for child in cast(list[Self], self.children) if child.is_treatment_episode]
+        return [child for child in self.children if child.is_treatment_episode]
 
     @cached_property
     def _linked_oncology_events(self) -> list[object]:
         """Resolved events linked to this episode or one of its direct children."""
         require_session(self)
         resolved: list[object] = list(self.events)
-        for child in cast(list[Self], self.children):
+        for child in self.children:
             resolved.extend(child.events)
         return resolved
 

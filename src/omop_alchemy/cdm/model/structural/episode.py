@@ -1,6 +1,6 @@
 from datetime import date
 from types import MappingProxyType
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional, Self
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -107,7 +107,7 @@ class EpisodeContext(ReferenceContext):
 
     @declared_attr
     @classmethod
-    def children(cls) -> so.Mapped[list["Episode"]]:
+    def children(cls) -> so.Mapped[list[Self]]:
         episode_id = cls.__table__.c.episode_id
         episode_parent_id = cls.__table__.c.episode_parent_id
         return so.relationship(

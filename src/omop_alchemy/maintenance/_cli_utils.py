@@ -6,7 +6,7 @@ import functools
 import inspect
 from collections.abc import Callable
 from enum import StrEnum
-from typing import Any, TypeVar
+from typing import Any, Concatenate
 
 import typer
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,8 +15,6 @@ from ..backends import BackendNotSupportedError
 from .context import MaintenanceContext
 from .tables import TableCategory
 from .ui import console, render_command_header, render_error
-
-_F = TypeVar("_F", bound=Callable[..., Any])
 
 
 class Severity(StrEnum):
@@ -104,14 +102,14 @@ class Status(StrEnum):
 _NON_WRITING_MODES = frozenset({"dry-run", "inspect"})
 
 
-def omop_command(
+def omop_command[**P, R](
     command_name: str,
     *,
     vocabulary_included: bool | None = None,
     dry_run: bool = False,
     mode_label: str | None = None,
     writes: bool = True,
-) -> Callable[[_F], _F]:
+) -> Callable[[Callable[Concatenate[MaintenanceContext, P], R]], Callable[P, R]]:
     """Decorator that eliminates CLI boilerplate for every omop-alchemy command. Changes the
     typer signature to remove the context parameter and add a ``--database`` option.
 
@@ -137,7 +135,7 @@ def omop_command(
         is meant to run *before*. Complements _NON_WRITING_MODES.
     """
 
-    def decorator(func: _F) -> _F:
+    def decorator(func: Callable[Concatenate[MaintenanceContext, P], R]) -> Callable[P, R]:
         signature = inspect.signature(func, eval_str=True)
         orig_params = list(signature.parameters.values())
 
@@ -215,6 +213,7 @@ def omop_command(
             )
         wrapper.__signature__ = signature.replace(parameters=new_params)  # ty: ignore[unresolved-attribute]
 
+        # The wrapper takes keyword options only; its Typer-visible signature is set above.
         return wrapper  # ty: ignore[invalid-return-type]
 
     return decorator
