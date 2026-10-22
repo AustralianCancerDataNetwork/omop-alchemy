@@ -5,34 +5,58 @@ from __future__ import annotations
 import typer
 
 from ._cli_utils import omop_command
-from .context import MaintenanceContext
 from .cli_schema_doctor import (
     DoctorCheck as DoctorCheck,
-    DoctorReport as DoctorReport,
+)
+from .cli_schema_doctor import (
     DoctorRecommendation as DoctorRecommendation,
+)
+from .cli_schema_doctor import (
+    DoctorReport as DoctorReport,
+)
+from .cli_schema_doctor import (
     collect_doctor_report,
 )
 from .cli_schema_info import (
     CommandSupport as CommandSupport,
+)
+from .cli_schema_info import (
     DependencyStatus as DependencyStatus,
+)
+from .cli_schema_info import (
     MaintenanceInfo as MaintenanceInfo,
+)
+from .cli_schema_info import (
     collect_maintenance_info,
 )
 from .cli_schema_reconcile import (
     ReconciliationIssue as ReconciliationIssue,
+)
+from .cli_schema_reconcile import (
     SchemaReconciliationReport as SchemaReconciliationReport,
+)
+from .cli_schema_reconcile import (
     TableReconciliationResult as TableReconciliationResult,
+)
+from .cli_schema_reconcile import (
     reconcile_schema,
 )
 from .cli_schema_summary import (
     TableSummaryResult as TableSummaryResult,
+)
+from .cli_schema_summary import (
     collect_data_summary,
 )
 from .cli_schema_tables import (
     TableCreationResult as TableCreationResult,
-    collect_missing_tables as collect_missing_tables,
+)
+from .cli_schema_tables import (
     _create_missing_tables,
 )
+from .cli_schema_tables import (
+    collect_missing_tables as collect_missing_tables,
+)
+from .context import MaintenanceContext
 from .ui import (
     console,
     render_data_summary_results,
@@ -52,7 +76,6 @@ from .ui import (
     render_table_creation_results,
     render_table_creation_summary,
 )
-
 
 # ---------------------------------------------------------------------------
 # CLI commands

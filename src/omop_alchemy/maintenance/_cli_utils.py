@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import functools
 import inspect
+from collections.abc import Callable
 from enum import StrEnum
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 import typer
 from sqlalchemy.exc import SQLAlchemyError
 
+from ..backends import BackendNotSupportedError
 from .context import MaintenanceContext
 from .tables import TableCategory
-from .ui import console, render_error, render_command_header
-from ..backends import BackendNotSupportedError
-
+from .ui import console, render_command_header, render_error
 
 _F = TypeVar("_F", bound=Callable[..., Any])
 

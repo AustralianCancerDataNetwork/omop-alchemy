@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from functools import cached_property
-from typing import ClassVar, Literal, Optional, Self, Sequence
+from typing import ClassVar, Literal, Self
 
 from sqlalchemy import select
 from sqlalchemy.orm import object_session
@@ -20,8 +21,8 @@ class MeasurementReading:
 
     measurement_id: int
     date: date
-    value: Optional[float]
-    unit_concept_id: Optional[int]
+    value: float | None
+    unit_concept_id: int | None
     concept_id: int
     source: ReadingSource
 

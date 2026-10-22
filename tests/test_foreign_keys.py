@@ -1,17 +1,17 @@
 import pytest
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
 from typer.testing import CliRunner
 
-from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance._cli_utils import Status
-from omop_alchemy.maintenance.cli_schema import _create_missing_tables
+from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance.cli_foreign_keys import (
     ForeignKeyConstraintViolation,
-    validate_foreign_key_constraints,
     _collect_fk_info,
     collect_foreign_key_trigger_status,
     manage_foreign_key_triggers,
+    validate_foreign_key_constraints,
 )
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
+from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
 from tests.conftest import FakeMaintenanceContext
 
@@ -148,7 +148,6 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
     class _FakeConnection:
         def exec_driver_sql(self, statement: str):
             statements.append(statement)
-            return None
 
         def __enter__(self):
             return self
@@ -233,7 +232,6 @@ def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(
     class _FakeConnection:
         def exec_driver_sql(self, statement: str):
             statements.append(statement)
-            return None
 
         def __enter__(self):
             return self

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from functools import cached_property
-from typing import ClassVar, Optional, TypedDict
+from typing import ClassVar, TypedDict
 
 from .calculators import BodyMetricRules
 from .measurement_series import (
@@ -22,12 +22,12 @@ class WeightChange:
     explicit prevents callers from folding "unknown" into "no loss".
     """
 
-    pct_change: Optional[float]
+    pct_change: float | None
     evaluable: bool
-    reference: Optional[MeasurementReading] = None
+    reference: MeasurementReading | None = None
 
     @classmethod
-    def not_evaluable(cls) -> "WeightChange":
+    def not_evaluable(cls) -> WeightChange:
         return cls(pct_change=None, evaluable=False)
 
 
@@ -135,7 +135,7 @@ class WeightTrajectoryMixin:
         return normalize_height_readings(self._raw_height_series, self.body_metric_rules())
 
     @property
-    def height_m(self) -> Optional[float]:
+    def height_m(self) -> float | None:
         """Return the first normalized height as metres, when available."""
         readings = self.height_readings_cm
         if not readings or readings[0].value is None:
@@ -143,17 +143,17 @@ class WeightTrajectoryMixin:
         return readings[0].value / 100.0
 
     @property
-    def baseline_weight(self) -> Optional[MeasurementReading]:
+    def baseline_weight(self) -> MeasurementReading | None:
         """Return the earliest normalized weight reading in the series."""
         return self.weight_readings[0] if self.weight_readings else None
 
     @property
-    def latest_weight(self) -> Optional[MeasurementReading]:
+    def latest_weight(self) -> MeasurementReading | None:
         """Return the latest normalized weight reading in the series."""
         return self.weight_readings[-1] if self.weight_readings else None
 
     @property
-    def baseline_bmi(self) -> Optional[float]:
+    def baseline_bmi(self) -> float | None:
         """Calculate BMI from the baseline weight and first available height."""
         baseline = self.baseline_weight
         return self.body_metric_rules().bmi(
@@ -162,7 +162,7 @@ class WeightTrajectoryMixin:
         )
 
     @property
-    def baseline_bsa_mosteller_m2(self) -> Optional[float]:
+    def baseline_bsa_mosteller_m2(self) -> float | None:
         """Calculate Mosteller BSA from baseline weight and first height."""
         baseline = self.baseline_weight
         height = self.height_readings_cm[0] if self.height_readings_cm else None
@@ -173,7 +173,7 @@ class WeightTrajectoryMixin:
 
     def pct_change_from_baseline(
         self,
-        as_of: Optional[MeasurementReading] = None,
+        as_of: MeasurementReading | None = None,
     ) -> WeightChange:
         """Compare a target reading with baseline, preserving non-evaluability."""
         baseline = self.baseline_weight
@@ -234,7 +234,7 @@ class WeightTrajectoryMixin:
         self,
         threshold_pct: float = 5.0,
         min_consecutive: int = 2,
-    ) -> Optional[bool]:
+    ) -> bool | None:
         """Test whether recent readings sustain the requested loss threshold."""
         baseline = self.baseline_weight
         # Baseline is the first reading, so it cannot count toward a loss

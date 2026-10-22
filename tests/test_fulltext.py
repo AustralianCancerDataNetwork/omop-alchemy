@@ -1,14 +1,14 @@
-import sqlalchemy as sa
 import pytest
-from sqlalchemy.dialects import postgresql
-from typer.testing import CliRunner
+import sqlalchemy as sa
 from oa_configurator import (
+    SCHEMA_TRANSLATE_MAP_KEY,
     CDMDatabaseConfig,
     ConnectionConfig,
-    SCHEMA_TRANSLATE_MAP_KEY,
     StackConfig,
 )
 from oa_configurator import Role as SchemaRole
+from sqlalchemy.dialects import postgresql
+from typer.testing import CliRunner
 
 from omop_alchemy.backends import (
     CONCEPT_NAME_TSVECTOR_COLUMN,
@@ -18,15 +18,15 @@ from omop_alchemy.cdm.model.vocabulary.concept import Concept
 from omop_alchemy.cdm.model.vocabulary.concept_synonym import Concept_Synonym
 from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.cli import app
-from omop_alchemy.maintenance.context import MaintenanceContext
-from tests.conftest import FakeMaintenanceContext
 from omop_alchemy.maintenance.cli_fulltext import (
     FullTextAction,
     FullTextResult,
-    drop_fulltext_columns,
     _install_fulltext_columns,
+    drop_fulltext_columns,
     populate_fulltext_columns,
 )
+from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import FakeMaintenanceContext
 
 runner = CliRunner()
 

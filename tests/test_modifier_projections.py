@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
+
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from datetime import date, datetime
 from oa_configurator import Role
+from orm_loader.helpers import Base
 from sqlalchemy.dialects import postgresql, sqlite
 
 from omop_alchemy.cdm.base import (
+    ClinicalEventMixin,
     ModifierFieldConcepts,
     ModifierSourceMixin,
-    ClinicalEventMixin,
 )
-from orm_loader.helpers import Base
+from omop_alchemy.cdm.base.event_metadata import ClinicalEventModelSpec
 from omop_alchemy.cdm.model import (
     Condition_Occurrence,
     Device_Exposure,
@@ -25,8 +27,6 @@ from omop_alchemy.cdm.model import (
     Procedure_Occurrence,
 )
 from omop_alchemy.cdm.model.clinical import MeasurementView, ObservationView
-from omop_alchemy.cdm.model.structural import Episode, Episode_EventView
-from omop_alchemy.cdm.base.event_metadata import ClinicalEventModelSpec
 from omop_alchemy.cdm.model.clinical.event_metadata import (
     CLINICAL_EVENT_TARGETS_BY_FIELD_CONCEPT_ID,
     CLINICAL_EVENT_TARGETS_BY_TABLE,
@@ -35,12 +35,7 @@ from omop_alchemy.cdm.model.clinical.event_metadata import (
     clinical_event_model_spec,
     clinical_event_target_for_table,
 )
-from omop_alchemy.toolkit.core.modifiers.projections import _VALUE_COLUMN_TYPES
-from omop_alchemy.toolkit.core.modifiers.contracts import (
-    ModifierColumn,
-    ModifierRow,
-    ValuedModifierRow,
-)
+from omop_alchemy.cdm.model.structural import Episode, Episode_EventView
 from omop_alchemy.toolkit.core.modifiers import (
     CDM_MODIFIER_SOURCE_MODELS,
     MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE,
@@ -54,7 +49,12 @@ from omop_alchemy.toolkit.core.modifiers import (
     modifier_target_model_spec,
     modifier_target_queries,
 )
-
+from omop_alchemy.toolkit.core.modifiers.contracts import (
+    ModifierColumn,
+    ModifierRow,
+    ValuedModifierRow,
+)
+from omop_alchemy.toolkit.core.modifiers.projections import _VALUE_COLUMN_TYPES
 
 # The full projection shape, in UNION position order. Only the tests need the
 # whole; production code asks for the obligation it actually cares about.

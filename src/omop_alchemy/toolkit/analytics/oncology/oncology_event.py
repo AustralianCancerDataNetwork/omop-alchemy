@@ -29,7 +29,7 @@ class OncologyEpisodeEvent(ResolvedEpisodeEvent):
 
     @classmethod
     def resolved_event_target_classes(cls) -> dict[int, type[Any]]:
-        base_resolver = getattr(ResolvedEpisodeEvent, "resolved_event_target_classes")
+        base_resolver = ResolvedEpisodeEvent.resolved_event_target_classes
         targets = dict(base_resolver())
         targets.update(
             {
@@ -47,5 +47,5 @@ class OncologyEpisodeEventMixin:
 
     @declared_attr
     @classmethod
-    def episode_events(cls) -> so.Mapped[list["OncologyEpisodeEvent"]]:
+    def episode_events(cls) -> so.Mapped[list[OncologyEpisodeEvent]]:
         return _episode_events_relationship(cls, OncologyEpisodeEvent)

@@ -2,16 +2,17 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
 from orm_loader.helpers import Base
+
 from omop_alchemy.cdm.base import (
+    CDMTableBase,
     ReferenceTable,
     cdm_table,
-    CDMTableBase,
     merge_table_args,
     omop_primary_key_index_name,
     omop_table_options,
     role_fk,
 )
-from omop_alchemy.cdm.model.flags import BooleanFlag, normalised_flag_expr, normalised_flag
+from omop_alchemy.cdm.model.flags import BooleanFlag, normalised_flag, normalised_flag_expr
 
 
 @cdm_table

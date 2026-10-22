@@ -1,9 +1,13 @@
+import datetime
+
+import sqlalchemy as sa
 from oa_configurator import Role
+
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.structural import (
-    EpisodeView,
     Episode_Event,
     Episode_EventView,
+    EpisodeView,
     clear_episode_event_target_class_cache,
 )
 from omop_alchemy.toolkit.episodes.handling import (
@@ -12,8 +16,6 @@ from omop_alchemy.toolkit.episodes.handling import (
     ResolvedEpisodeEventMixin,
     episode_attachment_window,
 )
-import datetime
-import sqlalchemy as sa
 
 
 class DiagnosticEpisode(ResolvedEpisodeEventMixin, EpisodeView):

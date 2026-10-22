@@ -1,28 +1,25 @@
 import copy
 import os
 import uuid
+from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
+from typing import Any, NamedTuple
+
 import pytest
 import sqlalchemy as sa
+import sqlalchemy.orm as so
 import typer.rich_utils as _typer_rich_utils
-from orm_loader.helpers import bootstrap
+from oa_configurator import ResolvedCDMDatabase
 from oa_configurator.testing import (
     IsolatedTestDatabase,
     isolated_test_database,
     resolve_with_role_schemas,
     scoped_test_schema,
 )
-from oa_configurator import ResolvedCDMDatabase
-import sqlalchemy.orm as so
+from orm_loader.helpers import bootstrap
 from sqlalchemy.orm import Session, sessionmaker
 
-from typing import Any, Dict, Iterator, NamedTuple, Tuple
-
-from omop_alchemy.config import OmopAlchemyConfig
-from omop_alchemy.maintenance.cli_tables import _truncate_tables
-from omop_alchemy.maintenance.cli_vocab import _load_vocab_model_csv
-from omop_alchemy.maintenance.tables import select_maintenance_tables
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Observation_Period, Person
 from omop_alchemy.cdm.model.structural import Episode, Episode_Event
 from omop_alchemy.cdm.model.vocabulary import (
@@ -34,7 +31,11 @@ from omop_alchemy.cdm.model.vocabulary import (
     Relationship,
     Vocabulary,
 )
+from omop_alchemy.config import OmopAlchemyConfig
+from omop_alchemy.maintenance.cli_tables import _truncate_tables
+from omop_alchemy.maintenance.cli_vocab import _load_vocab_model_csv
 from omop_alchemy.maintenance.context import MaintenanceContext
+from omop_alchemy.maintenance.tables import select_maintenance_tables
 
 # typer forces colorized rich error/output rendering when GITHUB_ACTIONS (or
 # FORCE_COLOR / PY_COLORS) is set -- see typer.rich_utils.FORCE_TERMINAL. Under
@@ -108,7 +109,7 @@ ATHENA_LOAD_ORDER = [
 # tuple of row values (one entry per row, in the same order).
 # Empty tuples = table has no rows (header-only CSV).
 
-_ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
+_ATHENA_FIXTURE_DATA: dict[str, dict[str, tuple[Any, ...]]] = {
     "concept_ancestor": {
         "ancestor_concept_id": (),
         "descendant_concept_id": (),
@@ -272,15 +273,14 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
 }
 
 
-def _write_fixture_csv(directory: Path, table_name: str, data: Dict[str, Tuple[Any, ...]]) -> Path:
+def _write_fixture_csv(directory: Path, table_name: str, data: dict[str, tuple[Any, ...]]) -> Path:
     """Write an in-memory fixture dict to a tab-separated CSV file."""
     path = directory / f"{table_name.upper()}.csv"
     cols = list(data.keys())
     rows = list(zip(*data.values())) if cols and any(data.values()) else []
     with open(path, "w", newline="", encoding="utf-8") as f:
         f.write("\t".join(cols) + "\n")
-        for row in rows:
-            f.write("\t".join("" if v is None else str(v) for v in row) + "\n")
+        f.writelines("\t".join("" if v is None else str(v) for v in row) + "\n" for row in rows)
     return path
 
 
@@ -460,6 +460,7 @@ def pg_db(request):
     committing ``Engine``.
     """
     from oa_configurator.testing import isolated_test_database
+
     from omop_alchemy.config import OmopAlchemyConfig
 
     with isolated_test_database(OmopAlchemyConfig, "test_cdm_db_pg", request=request) as db:
@@ -688,7 +689,7 @@ def session(engine) -> Session:  # type: ignore
 
 
 @pytest.fixture(scope="function")
-def athena_fixtures() -> Dict[str, Dict[str, Tuple[Any, ...]]]:
+def athena_fixtures() -> dict[str, dict[str, tuple[Any, ...]]]:
     """All Athena vocabulary tables as a single dict keyed by ORM table name."""
     return {k: dict(v) for k, v in _ATHENA_FIXTURE_DATA.items()}
 
@@ -704,48 +705,48 @@ def athena_source_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture(scope="function")
-def concept_ancestor() -> Dict[str, Tuple[Any, ...]]:
+def concept_ancestor() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the concept_ancestor fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["concept_ancestor"])
 
 
 @pytest.fixture(scope="function")
-def concept_class() -> Dict[str, Tuple[Any, ...]]:
+def concept_class() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the concept_class fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["concept_class"])
 
 
 @pytest.fixture(scope="function")
-def concept_relationship() -> Dict[str, Tuple[Any, ...]]:
+def concept_relationship() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the concept_relationship fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["concept_relationship"])
 
 
 @pytest.fixture(scope="function")
-def concept_synonym() -> Dict[str, Tuple[Any, ...]]:
+def concept_synonym() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the concept_synonym fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["concept_synonym"])
 
 
 @pytest.fixture(scope="function")
-def concept() -> Dict[str, Tuple[Any, ...]]:
+def concept() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the concept fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["concept"])
 
 
 @pytest.fixture(scope="function")
-def domain() -> Dict[str, Tuple[Any, ...]]:
+def domain() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the domain fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["domain"])
 
 
 @pytest.fixture(scope="function")
-def relationship() -> Dict[str, Tuple[Any, ...]]:
+def relationship() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the relationship fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["relationship"])
 
 
 @pytest.fixture(scope="function")
-def vocabulary() -> Dict[str, Tuple[Any, ...]]:
+def vocabulary() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the vocabulary fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["vocabulary"])

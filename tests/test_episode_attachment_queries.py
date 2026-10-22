@@ -28,12 +28,12 @@ from omop_alchemy.toolkit.episodes.derivation.attachments import (
 )
 from tests.fixtures.query_contract_cases import (
     COLLIDING_EVENTS,
+    COLLIDING_VALID_LINK,
     CROSS_PERSON_LINK,
     DIRECTIONAL_PREFERENCE_EPISODES,
-    OVERLAPPING_EPISODES,
     OUT_OF_SCOPE_LINK,
+    OVERLAPPING_EPISODES,
     VALID_EXPLICIT_LINK,
-    COLLIDING_VALID_LINK,
     EpisodeCase,
     EventCase,
     ExplicitLinkCase,

@@ -1,31 +1,31 @@
 from .base import (
-    Backend,
-    BackendNotSupportedError,
     CONCEPT_NAME_TSVECTOR_COLUMN,
     CONCEPT_SYNONYM_NAME_TSVECTOR_COLUMN,
+    Backend,
+    BackendNotSupportedError,
     FeatureNotSupportedError,
     FullTextError,
     FullTextTargetConfig,
+    backend_support_note,
     backend_supports,
     require_backend_support,
-    backend_support_note,
 )
 from .postgres import PostgresBackend
-from .sqlite import SQLiteBackend
 from .resolve import resolve_backend
+from .sqlite import SQLiteBackend
 
 __all__ = [
-    "Backend",
-    "BackendNotSupportedError",
     "CONCEPT_NAME_TSVECTOR_COLUMN",
     "CONCEPT_SYNONYM_NAME_TSVECTOR_COLUMN",
+    "Backend",
+    "BackendNotSupportedError",
     "FeatureNotSupportedError",
     "FullTextError",
     "FullTextTargetConfig",
-    "backend_supports",
-    "require_backend_support",
-    "backend_support_note",
     "PostgresBackend",
     "SQLiteBackend",
+    "backend_support_note",
+    "backend_supports",
+    "require_backend_support",
     "resolve_backend",
 ]

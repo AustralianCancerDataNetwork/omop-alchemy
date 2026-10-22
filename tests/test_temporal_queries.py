@@ -10,9 +10,9 @@ from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.exc import UnsupportedCompilationError
 
 from omop_alchemy.toolkit.episodes.derivation import (
+    EpisodeWindowSpec,
     ObservationSelectionPolicy,
     ObservationSelectionSpec,
-    EpisodeWindowSpec,
     TemporalRankingSpec,
     TemporalSelectionPolicy,
     TemporalSidePreference,

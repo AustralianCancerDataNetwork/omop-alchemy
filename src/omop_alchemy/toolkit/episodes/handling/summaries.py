@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable, Hashable, Optional, Self, Sequence, TypedDict
+from typing import Self, TypedDict
 
 from omop_alchemy.cdm.model import Drug_Exposure
 from omop_alchemy.toolkit.core._grouping import group_and_summarize
@@ -30,9 +31,9 @@ class DrugExposureSummary:
 
     group_key: object
     n_exposures: int
-    first_start_date: Optional[date]
-    last_start_date: Optional[date]
-    total_quantity: Optional[float]
+    first_start_date: date | None
+    last_start_date: date | None
+    total_quantity: float | None
     dose_unit_source_values: frozenset[str]
     drug_concept_ids: frozenset[int]
 

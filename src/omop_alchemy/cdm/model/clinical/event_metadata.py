@@ -7,9 +7,9 @@ target, but not every modifier target is a clinical event.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 from omop_alchemy.cdm.base import (
     ClinicalEventMixin,
@@ -21,14 +21,13 @@ from omop_alchemy.cdm.base.event_metadata import (
     UnsupportedClinicalEventModelError,
 )
 
+from ..structural.episode import Episode, EpisodeView
 from .condition_occurrence import Condition_Occurrence, Condition_OccurrenceView
 from .device_exposure import Device_Exposure, Device_ExposureView
 from .drug_exposure import Drug_Exposure, Drug_ExposureView
 from .measurement import Measurement, MeasurementView
 from .observation import Observation, ObservationView
 from .procedure_occurrence import Procedure_Occurrence, Procedure_OccurrenceView
-from ..structural.episode import Episode, EpisodeView
-
 
 # Keep one explicit supported event set. Both lookup shapes are derived from it
 # so projection and episode-resolution support cannot drift independently.

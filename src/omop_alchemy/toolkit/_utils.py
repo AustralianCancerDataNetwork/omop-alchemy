@@ -6,7 +6,6 @@ from collections.abc import Collection, Iterable, Sequence
 from typing import Any
 
 import sqlalchemy as sa
-
 from sqlalchemy.sql.selectable import FromClause, SelectBase
 
 

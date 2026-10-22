@@ -16,10 +16,10 @@ from typing import cast
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from sqlalchemy.dialects import postgresql
 from oa_configurator.testing import ScopedTestSchema, scoped_test_schema
 from orm_loader.backends import staging_schema_claim
 from orm_loader.helpers import bulk_load_context
+from sqlalchemy.dialects import postgresql
 
 from omop_alchemy.backends import (
     CONCEPT_NAME_TSVECTOR_COLUMN,
@@ -34,8 +34,8 @@ from omop_alchemy.maintenance.cli_fulltext import (
 )
 from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
 from omop_alchemy.maintenance.cli_vocab import load_vocab_source
-from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 

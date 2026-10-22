@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Hashable, Sequence
 from functools import cached_property
-from typing import Callable, ClassVar, Hashable, Sequence
+from typing import ClassVar
 
 from omop_alchemy.cdm.model import Drug_Exposure
 

@@ -7,6 +7,7 @@ from typing import Any
 import sqlalchemy as sa
 
 from omop_alchemy.toolkit.core._ranking import deterministic_row_number
+
 from .contracts import ObservationSelectionPolicy, ObservationSelectionSpec
 
 

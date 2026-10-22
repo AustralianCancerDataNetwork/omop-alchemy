@@ -1,11 +1,11 @@
-from typing import Iterator, NamedTuple
+from collections.abc import Iterator
+from typing import NamedTuple
 
 import pytest
 import sqlalchemy as sa
-
-from oa_configurator import ResolvedCDMDatabase, Role
-from oa_configurator import qualified, physical_schema_of
+from oa_configurator import ResolvedCDMDatabase, Role, physical_schema_of, qualified
 from oa_configurator.testing import DIALECT_PARAMS, isolated_test_schema, scoped_test_schema
+
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import omop_index_name
 from omop_alchemy.maintenance.cli_indexes import _manage_indexes
@@ -265,8 +265,8 @@ def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db):
 
 
 def test_is_blocking_issue_excludes_renamed_only():
-    from omop_alchemy.maintenance.cli_schema_reconcile import ReconciliationIssue
     from omop_alchemy.maintenance._cli_utils import Status
+    from omop_alchemy.maintenance.cli_schema_reconcile import ReconciliationIssue
     from omop_alchemy.maintenance.tables import TableCategory
 
     renamed = ReconciliationIssue(

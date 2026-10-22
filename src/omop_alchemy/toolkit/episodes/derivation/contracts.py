@@ -164,9 +164,7 @@ class EpisodeAttachmentDiagnostic:
     candidate_count: int | None = None
 
     @classmethod
-    def from_mapping(
-        cls, row: _EpisodeAttachmentDiagnosticMapping
-    ) -> "EpisodeAttachmentDiagnostic":
+    def from_mapping(cls, row: _EpisodeAttachmentDiagnosticMapping) -> EpisodeAttachmentDiagnostic:
         """Convert one SQLAlchemy mapping result without leaking column-name handling."""
         return cls(
             code=AttachmentDiagnosticCode(row[AttachmentDiagnosticColumn.diagnostic_code.value]),

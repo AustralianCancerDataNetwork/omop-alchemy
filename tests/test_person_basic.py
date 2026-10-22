@@ -1,8 +1,9 @@
+from datetime import date
+
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
-from datetime import date
-from omop_alchemy.cdm.model.clinical import Person, PersonView
 
+from omop_alchemy.cdm.model.clinical import Person, PersonView
 from omop_alchemy.cdm.model.vocabulary import Concept
 
 

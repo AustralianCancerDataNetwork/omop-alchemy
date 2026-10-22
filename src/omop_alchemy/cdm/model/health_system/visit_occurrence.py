@@ -1,25 +1,26 @@
+from datetime import date
+from typing import TYPE_CHECKING
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from typing import Optional, TYPE_CHECKING
-from datetime import date
+from orm_loader.helpers import Base
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_method
 from sqlalchemy.orm.exc import DetachedInstanceError
 
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
-    role_fk,
-    role_table,
-    cdm_table,
     CDMTableBase,
-    ReferenceContext,
-    required_concept_fk,
-    optional_concept_fk,
     DomainValidationMixin,
     ExpectedDomain,
+    ReferenceContext,
+    cdm_table,
     merge_table_args,
     omop_index,
+    optional_concept_fk,
+    required_concept_fk,
+    role_fk,
+    role_table,
 )
 
 if TYPE_CHECKING:
@@ -46,30 +47,30 @@ class Visit_Occurrence(CDMTableBase, Base):
 
     visit_concept_id: so.Mapped[int] = required_concept_fk()
     visit_start_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
-    visit_start_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
+    visit_start_datetime: so.Mapped[date | None] = so.mapped_column(sa.DateTime, nullable=True)
     visit_end_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
-    visit_end_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
+    visit_end_datetime: so.Mapped[date | None] = so.mapped_column(sa.DateTime, nullable=True)
     visit_type_concept_id: so.Mapped[int] = required_concept_fk()
 
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(
+    provider_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")), nullable=True
     )
-    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(
+    care_site_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "care_site.care_site_id")), nullable=True
     )
 
-    visit_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
-    visit_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    admitted_from_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    admitted_from_source_value: so.Mapped[Optional[str]] = so.mapped_column(
+    visit_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50), nullable=True)
+    visit_source_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    admitted_from_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    admitted_from_source_value: so.Mapped[str | None] = so.mapped_column(
         sa.String(50), nullable=True
     )
-    discharged_to_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    discharged_to_source_value: so.Mapped[Optional[str]] = so.mapped_column(
+    discharged_to_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    discharged_to_source_value: so.Mapped[str | None] = so.mapped_column(
         sa.String(50), nullable=True
     )
 
-    preceding_visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(
+    preceding_visit_occurrence_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")), nullable=True
     )
 

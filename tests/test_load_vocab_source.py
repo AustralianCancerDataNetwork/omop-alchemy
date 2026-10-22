@@ -6,8 +6,10 @@ from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConf
 from sqlalchemy.orm import sessionmaker
 from typer.testing import CliRunner
 
-from omop_alchemy.maintenance.cli import app
+from omop_alchemy.cdm.model.vocabulary import Drug_Strength
+from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance._cli_utils import Status
+from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance.cli_indexes import IndexManagementResult
 from omop_alchemy.maintenance.cli_vocab import (
     OPTIONAL_VOCAB_MODELS,
@@ -17,11 +19,8 @@ from omop_alchemy.maintenance.cli_vocab import (
     _load_vocab_model_csv,
     load_vocab_source,
 )
-from omop_alchemy.maintenance.tables import TableCategory
-from omop_alchemy.cdm.model.vocabulary import Drug_Strength
-from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance.context import MaintenanceContext
-
+from omop_alchemy.maintenance.tables import TableCategory
 
 runner = CliRunner()
 
@@ -214,10 +213,10 @@ def test_load_vocab_source_cli_uses_configured_athena_source(monkeypatch, tmp_pa
     def fake_load_vocab_source(
         engine: object,
         *,
-        vocab_engine: object = None,  # noqa: ARG001
-        vocab_schema: str | None = None,  # noqa: ARG001
+        vocab_engine: object = None,
+        vocab_schema: str | None = None,
         source_path: str | Path,
-        tables: list[str] | None = None,  # noqa: ARG001
+        tables: list[str] | None = None,
         db_schema: str | None = None,
         dry_run: bool = False,
         merge_strategy: MergeStrategy = "replace",
@@ -226,7 +225,7 @@ def test_load_vocab_source_cli_uses_configured_athena_source(monkeypatch, tmp_pa
         bulk_mode: bool = True,
         merge_batch_size: int = 1_000_000,
         progress_callback=None,
-        resolved: object = None,  # noqa: ARG001
+        resolved: object = None,
     ):
         calls["source_path"] = str(source_path)
         calls["dry_run"] = dry_run
@@ -613,7 +612,7 @@ def test_load_vocab_source_tables_single_loads_only_that_table(
         model,
         csv_path,
         merge_strategy,
-        quote_mode="auto",  # noqa: ARG001
+        quote_mode="auto",
         chunksize=None,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
@@ -652,7 +651,7 @@ def test_load_vocab_source_tables_multiple_loads_exactly_those(
         model,
         csv_path,
         merge_strategy,
-        quote_mode="auto",  # noqa: ARG001
+        quote_mode="auto",
         chunksize=None,
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,

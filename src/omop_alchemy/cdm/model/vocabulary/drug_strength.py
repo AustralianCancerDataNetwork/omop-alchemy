@@ -1,13 +1,14 @@
+from datetime import date
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from typing import Optional
-from datetime import date
 from oa_configurator import Role
 from orm_loader.helpers import Base
+
 from omop_alchemy.cdm.base import (
+    CDMTableBase,
     ReferenceTable,
     cdm_table,
-    CDMTableBase,
     merge_table_args,
     omop_index,
     optional_concept_fk,
@@ -43,12 +44,12 @@ class Drug_Strength(
     ingredient_concept_id: so.Mapped[int] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), primary_key=True
     )
-    amount_value: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, nullable=True)
-    amount_unit_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    numerator_value: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, nullable=True)
-    numerator_unit_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    denominator_value: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, nullable=True)
-    denominator_unit_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    box_size: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, nullable=True)
+    amount_value: so.Mapped[float | None] = so.mapped_column(sa.Float, nullable=True)
+    amount_unit_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    numerator_value: so.Mapped[float | None] = so.mapped_column(sa.Float, nullable=True)
+    numerator_unit_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    denominator_value: so.Mapped[float | None] = so.mapped_column(sa.Float, nullable=True)
+    denominator_unit_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    box_size: so.Mapped[int | None] = so.mapped_column(sa.Integer, nullable=True)
     valid_start_date: so.Mapped[date] = so.mapped_column(nullable=False)
     valid_end_date: so.Mapped[date] = so.mapped_column(nullable=False)

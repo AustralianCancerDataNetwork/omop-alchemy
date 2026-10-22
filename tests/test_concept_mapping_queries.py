@@ -14,7 +14,6 @@ from omop_alchemy.toolkit.core.concepts import (
     standard_concept_mapping_select,
 )
 
-
 SOURCE_ID = 991_000
 STANDARD_TARGET_ID = 991_001
 SECOND_STANDARD_TARGET_ID = 991_002

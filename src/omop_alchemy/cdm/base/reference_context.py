@@ -1,7 +1,9 @@
 from __future__ import annotations
-import sqlalchemy.orm as so
-import sqlalchemy as sa
+
 from typing import Any
+
+import sqlalchemy as sa
+import sqlalchemy.orm as so
 
 
 class ReferenceContext:

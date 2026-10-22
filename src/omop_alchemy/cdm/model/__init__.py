@@ -1,6 +1,5 @@
 # we have to import at least one model from each module to ensure they are registered
 from .clinical import (
-    Person,
     Condition_Occurrence,
     Death,
     Device_Exposure,
@@ -8,74 +7,75 @@ from .clinical import (
     Measurement,
     Observation,
     Observation_Period,
+    Person,
     Procedure_Occurrence,
 )
-from .derived import Condition_Era, Drug_Era, Dose_Era, Cohort_Definition, Cohort
+from .derived import Cohort, Cohort_Definition, Condition_Era, Dose_Era, Drug_Era
+from .flags import (
+    BooleanFlag,
+    InvalidReasonFlag,
+    InvalidReasonMixin,
+    StandardConceptFlag,
+    normalised_flag,
+    normalised_flag_expr,
+)
+from .health_economic import Cost, Payer_Plan_Period
+from .health_system import Care_Site, Location, Provider, Visit_Detail, Visit_Occurrence
+from .metadata import CDM_Source, Metadata
+from .structural import Episode, Episode_Event, Fact_Relationship
+from .typing import ConceptRow
+from .unstructured import Note, Note_NLP
 from .vocabulary import (
     Concept,
     Concept_Ancestor,
-    Domain,
-    Vocabulary,
     Concept_Class,
-    Relationship,
     Concept_Relationship,
+    Domain,
+    Relationship,
+    Vocabulary,
 )
-from .health_system import Visit_Occurrence, Care_Site, Location, Provider, Visit_Detail
-from .health_economic import Cost, Payer_Plan_Period
-from .structural import Episode, Episode_Event, Fact_Relationship
-from .unstructured import Note, Note_NLP
-from .metadata import CDM_Source, Metadata
-from .flags import (
-    InvalidReasonMixin,
-    InvalidReasonFlag,
-    StandardConceptFlag,
-    normalised_flag_expr,
-    normalised_flag,
-    BooleanFlag,
-)
-from .typing import ConceptRow
 
 __all__ = [
-    "Person",
+    "BooleanFlag",
+    "CDM_Source",
+    "Care_Site",
+    "Cohort",
+    "Cohort_Definition",
+    "Concept",
+    "ConceptRow",
+    "Concept_Ancestor",
+    "Concept_Class",
+    "Concept_Relationship",
+    "Condition_Era",
     "Condition_Occurrence",
+    "Cost",
     "Death",
     "Device_Exposure",
-    "Drug_Exposure",
-    "Measurement",
-    "Observation",
-    "Procedure_Occurrence",
-    "Observation_Period",
-    "Concept",
-    "Visit_Occurrence",
-    "Care_Site",
-    "Location",
-    "Provider",
-    "Visit_Detail",
-    "Cost",
-    "Payer_Plan_Period",
-    "Episode",
-    "Note",
-    "Condition_Era",
-    "Drug_Era",
-    "Dose_Era",
-    "Cohort_Definition",
-    "Cohort",
-    "Concept_Ancestor",
     "Domain",
-    "Vocabulary",
-    "Concept_Class",
-    "Relationship",
-    "Concept_Relationship",
+    "Dose_Era",
+    "Drug_Era",
+    "Drug_Exposure",
+    "Episode",
     "Episode_Event",
     "Fact_Relationship",
-    "Note_NLP",
-    "CDM_Source",
-    "Metadata",
-    "ConceptRow",
     "InvalidReasonFlag",
     "InvalidReasonMixin",
-    "BooleanFlag",
-    "normalised_flag",
+    "Location",
+    "Measurement",
+    "Metadata",
+    "Note",
+    "Note_NLP",
+    "Observation",
+    "Observation_Period",
+    "Payer_Plan_Period",
+    "Person",
+    "Procedure_Occurrence",
+    "Provider",
+    "Relationship",
     "StandardConceptFlag",
+    "Visit_Detail",
+    "Visit_Occurrence",
+    "Vocabulary",
+    "normalised_flag",
     "normalised_flag_expr",
 ]

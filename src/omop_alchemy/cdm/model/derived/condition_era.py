@@ -1,16 +1,17 @@
+from datetime import date
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from typing import Optional
-from datetime import date
 from oa_configurator import Role
 from orm_loader.helpers import Base
+
 from omop_alchemy.cdm.base import (
-    role_fk,
-    cdm_table,
     CDMTableBase,
-    required_concept_fk,
+    cdm_table,
     merge_table_args,
     omop_index,
+    required_concept_fk,
+    role_fk,
 )
 
 
@@ -30,4 +31,4 @@ class Condition_Era(CDMTableBase, Base):
     condition_concept_id: so.Mapped[int] = required_concept_fk()
     condition_era_start_date: so.Mapped[date] = so.mapped_column(nullable=False)
     condition_era_end_date: so.Mapped[date] = so.mapped_column(nullable=False)
-    condition_occurrence_count: so.Mapped[Optional[int]] = so.mapped_column(nullable=True)
+    condition_occurrence_count: so.Mapped[int | None] = so.mapped_column(nullable=True)

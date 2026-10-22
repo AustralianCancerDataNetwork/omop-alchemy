@@ -1,32 +1,34 @@
+from datetime import date
+from typing import TYPE_CHECKING, ClassVar, Optional
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from sqlalchemy.ext.declarative import declared_attr
-from typing import ClassVar, Optional, TYPE_CHECKING, List
-from datetime import date
 from orm_loader.helpers import Base
+from sqlalchemy.ext.declarative import declared_attr
+
 from omop_alchemy.cdm.base import (
-    role_fk,
-    cdm_table,
     CDMTableBase,
-    required_concept_fk,
-    optional_concept_fk,
-    PersonScoped,
-    optional_int,
-    ReferenceContext,
     DomainValidationMixin,
     ExpectedDomain,
+    ModifierFieldConcepts,
+    ModifierTargetMixin,
+    PersonScoped,
+    ReferenceContext,
+    cdm_table,
     merge_table_args,
     omop_index,
-    ModifierTargetMixin,
-    ModifierFieldConcepts,
+    optional_concept_fk,
+    optional_int,
+    required_concept_fk,
+    role_fk,
 )
 
 if TYPE_CHECKING:
-    from ..vocabulary import Concept
-    from ..clinical import Person
-    from .episode_event import Episode_EventView
     from ...base.typing import HasEpisodeId
+    from ..clinical import Person
+    from ..vocabulary import Concept
+    from .episode_event import Episode_EventView
 
 
 @cdm_table
@@ -43,22 +45,22 @@ class Episode(CDMTableBase, Base, PersonScoped):
     )
 
     episode_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    episode_parent_id: so.Mapped[Optional[int]] = so.mapped_column(
+    episode_parent_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "episode.episode_id")), nullable=True
     )
 
     episode_start_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
-    episode_start_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
-    episode_end_date: so.Mapped[Optional[date]] = so.mapped_column(sa.Date, nullable=True)
-    episode_end_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
+    episode_start_datetime: so.Mapped[date | None] = so.mapped_column(sa.DateTime, nullable=True)
+    episode_end_date: so.Mapped[date | None] = so.mapped_column(sa.Date, nullable=True)
+    episode_end_datetime: so.Mapped[date | None] = so.mapped_column(sa.DateTime, nullable=True)
 
-    episode_number: so.Mapped[Optional[int]] = optional_int()
-    episode_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
+    episode_number: so.Mapped[int | None] = optional_int()
+    episode_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50), nullable=True)
 
     episode_concept_id: so.Mapped[int] = required_concept_fk()
     episode_object_concept_id: so.Mapped[int] = required_concept_fk()
     episode_type_concept_id: so.Mapped[int] = required_concept_fk()
-    episode_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    episode_source_concept_id: so.Mapped[int | None] = optional_concept_fk()
 
     def __repr__(self) -> str:
         return f"<Episode {self.episode_id}>"
@@ -82,7 +84,7 @@ class EpisodeContext(ReferenceContext):
     # parent_episode: so.Mapped[Optional["Episode"]] = ReferenceContext._reference_relationship(target="Episode",local_fk="episode_parent_id")  # type: ignore[assignment]
 
     @declared_attr
-    def episode_events(cls: type["HasEpisodeId"]) -> so.Mapped[List["Episode_EventView"]]:
+    def episode_events(cls: type["HasEpisodeId"]) -> so.Mapped[list["Episode_EventView"]]:
         return so.relationship(
             "Episode_EventView",
             primaryjoin="Episode.episode_id == Episode_EventView.episode_id",
@@ -104,7 +106,7 @@ class EpisodeContext(ReferenceContext):
 
     @declared_attr
     @classmethod
-    def children(cls) -> so.Mapped[List["Episode"]]:
+    def children(cls) -> so.Mapped[list["Episode"]]:
         episode_id = cls.__table__.c.episode_id
         episode_parent_id = cls.__table__.c.episode_parent_id
         return so.relationship(

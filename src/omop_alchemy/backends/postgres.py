@@ -6,8 +6,7 @@ import shutil
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-
-from oa_configurator import Dialect, Role, qualified, physical_schema_of
+from oa_configurator import Dialect, Role, physical_schema_of, qualified
 from sqlalchemy.dialects.postgresql import REGCONFIG, TSVECTOR
 from sqlalchemy.sql import func
 

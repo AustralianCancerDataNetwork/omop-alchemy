@@ -23,8 +23,8 @@ from omop_alchemy.maintenance.cli_vocab import (
     _load_vocab_model_csv,
     load_vocab_source,
 )
-from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 

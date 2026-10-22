@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 import sqlalchemy as sa
 from oa_configurator import ResolvedCDMDatabase, physical_schema_of, referred_schema_tag

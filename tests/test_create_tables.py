@@ -4,9 +4,9 @@ from oa_configurator import SchemaClaim
 from orm_loader.helpers import Base
 
 from omop_alchemy.maintenance import cli_schema_tables
-from omop_alchemy.maintenance.cli_schema import collect_missing_tables, _create_missing_tables
-from omop_alchemy.maintenance.tables import MaintenanceTable, TableCategory
+from omop_alchemy.maintenance.cli_schema import _create_missing_tables, collect_missing_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
+from omop_alchemy.maintenance.tables import MaintenanceTable, TableCategory
 
 
 def test_collect_missing_tables_on_empty_database(fresh_engine, fresh_resolved):

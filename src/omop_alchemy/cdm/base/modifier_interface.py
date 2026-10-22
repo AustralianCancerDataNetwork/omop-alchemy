@@ -1,7 +1,9 @@
 from __future__ import annotations
-from sqlalchemy.ext.hybrid import hybrid_property
-from typing import ClassVar, Optional
+
 from datetime import date
+from typing import ClassVar
+
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.elements import SQLColumnExpression
 
 
@@ -45,21 +47,21 @@ class ModifierSourceMixin:
         return cls.__tablename__
 
     @hybrid_property
-    def modifier_of_event_id(self) -> Optional[int]:
+    def modifier_of_event_id(self) -> int | None:
         return getattr(self, self.__modifier_event_id_col__)
 
     @modifier_of_event_id.inplace.expression
     @classmethod
-    def _modifier_of_event_id(cls) -> SQLColumnExpression[Optional[int]]:
+    def _modifier_of_event_id(cls) -> SQLColumnExpression[int | None]:
         return getattr(cls, cls.__modifier_event_id_col__)
 
     @hybrid_property
-    def modifier_of_field_concept_id(self) -> Optional[int]:
+    def modifier_of_field_concept_id(self) -> int | None:
         return getattr(self, self.__modifier_field_concept_id_col__)
 
     @modifier_of_field_concept_id.inplace.expression
     @classmethod
-    def _modifier_of_field_concept_id(cls) -> SQLColumnExpression[Optional[int]]:
+    def _modifier_of_field_concept_id(cls) -> SQLColumnExpression[int | None]:
         return getattr(cls, cls.__modifier_field_concept_id_col__)
 
 
@@ -111,7 +113,7 @@ class ModifierTargetMixin:
         return getattr(self, self.__start_date_col__)
 
     @property
-    def end_date(self) -> Optional[date]:
+    def end_date(self) -> date | None:
         return getattr(self, self.__end_date_col__)
 
     @property

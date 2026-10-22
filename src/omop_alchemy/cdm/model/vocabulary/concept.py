@@ -1,23 +1,25 @@
+from datetime import date
+from typing import TYPE_CHECKING
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from sqlalchemy.ext.declarative import declared_attr
-from typing import Optional, TYPE_CHECKING, List
-from datetime import date
 
 if TYPE_CHECKING:
+    from .concept_ancestor import Concept_Ancestor
+    from .concept_class import Concept_Class
+    from .concept_relationship import Concept_Relationship
     from .domain import Domain
     from .vocabulary import Vocabulary
-    from .concept_class import Concept_Class
-    from .concept_ancestor import Concept_Ancestor
-    from .concept_relationship import Concept_Relationship
 
 from oa_configurator import Role
 from orm_loader.helpers import Base
+
 from omop_alchemy.cdm.base import (
-    ReferenceTable,
-    cdm_table,
     CDMTableBase,
     ReferenceContext,
+    ReferenceTable,
+    cdm_table,
     merge_table_args,
     omop_index,
     omop_primary_key_index_name,
@@ -25,10 +27,10 @@ from omop_alchemy.cdm.base import (
     role_fk,
 )
 from omop_alchemy.cdm.model.flags import (
-    StandardConceptFlag,
     InvalidReasonMixin,
-    normalised_flag_expr,
+    StandardConceptFlag,
     normalised_flag,
+    normalised_flag_expr,
 )
 
 
@@ -61,7 +63,7 @@ class Concept(ReferenceTable, CDMTableBase, InvalidReasonMixin, Base):
     concept_class_id: so.Mapped[str] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.VOCAB, "concept_class.concept_class_id")), nullable=False
     )
-    standard_concept: so.Mapped[Optional[str]] = so.mapped_column(sa.String(1), nullable=True)
+    standard_concept: so.Mapped[str | None] = so.mapped_column(sa.String(1), nullable=True)
     concept_code: so.Mapped[str] = so.mapped_column(sa.String(50), nullable=False)
     valid_start_date: so.Mapped[date] = so.mapped_column(sa.Date(), nullable=False)
     valid_end_date: so.Mapped[date] = so.mapped_column(sa.Date(), nullable=False)
@@ -122,7 +124,7 @@ class ConceptContext(ReferenceContext):
     )  # type: ignore[assignment]
 
     @declared_attr
-    def outgoing_relationships(cls) -> so.Mapped[List["Concept_Relationship"]]:
+    def outgoing_relationships(cls) -> so.Mapped[list["Concept_Relationship"]]:
         return so.relationship(
             "Concept_Relationship",
             primaryjoin=f"{cls.__name__}.concept_id == Concept_Relationship.concept_id_1",  # type: ignore
@@ -132,7 +134,7 @@ class ConceptContext(ReferenceContext):
         )
 
     @declared_attr
-    def incoming_relationships(cls) -> so.Mapped[List["Concept_Relationship"]]:
+    def incoming_relationships(cls) -> so.Mapped[list["Concept_Relationship"]]:
         return so.relationship(
             "Concept_Relationship",
             primaryjoin=f"{cls.__name__}.concept_id == Concept_Relationship.concept_id_2",  # type: ignore
@@ -142,7 +144,7 @@ class ConceptContext(ReferenceContext):
         )
 
     @declared_attr
-    def ancestors(cls) -> so.Mapped[List["Concept_Ancestor"]]:
+    def ancestors(cls) -> so.Mapped[list["Concept_Ancestor"]]:
         return so.relationship(
             "Concept_Ancestor",
             primaryjoin=f"{cls.__name__}.concept_id == Concept_Ancestor.descendant_concept_id",  # type: ignore
@@ -152,7 +154,7 @@ class ConceptContext(ReferenceContext):
         )
 
     @declared_attr
-    def descendants(cls) -> so.Mapped[List["Concept_Ancestor"]]:
+    def descendants(cls) -> so.Mapped[list["Concept_Ancestor"]]:
         return so.relationship(
             "Concept_Ancestor",
             primaryjoin=f"{cls.__name__}.concept_id == Concept_Ancestor.ancestor_concept_id",  # type: ignore

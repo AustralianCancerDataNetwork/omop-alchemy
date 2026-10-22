@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
+import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-import pytest
 from oa_configurator import ConnectionConfig, ResolvedCDMDatabase
 from sqlalchemy.exc import UnboundExecutionError
 
-from omop_alchemy.config import create_cdm_engines
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence
 from omop_alchemy.cdm.model.vocabulary import Concept
-from omop_alchemy.cross_database import filter_by_keys
-from omop_alchemy.cross_database import cdm_sessionmaker
+from omop_alchemy.config import create_cdm_engines
+from omop_alchemy.cross_database import cdm_sessionmaker, filter_by_keys
 
 
 def test_filter_by_keys_is_a_subquery_on_one_database(fresh_engine: sa.Engine):

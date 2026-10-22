@@ -1,6 +1,5 @@
 import pytest
 import sqlalchemy as sa
-from typer.testing import CliRunner
 from oa_configurator import (
     CDMDatabaseConfig,
     ConnectionConfig,
@@ -17,35 +16,36 @@ from oa_configurator.testing import (
     resolve_with_role_schemas,
     scoped_test_schema,
 )
+from typer.testing import CliRunner
 
 from omop_alchemy.backends.sqlite import SQLiteBackend
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY, omop_index_name
-from omop_alchemy.config import create_cdm_engines
-from omop_alchemy.maintenance.cli import app
-from omop_alchemy.maintenance.cli_schema import _create_missing_tables
-from omop_alchemy.config import MAINTENANCE_SCHEMA
+from omop_alchemy.config import MAINTENANCE_SCHEMA, create_cdm_engines
 from omop_alchemy.maintenance._cli_utils import Status
-from omop_alchemy.maintenance.ui import render_index_summary
+from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance.cli_indexes import (
-    IndexManagementResult,
     _DROPPED_INDEXES_TABLE_NAME,
-    get_bookkeeping_schema,
+    IndexManagementResult,
     _cluster_target_name,
     _describe_shape_conflict,
     _find_equivalent_index,
     _find_shape_conflict,
     _is_plain_index,
+    _manage_indexes,
     _record_captured_index,
     _resolve_physical_cluster_name,
     _schema_metadata_indexes,
     collect_index_targets,
-    _manage_indexes,
+    get_bookkeeping_schema,
 )
-from omop_alchemy.maintenance.tables import collect_maintenance_tables
-from omop_alchemy.maintenance.tables import TableCategory
-from omop_alchemy.maintenance.tables import select_omop_tables
+from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
-
+from omop_alchemy.maintenance.tables import (
+    TableCategory,
+    collect_maintenance_tables,
+    select_omop_tables,
+)
+from omop_alchemy.maintenance.ui import render_index_summary
 
 runner = CliRunner()
 PERSON_GENDER_INDEX = omop_index_name("person", "gender_concept_id")
@@ -1020,8 +1020,9 @@ def _dropped_indexes_rows(engine: sa.Engine) -> list[dict[str, object]]:
 
 
 def _render_to_text(renderable) -> str:
-    from rich.console import Console
     import io
+
+    from rich.console import Console
 
     buffer = io.StringIO()
     Console(file=buffer, width=200).print(renderable)
@@ -1241,12 +1242,12 @@ def test_vocabulary_domain_concept_class_relationship_cluster_on_primary_key():
 
 
 def test_render_reconciliation_summary_treats_renamed_only_as_matched():
+    from omop_alchemy.maintenance._cli_utils import Status
     from omop_alchemy.maintenance.cli_schema_reconcile import (
         ReconciliationIssue,
         SchemaReconciliationReport,
         TableReconciliationResult,
     )
-    from omop_alchemy.maintenance._cli_utils import Status
     from omop_alchemy.maintenance.ui import render_reconciliation_summary
 
     report = SchemaReconciliationReport(

@@ -1,6 +1,6 @@
-from orm_loader.tables import CSVLoadableTableInterface, SerialisableTableInterface
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from orm_loader.tables import CSVLoadableTableInterface, SerialisableTableInterface
 
 
 class CDMTableBase(CSVLoadableTableInterface, SerialisableTableInterface):

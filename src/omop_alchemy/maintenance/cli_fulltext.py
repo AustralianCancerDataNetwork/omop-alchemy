@@ -6,11 +6,12 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
 
-import typer
 import sqlalchemy as sa
+import typer
 from sqlalchemy.engine import Engine
+
 from ..backends import backend_support_note as _backend_support_note
-from ..backends import resolve_backend, require_backend_support
+from ..backends import require_backend_support, resolve_backend
 from ..backends.base import Backend, FullTextError, FullTextTargetConfig
 from ..cdm.model.vocabulary.concept import Concept
 from ..cdm.model.vocabulary.concept_synonym import Concept_Synonym

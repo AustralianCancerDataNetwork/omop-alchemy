@@ -9,7 +9,10 @@ import textwrap
 import pytest
 from sqlalchemy.dialects import postgresql, sqlite
 
-from omop_alchemy.cdm.base import ModifierFieldConcepts
+from omop_alchemy.cdm.base import ClinicalEventMixin, ModifierFieldConcepts, ModifierTargetMixin
+from omop_alchemy.cdm.base.event_metadata import (
+    UnsupportedClinicalEventModelError,
+)
 from omop_alchemy.cdm.model import (
     Condition_Occurrence,
     Device_Exposure,
@@ -27,16 +30,12 @@ from omop_alchemy.cdm.model.clinical import (
     ObservationView,
     Procedure_OccurrenceView,
 )
-from omop_alchemy.cdm.base import ClinicalEventMixin, ModifierTargetMixin
-from omop_alchemy.cdm.base.event_metadata import (
-    UnsupportedClinicalEventModelError,
-)
-from omop_alchemy.cdm.model.structural import Episode, Episode_EventView, EpisodeView
 from omop_alchemy.cdm.model.clinical.event_metadata import (
     _validate_unique_target_keys,
     clinical_event_model_spec,
     clinical_event_target_for_table,
 )
+from omop_alchemy.cdm.model.structural import Episode, Episode_EventView, EpisodeView
 from omop_alchemy.toolkit.core.events import (
     ClinicalEventColumn,
     canonical_event_projection,

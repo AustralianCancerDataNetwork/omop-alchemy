@@ -14,6 +14,6 @@ __all__ = [
     "Episode_Event",
     "Episode_EventContext",
     "Episode_EventView",
-    "clear_episode_event_target_class_cache",
     "Fact_Relationship",
+    "clear_episode_event_target_class_cache",
 ]

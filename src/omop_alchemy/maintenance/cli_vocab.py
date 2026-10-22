@@ -10,7 +10,6 @@ from typing import Literal, TypeAlias, cast
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from sqlalchemy.exc import OperationalError
 import typer
 from oa_configurator import (
     Role,
@@ -31,6 +30,7 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from sqlalchemy.exc import OperationalError
 
 from omop_alchemy.cdm.model.vocabulary import (
     Concept,
@@ -45,12 +45,13 @@ from omop_alchemy.cdm.model.vocabulary import (
     Vocabulary,
 )
 
-from ..backends import backend_supports, resolve_backend as resolve_omop_backend
+from ..backends import backend_supports
+from ..backends import resolve_backend as resolve_omop_backend
 from ._cli_utils import Status, omop_command
-from .context import MaintenanceContext
 from .cli_foreign_keys import manage_foreign_key_triggers
 from .cli_indexes import _manage_indexes
 from .cli_tables import reset_model_sequences
+from .context import MaintenanceContext
 from .tables import TableCategory, select_maintenance_tables
 from .ui import (
     console,

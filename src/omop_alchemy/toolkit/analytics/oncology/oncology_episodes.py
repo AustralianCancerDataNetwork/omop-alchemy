@@ -80,7 +80,7 @@ class OncologyEpisode(
 
     @declared_attr
     @classmethod
-    def children(cls) -> so.Mapped[list["OncologyEpisode"]]:
+    def children(cls) -> so.Mapped[list[OncologyEpisode]]:
         # Not redundant with EpisodeContext.children: that declared_attr fires only
         # for EpisodeView, so inheriting it would give OncologyEpisode children
         # typed as EpisodeView. Redeclaring re-runs it with cls=OncologyEpisode.

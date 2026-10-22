@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional, Any
+from typing import Any
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
 
 from .column_helpers import role_fk
-
 
 """
 OMOP CDM structural mixins.
@@ -67,8 +67,8 @@ class ValueMixin:
     This helps when building generic tooling that needs to handle values flexibly but then normalise for analysis.
     """
 
-    value_as_number: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, nullable=True)
-    value_as_concept_id: so.Mapped[Optional[int]] = so.mapped_column(
+    value_as_number: so.Mapped[float | None] = so.mapped_column(sa.Float, nullable=True)
+    value_as_concept_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=True
     )
 
@@ -85,10 +85,10 @@ class DatedEvent:
     """
 
     start_date: so.Mapped[date] = so.mapped_column(nullable=False)
-    start_datetime: so.Mapped[Optional[datetime]] = so.mapped_column(nullable=True)
+    start_datetime: so.Mapped[datetime | None] = so.mapped_column(nullable=True)
 
-    end_date: so.Mapped[Optional[date]] = so.mapped_column(nullable=True)
-    end_datetime: so.Mapped[Optional[datetime]] = so.mapped_column(nullable=True)
+    end_date: so.Mapped[date | None] = so.mapped_column(nullable=True)
+    end_datetime: so.Mapped[datetime | None] = so.mapped_column(nullable=True)
 
 
 class HealthSystemContext:
@@ -100,13 +100,13 @@ class HealthSystemContext:
     Used across many clinical event tables to provide consistent join points into the health system structure.
     """
 
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(
+    provider_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")), nullable=True
     )
-    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(
+    visit_occurrence_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")), nullable=True
     )
-    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(
+    visit_detail_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id")), nullable=True
     )
 
@@ -120,8 +120,6 @@ class FactTable:
     Used for introspection, tooling, and documentation only.
     """
 
-    pass
-
 
 class ReferenceTable:
     """
@@ -129,8 +127,6 @@ class ReferenceTable:
 
     Marker mixin for OMOP reference tables.
     """
-
-    pass
 
 
 class SourceAttribution:
@@ -140,8 +136,8 @@ class SourceAttribution:
     Mixin for *_source_value and *_source_concept_id patterns.
     """
 
-    source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String, nullable=True)
-    source_concept_id: so.Mapped[Optional[int]] = so.mapped_column(
+    source_value: so.Mapped[str | None] = so.mapped_column(sa.String, nullable=True)
+    source_concept_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=True
     )
 
@@ -153,6 +149,6 @@ class UnitConcept:
     Mixin for unit_concept_id.
     """
 
-    unit_concept_id: so.Mapped[Optional[int]] = so.mapped_column(
+    unit_concept_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=True
     )

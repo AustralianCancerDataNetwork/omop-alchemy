@@ -7,19 +7,19 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 import typer
-
 from oa_configurator import (
     autocommit_connection,
     claimed_schema_tags,
     physical_schema_of,
     qualified,
 )
-from ..backends import resolve_backend, require_backend_support, backend_support_note
+
+from ..backends import backend_support_note, require_backend_support, resolve_backend
 from ._cli_utils import Status, dry_label, dry_status, omop_command, resolve_selection
 from .context import MaintenanceContext
 from .tables import (
-    all_table_names,
     TableCategory,
+    all_table_names,
     resolve_maintenance_tables,
     select_maintenance_tables,
     select_omop_tables,
@@ -36,7 +36,6 @@ from .ui import (
     render_truncate_results,
     render_truncate_summary,
 )
-
 
 # ---------------------------------------------------------------------------
 # analyze_tables

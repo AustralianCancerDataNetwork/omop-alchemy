@@ -14,7 +14,6 @@ from omop_alchemy.toolkit._utils import _as_from_clause
 
 from .contracts import CANONICAL_EPISODE_COLUMNS, EpisodeColumn
 
-
 EpisodeSource = type[Episode] | FromClause | SelectBase
 EpisodeEventSource = type[Episode_Event] | FromClause | SelectBase
 EpisodeHierarchySource = type[Episode] | type[Episode_Event] | FromClause | SelectBase
@@ -27,7 +26,7 @@ def _episode_source(source: EpisodeHierarchySource, *, name: str) -> FromClause:
     # Mapped classes contribute only their table here; relationship-bearing ORM
     # behavior is intentionally kept out of these SQL-only hierarchy builders.
     if isinstance(source, type):
-        return cast(FromClause, getattr(source, "__table__"))
+        return cast(FromClause, source.__table__)
     return _as_from_clause(source, name=name)
 
 

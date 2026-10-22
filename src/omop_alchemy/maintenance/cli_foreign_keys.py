@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 import typer
-
 from oa_configurator import physical_schema_of
-from ..backends import Backend, resolve_backend, require_backend_support, backend_support_note
+
+from ..backends import Backend, backend_support_note, require_backend_support, resolve_backend
 from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .context import MaintenanceContext
 from .tables import (

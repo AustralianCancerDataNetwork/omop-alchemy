@@ -1,18 +1,17 @@
+from datetime import date
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from typing import Optional
-from datetime import date
-
 from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
-    role_fk,
     CDMTableBase,
     cdm_table,
-    optional_concept_fk,
     merge_table_args,
     omop_index,
+    optional_concept_fk,
+    role_fk,
 )
 
 
@@ -32,14 +31,14 @@ class Note_NLP(CDMTableBase, Base):
         nullable=False,
     )
 
-    section_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    section_concept_id: so.Mapped[int | None] = optional_concept_fk()
 
-    snippet: so.Mapped[Optional[str]] = so.mapped_column(
+    snippet: so.Mapped[str | None] = so.mapped_column(
         sa.String(250),
         nullable=True,
     )
 
-    offset: so.Mapped[Optional[str]] = so.mapped_column(
+    offset: so.Mapped[str | None] = so.mapped_column(
         sa.String(50),
         nullable=True,
     )
@@ -49,31 +48,31 @@ class Note_NLP(CDMTableBase, Base):
         nullable=False,
     )
 
-    note_nlp_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    note_nlp_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    note_nlp_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    note_nlp_source_concept_id: so.Mapped[int | None] = optional_concept_fk()
 
-    nlp_system: so.Mapped[Optional[str]] = so.mapped_column(
+    nlp_system: so.Mapped[str | None] = so.mapped_column(
         sa.String(250),
         nullable=True,
     )
 
     nlp_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
-    nlp_datetime: so.Mapped[Optional[date]] = so.mapped_column(
+    nlp_datetime: so.Mapped[date | None] = so.mapped_column(
         sa.DateTime,
         nullable=True,
     )
 
-    term_exists: so.Mapped[Optional[str]] = so.mapped_column(
+    term_exists: so.Mapped[str | None] = so.mapped_column(
         sa.String(1),
         nullable=True,
     )
 
-    term_temporal: so.Mapped[Optional[str]] = so.mapped_column(
+    term_temporal: so.Mapped[str | None] = so.mapped_column(
         sa.String(50),
         nullable=True,
     )
 
-    term_modifiers: so.Mapped[Optional[str]] = so.mapped_column(
+    term_modifiers: so.Mapped[str | None] = so.mapped_column(
         sa.String(2000),
         nullable=True,
     )

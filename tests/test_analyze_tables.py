@@ -1,10 +1,10 @@
 import pytest
 from typer.testing import CliRunner
 
-from omop_alchemy.maintenance.cli_tables import analyze_tables
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
-from omop_alchemy.maintenance.tables import TableCategory
+from omop_alchemy.maintenance.cli_tables import analyze_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
+from omop_alchemy.maintenance.tables import TableCategory
 
 runner = CliRunner()
 

@@ -1,10 +1,8 @@
-from sqlalchemy import orm as so
-from orm_loader.helpers import get_model_by_tablename
+from dataclasses import dataclass
 
 # from .domain_rule import DomainRule
-from typing import FrozenSet
-from dataclasses import dataclass
-from typing import Optional
+from orm_loader.helpers import get_model_by_tablename
+from sqlalchemy import orm as so
 
 
 @dataclass(frozen=True)
@@ -36,8 +34,8 @@ class DomainRule:
 
     table: str
     field: str
-    allowed_domains: FrozenSet[str]
-    allowed_classes: Optional[set[str]] = None
+    allowed_domains: frozenset[str]
+    allowed_classes: set[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -58,7 +56,7 @@ class ExpectedDomain:
     frozenset({'Race', 'Ethnicity'})
     """
 
-    domains: FrozenSet[str]
+    domains: frozenset[str]
 
     def __init__(self, *domains: str):
         object.__setattr__(self, "domains", frozenset(domains))

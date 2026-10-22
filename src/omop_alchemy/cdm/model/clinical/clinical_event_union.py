@@ -1,11 +1,11 @@
 import warnings
+
+# from .drug_exposure import Drug_Exposure
+from orm_loader.helpers import Base
+from sqlalchemy import literal, select, union_all
 from typing_extensions import deprecated
 
-from sqlalchemy import select, union_all, literal
 from .condition_occurrence import Condition_Occurrence
-# from .drug_exposure import Drug_Exposure
-
-from orm_loader.helpers import Base
 
 warnings.warn(
     "omop_alchemy.cdm.model.clinical.clinical_event_union is deprecated; "

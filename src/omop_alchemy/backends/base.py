@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
+
 import sqlalchemy as sa
 from oa_configurator import Role
-
 
 # ── Fulltext types ────────────────────────────────────────────────────────────
 
@@ -36,18 +37,18 @@ class BackendNotSupportedError(RuntimeError):
 class FeatureNotSupportedError(BackendNotSupportedError):
     """Raised when a backend exists but doesn't implement a specific feature."""
 
-    def __init__(self, feature: str, backend: "Backend") -> None:
+    def __init__(self, feature: str, backend: Backend) -> None:
         super().__init__(f"'{feature}' is not supported by the {backend.name} backend.")
         self.feature = feature
         self.backend_name = backend.name
 
 
-def backend_supports(backend: "Backend", method_name: str) -> bool:
+def backend_supports(backend: Backend, method_name: str) -> bool:
     """True if this backend class overrides *method_name* from the base Backend class."""
     return getattr(type(backend), method_name) is not getattr(Backend, method_name)
 
 
-def require_backend_support(backend: "Backend", method_name: str, feature: str) -> None:
+def require_backend_support(backend: Backend, method_name: str, feature: str) -> None:
     """Raise FeatureNotSupportedError if this backend does not override *method_name*."""
     if not backend_supports(backend, method_name):
         raise FeatureNotSupportedError(feature, backend)

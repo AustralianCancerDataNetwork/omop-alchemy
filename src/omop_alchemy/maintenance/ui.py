@@ -10,7 +10,6 @@ from rich.table import Table
 from rich.text import Text
 
 from ..backends.resolve import backend_label
-
 from .ascii import render_banner
 from .tables import TableCategory
 

@@ -13,6 +13,7 @@ or an engine with no ``vocab`` entry in its translate map.
 from __future__ import annotations
 
 from pathlib import Path
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import (

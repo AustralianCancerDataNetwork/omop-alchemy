@@ -1,19 +1,21 @@
+from datetime import date, datetime
+from typing import TYPE_CHECKING, Optional
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from sqlalchemy.ext.declarative import declared_attr
-from typing import Optional, TYPE_CHECKING
-from datetime import date, datetime
 from oa_configurator import Role
 from orm_loader.helpers import Base
+from sqlalchemy.ext.declarative import declared_attr
+
 from omop_alchemy.cdm.base import (
-    PersonScoped,
-    HealthSystemContext,
-    FactTable,
-    ReferenceContext,
     CDMTableBase,
-    cdm_table,
-    ModifierFieldConcepts,
     ClinicalEventMixin,
+    FactTable,
+    HealthSystemContext,
+    ModifierFieldConcepts,
+    PersonScoped,
+    ReferenceContext,
+    cdm_table,
     merge_table_args,
     omop_index,
     optional_concept_fk,
@@ -21,8 +23,8 @@ from omop_alchemy.cdm.base import (
 )
 
 if TYPE_CHECKING:
-    from ..vocabulary import Concept
     from ..health_system import Visit_Occurrence
+    from ..vocabulary import Concept
 
 
 @cdm_table
@@ -45,17 +47,17 @@ class Condition_Occurrence(
         sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False
     )
     condition_start_date: so.Mapped[date] = so.mapped_column(nullable=False)
-    condition_start_datetime: so.Mapped[Optional[datetime]] = so.mapped_column()
-    condition_end_date: so.Mapped[Optional[date]] = so.mapped_column()
-    condition_end_datetime: so.Mapped[Optional[datetime]] = so.mapped_column()
+    condition_start_datetime: so.Mapped[datetime | None] = so.mapped_column()
+    condition_end_date: so.Mapped[date | None] = so.mapped_column()
+    condition_end_datetime: so.Mapped[datetime | None] = so.mapped_column()
     condition_type_concept_id: so.Mapped[int] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False
     )
-    stop_reason: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20))
-    condition_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
-    condition_status_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
-    condition_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    condition_status_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    stop_reason: so.Mapped[str | None] = so.mapped_column(sa.String(20))
+    condition_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50))
+    condition_status_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50))
+    condition_source_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    condition_status_concept_id: so.Mapped[int | None] = optional_concept_fk()
 
 
 class Condition_OccurrenceContext(ReferenceContext):

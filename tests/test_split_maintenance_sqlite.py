@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 
-from omop_alchemy.maintenance.cli_schema import _create_missing_tables, collect_data_summary
-from omop_alchemy.maintenance.cli_schema_reconcile import reconcile_schema
-from omop_alchemy.maintenance.cli_tables import _truncate_tables, analyze_tables
-from omop_alchemy.maintenance.tables import TableCategory
-from omop_alchemy.maintenance.cli_indexes import collect_index_targets
-from omop_alchemy.maintenance.cli_fulltext import _fulltext_groups
 from omop_alchemy.backends.base import FullTextTargetConfig
 from omop_alchemy.maintenance.cli_foreign_keys import (
     collect_foreign_key_trigger_status,
     manage_foreign_key_triggers,
 )
+from omop_alchemy.maintenance.cli_fulltext import _fulltext_groups
+from omop_alchemy.maintenance.cli_indexes import collect_index_targets
+from omop_alchemy.maintenance.cli_schema import _create_missing_tables, collect_data_summary
+from omop_alchemy.maintenance.cli_schema_reconcile import reconcile_schema
+from omop_alchemy.maintenance.cli_tables import _truncate_tables, analyze_tables
+from omop_alchemy.maintenance.tables import TableCategory
 
 
 def _create_split_tables(context):

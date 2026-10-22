@@ -1,15 +1,17 @@
+from datetime import date
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from datetime import date
 from oa_configurator import Role
 from orm_loader.helpers import Base
+
 from omop_alchemy.cdm.base import (
-    role_fk,
-    cdm_table,
     CDMTableBase,
-    required_concept_fk,
+    cdm_table,
     merge_table_args,
     omop_index,
+    required_concept_fk,
+    role_fk,
 )
 
 

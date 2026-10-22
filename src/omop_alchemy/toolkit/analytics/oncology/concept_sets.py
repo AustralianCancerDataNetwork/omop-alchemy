@@ -23,7 +23,6 @@ from omop_alchemy.toolkit.core.concepts import (
     resolve_concept_group,
 )
 
-
 # Governed concept sets. Names are the governed semantic-unit names, which are
 # also the cache keys -- so the cache key derives from the governed identity
 # rather than a locally invented label.

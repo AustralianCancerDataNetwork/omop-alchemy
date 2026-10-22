@@ -2,25 +2,23 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import importlib.metadata
 import importlib.util
 import shutil
-
-from sqlalchemy.exc import SQLAlchemyError
+from dataclasses import dataclass
 
 from oa_configurator import Dialect
 from oa_configurator.loader import DEFAULT_CONFIG_PATH
+from sqlalchemy.exc import SQLAlchemyError
 
 from ..backends.resolve import backend_label
 from ._cli_utils import Status
-from .context import MaintenanceContext
 from .cli_schema_tables import collect_missing_tables
+from .context import MaintenanceContext
 from .tables import (
     TableCategory,
     select_maintenance_tables,
 )
-
 
 # ---------------------------------------------------------------------------
 # info

@@ -1,34 +1,35 @@
+from datetime import date
+from typing import Optional
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
+from orm_loader.helpers import Base
 from sqlalchemy.ext.declarative import declared_attr
-from typing import Optional
-from datetime import date
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.sql import ColumnElement
-from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
-    role_fk,
-    cdm_table,
     CDMTableBase,
-    required_concept_fk,
-    optional_concept_fk,
-    required_int,
-    optional_int,
-    HealthSystemContext,
-    ReferenceContext,
     DomainValidationMixin,
     ExpectedDomain,
+    HealthSystemContext,
+    ReferenceContext,
+    cdm_table,
     merge_table_args,
     omop_index,
     omop_primary_key_index_name,
     omop_table_options,
+    optional_concept_fk,
+    optional_int,
+    required_concept_fk,
+    required_int,
+    role_fk,
 )
 
+from ..health_system import Care_Site, Location, Provider
 from ..vocabulary import Concept
-from ..health_system import Location, Provider, Care_Site
 from .death import Death
 from .observation_period import Observation_Period
 
@@ -45,33 +46,31 @@ class Person(CDMTableBase, Base, HealthSystemContext):
     person_id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
     year_of_birth: so.Mapped[int] = required_int()
-    month_of_birth: so.Mapped[Optional[int]] = optional_int()
-    day_of_birth: so.Mapped[Optional[int]] = optional_int()
-    birth_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
+    month_of_birth: so.Mapped[int | None] = optional_int()
+    day_of_birth: so.Mapped[int | None] = optional_int()
+    birth_datetime: so.Mapped[date | None] = so.mapped_column(sa.DateTime, nullable=True)
 
     gender_concept_id: so.Mapped[int] = required_concept_fk()
     race_concept_id: so.Mapped[int] = required_concept_fk()
     ethnicity_concept_id: so.Mapped[int] = required_concept_fk()
-    gender_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    race_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    ethnicity_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    gender_source_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    race_source_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    ethnicity_source_concept_id: so.Mapped[int | None] = optional_concept_fk()
 
-    location_id: so.Mapped[Optional[int]] = so.mapped_column(
+    location_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "location.location_id")), nullable=True
     )
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(
+    provider_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")), nullable=True
     )
-    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(
+    care_site_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "care_site.care_site_id")), nullable=True
     )
 
-    person_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
-    gender_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
-    race_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
-    ethnicity_source_value: so.Mapped[Optional[str]] = so.mapped_column(
-        sa.String(50), nullable=True
-    )
+    person_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50), nullable=True)
+    gender_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50), nullable=True)
+    race_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50), nullable=True)
+    ethnicity_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50), nullable=True)
 
     def __repr__(self) -> str:
         return f"<Person {self.person_id}>"
@@ -142,7 +141,7 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
     }
 
     @hybrid_method
-    def age_at(self, on_date: date) -> Optional[int]:
+    def age_at(self, on_date: date) -> int | None:
         if not self.year_of_birth:
             return None
         return on_date.year - self.year_of_birth
@@ -152,11 +151,11 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
         return sa.func.extract("year", on_date) - cls.year_of_birth  # type: ignore
 
     @property
-    def age(self) -> Optional[int]:
+    def age(self) -> int | None:
         return self.age_at(date.today())
 
     @property
-    def gender_code(self) -> Optional[str]:
+    def gender_code(self) -> str | None:
         """
         Attempt relationship access (may lazy load) to get human-readable gender code.
         """
@@ -201,7 +200,7 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
         return sa.exists().where(Observation_Period.person_id == cls.person_id)
 
     @property
-    def age_group(self) -> Optional[str]:
+    def age_group(self) -> str | None:
         if self.age is None:
             return None
         if self.age < 18:

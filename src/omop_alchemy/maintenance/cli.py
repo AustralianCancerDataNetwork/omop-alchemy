@@ -6,18 +6,30 @@ from typing import Annotated
 
 import typer
 
-from .ui import console
+from ..config import OmopAlchemyConfig
 from . import (
     cli_backup as backup,
+)
+from . import (
     cli_foreign_keys as foreign_keys,
+)
+from . import (
     cli_fulltext as fulltext,
+)
+from . import (
     cli_indexes as indexes,
+)
+from . import (
     cli_schema as schema,
+)
+from . import (
     cli_tables as tables,
+)
+from . import (
     cli_vocab as vocab,
 )
-from ..config import OmopAlchemyConfig
 from .help import install_help_customizations
+from .ui import console
 
 install_help_customizations()
 

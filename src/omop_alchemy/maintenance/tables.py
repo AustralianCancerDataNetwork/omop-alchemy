@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 
@@ -164,8 +165,9 @@ class TableTarget:
 
 
 def _mapped_cdm_table_classes() -> Iterable[type]:
-    import omop_alchemy.cdm.model  # noqa: F401
     from orm_loader.helpers import Base
+
+    import omop_alchemy.cdm.model  # noqa: F401
 
     return [
         mapper.class_

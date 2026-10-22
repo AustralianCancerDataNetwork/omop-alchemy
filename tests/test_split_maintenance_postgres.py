@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pytest
 import sqlalchemy as sa
+from oa_configurator import SCHEMA_REGISTRY_SCHEMA
 
+from omop_alchemy.config import MAINTENANCE_SCHEMA
+from omop_alchemy.maintenance.cli_backup import BackupFormat, _single_connection_backup
 from omop_alchemy.maintenance.cli_foreign_keys import (
     collect_foreign_key_trigger_status,
     manage_foreign_key_triggers,
@@ -15,12 +18,8 @@ from omop_alchemy.maintenance.cli_fulltext import (
     populate_fulltext_columns,
 )
 from omop_alchemy.maintenance.cli_tables import _truncate_tables
-from omop_alchemy.maintenance.tables import TableCategory
 from omop_alchemy.maintenance.context import MaintenanceContext
-from omop_alchemy.config import MAINTENANCE_SCHEMA
-from oa_configurator import SCHEMA_REGISTRY_SCHEMA
-from omop_alchemy.maintenance.cli_backup import BackupFormat, _single_connection_backup
-
+from omop_alchemy.maintenance.tables import TableCategory
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 

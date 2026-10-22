@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
 import json
+from datetime import date, datetime
 
-import sqlalchemy as sa
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.clinical import MeasurementView, ObservationView
 from omop_alchemy.toolkit.core.events import ClinicalEventRow
-from omop_alchemy.toolkit.core.timeline.event_timeline import EventMapping
 from omop_alchemy.toolkit.core.timeline import (
     ClinicalEvent,
     Condition_Event,
@@ -21,6 +20,7 @@ from omop_alchemy.toolkit.core.timeline import (
     Observation_Event,
     Person_Timeline,
 )
+from omop_alchemy.toolkit.core.timeline.event_timeline import EventMapping
 
 
 def test_observation_event_implements_the_timeline_contract():

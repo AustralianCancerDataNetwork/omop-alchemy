@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.orm import object_session
@@ -17,7 +17,7 @@ def _episode_date_bounds(episode):
 
 def resolve_drug_exposure_series(
     episode,
-    concept_ids: Optional[Sequence[int]] = None,
+    concept_ids: Sequence[int] | None = None,
     *,
     include_window: bool = False,
 ) -> list[Drug_Exposure]:

@@ -1,4 +1,4 @@
-from .note_nlp import Note_NLP
 from .note import Note
+from .note_nlp import Note_NLP
 
-__all__ = ["Note_NLP", "Note"]
+__all__ = ["Note", "Note_NLP"]

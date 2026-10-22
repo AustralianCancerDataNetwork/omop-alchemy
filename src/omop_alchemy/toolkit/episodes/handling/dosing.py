@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -16,4 +15,4 @@ class DoseEvaluability:
     """
 
     evaluable: bool
-    reason: Optional[str] = None
+    reason: str | None = None

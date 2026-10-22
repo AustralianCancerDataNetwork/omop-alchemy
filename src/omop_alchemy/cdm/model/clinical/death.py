@@ -1,25 +1,26 @@
+from datetime import date
+from typing import TYPE_CHECKING
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from typing import Optional, TYPE_CHECKING
-from datetime import date
 from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
-    role_fk,
     CDMTableBase,
-    cdm_table,
-    optional_concept_fk,
-    ReferenceContext,
     DomainValidationMixin,
+    ReferenceContext,
+    cdm_table,
     merge_table_args,
     omop_primary_key_index_name,
     omop_table_options,
+    optional_concept_fk,
+    role_fk,
 )
 
 if TYPE_CHECKING:
-    from ..vocabulary import Concept
     from ..clinical import Person, PersonView
+    from ..vocabulary import Concept
 
 
 @cdm_table
@@ -33,11 +34,11 @@ class Death(CDMTableBase, Base):
         sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), primary_key=True
     )
     death_date: so.Mapped[date] = so.mapped_column(nullable=False)
-    death_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
-    death_type_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    cause_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    cause_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
-    cause_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    death_datetime: so.Mapped[date | None] = so.mapped_column(sa.DateTime, nullable=True)
+    death_type_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    cause_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    cause_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50), nullable=True)
+    cause_source_concept_id: so.Mapped[int | None] = optional_concept_fk()
 
 
 class DeathContext(ReferenceContext):

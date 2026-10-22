@@ -1,16 +1,17 @@
+from pathlib import Path
+
 import pytest
 from orm_loader.helpers import bootstrap
 from sqlalchemy.orm import sessionmaker
 
 from omop_alchemy.cdm.model.vocabulary import (
-    Domain,
-    Relationship,
     Concept,
     Concept_Ancestor,
     Concept_Relationship,
+    Domain,
+    Relationship,
 )
-from pathlib import Path
-from tests.conftest import ATHENA_LOAD_ORDER, _ATHENA_FIXTURE_DATA, _write_fixture_csv
+from tests.conftest import _ATHENA_FIXTURE_DATA, ATHENA_LOAD_ORDER, _write_fixture_csv
 
 
 @pytest.fixture

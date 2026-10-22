@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import sqlalchemy as sa
 
@@ -41,13 +40,13 @@ class ConceptFilter:
         returned.
     """
 
-    concept_ids: Optional[tuple[int, ...]] = None
-    domains: Optional[tuple[str, ...]] = None
-    vocabularies: Optional[tuple[str, ...]] = None
+    concept_ids: tuple[int, ...] | None = None
+    domains: tuple[str, ...] | None = None
+    vocabularies: tuple[str, ...] | None = None
     require_standard: bool = False
     include_classification: bool = False
     require_active: bool = False
-    limit: Optional[int] = None
+    limit: int | None = None
 
     def __post_init__(self) -> None:
         if self.limit is not None and self.limit <= 0:

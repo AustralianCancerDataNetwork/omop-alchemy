@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import sqlalchemy as sa
 
@@ -13,7 +14,6 @@ from .metadata import (
     UnsupportedModifierSourceModelError,
     modifier_source_model_spec,
 )
-
 
 # The SQL type each value position is cast to when a source has no such column.
 # Keyed by column so the emission order below comes from the contract rather

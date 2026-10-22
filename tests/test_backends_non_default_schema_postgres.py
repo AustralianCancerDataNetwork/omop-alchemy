@@ -14,7 +14,7 @@ schema, using ``pg_engine`` the same way ``test_db_schema_search_path_on_postgre
 
 from __future__ import annotations
 
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 import sqlalchemy as sa

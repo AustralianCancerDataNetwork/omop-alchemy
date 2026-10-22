@@ -12,16 +12,18 @@ to omop-graph; the two layers may share vocabulary concepts without sharing a
 resolver contract.
 """
 
-from typing import Iterable, Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import cached_property
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
-from .normalizers import normalize_default
 from omop_alchemy.cdm.model import ConceptRow
-from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Synonym, Concept_Ancestor
+from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Ancestor, Concept_Synonym
 from omop_alchemy.cdm.query import ConceptFilter
+
+from .normalizers import normalize_default
 
 Normaliser = Callable[[str], str]
 

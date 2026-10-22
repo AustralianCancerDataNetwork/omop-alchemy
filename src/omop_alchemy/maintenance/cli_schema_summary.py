@@ -6,8 +6,8 @@ from contextlib import ExitStack
 from dataclasses import dataclass
 
 import sqlalchemy as sa
-
 from oa_configurator import qualified
+
 from .context import MaintenanceContext
 from .tables import TableCategory, select_omop_tables
 

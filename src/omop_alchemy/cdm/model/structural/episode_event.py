@@ -1,15 +1,17 @@
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from typing import TYPE_CHECKING, Any, Type
-from functools import cached_property
 from oa_configurator import Role
 from orm_loader.helpers import Base
+
 from omop_alchemy.cdm.base import (
-    cdm_table,
     CDMTableBase,
-    ReferenceContext,
     DomainValidationMixin,
     ExpectedDomain,
+    ReferenceContext,
+    cdm_table,
     merge_table_args,
     omop_index,
     role_fk,
@@ -77,7 +79,7 @@ class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMix
     }
 
     @classmethod
-    def resolved_event_target_classes(cls) -> dict[int, Type[Any]]:
+    def resolved_event_target_classes(cls) -> dict[int, type[Any]]:
         """
         Map episode_event field concepts to ORM classes that can receive them.
 
@@ -93,7 +95,7 @@ class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMix
         return None
 
     @property
-    def resolved_event_class(self) -> Type[Any] | None:
+    def resolved_event_class(self) -> type[Any] | None:
         return self.resolved_event_target_classes().get(self.episode_event_field_concept_id)
 
     @cached_property

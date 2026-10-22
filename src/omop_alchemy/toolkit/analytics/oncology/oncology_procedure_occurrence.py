@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from sqlalchemy.ext.hybrid import hybrid_property
-
 from oa_configurator import Role
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from omop_alchemy.cdm.model.clinical.procedure_occurrence import (
     Procedure_OccurrenceView,

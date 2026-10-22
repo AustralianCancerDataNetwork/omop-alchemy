@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sqlalchemy as sa
-
 from oa_configurator import (
     UnregisteredSchemaTagError,
     claimed_schema_tags,
@@ -13,12 +12,13 @@ from oa_configurator import (
     physical_schema_of,
 )
 from orm_loader.helpers import Base, create_tables
+
 from ._cli_utils import Status, dry_label, dry_status
 from .context import MaintenanceContext
 from .tables import (
-    all_table_names,
     MaintenanceTable,
     TableCategory,
+    all_table_names,
     missing_maintenance_targets,
 )
 

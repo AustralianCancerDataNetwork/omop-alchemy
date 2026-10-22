@@ -14,6 +14,7 @@ from omop_alchemy.toolkit.core.events import (
     ClinicalEventColumn,
     canonical_event_projection,
 )
+
 from .contracts import (
     CANONICAL_ATTACHMENT_DIAGNOSTIC_COLUMNS,
     AttachmentDiagnosticCode,
@@ -29,7 +30,6 @@ from .contracts import (
 )
 from .structure import canonical_episode_projection
 from .temporal import episode_window_predicate, signed_day_delta, temporal_row_number
-
 
 ATTACHMENT_EPISODE_ID = "episode_id"
 ATTACHMENT_METHOD = "attachment_method"

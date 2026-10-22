@@ -10,17 +10,18 @@ and ``modifier_of_field_concept_id`` hybrids
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 from omop_alchemy.cdm.base import ModifierSourceMixin
-from omop_alchemy.cdm.model.clinical import Measurement, Observation
+from omop_alchemy.cdm.base.errors import UnsupportedModelError
 from omop_alchemy.cdm.base.event_metadata import (
     ClinicalEventModelSpec,
     UnsupportedClinicalEventModelError,
 )
-from omop_alchemy.cdm.base.errors import UnsupportedModelError
+from omop_alchemy.cdm.model.clinical import Measurement, Observation
 from omop_alchemy.cdm.model.clinical.event_metadata import (
     MODIFIER_TARGETS_BY_TABLE,
     clinical_event_model_spec,

@@ -3,17 +3,17 @@ from __future__ import annotations
 from typing import Annotated, ClassVar
 
 import sqlalchemy as sa
-from pydantic import Field
 from oa_configurator import (
     CDMDatabaseConfig,
     PackageConfigBase,
     RefTo,
-    Resolver,
     ResolvedCDMDatabase,
+    Resolver,
     SchemaClaim,
     load_stack_config,
 )
 from orm_loader.backends import staging_schema_claim
+from pydantic import Field
 
 MAINTENANCE_SCHEMA: str = "omop_alchemy_maintenance"
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Optional
 
 from omop_alchemy.toolkit.core.units import (
     BodySizeUnitConcepts,
@@ -27,7 +26,7 @@ class BodyMetricRules:
     unit_rules: BodyUnitConversionRules
 
     @classmethod
-    def default(cls) -> "BodyMetricRules":
+    def default(cls) -> BodyMetricRules:
         return default_body_metric_rules()
 
     @property
@@ -44,29 +43,29 @@ class BodyMetricRules:
 
     def normalize_weight_kg(
         self,
-        value: Optional[float],
-        unit_concept_id: Optional[int],
-    ) -> Optional[float]:
+        value: float | None,
+        unit_concept_id: int | None,
+    ) -> float | None:
         return self.unit_rules.normalize_weight_kg(value, unit_concept_id)
 
     def normalize_height_cm(
         self,
-        value: Optional[float],
-        unit_concept_id: Optional[int],
-    ) -> Optional[float]:
+        value: float | None,
+        unit_concept_id: int | None,
+    ) -> float | None:
         return self.unit_rules.normalize_height_cm(value, unit_concept_id)
 
     @staticmethod
-    def bmi(weight_kg: Optional[float], height_m: Optional[float]) -> Optional[float]:
+    def bmi(weight_kg: float | None, height_m: float | None) -> float | None:
         if not weight_kg or not height_m:
             return None
         return weight_kg / (height_m**2)
 
     @staticmethod
     def bsa_mosteller_m2(
-        weight_kg: Optional[float],
-        height_cm: Optional[float],
-    ) -> Optional[float]:
+        weight_kg: float | None,
+        height_cm: float | None,
+    ) -> float | None:
         if not weight_kg or not height_cm:
             return None
         return math.sqrt((height_cm * weight_kg) / 3600.0)

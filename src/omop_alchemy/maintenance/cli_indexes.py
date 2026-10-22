@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import sqlalchemy as sa
-from sqlalchemy.exc import DBAPIError, IntegrityError
 import typer
-
 from oa_configurator import (
     ensure_schema,
     supports_schemas,
 )
+from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from omop_alchemy.cdm.base.indexing import OMOP_CLUSTER_INDEX_INFO_KEY
 
-from ..backends import resolve_backend, backend_supports
+from ..backends import backend_supports, resolve_backend
 from ..config import MAINTENANCE_SCHEMA
 from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .context import MaintenanceContext

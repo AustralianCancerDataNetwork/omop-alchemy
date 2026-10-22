@@ -9,17 +9,17 @@ import uuid
 import pytest
 import sqlalchemy as sa
 from oa_configurator import (
+    SCHEMA_REGISTRY_SCHEMA,
     CDMDatabaseConfig,
     ConnectionConfig,
     ResolvedCDMDatabase,
     Resolver,
     Role,
-    SCHEMA_REGISTRY_SCHEMA,
     SchemaDriftError,
     StackConfig,
 )
-from oa_configurator.domains.resources.schema_registry import _record_schema_provenance
 from oa_configurator.domains.resources.rectify import _refuse_production_collision
+from oa_configurator.domains.resources.schema_registry import _record_schema_provenance
 from oa_configurator.testing import resolve_with_role_schemas
 
 from omop_alchemy.config import MAINTENANCE_SCHEMA, create_cdm_engines
@@ -29,7 +29,6 @@ from omop_alchemy.maintenance.cli_backup import (
     restore_database_backup,
 )
 from omop_alchemy.maintenance.context import MaintenanceContext
-
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 

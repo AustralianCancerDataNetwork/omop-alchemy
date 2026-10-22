@@ -1,24 +1,24 @@
+import json
+from collections.abc import Mapping
+from dataclasses import dataclass
+from datetime import date, datetime, time
+from types import EllipsisType
+from typing import Any, Literal, Protocol, Unpack, cast
+
+from oa_configurator import Role
+from orm_loader.tables.typing import ToDictKwargs
+from sqlalchemy import select
+from sqlalchemy.orm import object_session
+
 from omop_alchemy.cdm.model.clinical import (
-    Measurement,
-    Person,
     Condition_Occurrence,
     Drug_Exposure,
+    Measurement,
     Observation,
+    Person,
 )
-from oa_configurator import Role
-from sqlalchemy.orm import object_session
-from sqlalchemy import select
-from datetime import datetime, time, date
-from typing import Optional, Mapping, Any, List, Unpack, cast
-import json
-from dataclasses import dataclass
-from typing import Protocol, Union, Literal
-from types import EllipsisType
-
 from omop_alchemy.cdm.model.clinical.event_metadata import clinical_event_model_spec
 from omop_alchemy.toolkit.core.events import ClinicalEventRow
-from orm_loader.tables.typing import ToDictKwargs
-
 
 TemporalKind = Literal["point", "interval"]
 
@@ -28,7 +28,7 @@ EventValueType = Literal["numeric", "concept", "string", "none"]
 @dataclass(frozen=True)
 class EventValue:
     type: EventValueType
-    value: Optional[Union[float, int, str]]
+    value: float | int | str | None
 
     @property
     def is_numeric(self) -> bool:
@@ -46,7 +46,7 @@ class EventTime:
     """
 
     start: datetime
-    end: Optional[datetime] = None
+    end: datetime | None = None
 
     @property
     def kind(self) -> TemporalKind:
@@ -101,10 +101,10 @@ class EventMapping:
     event_source_table: str
     concept_field: str
     start_date_field: str
-    start_datetime_field: Optional[str] = None
-    end_date_field: Optional[str] = None
-    end_datetime_field: Optional[str] = None
-    value_fields: Optional[List[str]] = None
+    start_datetime_field: str | None = None
+    end_date_field: str | None = None
+    end_datetime_field: str | None = None
+    value_fields: list[str] | None = None
 
     @classmethod
     def from_model(
@@ -332,7 +332,7 @@ class Measurement_Event(ClinicalEvent, Measurement):
         ],
     )
 
-    def event_metadata(self) -> dict[str, Optional[int]]:
+    def event_metadata(self) -> dict[str, int | None]:
         metadata = {"unit_concept_id": self.unit_concept_id}
         return metadata
 

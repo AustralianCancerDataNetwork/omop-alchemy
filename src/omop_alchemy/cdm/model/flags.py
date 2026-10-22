@@ -1,7 +1,7 @@
 from enum import StrEnum, nonmember
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from typing import Optional
 
 
 class StandardConceptFlag(StrEnum):
@@ -31,8 +31,8 @@ class BooleanFlag(StrEnum):
 
 
 def normalised_flag_expr(
-    column: sa.SQLColumnExpression[Optional[str]],
-) -> sa.SQLColumnExpression[Optional[str]]:
+    column: sa.SQLColumnExpression[str | None],
+) -> sa.SQLColumnExpression[str | None]:
     """Return a canonical OMOP flag expression.
 
     OMOP CDM v5.4 allows only ``NULL``/``'S'``/``'C'`` for ``standard_concept``
@@ -61,7 +61,7 @@ def normalised_flag(value: str | None) -> str | None:
 
 
 class InvalidReasonMixin:
-    invalid_reason: so.Mapped[Optional[str]] = so.mapped_column(sa.String(1), nullable=True)
+    invalid_reason: so.Mapped[str | None] = so.mapped_column(sa.String(1), nullable=True)
 
     @property
     def is_valid(self) -> bool:

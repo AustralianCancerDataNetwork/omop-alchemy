@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date
-from typing import Iterator
 
 import pytest
 import sqlalchemy as sa
@@ -26,10 +26,10 @@ from omop_alchemy.toolkit.analytics.oncology import (
     OncologyEpisode,
     OncologyModality,
     OncologyProcedure,
+    oncology_episodes,
     treatment_cycle_episode_concept_id,
     treatment_regimen_episode_concept_id,
 )
-from omop_alchemy.toolkit.analytics.oncology import oncology_episodes
 from omop_alchemy.toolkit.core.concepts import clear_concept_group_cache
 from omop_alchemy.toolkit.episodes.handling import DrugEpisodeMixin
 

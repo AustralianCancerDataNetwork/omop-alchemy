@@ -15,8 +15,8 @@ from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, Reflecte
 
 from ..backends import Backend, backend_supports, resolve_backend
 from ._cli_utils import Severity, Status
-from .context import MaintenanceContext
 from .cli_indexes import _cluster_column_names, _cluster_target_name, _find_equivalent_index
+from .context import MaintenanceContext
 from .tables import (
     TableCategory,
     select_maintenance_tables,

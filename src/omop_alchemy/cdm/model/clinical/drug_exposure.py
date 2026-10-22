@@ -1,23 +1,25 @@
+from datetime import date, datetime
+from typing import TYPE_CHECKING
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from typing import Optional, TYPE_CHECKING
-from datetime import date, datetime
 from orm_loader.helpers import Base
+
 from omop_alchemy.cdm.base import (
-    PersonScoped,
-    HealthSystemContext,
-    FactTable,
-    ReferenceContext,
     CDMTableBase,
-    cdm_table,
-    required_concept_fk,
-    optional_concept_fk,
-    optional_int,
     ClinicalEventMixin,
+    FactTable,
+    HealthSystemContext,
     ModifierFieldConcepts,
+    PersonScoped,
+    ReferenceContext,
+    cdm_table,
     merge_table_args,
     omop_index,
+    optional_concept_fk,
+    optional_int,
+    required_concept_fk,
 )
 
 if TYPE_CHECKING:
@@ -44,29 +46,29 @@ class Drug_Exposure(
 
     drug_exposure_start_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
     drug_exposure_end_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
-    drug_exposure_start_datetime: so.Mapped[Optional[datetime]] = so.mapped_column(
+    drug_exposure_start_datetime: so.Mapped[datetime | None] = so.mapped_column(
         sa.DateTime, nullable=True
     )
-    drug_exposure_end_datetime: so.Mapped[Optional[datetime]] = so.mapped_column(
+    drug_exposure_end_datetime: so.Mapped[datetime | None] = so.mapped_column(
         sa.DateTime, nullable=True
     )
-    verbatim_end_date: so.Mapped[Optional[date]] = so.mapped_column(sa.Date, nullable=True)
+    verbatim_end_date: so.Mapped[date | None] = so.mapped_column(sa.Date, nullable=True)
 
     drug_concept_id: so.Mapped[int] = required_concept_fk()
     drug_type_concept_id: so.Mapped[int] = required_concept_fk()
-    route_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    drug_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    route_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    drug_source_concept_id: so.Mapped[int | None] = optional_concept_fk()
 
-    refills: so.Mapped[Optional[int]] = optional_int()
-    quantity: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, nullable=True)
-    days_supply: so.Mapped[Optional[int]] = optional_int()
+    refills: so.Mapped[int | None] = optional_int()
+    quantity: so.Mapped[float | None] = so.mapped_column(sa.Float, nullable=True)
+    days_supply: so.Mapped[int | None] = optional_int()
 
-    stop_reason: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20))
-    sig: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
-    lot_number: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
-    drug_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
-    route_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
-    dose_unit_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
+    stop_reason: so.Mapped[str | None] = so.mapped_column(sa.String(20))
+    sig: so.Mapped[str | None] = so.mapped_column(sa.Text)
+    lot_number: so.Mapped[str | None] = so.mapped_column(sa.String(50))
+    drug_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50))
+    route_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50))
+    dose_unit_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50))
 
 
 class Drug_ExposureContext(ReferenceContext):

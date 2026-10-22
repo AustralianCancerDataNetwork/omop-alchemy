@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 
 class MartinWeightLoss:
@@ -53,9 +53,9 @@ class MartinWeightLoss:
     @classmethod
     def grade(
         cls,
-        pct_change: Optional[float],
-        bmi: Optional[float],
-    ) -> Optional[int]:
+        pct_change: float | None,
+        bmi: float | None,
+    ) -> int | None:
         if pct_change is None or bmi is None:
             return None
         loss_pct = max(0.0, -pct_change)
@@ -79,28 +79,28 @@ class CTCAEWeightLoss:
     THRESHOLDS: ClassVar[tuple[float, ...]] = (5.0, 10.0, 20.0)
 
     @classmethod
-    def grade(cls, pct_change: Optional[float]) -> Optional[int]:
+    def grade(cls, pct_change: float | None) -> int | None:
         if pct_change is None:
             return None
         loss_pct = max(0.0, -pct_change)
         return sum(1 for threshold in cls.THRESHOLDS if loss_pct >= threshold)
 
 
-def ctcae_weight_loss_grade(pct_change: Optional[float]) -> Optional[int]:
+def ctcae_weight_loss_grade(pct_change: float | None) -> int | None:
     return CTCAEWeightLoss.grade(pct_change)
 
 
 def martin_weight_loss_grade(
-    pct_change: Optional[float],
-    bmi: Optional[float],
-) -> Optional[int]:
+    pct_change: float | None,
+    bmi: float | None,
+) -> int | None:
     return MartinWeightLoss.grade(pct_change, bmi)
 
 
 def critical_weight_loss_grade(
-    pct_change: Optional[float],
-    bmi: Optional[float],
-) -> Optional[int]:
+    pct_change: float | None,
+    bmi: float | None,
+) -> int | None:
     """
     Critical-weight-loss grade using Martin where BMI is available.
 

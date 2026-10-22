@@ -1,6 +1,7 @@
 from datetime import date
-from omop_alchemy.cdm.model.clinical import Condition_OccurrenceView
+
 from omop_alchemy.cdm.base import ModifierFieldConcepts
+from omop_alchemy.cdm.model.clinical import Condition_OccurrenceView
 
 
 def test_condition_occurrence_view_modifier_contract():

@@ -4,9 +4,8 @@ from dataclasses import dataclass
 from typing import Any, Literal, TypeVar, cast
 
 import sqlalchemy.orm as so
-from sqlalchemy.ext.declarative import declared_attr
-
 from oa_configurator import Role
+from sqlalchemy.ext.declarative import declared_attr
 
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.structural.episode_event import Episode_EventView
@@ -151,5 +150,5 @@ class ResolvedEpisodeEventMixin:
 
     @declared_attr
     @classmethod
-    def episode_events(cls) -> so.Mapped[list["ResolvedEpisodeEvent"]]:
+    def episode_events(cls) -> so.Mapped[list[ResolvedEpisodeEvent]]:
         return _episode_events_relationship(cls, ResolvedEpisodeEvent)

@@ -8,15 +8,14 @@ both sides.
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Iterator
 from datetime import date
-from typing import Iterator
 
 import pytest
 import sqlalchemy as sa
 from oa_configurator import CrossDatabaseStatementError, Role
 
 from omop_alchemy.cdm.base import ConceptValidationMixin
-
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Person
 from omop_alchemy.cdm.model.clinical.condition_occurrence import Condition_OccurrenceView
 from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Ancestor

@@ -273,9 +273,8 @@ def test_connection_bound_sessions_share_their_engine_scope(session):
     themselves use.
     """
     engine = session.get_bind().engine
-    with engine.connect() as connection:
-        with so.Session(bind=connection) as conn_session:
-            assert concept_group_registry(conn_session) is concept_group_registry(session)
+    with engine.connect() as connection, so.Session(bind=connection) as conn_session:
+        assert concept_group_registry(conn_session) is concept_group_registry(session)
 
 
 # ── bounded cache and its observability ─────────────────────────────────────

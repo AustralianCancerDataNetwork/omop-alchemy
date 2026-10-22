@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from functools import cached_property
-from typing import Any, Callable, Hashable, Self, Sequence
+from typing import Any, Self
 
 from omop_alchemy.toolkit.core._grouping import group_and_summarize
 from omop_alchemy.toolkit.episodes.handling import DoseEvaluability

@@ -1,8 +1,9 @@
-from typing import Protocol, ClassVar, runtime_checkable, TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
+
 from sqlalchemy.orm import DeclarativeMeta
 
 if TYPE_CHECKING:
-    from omop_alchemy.cdm.base import ExpectedDomain, DomainRule
+    from omop_alchemy.cdm.base import DomainRule, ExpectedDomain
 
 
 @runtime_checkable

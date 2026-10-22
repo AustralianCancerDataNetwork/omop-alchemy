@@ -13,9 +13,9 @@ from .contracts import (
     ValuedModifierRow,
 )
 from .metadata import (
+    CDM_MODIFIER_SOURCE_MODELS,
     MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE,
     MODIFIER_TARGET_SPECS_BY_TABLE,
-    CDM_MODIFIER_SOURCE_MODELS,
     ModifierTargetModelSpec,
     UnsupportedModifierSourceModelError,
     UnsupportedModifierTargetError,
@@ -46,14 +46,14 @@ from .targets import (
 )
 
 __all__ = [
-    "MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE",
+    "CDM_MODIFIER_SOURCE_MODELS",
     "MODIFIER_RANK",
+    "MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE",
     "MODIFIER_TARGET_SPECS_BY_TABLE",
     "RESOLVED_TARGET_EVENT_ID",
     "RESOLVED_TARGET_FIELD_CONCEPT_ID",
     "RESOLVED_TARGET_PERSON_ID",
     "RESOLVED_TARGET_SOURCE_TABLE",
-    "CDM_MODIFIER_SOURCE_MODELS",
     "InvalidModifierSourceError",
     "InvalidModifierTargetSourceError",
     "ModifierColumn",

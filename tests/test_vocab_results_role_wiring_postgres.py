@@ -16,13 +16,12 @@ split-connection case covered separately in omop-graph's
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from datetime import date
-from typing import Iterator
 
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-
 from oa_configurator import Role
 from oa_configurator.testing import (
     ScopedTestSchema,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Optional
 
 from omop_alchemy.toolkit.core._semantics import default_semantics_runtime
 
@@ -56,7 +55,7 @@ class BodyUnitConversionRules:
     units: BodySizeUnitConcepts
 
     @classmethod
-    def default(cls) -> "BodyUnitConversionRules":
+    def default(cls) -> BodyUnitConversionRules:
         return default_body_unit_conversion_rules()
 
     @property
@@ -75,9 +74,9 @@ class BodyUnitConversionRules:
 
     def normalize_weight_kg(
         self,
-        value: Optional[float],
-        unit_concept_id: Optional[int],
-    ) -> Optional[float]:
+        value: float | None,
+        unit_concept_id: int | None,
+    ) -> float | None:
         if value is None or unit_concept_id is None:
             return None
         factor = self.weight_unit_conversion_to_kg.get(unit_concept_id)
@@ -85,9 +84,9 @@ class BodyUnitConversionRules:
 
     def normalize_height_cm(
         self,
-        value: Optional[float],
-        unit_concept_id: Optional[int],
-    ) -> Optional[float]:
+        value: float | None,
+        unit_concept_id: int | None,
+    ) -> float | None:
         if value is None or unit_concept_id is None:
             return None
         factor = self.height_unit_conversion_to_cm.get(unit_concept_id)

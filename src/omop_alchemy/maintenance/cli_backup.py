@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-import subprocess
 
 import sqlalchemy as sa
 import typer
@@ -17,10 +17,10 @@ from oa_configurator import (
     ensure_schema,
 )
 
-from ..backends import resolve_backend, require_backend_support, backend_support_note
+from ..backends import backend_support_note, require_backend_support, resolve_backend
+from ..config import MAINTENANCE_SCHEMA
 from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .context import MaintenanceContext
-from ..config import MAINTENANCE_SCHEMA
 from .ui import (
     console,
     render_backup_result,

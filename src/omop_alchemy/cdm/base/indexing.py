@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from hashlib import sha1
-from typing import Union, Mapping, Tuple, TypedDict, Any, cast
-import sqlalchemy as sa
+from typing import Any, TypedDict, Union, cast
 
-from sqlalchemy.sql.schema import SchemaItem
-from sqlalchemy.sql.elements import ColumnElement
+import sqlalchemy as sa
 from sqlalchemy import Column
+from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.schema import SchemaItem
 
 TableArg = Union[
     SchemaItem,  # Index, Constraint, etc.
     Mapping[str, object],  # __table_args__ dict
-    Tuple["TableArg", ...],  # nested tuples
+    tuple["TableArg", ...],  # nested tuples
 ]
 
 

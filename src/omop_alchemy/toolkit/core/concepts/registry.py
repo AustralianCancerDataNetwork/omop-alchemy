@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
 from threading import RLock
-from typing import Callable, Generic, Protocol, TypeVar
+from typing import Generic, Protocol, TypeVar
 from weakref import WeakKeyDictionary
 
 import sqlalchemy as sa
@@ -72,7 +73,7 @@ class _LazyBoundedRegistry(Generic[T]):
 
     def __init__(self, *, max_bytes: int = DEFAULT_MAX_CACHE_BYTES) -> None:
         self.max_bytes = max_bytes
-        self._cache: "OrderedDict[str, T]" = OrderedDict()
+        self._cache: OrderedDict[str, T] = OrderedDict()
         self._builders: dict[str, Callable[[so.Session], T]] = {}
         self._evicted: set[str] = set()
         self.stats = CacheStats()
@@ -204,7 +205,7 @@ class ConceptGroupRegistry(_LazyBoundedRegistry[ResolvedConceptGroup]):
 
 
 _BY_IDENTITY: dict[str, ConceptGroupRegistry] = {}
-_BY_ENGINE: "WeakKeyDictionary[sa.Engine, ConceptGroupRegistry]" = WeakKeyDictionary()
+_BY_ENGINE: WeakKeyDictionary[sa.Engine, ConceptGroupRegistry] = WeakKeyDictionary()
 _REGISTRIES_LOCK = RLock()
 
 

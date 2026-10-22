@@ -9,7 +9,6 @@ from oa_configurator import Dialect
 
 from ..backends import backend_supports, resolve_backend
 from ._cli_utils import Status
-from .context import MaintenanceContext
 from .cli_foreign_keys import (
     ForeignKeyStatusResult,
     ForeignKeyValidationReport,
@@ -25,8 +24,8 @@ from .cli_schema_reconcile import (
     is_blocking_issue,
     reconcile_schema,
 )
+from .context import MaintenanceContext
 from .tables import select_maintenance_tables
-
 
 # ---------------------------------------------------------------------------
 # doctor

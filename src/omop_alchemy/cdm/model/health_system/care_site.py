@@ -1,18 +1,17 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from typing import Optional
-
 from orm_loader.helpers import Base
+
 from omop_alchemy.cdm.base import (
-    role_fk,
-    cdm_table,
     CDMTableBase,
-    optional_concept_fk,
+    cdm_table,
     merge_table_args,
     omop_index,
     omop_primary_key_index_name,
     omop_table_options,
+    optional_concept_fk,
+    role_fk,
 )
 
 
@@ -27,15 +26,13 @@ class Care_Site(CDMTableBase, Base):
     )
 
     care_site_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    care_site_name: so.Mapped[Optional[str]] = so.mapped_column(sa.String(255), nullable=True)
-    place_of_service_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    location_id: so.Mapped[Optional[int]] = so.mapped_column(
+    care_site_name: so.Mapped[str | None] = so.mapped_column(sa.String(255), nullable=True)
+    place_of_service_concept_id: so.Mapped[int | None] = optional_concept_fk()
+    location_id: so.Mapped[int | None] = so.mapped_column(
         sa.ForeignKey(role_fk(Role.PRIMARY, "location.location_id")), nullable=True
     )
-    care_site_source_value: so.Mapped[Optional[str]] = so.mapped_column(
-        sa.String(50), nullable=True
-    )
-    place_of_service_source_value: so.Mapped[Optional[str]] = so.mapped_column(
+    care_site_source_value: so.Mapped[str | None] = so.mapped_column(sa.String(50), nullable=True)
+    place_of_service_source_value: so.Mapped[str | None] = so.mapped_column(
         sa.String(50), nullable=True
     )
 

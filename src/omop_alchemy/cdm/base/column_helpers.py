@@ -1,4 +1,5 @@
 from typing import Any
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
