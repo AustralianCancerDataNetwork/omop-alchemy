@@ -1,5 +1,6 @@
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Optional
+from types import MappingProxyType
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -121,14 +122,14 @@ class Device_ExposureView(
 
     __tablename__ = "device_exposure"
     # Must match Device_Exposure's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
     __event_id_col__ = "device_exposure_id"
     __concept_id_col__ = "device_concept_id"
     __start_date_col__ = "device_exposure_start_date"
     __end_date_col__ = "device_exposure_end_date"
     __type_concept_id_col__ = "device_type_concept_id"
-    __expected_domains__ = {
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {
         "device_concept_id": ExpectedDomain("Device"),
         "device_type_concept_id": ExpectedDomain("Type Concept"),
     }

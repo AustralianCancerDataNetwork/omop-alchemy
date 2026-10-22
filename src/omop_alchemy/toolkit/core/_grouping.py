@@ -4,8 +4,6 @@ from collections import defaultdict
 from collections.abc import Callable, Hashable, Sequence
 from typing import Protocol, TypeVar
 
-RowT = TypeVar("RowT")
-SummaryT = TypeVar("SummaryT")
 _RowT_contra = TypeVar("_RowT_contra", contravariant=True)
 _SummaryT_co = TypeVar("_SummaryT_co", covariant=True)
 
@@ -20,7 +18,7 @@ class _SummaryFactory(Protocol[_RowT_contra, _SummaryT_co]):
     ) -> _SummaryT_co: ...
 
 
-def group_and_summarize(
+def group_and_summarize[RowT, SummaryT](
     rows: Sequence[RowT],
     key: Callable[[RowT], Hashable],
     summarize: _SummaryFactory[RowT, SummaryT],

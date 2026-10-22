@@ -1,5 +1,6 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -71,10 +72,10 @@ class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMix
 
     __tablename__ = "episode_event"
     # Must match Episode_Event's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
 
-    __expected_domains__ = {
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {
         "episode_event_field_concept_id": ExpectedDomain("Metadata"),
     }
 

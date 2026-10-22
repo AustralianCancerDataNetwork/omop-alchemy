@@ -1,4 +1,5 @@
 from datetime import date
+from typing import ClassVar
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -34,7 +35,7 @@ class Source_To_Concept_Map(
     """
 
     __tablename__ = "source_to_concept_map"
-    __cdm_extra_checks__ = ["source_concept_id_range"]
+    __cdm_extra_checks__: ClassVar[list[str]] = ["source_concept_id_range"]
     __table_args__ = merge_table_args(
         {"schema": Role.VOCAB.value},
         omop_index(__tablename__, "target_concept_id", cluster=True),

@@ -1,4 +1,5 @@
 import warnings
+from types import MappingProxyType
 
 # from .drug_exposure import Drug_Exposure
 from orm_loader.helpers import Base
@@ -49,9 +50,11 @@ clinical_event_union = union_all(
 )
 class ClinicalEventView(Base):
     __table__ = clinical_event_union
-    __mapper_args__ = {
-        "primary_key": [
-            clinical_event_union.c.domain,
-            clinical_event_union.c.event_id,
-        ]
-    }
+    __mapper_args__ = MappingProxyType(
+        {
+            "primary_key": [
+                clinical_event_union.c.domain,
+                clinical_event_union.c.event_id,
+            ]
+        }
+    )

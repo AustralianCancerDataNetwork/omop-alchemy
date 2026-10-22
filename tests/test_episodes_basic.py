@@ -1,4 +1,5 @@
 import datetime
+from types import MappingProxyType
 
 import sqlalchemy as sa
 from oa_configurator import Role
@@ -22,8 +23,8 @@ class DiagnosticEpisode(ResolvedEpisodeEventMixin, EpisodeView):
     """Non-oncology episode view used to verify the generic extension point."""
 
     __tablename__ = "episode"
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
 
 
 def test_episode_view_expected_domains():

@@ -322,7 +322,7 @@ class Measurement_Event(ClinicalEvent, Measurement):
     # redeclaring these, SQLAlchemy silently builds a second, unlinked Table
     # object for a subclass that doesn't otherwise declare its own table.
     __tablename__ = "measurement"
-    __table_args__ = {"schema": Role.PRIMARY.value}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
 
     _mapping = EventMapping.from_model(
         Measurement,
@@ -356,7 +356,7 @@ class Observation_Event(ClinicalEvent, Observation):
     # redeclaring these, SQLAlchemy silently builds a second, unlinked Table
     # object for a subclass that doesn't otherwise declare its own table.
     __tablename__ = "observation"
-    __table_args__ = {"schema": Role.PRIMARY.value}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
 
     _mapping = EventMapping.from_model(
         Observation,

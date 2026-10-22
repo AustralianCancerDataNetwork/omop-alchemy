@@ -96,3 +96,9 @@ addopts = "-m 'not db_dialect'"
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+  "omop_alchemy.toolkit.core.modifiers.contracts.ModifierSelectionSpec",
+  "omop_alchemy.toolkit.episodes.derivation.contracts.EpisodeWindowSpec",
+]

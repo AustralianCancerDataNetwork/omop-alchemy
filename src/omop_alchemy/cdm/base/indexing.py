@@ -2,25 +2,25 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from hashlib import sha1
-from typing import Any, TypedDict, Union, cast
+from typing import Any, TypedDict, cast
 
 import sqlalchemy as sa
 from sqlalchemy import Column
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.schema import SchemaItem
 
-TableArg = Union[
-    SchemaItem,  # Index, Constraint, etc.
-    Mapping[str, object],  # __table_args__ dict
-    tuple["TableArg", ...],  # nested tuples
-]
+type TableArg = (
+    SchemaItem  # Index, Constraint, etc.
+    | Mapping[str, object]  # __table_args__ dict
+    | tuple[TableArg, ...]  # nested tuples
+)
 
 
 class OmopInfoDict(TypedDict, total=False):
     omop_cluster: bool | str
 
 
-ColumnLike = Union[str, Column[object], ColumnElement[object]]
+type ColumnLike = str | Column[object] | ColumnElement[object]
 
 OMOP_CLUSTER_INDEX_INFO_KEY = "omop_cluster"
 OMOP_IDENTIFIER_MAX_LENGTH = 63

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack
 from dataclasses import dataclass
+from typing import Annotated
 
 import sqlalchemy as sa
 import typer
@@ -434,22 +435,28 @@ app = typer.Typer(
 @omop_command("analyze-tables", dry_run=True, writes=False)
 def analyze_tables_command(
     conn: MaintenanceContext,
-    scope: TableCategory | None = typer.Option(
-        None,
-        "--scope",
-        help="CDM category scope to analyze (e.g. 'clinical', 'vocabulary'). Defaults to all ORM-managed tables when omitted.",
-        case_sensitive=False,
-    ),
-    table: list[str] | None = typer.Option(
-        None,
-        "--table",
-        help="Specific ORM-managed table name to analyze. Repeat to target multiple tables.",
-    ),
-    vacuum: bool = typer.Option(
-        False,
-        "--vacuum",
-        help="Use VACUUM ANALYZE instead of plain ANALYZE to also reclaim dead tuples. Not available on all backends.",
-    ),
+    scope: Annotated[
+        TableCategory | None,
+        typer.Option(
+            "--scope",
+            help="CDM category scope to analyze (e.g. 'clinical', 'vocabulary'). Defaults to all ORM-managed tables when omitted.",
+            case_sensitive=False,
+        ),
+    ] = None,
+    table: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--table",
+            help="Specific ORM-managed table name to analyze. Repeat to target multiple tables.",
+        ),
+    ] = None,
+    vacuum: Annotated[
+        bool,
+        typer.Option(
+            "--vacuum",
+            help="Use VACUUM ANALYZE instead of plain ANALYZE to also reclaim dead tuples. Not available on all backends.",
+        ),
+    ] = False,
     dry_run: bool = False,
 ) -> None:
     """Analyse selected ORM-managed tables to update planner statistics."""
@@ -474,11 +481,10 @@ def analyze_tables_command(
 @omop_command("reset-sequences", dry_run=True)
 def reset_sequences_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the selection.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option("--vocab/--no-vocab", help="Include OMOP vocabulary tables in the selection."),
+    ] = False,
     dry_run: bool = False,
 ) -> None:
     """Reset each owned sequence to MAX(pk) + 1 to prevent insert conflicts after bulk loads."""
@@ -499,32 +505,41 @@ def reset_sequences_command(
 @omop_command("truncate-tables", dry_run=True)
 def truncate_tables_command(
     conn: MaintenanceContext,
-    scope: TableCategory | None = typer.Option(
-        None,
-        "--scope",
-        help="CDM category scope to truncate (e.g. 'clinical', 'vocabulary'). Must specify scope or --table.",
-        case_sensitive=False,
-    ),
-    table: list[str] | None = typer.Option(
-        None,
-        "--table",
-        help="Specific ORM-managed table name to truncate. Repeat to target multiple tables.",
-    ),
-    restart_identities: bool = typer.Option(
-        False,
-        "--restart-identities",
-        help="Reset owned sequences to 1 after truncation (TRUNCATE ... RESTART IDENTITY).",
-    ),
-    cascade: bool = typer.Option(
-        False,
-        "--cascade",
-        help="Automatically truncate dependent tables via PostgreSQL CASCADE. Use with care.",
-    ),
-    yes: bool = typer.Option(
-        False,
-        "--yes",
-        help="Confirm the destructive operation. Required when not using --dry-run.",
-    ),
+    scope: Annotated[
+        TableCategory | None,
+        typer.Option(
+            "--scope",
+            help="CDM category scope to truncate (e.g. 'clinical', 'vocabulary'). Must specify scope or --table.",
+            case_sensitive=False,
+        ),
+    ] = None,
+    table: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--table",
+            help="Specific ORM-managed table name to truncate. Repeat to target multiple tables.",
+        ),
+    ] = None,
+    restart_identities: Annotated[
+        bool,
+        typer.Option(
+            "--restart-identities",
+            help="Reset owned sequences to 1 after truncation (TRUNCATE ... RESTART IDENTITY).",
+        ),
+    ] = False,
+    cascade: Annotated[
+        bool,
+        typer.Option(
+            "--cascade",
+            help="Automatically truncate dependent tables via PostgreSQL CASCADE. Use with care.",
+        ),
+    ] = False,
+    yes: Annotated[
+        bool,
+        typer.Option(
+            "--yes", help="Confirm the destructive operation. Required when not using --dry-run."
+        ),
+    ] = False,
     dry_run: bool = False,
 ) -> None:
     """Truncate selected ORM-managed OMOP tables. Aborts if external FK references would block unless --cascade is set."""

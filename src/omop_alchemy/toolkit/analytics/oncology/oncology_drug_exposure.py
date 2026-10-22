@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import MappingProxyType
+
 from oa_configurator import Role
 from sqlalchemy.ext.hybrid import hybrid_property
 
@@ -23,8 +25,8 @@ class OncologyDrugExposure(Drug_ExposureView):
 
     __tablename__ = "drug_exposure"
     # Must match Drug_Exposure's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
 
     @hybrid_property
     def is_sact(self) -> bool:

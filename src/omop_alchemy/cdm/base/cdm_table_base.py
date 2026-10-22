@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from orm_loader.tables import CSVLoadableTableInterface, SerialisableTableInterface
@@ -16,7 +18,7 @@ class CDMTableBase(CSVLoadableTableInterface, SerialisableTableInterface):
     Adds structural validation of ORM models against
     the official OMOP CDM CSV specifications.
     """
-    __cdm_extra_checks__: list[str] = []
+    __cdm_extra_checks__: ClassVar[list[str]] = []
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)

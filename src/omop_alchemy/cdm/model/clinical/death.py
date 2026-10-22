@@ -1,5 +1,6 @@
 from datetime import date
-from typing import TYPE_CHECKING
+from types import MappingProxyType
+from typing import TYPE_CHECKING, ClassVar
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -9,6 +10,7 @@ from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     CDMTableBase,
     DomainValidationMixin,
+    ExpectedDomain,
     ReferenceContext,
     cdm_table,
     merge_table_args,
@@ -56,9 +58,9 @@ class DeathContext(ReferenceContext):
 class DeathView(Death, DeathContext, DomainValidationMixin):
     __tablename__ = "death"
     # Must match Death's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
-    __expected_domains__ = {}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {}
     person_view: so.Mapped["PersonView"] = so.relationship(
         "PersonView",
         viewonly=True,

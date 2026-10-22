@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, TypeAlias, cast
+from typing import Annotated, Literal, TypeAlias, cast
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -61,11 +61,11 @@ from .ui import (
     render_vocab_load_summary,
 )
 
-MergeStrategy: TypeAlias = Literal["replace", "upsert", "insert_if_empty"]
-QuoteMode: TypeAlias = Literal["by_delimiter", "auto", "csv", "literal"]
+MergeStrategy: TypeAlias = Literal["replace", "upsert", "insert_if_empty"]  # noqa: UP040 - typer cannot resolve `type` aliases
+QuoteMode: TypeAlias = Literal["by_delimiter", "auto", "csv", "literal"]  # noqa: UP040 - typer cannot resolve `type` aliases
 
-VocabularyModel: TypeAlias = type[CSVTableProtocol]
-VocabularyLoadProgressCallback: TypeAlias = Callable[["VocabularyLoadProgress"], None]
+type VocabularyModel = type[CSVTableProtocol]
+type VocabularyLoadProgressCallback = Callable[[VocabularyLoadProgress], None]
 
 
 @dataclass(frozen=True)
@@ -586,67 +586,69 @@ app = typer.Typer(rich_markup_mode="rich")
 @omop_command("load-vocab-source", vocabulary_included=True, dry_run=True)
 def load_vocab_source_command(
     conn: MaintenanceContext,
-    athena_source: str | None = typer.Option(
-        None,
-        help="Path to the unzipped Athena vocabulary CSV directory. Falls back to the saved athena-source default.",
-    ),
-    tables: list[str] | None = typer.Option(
-        None,
-        "--table",
-        help=(
-            "Restrict the load to one or more vocabulary tables by name "
+    athena_source: Annotated[
+        str | None,
+        typer.Option(
+            help="Path to the unzipped Athena vocabulary CSV directory. Falls back to the saved athena-source default."
+        ),
+    ] = None,
+    tables: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--table",
+            help="Restrict the load to one or more vocabulary tables by name "
             "(e.g. --table concept --table vocabulary). "
             "When omitted, all vocabulary tables are loaded. "
             "Skips the all-required-files preflight check; "
-            "errors if the named CSV is absent from the source directory."
+            "errors if the named CSV is absent from the source directory.",
         ),
-    ),
-    merge_strategy: MergeStrategy = typer.Option(
-        "replace",
-        help=(
-            "CSV merge strategy. `replace` (default) overwrites rows whose primary keys "
+    ] = None,
+    merge_strategy: Annotated[
+        MergeStrategy,
+        typer.Option(
+            help="CSV merge strategy. `replace` (default) overwrites rows whose primary keys "
             "appear in the source but does not delete source-absent rows. `upsert` preserves "
             "existing rows on primary-key conflicts. "
             "`insert_if_empty` is the fast path for a fresh empty target."
         ),
-    ),
-    quote_mode: QuoteMode = typer.Option(
-        "by_delimiter",
-        help=(
-            "How the vocabulary CSV loader interprets double-quotes. `by_delimiter` (default) "
+    ] = "replace",
+    quote_mode: Annotated[
+        QuoteMode,
+        typer.Option(
+            help="How the vocabulary CSV loader interprets double-quotes. `by_delimiter` (default) "
             "uses literal quotes for tab-delimited Athena files and RFC-4180 quoting for "
             "comma-delimited files. `auto` samples file content; `csv` and `literal` force "
             "one mode for every file."
         ),
-    ),
-    staging_chunk_size: int | None = typer.Option(
-        100_000,
-        help=(
-            "Staging load: rows per ORM transaction when loading CSV → staging table. "
+    ] = "by_delimiter",
+    staging_chunk_size: Annotated[
+        int | None,
+        typer.Option(
+            help="Staging load: rows per ORM transaction when loading CSV → staging table. "
             "Ignored when the PostgreSQL COPY fast-path is active (the default for "
             "Athena CSVs). Pass 0 to disable chunking entirely."
         ),
-    ),
-    bulk_mode: bool = typer.Option(
-        True,
-        "--bulk-mode/--no-bulk-mode",
-        help=(
-            "Disable FK triggers and drop indexes globally before loading, then rebuild after. "
+    ] = 100_000,
+    bulk_mode: Annotated[
+        bool,
+        typer.Option(
+            "--bulk-mode/--no-bulk-mode",
+            help="Disable FK triggers and drop indexes globally before loading, then rebuild after. "
             "Much faster than per-table management for a full vocabulary reload. "
             "Requires FK trigger and index management support; ignored on backends that do not support it. "
-            "If the load fails mid-way, run `indexes enable --vocab` and `foreign-keys enable` to recover."
+            "If the load fails mid-way, run `indexes enable --vocab` and `foreign-keys enable` to recover.",
         ),
-    ),
-    merge_batch_size: int | None = typer.Option(
-        None,
-        help=(
-            "Merge: rows per transaction when merging staging → target table. "
+    ] = True,
+    merge_batch_size: Annotated[
+        int | None,
+        typer.Option(
+            help="Merge: rows per transaction when merging staging → target table. "
             "Default: None (no pagination — single INSERT per table, fastest for high-RAM systems). "
             "Set to a positive integer to enable paginated commits for memory-constrained systems; "
             "note that pagination adds a COUNT query and an index build on the staging table "
             "before the merge begins, which adds significant overhead even at large batch sizes."
         ),
-    ),
+    ] = None,
     dry_run: bool = False,
 ) -> None:
     """Load all Athena vocabulary CSVs from the configured source path, optionally toggling indexes and FK triggers for speed."""

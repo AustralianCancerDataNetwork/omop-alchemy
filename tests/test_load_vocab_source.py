@@ -795,8 +795,10 @@ def test_load_vocab_source_bulk_mode_surfaces_index_warnings(
 
     assert disable_calls == [False, True]
     assert report.index_warnings == (
-        "concept.idx_concept_partial: foreign index 'idx_concept_partial' "
-        "has a partial WHERE predicate; left in place",
+        (
+            "concept.idx_concept_partial: foreign index 'idx_concept_partial' "
+            "has a partial WHERE predicate; left in place"
+        ),
     )
 
 

@@ -371,25 +371,25 @@ def _seeded_engine(engine, conditions, measurements):
 
 
 def _condition(condition_occurrence_id: int, person_id: int):
-    return dict(
-        condition_occurrence_id=condition_occurrence_id,
-        person_id=person_id,
-        condition_concept_id=4,
-        condition_start_date=date(2020, 1, 1),
-        condition_type_concept_id=1,
-    )
+    return {
+        "condition_occurrence_id": condition_occurrence_id,
+        "person_id": person_id,
+        "condition_concept_id": 4,
+        "condition_start_date": date(2020, 1, 1),
+        "condition_type_concept_id": 1,
+    }
 
 
 def _modifier_of(measurement_id: int, person_id: int, target_id: int):
-    return dict(
-        measurement_id=measurement_id,
-        person_id=person_id,
-        measurement_concept_id=9,
-        measurement_date=date(2020, 6, 1),
-        measurement_type_concept_id=1,
-        measurement_event_id=target_id,
-        meas_event_field_concept_id=ModifierFieldConcepts.CONDITION_OCCURRENCE,
-    )
+    return {
+        "measurement_id": measurement_id,
+        "person_id": person_id,
+        "measurement_concept_id": 9,
+        "measurement_date": date(2020, 6, 1),
+        "measurement_type_concept_id": 1,
+        "measurement_event_id": target_id,
+        "meas_event_field_concept_id": ModifierFieldConcepts.CONDITION_OCCURRENCE,
+    }
 
 
 def _diagnostic_codes(engine, target) -> set[tuple[int, str]]:

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
+from typing import Annotated
 
 import sqlalchemy as sa
 import typer
@@ -360,19 +361,25 @@ app = typer.Typer(
 @omop_command("backup-database", dry_run=True, writes=False)
 def backup_database_command(
     conn: MaintenanceContext,
-    output_path: str | None = typer.Option(
-        None,
-        help="Output path for the backup artifact. Defaults to a timestamped file in the current directory.",
-    ),
-    backup_format: BackupFormat = typer.Option(
-        BackupFormat.CUSTOM,
-        help="pg_dump output format. 'custom' produces a binary .dump file; 'plain' produces a plain SQL .sql file.",
-    ),
-    include_vocab: bool = typer.Option(
-        False,
-        "--include-vocab",
-        help="Also back up the vocabulary connection, in a second artifact, when it lives on a separate physical database.",
-    ),
+    output_path: Annotated[
+        str | None,
+        typer.Option(
+            help="Output path for the backup artifact. Defaults to a timestamped file in the current directory."
+        ),
+    ] = None,
+    backup_format: Annotated[
+        BackupFormat,
+        typer.Option(
+            help="pg_dump output format. 'custom' produces a binary .dump file; 'plain' produces a plain SQL .sql file."
+        ),
+    ] = BackupFormat.CUSTOM,
+    include_vocab: Annotated[
+        bool,
+        typer.Option(
+            "--include-vocab",
+            help="Also back up the vocabulary connection, in a second artifact, when it lives on a separate physical database.",
+        ),
+    ] = False,
     dry_run: bool = False,
 ) -> None:
     """Create a database backup that can be restored with `restore-database`."""
@@ -393,18 +400,22 @@ def backup_database_command(
 @omop_command("restore-database", dry_run=True, writes=False)
 def restore_database_command(
     conn: MaintenanceContext,
-    input_path: str = typer.Argument(
-        help="Path to the backup artifact (.dump or .sql) to restore."
-    ),
-    backup_format: BackupFormat = typer.Option(
-        ...,
-        help="Format of the artifact to restore. Must match the format used when the backup was created.",
-    ),
-    vocab_input_path: str | None = typer.Option(
-        None,
-        "--vocab-input-path",
-        help="Path to a separate vocabulary-connection artifact, produced by `backup-database --include-vocab`.",
-    ),
+    input_path: Annotated[
+        str, typer.Argument(help="Path to the backup artifact (.dump or .sql) to restore.")
+    ],
+    backup_format: Annotated[
+        BackupFormat,
+        typer.Option(
+            help="Format of the artifact to restore. Must match the format used when the backup was created."
+        ),
+    ],
+    vocab_input_path: Annotated[
+        str | None,
+        typer.Option(
+            "--vocab-input-path",
+            help="Path to a separate vocabulary-connection artifact, produced by `backup-database --include-vocab`.",
+        ),
+    ] = None,
     dry_run: bool = False,
 ) -> None:
     """Restore a database backup that was created with `backup-database`."""

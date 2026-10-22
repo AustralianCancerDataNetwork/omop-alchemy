@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Optional
 
 import sqlalchemy as sa
@@ -90,8 +91,8 @@ class Condition_OccurrenceView(
 ):
     __tablename__ = "condition_occurrence"
     # Must match Condition_Occurrence's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
     __event_id_col__ = "condition_occurrence_id"
     __concept_id_col__ = "condition_concept_id"
     __start_date_col__ = "condition_start_date"

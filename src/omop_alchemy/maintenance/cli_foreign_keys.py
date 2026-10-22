@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Annotated
 
 import sqlalchemy as sa
 import typer
@@ -440,16 +441,17 @@ app = typer.Typer(
 @omop_command("foreign-keys disable", dry_run=True)
 def disable_foreign_keys_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the selection.",
-    ),
-    strict: bool = typer.Option(
-        False,
-        "--strict",
-        help="Validate all FK relationships and report violations before disabling trigger enforcement.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option("--vocab/--no-vocab", help="Include OMOP vocabulary tables in the selection."),
+    ] = False,
+    strict: Annotated[
+        bool,
+        typer.Option(
+            "--strict",
+            help="Validate all FK relationships and report violations before disabling trigger enforcement.",
+        ),
+    ] = False,
     dry_run: bool = False,
 ) -> None:
     """Disable PostgreSQL RI trigger enforcement for all participating OMOP tables."""
@@ -470,16 +472,17 @@ def disable_foreign_keys_command(
 @omop_command("foreign-keys enable", dry_run=True)
 def enable_foreign_keys_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the selection.",
-    ),
-    strict: bool = typer.Option(
-        False,
-        "--strict",
-        help="Validate all FK relationships before enabling trigger enforcement; aborts if any violations are found.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option("--vocab/--no-vocab", help="Include OMOP vocabulary tables in the selection."),
+    ] = False,
+    strict: Annotated[
+        bool,
+        typer.Option(
+            "--strict",
+            help="Validate all FK relationships before enabling trigger enforcement; aborts if any violations are found.",
+        ),
+    ] = False,
     dry_run: bool = False,
 ) -> None:
     """Re-enable PostgreSQL RI trigger enforcement. Use --strict to abort if any violations exist first."""
@@ -505,11 +508,10 @@ def enable_foreign_keys_command(
 @omop_command("foreign-keys status", mode_label="inspect")
 def foreign_key_status_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the selection.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option("--vocab/--no-vocab", help="Include OMOP vocabulary tables in the selection."),
+    ] = False,
 ) -> None:
     """Show the current enabled/disabled state of RI triggers for each participating OMOP table."""
     with console.status("Inspecting foreign key trigger status..."):
@@ -525,11 +527,10 @@ def foreign_key_status_command(
 @omop_command("foreign-keys validate", mode_label="inspect")
 def foreign_key_validate_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the selection.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option("--vocab/--no-vocab", help="Include OMOP vocabulary tables in the selection."),
+    ] = False,
 ) -> None:
     """Validate FK constraints on selected tables and report any rows that violate referential integrity."""
     with console.status("Validating selected foreign key relationships..."):

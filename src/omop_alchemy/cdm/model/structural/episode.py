@@ -1,4 +1,5 @@
 from datetime import date
+from types import MappingProxyType
 from typing import TYPE_CHECKING, ClassVar, Optional
 
 import sqlalchemy as sa
@@ -132,8 +133,8 @@ class EpisodeView(Episode, EpisodeContext, DomainValidationMixin, ModifierTarget
 
     __tablename__ = "episode"
     # Must match Episode's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
     __event_id_col__ = "episode_id"
     __concept_id_col__ = "episode_concept_id"
     __start_date_col__ = "episode_start_date"
@@ -144,7 +145,7 @@ class EpisodeView(Episode, EpisodeContext, DomainValidationMixin, ModifierTarget
     def modifier_field_concept_id(cls) -> int:
         return ModifierFieldConcepts.EPISODE
 
-    __expected_domains__ = {
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {
         "episode_concept_id": ExpectedDomain("Episode"),
         "episode_object_concept_id": ExpectedDomain("Condition", "Procedure", "Regimen"),
         "episode_type_concept_id": ExpectedDomain("Type Concept"),

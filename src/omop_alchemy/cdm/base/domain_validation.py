@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import ClassVar
 
 # from .domain_rule import DomainRule
 from orm_loader.helpers import get_model_by_tablename
@@ -101,7 +102,7 @@ class DomainValidationMixin:
     ["gender_concept_id not in domain(s): ['Gender']"]
     """
 
-    __expected_domains__: dict[str, ExpectedDomain] = {}
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {}
 
     @classmethod
     def collect_domain_rules(cls) -> list[DomainRule]:

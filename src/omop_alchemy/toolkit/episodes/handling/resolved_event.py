@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, TypeVar, cast
+from types import MappingProxyType
+from typing import Any, Literal, cast
 
 import sqlalchemy.orm as so
 from oa_configurator import Role
@@ -15,8 +16,6 @@ ResolutionDiagnosticKind = Literal[
     "unmapped_field_concept",
     "dangling_event",
 ]
-
-EpisodeEventT = TypeVar("EpisodeEventT", bound="ResolvedEpisodeEvent")
 
 
 @dataclass(frozen=True)
@@ -62,8 +61,8 @@ class ResolvedEpisodeEvent(Episode_EventView):
 
     __tablename__ = "episode_event"
     # Must match Episode_Event's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
 
     @classmethod
     def recognized_field_concept_ids(cls) -> set[int]:
@@ -122,7 +121,7 @@ class ResolvedEpisodeEvent(Episode_EventView):
         return []
 
 
-def _episode_events_relationship(
+def _episode_events_relationship[EpisodeEventT: ResolvedEpisodeEvent](
     owner_cls: type[Any],
     target_cls: type[EpisodeEventT],
 ) -> so.Mapped[list[EpisodeEventT]]:

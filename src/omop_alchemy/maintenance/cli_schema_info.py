@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import importlib.util
+import logging
 import shutil
 from dataclasses import dataclass
 
@@ -19,6 +20,8 @@ from .tables import (
     TableCategory,
     select_maintenance_tables,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # info
@@ -315,6 +318,7 @@ def collect_maintenance_info(
     except SQLAlchemyError as exc:
         connection_error = f"{exc.__class__.__name__}: {exc}"
     except Exception as exc:
+        logger.debug("Maintenance info probe failed", exc_info=True)
         connection_error = str(exc)
 
     command_support = _command_support_for_backend(

@@ -1,5 +1,7 @@
+import logging
 from datetime import date
-from typing import Optional
+from types import MappingProxyType
+from typing import ClassVar, Optional
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -32,6 +34,8 @@ from ..health_system import Care_Site, Location, Provider
 from ..vocabulary import Concept
 from .death import Death
 from .observation_period import Observation_Period
+
+logger = logging.getLogger(__name__)
 
 
 @cdm_table
@@ -132,9 +136,9 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
 
     __tablename__ = "person"
     # Must match Person's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
-    __expected_domains__ = {
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {
         "gender_concept_id": ExpectedDomain("Gender"),
         "race_concept_id": ExpectedDomain("Race"),
         "ethnicity_concept_id": ExpectedDomain("Ethnicity"),
@@ -163,10 +167,10 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
             gender = self.gender  # type: ignore[attr-defined]
             return gender.concept_name[:1].upper()
         except DetachedInstanceError:
-            pass
+            return None
         except Exception:
-            pass
-        return None
+            logger.debug("Could not derive gender_code", exc_info=True)
+            return None
 
     def __repr__(self) -> str:
         """

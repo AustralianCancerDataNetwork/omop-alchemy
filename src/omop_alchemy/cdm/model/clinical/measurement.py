@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from types import MappingProxyType
+from typing import TYPE_CHECKING, ClassVar
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -129,8 +130,8 @@ class MeasurementView(
 
     __tablename__ = "measurement"
     # Must match Measurement's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
     __event_id_col__ = "measurement_id"
     __concept_id_col__ = "measurement_concept_id"
     __start_date_col__ = "measurement_date"
@@ -138,7 +139,7 @@ class MeasurementView(
     # equal start/end declarations as a point with no independent endpoint.
     __end_date_col__ = "measurement_date"
     __type_concept_id_col__ = "measurement_type_concept_id"
-    __expected_domains__ = {
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {
         "measurement_concept_id": ExpectedDomain("Measurement"),
         "measurement_type_concept_id": ExpectedDomain("Type Concept"),
     }

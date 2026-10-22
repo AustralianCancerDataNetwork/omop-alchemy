@@ -89,7 +89,7 @@ def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(
 
     class _SyntheticTagTable(Base):
         __tablename__ = "synthetic_tag_table"
-        __table_args__ = {"schema": "synthetic_tag"}
+        __table_args__ = ({"schema": "synthetic_tag"},)
         id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
     fake_table = MaintenanceTable(

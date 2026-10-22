@@ -1,4 +1,5 @@
 from datetime import date
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
@@ -178,5 +179,5 @@ class ConceptView(Concept, ConceptContext):
 
     __tablename__ = "concept"
     # Must match Concept's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.VOCAB.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.VOCAB.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})

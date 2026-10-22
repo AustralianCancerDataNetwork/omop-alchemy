@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import cast
+from typing import Annotated, cast
 
 import sqlalchemy as sa
 import typer
@@ -270,16 +270,20 @@ def drop_fulltext_columns(
 @omop_command("fulltext install", vocabulary_included=True, dry_run=True)
 def install_fulltext_command(
     conn: MaintenanceContext,
-    create_indexes: bool = typer.Option(
-        True,
-        "--create-indexes/--no-create-indexes",
-        help="Create GIN indexes alongside the tsvector columns for fast full-text search.",
-    ),
-    fastupdate: bool = typer.Option(
-        False,
-        "--fastupdate/--no-fastupdate",
-        help="Enable PostgreSQL GIN fastupdate on newly created indexes (trades write speed for query latency).",
-    ),
+    create_indexes: Annotated[
+        bool,
+        typer.Option(
+            "--create-indexes/--no-create-indexes",
+            help="Create GIN indexes alongside the tsvector columns for fast full-text search.",
+        ),
+    ] = True,
+    fastupdate: Annotated[
+        bool,
+        typer.Option(
+            "--fastupdate/--no-fastupdate",
+            help="Enable PostgreSQL GIN fastupdate on newly created indexes (trades write speed for query latency).",
+        ),
+    ] = False,
     dry_run: bool = False,
 ) -> None:
     """Add tsvector sidecar columns to vocabulary tables and optionally create GIN indexes for fast full-text search."""
@@ -298,10 +302,12 @@ def install_fulltext_command(
 @omop_command("fulltext populate", vocabulary_included=True, dry_run=True)
 def populate_fulltext_command(
     conn: MaintenanceContext,
-    regconfig: str = typer.Option(
-        "english",
-        help="PostgreSQL text search configuration to use when building tsvector values (e.g. 'english', 'simple').",
-    ),
+    regconfig: Annotated[
+        str,
+        typer.Option(
+            help="PostgreSQL text search configuration to use when building tsvector values (e.g. 'english', 'simple')."
+        ),
+    ] = "english",
     dry_run: bool = False,
 ) -> None:
     """Fill tsvector sidecar columns with pre-computed search vectors using the specified PostgreSQL text search configuration."""
@@ -319,11 +325,13 @@ def populate_fulltext_command(
 @omop_command("fulltext drop", vocabulary_included=True, dry_run=True)
 def drop_fulltext_command(
     conn: MaintenanceContext,
-    drop_indexes: bool = typer.Option(
-        True,
-        "--drop-indexes/--no-drop-indexes",
-        help="Drop managed GIN indexes before dropping the tsvector columns.",
-    ),
+    drop_indexes: Annotated[
+        bool,
+        typer.Option(
+            "--drop-indexes/--no-drop-indexes",
+            help="Drop managed GIN indexes before dropping the tsvector columns.",
+        ),
+    ] = True,
     dry_run: bool = False,
 ) -> None:
     """Remove tsvector sidecar columns and their associated GIN indexes from vocabulary tables."""

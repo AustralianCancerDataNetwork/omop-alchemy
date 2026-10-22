@@ -2,59 +2,37 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 import typer
 
 from ._cli_utils import omop_command
 from .cli_schema_doctor import (
-    DoctorCheck as DoctorCheck,
-)
-from .cli_schema_doctor import (
-    DoctorRecommendation as DoctorRecommendation,
-)
-from .cli_schema_doctor import (
-    DoctorReport as DoctorReport,
-)
-from .cli_schema_doctor import (
+    DoctorCheck,
+    DoctorRecommendation,
+    DoctorReport,
     collect_doctor_report,
 )
 from .cli_schema_info import (
-    CommandSupport as CommandSupport,
-)
-from .cli_schema_info import (
-    DependencyStatus as DependencyStatus,
-)
-from .cli_schema_info import (
-    MaintenanceInfo as MaintenanceInfo,
-)
-from .cli_schema_info import (
+    CommandSupport,
+    DependencyStatus,
+    MaintenanceInfo,
     collect_maintenance_info,
 )
 from .cli_schema_reconcile import (
-    ReconciliationIssue as ReconciliationIssue,
-)
-from .cli_schema_reconcile import (
-    SchemaReconciliationReport as SchemaReconciliationReport,
-)
-from .cli_schema_reconcile import (
-    TableReconciliationResult as TableReconciliationResult,
-)
-from .cli_schema_reconcile import (
+    ReconciliationIssue,
+    SchemaReconciliationReport,
+    TableReconciliationResult,
     reconcile_schema,
 )
 from .cli_schema_summary import (
-    TableSummaryResult as TableSummaryResult,
-)
-from .cli_schema_summary import (
+    TableSummaryResult,
     collect_data_summary,
 )
 from .cli_schema_tables import (
-    TableCreationResult as TableCreationResult,
-)
-from .cli_schema_tables import (
+    TableCreationResult,
     _create_missing_tables,
-)
-from .cli_schema_tables import (
-    collect_missing_tables as collect_missing_tables,
+    collect_missing_tables,
 )
 from .context import MaintenanceContext
 from .ui import (
@@ -77,6 +55,21 @@ from .ui import (
     render_table_creation_summary,
 )
 
+__all__ = [
+    "CommandSupport",
+    "DependencyStatus",
+    "DoctorCheck",
+    "DoctorRecommendation",
+    "DoctorReport",
+    "MaintenanceInfo",
+    "ReconciliationIssue",
+    "SchemaReconciliationReport",
+    "TableCreationResult",
+    "TableReconciliationResult",
+    "TableSummaryResult",
+    "collect_missing_tables",
+]
+
 # ---------------------------------------------------------------------------
 # CLI commands
 # ---------------------------------------------------------------------------
@@ -88,11 +81,12 @@ app = typer.Typer(rich_markup_mode="rich")
 @omop_command("info", mode_label="inspect")
 def info_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the managed-table count.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option(
+            "--vocab/--no-vocab", help="Include OMOP vocabulary tables in the managed-table count."
+        ),
+    ] = False,
 ) -> None:
     """Inspect maintenance CLI readiness, backend compatibility, and current installation state."""
     with console.status("Inspecting maintenance environment..."):
@@ -108,16 +102,17 @@ def info_command(
 @omop_command("doctor", mode_label="inspect")
 def doctor_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the selection.",
-    ),
-    deep: bool = typer.Option(
-        False,
-        "--deep",
-        help="Include heavier checks: FK validation scans every constraint for referential integrity violations.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option("--vocab/--no-vocab", help="Include OMOP vocabulary tables in the selection."),
+    ] = False,
+    deep: Annotated[
+        bool,
+        typer.Option(
+            "--deep",
+            help="Include heavier checks: FK validation scans every constraint for referential integrity violations.",
+        ),
+    ] = False,
 ) -> None:
     """Run a read-only maintenance health check across connection readiness, schema drift, and FK state."""
     with console.status("Running maintenance doctor checks..."):
@@ -137,11 +132,12 @@ def doctor_command(
 @omop_command("reconcile-schema", mode_label="inspect")
 def reconcile_schema_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the reconciliation.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option(
+            "--vocab/--no-vocab", help="Include OMOP vocabulary tables in the reconciliation."
+        ),
+    ] = False,
 ) -> None:
     """Compare ORM-managed SQLAlchemy metadata against the current target database schema."""
     with console.status("Reconciling ORM metadata against target database schema..."):
@@ -155,11 +151,13 @@ def reconcile_schema_command(
 @omop_command("create-missing-tables", dry_run=True)
 def create_missing_tables_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        True,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the selection. Enabled by default.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option(
+            "--vocab/--no-vocab",
+            help="Include OMOP vocabulary tables in the selection. Enabled by default.",
+        ),
+    ] = True,
     dry_run: bool = False,
 ) -> None:
     """Create missing ORM-managed OMOP tables from metadata."""
@@ -177,16 +175,17 @@ def create_missing_tables_command(
 @omop_command("data-summary", mode_label="inspect")
 def data_summary_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the summary.",
-    ),
-    include_missing: bool = typer.Option(
-        False,
-        "--include-missing",
-        help="Also list ORM-managed tables that are absent from the target database.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option("--vocab/--no-vocab", help="Include OMOP vocabulary tables in the summary."),
+    ] = False,
+    include_missing: Annotated[
+        bool,
+        typer.Option(
+            "--include-missing",
+            help="Also list ORM-managed tables that are absent from the target database.",
+        ),
+    ] = False,
 ) -> None:
     """Summarise ORM-managed OMOP tables present in the target database."""
     with console.status("Collecting table summary..."):

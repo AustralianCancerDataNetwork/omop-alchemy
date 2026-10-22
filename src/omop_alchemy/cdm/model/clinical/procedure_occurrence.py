@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import TYPE_CHECKING
+from types import MappingProxyType
+from typing import TYPE_CHECKING, ClassVar
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -123,8 +124,8 @@ class Procedure_OccurrenceView(
 ):
     __tablename__ = "procedure_occurrence"
     # Must match Procedure_Occurrence's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
 
     __event_id_col__ = "procedure_occurrence_id"
     __concept_id_col__ = "procedure_concept_id"
@@ -132,7 +133,7 @@ class Procedure_OccurrenceView(
     __end_date_col__ = "procedure_end_date"
     __type_concept_id_col__ = "procedure_type_concept_id"
 
-    __expected_domains__ = {
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {
         "procedure_concept_id": ExpectedDomain("Procedure"),
         "procedure_type_concept_id": ExpectedDomain("Type Concept"),
     }

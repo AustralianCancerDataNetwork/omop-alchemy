@@ -1,8 +1,5 @@
-from typing import TypeVar
-
 from .cdm_table_base import CDMTableBase
 
-T = TypeVar("T", bound=type)
 MODEL_MODULE_PREFIX = "omop_alchemy.cdm.model."
 
 
@@ -14,7 +11,7 @@ def _infer_table_category(cls: type) -> str | None:
     return suffix.split(".", 1)[0]
 
 
-def cdm_table(cls: T) -> T:
+def cdm_table[T: type](cls: T) -> T:
     """
     Mark a SQLAlchemy declarative class as a concrete OMOP CDM table.
 

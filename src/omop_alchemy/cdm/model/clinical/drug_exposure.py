@@ -1,5 +1,6 @@
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from types import MappingProxyType
+from typing import TYPE_CHECKING, ClassVar
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -9,6 +10,7 @@ from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     CDMTableBase,
     ClinicalEventMixin,
+    ExpectedDomain,
     FactTable,
     HealthSystemContext,
     ModifierFieldConcepts,
@@ -89,8 +91,8 @@ class Drug_ExposureContext(ReferenceContext):
 class Drug_ExposureView(Drug_Exposure, Drug_ExposureContext, ClinicalEventMixin):
     __tablename__ = "drug_exposure"
     # Must match Drug_Exposure's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
 
     __event_id_col__ = "drug_exposure_id"
     __concept_id_col__ = "drug_concept_id"
@@ -98,7 +100,7 @@ class Drug_ExposureView(Drug_Exposure, Drug_ExposureContext, ClinicalEventMixin)
     __end_date_col__ = "drug_exposure_end_date"
     __type_concept_id_col__ = "drug_type_concept_id"
 
-    __expected_domains__ = {}
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {}
 
     @classmethod
     def modifier_field_concept_id(cls) -> int:

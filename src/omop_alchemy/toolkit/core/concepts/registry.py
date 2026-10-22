@@ -5,7 +5,7 @@ from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
 from threading import RLock
-from typing import Generic, Protocol, TypeVar
+from typing import Protocol
 from weakref import WeakKeyDictionary
 
 import sqlalchemy as sa
@@ -28,9 +28,6 @@ class SizedPayload(Protocol):
     """A cacheable concept artifact that can report its retained size."""
 
     def estimated_bytes(self) -> int: ...
-
-
-T = TypeVar("T", bound=SizedPayload)
 
 
 @dataclass
@@ -58,7 +55,7 @@ class CacheStats:
         }
 
 
-class _LazyBoundedRegistry(Generic[T]):
+class _LazyBoundedRegistry[T: SizedPayload]:
     """Lazy named builders with an LRU bound measured in bytes.
 
     Builders are registered up front and invoked on first request, so

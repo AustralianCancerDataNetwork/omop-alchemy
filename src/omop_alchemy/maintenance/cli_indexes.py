@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Annotated, Any
 
 import sqlalchemy as sa
 import typer
@@ -89,9 +89,7 @@ def _is_plain_index(reflected: Mapping[str, Any]) -> bool:
     dialect_options = reflected.get("dialect_options") or {}
     if _dialect_option(dialect_options, "where") is not None:
         return False
-    if _dialect_option(dialect_options, "using") is not None:
-        return False
-    return True
+    return _dialect_option(dialect_options, "using") is None
 
 
 def _dialect_option(dialect_options: Mapping[str, Any], suffix: str) -> Any | None:
@@ -1037,11 +1035,10 @@ app = typer.Typer(
 @omop_command("indexes disable", dry_run=True)
 def disable_indexes_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the selection.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option("--vocab/--no-vocab", help="Include OMOP vocabulary tables in the selection."),
+    ] = False,
     dry_run: bool = False,
 ) -> None:
     """Drop all ORM-defined secondary indexes from the target database. Useful before bulk data loads."""
@@ -1061,16 +1058,17 @@ def disable_indexes_command(
 @omop_command("indexes enable", dry_run=True)
 def enable_indexes_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the selection.",
-    ),
-    cluster: bool = typer.Option(
-        True,
-        "--cluster/--no-cluster",
-        help="Also CLUSTER tables using their ORM-designated cluster index. Use --no-cluster to skip the full heap rewrite on large vocabulary tables.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option("--vocab/--no-vocab", help="Include OMOP vocabulary tables in the selection."),
+    ] = False,
+    cluster: Annotated[
+        bool,
+        typer.Option(
+            "--cluster/--no-cluster",
+            help="Also CLUSTER tables using their ORM-designated cluster index. Use --no-cluster to skip the full heap rewrite on large vocabulary tables.",
+        ),
+    ] = True,
     dry_run: bool = False,
 ) -> None:
     """Recreate all ORM-defined secondary indexes. Also CLUSTERs tables on PostgreSQL where metadata specifies it.
@@ -1096,11 +1094,10 @@ def enable_indexes_command(
 @omop_command("indexes cluster", dry_run=True)
 def cluster_tables_command(
     conn: MaintenanceContext,
-    vocabulary_included: bool = typer.Option(
-        False,
-        "--vocab/--no-vocab",
-        help="Include OMOP vocabulary tables in the selection.",
-    ),
+    vocabulary_included: Annotated[
+        bool,
+        typer.Option("--vocab/--no-vocab", help="Include OMOP vocabulary tables in the selection."),
+    ] = False,
     dry_run: bool = False,
 ) -> None:
     """CLUSTER tables using their ORM-designated cluster index.

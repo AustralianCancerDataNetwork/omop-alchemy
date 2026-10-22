@@ -241,10 +241,9 @@ def test_observation_as_of_contract_excludes_future_and_breaks_ties_by_id():
     candidates = [
         row for row in REPEATED_OBSERVATIONS if row.observation_date <= OBSERVATION_ANCHOR_DATE
     ]
-    selected = sorted(
-        candidates,
-        key=lambda row: (-row.observation_date.toordinal(), row.observation_id),
-    )[0]
+    selected = min(
+        candidates, key=lambda row: (-row.observation_date.toordinal(), row.observation_id)
+    )
 
     assert spec.requires_anchor
     assert selected.observation_id == 22

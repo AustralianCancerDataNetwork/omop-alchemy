@@ -1,5 +1,6 @@
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Optional
+from types import MappingProxyType
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -114,10 +115,10 @@ class NoteContext(ReferenceContext):
 class NoteView(Note, NoteContext, DomainValidationMixin):
     __tablename__ = "note"
     # Must match Note's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
 
-    __expected_domains__ = {
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {
         "note_type_concept_id": ExpectedDomain("Type Concept"),
         "note_class_concept_id": ExpectedDomain("Meas Value"),
     }

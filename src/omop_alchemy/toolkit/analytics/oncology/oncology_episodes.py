@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from functools import cached_property
+from types import MappingProxyType
 from typing import Self, cast
 
 import sqlalchemy.orm as so
@@ -75,8 +76,8 @@ class OncologyEpisode(
 
     __tablename__ = "episode"
     # Must match EpisodeView's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
 
     @declared_attr
     @classmethod

@@ -49,7 +49,10 @@ class ReferenceContext:
     ) -> so.InstrumentedAttribute[Any]:
         target_model = sa.inspect(model).registry._class_registry.get(target)
         if not isinstance(target_model, type):
-            raise ValueError(f"reference target {target!r} is missing or ambiguous")
+            # Registry lookup failure, not a wrong argument type.
+            raise ValueError(  # noqa: TRY004
+                f"reference target {target!r} is missing or ambiguous"
+            )
         mapper = sa.inspect(target_model)
         if len(mapper.primary_key) != 1:
             raise ValueError(

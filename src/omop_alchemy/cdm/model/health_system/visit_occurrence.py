@@ -1,5 +1,6 @@
 from datetime import date
-from typing import TYPE_CHECKING
+from types import MappingProxyType
+from typing import TYPE_CHECKING, ClassVar
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -118,9 +119,9 @@ class VisitContext(ReferenceContext):
 class VisitView(Visit_Occurrence, VisitContext, DomainValidationMixin):
     __tablename__ = "visit_occurrence"
     # Must match Visit_Occurrence's schema, or SQLAlchemy silently builds a second, unlinked Table object.
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
-    __expected_domains__ = {
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {
         "visit_concept_id": ExpectedDomain("Visit"),
         "visit_type_concept_id": ExpectedDomain("Type Concept"),
         "admitted_from_concept_id": ExpectedDomain("Visit"),

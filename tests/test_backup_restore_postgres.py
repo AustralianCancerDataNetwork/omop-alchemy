@@ -163,7 +163,7 @@ def test_current_plain_backup_restores_and_registers_non_test_target(pg_db, tmp_
         pytest.skip("plain PostgreSQL round trip requires pg_dump and psql")
 
     role_schemas = _unique_role_schemas()
-    resolved, source_primary, source_vocab, source_context = _source_context(pg_db, role_schemas)
+    _resolved, source_primary, source_vocab, source_context = _source_context(pg_db, role_schemas)
     target_url, target_resolved, target_primary, target_vocab, target_context = _create_target(
         pg_db, role_schemas
     )
@@ -211,7 +211,7 @@ def test_old_plain_backup_restores_data_then_reports_acknowledgment(pg_db, tmp_p
         pytest.skip("plain PostgreSQL round trip requires pg_dump and psql")
 
     role_schemas = _unique_role_schemas()
-    resolved, source_primary, source_vocab, source_context = _source_context(pg_db, role_schemas)
+    resolved, source_primary, source_vocab, _ = _source_context(pg_db, role_schemas)
     target_url, _, target_primary, target_vocab, target_context = _create_target(
         pg_db, role_schemas
     )
@@ -271,7 +271,7 @@ def test_restore_with_schema_drift_does_not_acknowledge(pg_db, tmp_path):
         pytest.skip("plain PostgreSQL round trip requires pg_dump and psql")
 
     role_schemas = _unique_role_schemas()
-    resolved, source_primary, source_vocab, source_context = _source_context(pg_db, role_schemas)
+    _resolved, source_primary, source_vocab, source_context = _source_context(pg_db, role_schemas)
     drifted_schemas = _unique_role_schemas(prefix="drifted")
     target_url, target_resolved, target_primary, target_vocab, target_context = _create_target(
         pg_db, drifted_schemas
@@ -311,7 +311,7 @@ def test_plain_restore_refuses_existing_dumped_schema_before_psql(pg_db, tmp_pat
         pytest.skip("plain PostgreSQL round trip requires pg_dump and psql")
 
     role_schemas = _unique_role_schemas()
-    resolved, source_primary, source_vocab, source_context = _source_context(pg_db, role_schemas)
+    _resolved, source_primary, source_vocab, source_context = _source_context(pg_db, role_schemas)
     target_url, _, target_primary, target_vocab, target_context = _create_target(
         pg_db, role_schemas
     )

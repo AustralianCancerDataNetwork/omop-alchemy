@@ -138,7 +138,8 @@ def omop_command(
     """
 
     def decorator(func: _F) -> _F:
-        orig_params = list(inspect.signature(func).parameters.values())
+        signature = inspect.signature(func, eval_str=True)
+        orig_params = list(signature.parameters.values())
 
         @functools.wraps(func)
         def wrapper(**kwargs: Any) -> Any:
@@ -178,7 +179,7 @@ def omop_command(
                 finally:
                     for owned in conn.engines:
                         owned.dispose()
-            except Exception as exc:
+            except (RuntimeError, SQLAlchemyError) as exc:
                 handle_error(exc)
 
         # Rebuild the Typer-visible signature:
@@ -212,7 +213,7 @@ def omop_command(
                     annotation=bool,
                 )
             )
-        wrapper.__signature__ = inspect.signature(func).replace(parameters=new_params)  # ty: ignore[unresolved-attribute]
+        wrapper.__signature__ = signature.replace(parameters=new_params)  # ty: ignore[unresolved-attribute]
 
         return wrapper  # ty: ignore[invalid-return-type]
 
