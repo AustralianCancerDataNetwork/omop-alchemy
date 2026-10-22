@@ -55,8 +55,8 @@ dev = [
   "requests>=2.33.0",
   "pytest>=9.0.3",
   "pytest-cov>=4.0",
-  "ty==0.0.61",
-  "ruff>=0.4",
+  "ty==0.0.90",
+  "ruff==0.17.1",
   "import-linter>=2.0",
   "mkdocs-material>=9.7.7",
   "mkdocstrings-python>=2.0.1",
@@ -93,3 +93,6 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 
 [tool.pytest.ini_options]
 addopts = "-m 'not db_dialect'"
+
+[tool.ruff]
+line-length = 100
