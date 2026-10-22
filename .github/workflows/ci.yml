@@ -20,11 +20,11 @@ jobs:
   build-test-sqlite:
     uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test.yml@main
     with:
-      ty-src: omop_alchemy
+      ty-src: src
   build-test-postgres:
     uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-postgres-v2.yml@main
     with:
-      ty-src: omop_alchemy
+      ty-src: src
       postgres-image: postgres:17
       postgres-db: omop_alchemy_ci
       setup-commands: |

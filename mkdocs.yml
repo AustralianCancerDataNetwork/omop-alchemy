@@ -53,7 +53,7 @@ plugins:
       handlers:
         python:
           paths:
-            - omop_alchemy
+            - src
           options:
             show_source: false
             docstring_style: numpy
