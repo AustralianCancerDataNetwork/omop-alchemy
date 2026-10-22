@@ -73,6 +73,7 @@ def test_projection_resolves_source_metadata(
 ):
     spec = clinical_event_model_spec(model)
     view = clinical_event_target_for_table(source_table)
+    assert view is not None
     assert issubclass(view, ClinicalEventMixin)
     assert view.has_complete_metadata()
     assert view.clinical_event_model_spec(model) == spec

@@ -10,6 +10,7 @@ db_dialect'", see oa_configurator.testing). Run explicitly:
 """
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 import sqlalchemy as sa
@@ -20,11 +21,12 @@ from omop_alchemy.backends.postgres import PostgresBackend
 from omop_alchemy.cdm.model.vocabulary import Concept
 from omop_alchemy.config import create_cdm_engines
 from omop_alchemy.maintenance.cli_vocab import (
+    VocabularyModel,
     _load_vocab_model_csv,
     load_vocab_source,
 )
 from omop_alchemy.maintenance.context import MaintenanceContext
-from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
+from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv, require_cdm
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -213,7 +215,7 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
 
     row_count = _load_vocab_model_csv(
         pg_session,
-        model=Concept,  # type: ignore[arg-type]
+        model=cast(VocabularyModel, Concept),
         csv_path=csv_path,
         merge_strategy="replace",
     )
@@ -318,12 +320,14 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cle
 
     # A single-schema deployment: vocab/results fall back to the CDM schema.
     scoped_resolved = resolve_with_role_schemas(pg_resolved, {Role.PRIMARY: schema})
-    scoped_engine, _ = create_cdm_engines(scoped_resolved)
+    scoped_engine, _ = create_cdm_engines(require_cdm(scoped_resolved))
 
     try:
         report = load_vocab_source(
             MaintenanceContext(
-                resolved=scoped_resolved, engine=scoped_engine, vocab_engine=scoped_engine
+                resolved=require_cdm(scoped_resolved),
+                engine=scoped_engine,
+                vocab_engine=scoped_engine,
             ),
             source_path=source_path,
         )

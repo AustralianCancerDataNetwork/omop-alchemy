@@ -26,7 +26,7 @@ from omop_alchemy.maintenance.cli_fulltext import (
     populate_fulltext_columns,
 )
 from omop_alchemy.maintenance.context import MaintenanceContext
-from tests.conftest import FakeMaintenanceContext
+from tests.conftest import fake_maintenance_context
 
 runner = CliRunner()
 
@@ -99,7 +99,7 @@ def test_install_fulltext_columns_builds_postgresql_ddl_without_touching_orm_met
     engine = _FakeEngine()
 
     results = _install_fulltext_columns(
-        FakeMaintenanceContext(engine),  # type: ignore[arg-type]
+        fake_maintenance_context(engine),
         create_indexes=True,
         fastupdate=True,
     )
@@ -125,7 +125,7 @@ def test_populate_fulltext_columns_issues_update_with_regconfig_and_row_counts()
     engine = _FakeEngine(rowcount=11)
 
     results = populate_fulltext_columns(
-        FakeMaintenanceContext(engine),  # type: ignore[arg-type]
+        fake_maintenance_context(engine),
         regconfig="simple",
     )
 
@@ -142,7 +142,7 @@ def test_drop_fulltext_columns_drops_schema_objects():
     engine = _FakeEngine()
 
     results = drop_fulltext_columns(
-        FakeMaintenanceContext(engine),  # type: ignore[arg-type]
+        fake_maintenance_context(engine),
         drop_indexes=True,
     )
 

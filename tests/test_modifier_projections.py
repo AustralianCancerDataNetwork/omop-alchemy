@@ -55,6 +55,7 @@ from omop_alchemy.toolkit.core.modifiers.contracts import (
     ValuedModifierRow,
 )
 from omop_alchemy.toolkit.core.modifiers.projections import _VALUE_COLUMN_TYPES
+from tests.conftest import table_of
 
 # The full projection shape, in UNION position order. Only the tests need the
 # whole; production code asks for the obligation it actually cares about.
@@ -250,6 +251,7 @@ def test_a_source_naming_a_missing_link_column_is_rejected():
 @pytest.mark.parametrize("source_model", [MeasurementView, ObservationView])
 def test_modifier_source_subclass_projects_its_own_event_metadata(source_model, fresh_engine):
     original = clinical_event_model_spec(source_model)
+    assert original.event_datetime_column is not None
     specialized = type(
         f"{source_model.__name__}WithOverriddenEventMetadata",
         (source_model,),
@@ -363,10 +365,10 @@ def test_target_resolution_queries_compile_for_supported_models(target):
 
 def _seeded_engine(engine, conditions, measurements):
     """Populate fresh_engine with the given condition and measurement rows."""
-    Base.metadata.create_all(engine, tables=[Condition_Occurrence.__table__, Measurement.__table__])
+    Base.metadata.create_all(engine, tables=[table_of(Condition_Occurrence), table_of(Measurement)])
     with engine.begin() as connection:
-        connection.execute(Condition_Occurrence.__table__.insert(), conditions)
-        connection.execute(Measurement.__table__.insert(), measurements)
+        connection.execute(table_of(Condition_Occurrence).insert(), conditions)
+        connection.execute(table_of(Measurement).insert(), measurements)
     return engine
 
 

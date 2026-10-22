@@ -4,13 +4,13 @@ import uuid
 from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, cast
 
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 import typer.rich_utils as _typer_rich_utils
-from oa_configurator import ResolvedCDMDatabase
+from oa_configurator import ResolvedCDMDatabase, ResolvedDatabase
 from oa_configurator.testing import (
     IsolatedTestDatabase,
     isolated_test_database,
@@ -33,7 +33,7 @@ from omop_alchemy.cdm.model.vocabulary import (
 )
 from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance.cli_tables import _truncate_tables
-from omop_alchemy.maintenance.cli_vocab import _load_vocab_model_csv
+from omop_alchemy.maintenance.cli_vocab import VocabularyModel, _load_vocab_model_csv
 from omop_alchemy.maintenance.context import MaintenanceContext
 from omop_alchemy.maintenance.tables import select_maintenance_tables
 
@@ -64,6 +64,11 @@ class FakeMaintenanceContext:
         return self.engine
 
 
+def fake_maintenance_context(engine: Any) -> MaintenanceContext:
+    """A FakeMaintenanceContext typed as the MaintenanceContext the callers require."""
+    return cast(MaintenanceContext, FakeMaintenanceContext(engine))
+
+
 @pytest.fixture
 def fresh_db() -> Iterator[IsolatedTestDatabase]:
     """Fresh, empty, function-scoped SQLite database.
@@ -85,22 +90,37 @@ def fresh_engine(fresh_db: IsolatedTestDatabase) -> sa.Engine:
     return fresh_db.connection.engine
 
 
+def require_cdm(resolved: ResolvedDatabase | None) -> ResolvedCDMDatabase:
+    """Narrow a resolved database to the CDM kind the maintenance API requires."""
+    assert isinstance(resolved, ResolvedCDMDatabase)
+    return resolved
+
+
+def table_of(model: Any) -> sa.Table:
+    """The Table a mapped class is bound to, narrowed from the declarative base's FromClause."""
+    table = model.__table__
+    assert isinstance(table, sa.Table)
+    return table
+
+
 @pytest.fixture
 def fresh_resolved(fresh_db: IsolatedTestDatabase) -> ResolvedCDMDatabase:
     """fresh_db's ResolvedCDMDatabase, for maintenance functions that require one."""
-    assert isinstance(fresh_db.resolved, ResolvedCDMDatabase)
-    return fresh_db.resolved
+    return require_cdm(fresh_db.resolved)
 
 
-ATHENA_LOAD_ORDER = [
-    Domain,
-    Vocabulary,
-    Concept_Class,
-    Relationship,
-    Concept,
-    Concept_Ancestor,
-    Concept_Relationship,
-]
+ATHENA_LOAD_ORDER = cast(
+    tuple[VocabularyModel, ...],
+    (
+        Domain,
+        Vocabulary,
+        Concept_Class,
+        Relationship,
+        Concept,
+        Concept_Ancestor,
+        Concept_Relationship,
+    ),
+)
 
 # ---------------------------------------------------------------------------
 # In-memory Athena fixture data
@@ -470,14 +490,16 @@ def pg_db(request):
 @pytest.fixture
 def pg_resolved(pg_db) -> ResolvedCDMDatabase:
     """pg_db's own ResolvedCDMDatabase, for maintenance functions that require one."""
-    return pg_db.resolved
+    return require_cdm(pg_db.resolved)
 
 
 @pytest.fixture
 def pg_unscoped_resolved(pg_db) -> ResolvedCDMDatabase:
     """pg_db.resolved with every role on the connection's own default schema."""
-    return resolve_with_role_schemas(
-        pg_db.resolved, {role: None for role in pg_db.resolved.schema_tags()}
+    return require_cdm(
+        resolve_with_role_schemas(
+            pg_db.resolved, {role: None for role in pg_db.resolved.schema_tags()}
+        )
     )
 
 
@@ -579,8 +601,7 @@ def sqlite_split(tmp_path) -> Iterator[SplitSQLite]:
             )
         },
     )
-    resolved = Resolver(stack).resolve_database("split_cdm")
-    assert isinstance(resolved, ResolvedCDMDatabase)
+    resolved = require_cdm(Resolver(stack).resolve_database("split_cdm"))
     primary, vocab = create_cdm_engines(resolved)
     context = MaintenanceContext(resolved=resolved, engine=primary, vocab_engine=vocab)
     try:
@@ -631,8 +652,7 @@ def pg_split(pg_db, tmp_path) -> Iterator[SplitCDM]:
             )
         },
     )
-    resolved = Resolver(stack).resolve_database("split_cdm")
-    assert isinstance(resolved, ResolvedCDMDatabase)
+    resolved = require_cdm(Resolver(stack).resolve_database("split_cdm"))
     try:
         bootstrap(resolved, create=True)
         primary, vocab = create_cdm_engines(resolved)
@@ -675,7 +695,7 @@ def session(engine) -> Session:  # type: ignore
     session = so.Session(engine, expire_on_commit=False)
 
     try:
-        yield session  # type: ignore
+        yield session
     finally:
         session.rollback()
         session.close()

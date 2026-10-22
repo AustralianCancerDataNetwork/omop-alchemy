@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import TypedDict
 
 import pytest
 import sqlalchemy as sa
@@ -71,7 +72,12 @@ def _episode_source(*episodes: EpisodeCase, name: str = "episodes") -> sa.CTE:
     ).cte(name)
 
 
-def _shared_episodes(source: sa.CTE) -> dict[str, sa.CTE]:
+class _SharedEpisodes(TypedDict):
+    explicit_episodes: sa.CTE
+    fallback_episodes: sa.CTE
+
+
+def _shared_episodes(source: sa.CTE) -> _SharedEpisodes:
     """Use one episode population for explicit validation and fallback."""
     return {"explicit_episodes": source, "fallback_episodes": source}
 

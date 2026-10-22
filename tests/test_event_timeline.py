@@ -104,8 +104,10 @@ def test_all_timeline_events_use_clinical_event_behaviour():
 @pytest.mark.parametrize("has_datetime", [False, True])
 def test_single_date_events_remain_points_with_inferred_metadata(model, has_datetime):
     mapping = EventMapping.from_model(model)
+    assert mapping.start_date_field is not None
     fields = {mapping.start_date_field: date(2026, 9, 17)}
     if has_datetime:
+        assert mapping.start_datetime_field is not None
         fields[mapping.start_datetime_field] = datetime(2026, 9, 17, 9, 30)
     event = model(**fields)
     assert mapping.end_date_field is None
@@ -118,12 +120,16 @@ def test_single_date_events_remain_points_with_inferred_metadata(model, has_date
 @pytest.mark.parametrize("has_datetime", [False, True])
 def test_interval_events_infer_independent_endpoints(model, has_datetime):
     mapping = EventMapping.from_model(model)
+    assert mapping.start_date_field is not None
+    assert mapping.end_date_field is not None
     fields = {
         mapping.start_date_field: date(2026, 9, 16),
         mapping.end_date_field: date(2026, 9, 17),
     }
     expected_end = datetime(2026, 9, 17, 23, 59, 59, 999999)
     if has_datetime:
+        assert mapping.start_datetime_field is not None
+        assert mapping.end_datetime_field is not None
         fields[mapping.start_datetime_field] = datetime(2026, 9, 16, 9, 30)
         fields[mapping.end_datetime_field] = expected_end = datetime(2026, 9, 17, 11, 30)
     event = model(**fields)

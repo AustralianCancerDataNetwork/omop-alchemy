@@ -3,6 +3,7 @@
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from sqlalchemy import event
 
 from omop_alchemy.cdm.base import ReferenceContext
 
@@ -54,7 +55,7 @@ def test_reference_join_uses_mapped_attribute_and_batches_loading(reference_mode
         )
         session.commit()
     statements = []
-    sa.event.listen(engine, "before_cursor_execute", lambda *args: statements.append(args[2]))
+    event.listen(engine, "before_cursor_execute", lambda *args: statements.append(args[2]))
     try:
         with so.Session(engine) as session:
             rows = session.scalars(sa.select(source).order_by(source.id)).all()

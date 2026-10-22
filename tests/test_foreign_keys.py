@@ -13,7 +13,7 @@ from omop_alchemy.maintenance.cli_foreign_keys import (
 )
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
-from tests.conftest import FakeMaintenanceContext
+from tests.conftest import fake_maintenance_context
 
 runner = CliRunner()
 
@@ -132,8 +132,16 @@ def _make_fake_backend():
             conn.exec_driver_sql(f"ALTER TABLE {table_name} {action} TRIGGER ALL")
 
         def count_fk_violations(
-            self, conn, *, source_table, referred_table, constraint_name, db_schema=None
-        ):  # type: ignore[override]
+            self,
+            conn,
+            source_table,
+            referred_table,
+            constrained_cols,
+            referred_cols,
+            *,
+            source_schema_tag=Role.PRIMARY.value,
+            referred_schema_tag=Role.PRIMARY.value,
+        ) -> int:
             return 0
 
     return _FakeBackend()
@@ -212,7 +220,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
     )
 
     results = manage_foreign_key_triggers(
-        FakeMaintenanceContext(_FakeEngine()),
+        fake_maintenance_context(_FakeEngine()),
         enable=True,
         strict=True,
     )
@@ -274,7 +282,7 @@ def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(
     )
 
     results = manage_foreign_key_triggers(
-        FakeMaintenanceContext(_FakeEngine()),
+        fake_maintenance_context(_FakeEngine()),
         enable=True,
         strict=True,
     )
@@ -400,7 +408,7 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch, fresh_re
         },
     )
 
-    report = validate_foreign_key_constraints(FakeMaintenanceContext(_FakeEngine()))  # type: ignore[arg-type]
+    report = validate_foreign_key_constraints(fake_maintenance_context(_FakeEngine()))
 
     assert [result.status for result in report.results] == ["passed", "failed"]
     assert report.results[0].violating_row_count == 0

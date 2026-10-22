@@ -12,6 +12,7 @@ from omop_alchemy.maintenance.cli_indexes import _manage_indexes
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.cli_schema_reconcile import is_blocking_issue, reconcile_schema
 from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import require_cdm
 
 PERSON_GENDER_INDEX = omop_index_name("person", "gender_concept_id")
 EPISODE_PERSON_INDEX = omop_index_name("episode", "person_id")
@@ -42,16 +43,20 @@ def reconcile_engine(request) -> Iterator[_ReconcileEngine]:
         with scoped_test_schema(pg_db.resolved, prefix="reconcile") as scoped:
             _create_missing_tables(
                 MaintenanceContext(
-                    resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+                    resolved=require_cdm(scoped.resolved),
+                    engine=scoped.engine,
+                    vocab_engine=scoped.engine,
                 )
             )
             _manage_indexes(
                 MaintenanceContext(
-                    resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+                    resolved=require_cdm(scoped.resolved),
+                    engine=scoped.engine,
+                    vocab_engine=scoped.engine,
                 ),
                 enable=True,
             )
-            yield _ReconcileEngine(scoped.engine, scoped.resolved)
+            yield _ReconcileEngine(scoped.engine, require_cdm(scoped.resolved))
             return
     engine = request.getfixturevalue("fresh_engine")
     resolved = request.getfixturevalue("fresh_resolved")
@@ -158,7 +163,7 @@ def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(p
         # targets a vocab table, so excluding vocab here would leave that FK
         # unresolved and person itself blocked from creation.
         _create_missing_tables(
-            MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine)
+            MaintenanceContext(resolved=require_cdm(resolved), engine=engine, vocab_engine=engine)
         )
         with engine.begin() as connection:
             connection.exec_driver_sql(
@@ -166,7 +171,7 @@ def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(p
             )
 
         report = reconcile_schema(
-            MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine)
+            MaintenanceContext(resolved=require_cdm(resolved), engine=engine, vocab_engine=engine)
         )
 
         person_result = next(r for r in report.table_results if r.table_name == "person")
@@ -196,16 +201,16 @@ def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_sch
     ) as scoped:
         engine, resolved = scoped.engine, scoped.resolved
         _create_missing_tables(
-            MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine)
+            MaintenanceContext(resolved=require_cdm(resolved), engine=engine, vocab_engine=engine)
         )
         _manage_indexes(
-            MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine),
+            MaintenanceContext(resolved=require_cdm(resolved), engine=engine, vocab_engine=engine),
             enable=True,
             vocabulary_included=True,
         )
 
         report = reconcile_schema(
-            MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine),
+            MaintenanceContext(resolved=require_cdm(resolved), engine=engine, vocab_engine=engine),
             vocabulary_included=True,
         )
 
@@ -230,7 +235,7 @@ def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db):
     with scoped_test_schema(pg_db.resolved, prefix="reconcile_functional_index") as scoped:
         engine, resolved = scoped.engine, scoped.resolved
         _create_missing_tables(
-            MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine)
+            MaintenanceContext(resolved=require_cdm(resolved), engine=engine, vocab_engine=engine)
         )
 
         def _index_issues(report):
@@ -242,7 +247,7 @@ def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db):
             ]
 
         report = reconcile_schema(
-            MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine),
+            MaintenanceContext(resolved=require_cdm(resolved), engine=engine, vocab_engine=engine),
             vocabulary_included=True,
         )
         assert _index_issues(report) == []
@@ -256,7 +261,7 @@ def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db):
             )
 
         report = reconcile_schema(
-            MaintenanceContext(resolved=resolved, engine=engine, vocab_engine=engine),
+            MaintenanceContext(resolved=require_cdm(resolved), engine=engine, vocab_engine=engine),
             vocabulary_included=True,
         )
         issues = _index_issues(report)

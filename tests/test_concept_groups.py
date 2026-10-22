@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from sqlalchemy import event
 
 from omop_alchemy.toolkit.core.concepts import (
     ConceptGroupSpec,
@@ -241,7 +242,7 @@ def test_engines_on_one_vocabulary_share_expansions(session):
         },
     )
     statements: list[str] = []
-    sa.event.listen(other, "before_cursor_execute", lambda *args: statements.append(args[2]))
+    event.listen(other, "before_cursor_execute", lambda *args: statements.append(args[2]))
     try:
         with so.Session(other) as other_session:
             assert concept_group_registry(other_session) is concept_group_registry(session)

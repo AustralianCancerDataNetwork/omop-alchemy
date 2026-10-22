@@ -95,7 +95,7 @@ def test_stage_selection_default_and_overrides(spec, expected_id: int):
 
 def test_stage_selection_spec_is_immutable_and_validates_basis_permutation():
     with pytest.raises(AttributeError):
-        DEFAULT_STAGE_SELECTION.basis_priority = (StageBasis.clinical,)  # type: ignore[misc]
+        DEFAULT_STAGE_SELECTION.basis_priority = (StageBasis.clinical,)  # ty: ignore[invalid-assignment]
 
     with pytest.raises(ValueError, match="each StageBasis exactly once"):
         StageSelectionSpec(basis_priority=(StageBasis.pathological,))

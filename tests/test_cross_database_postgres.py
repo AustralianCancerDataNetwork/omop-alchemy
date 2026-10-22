@@ -14,6 +14,8 @@ from datetime import date
 import pytest
 import sqlalchemy as sa
 from oa_configurator import CrossDatabaseStatementError, Role
+from sqlalchemy import event
+from sqlalchemy.exc import UnboundExecutionError
 
 from omop_alchemy.cdm.base import ConceptValidationMixin
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Person
@@ -22,7 +24,7 @@ from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Ancestor
 from omop_alchemy.cross_database import cdm_sessionmaker, filter_by_keys
 from omop_alchemy.toolkit.core.concepts import RuntimeConceptSetSpec, runtime_concept_predicate
 
-from .conftest import SplitCDM
+from .conftest import SplitCDM, table_of
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -40,11 +42,11 @@ def statements(pg_split: SplitCDM) -> Iterator[Counter[str]]:
         def _count(*_args, role=role, **_kwargs) -> None:
             counts[role] += 1
 
-        sa.event.listen(engine, "before_cursor_execute", _count)
+        event.listen(engine, "before_cursor_execute", _count)
         listeners.append((engine, _count))
     yield counts
     for engine, listener in listeners:
-        sa.event.remove(engine, "before_cursor_execute", listener)
+        event.remove(engine, "before_cursor_execute", listener)
 
 
 def _seed_conditions(
@@ -127,8 +129,8 @@ class TestRoutedSession:
         _seed_conditions(pg_split, 1)
         one_row = vocab_queries_for_load()
         with pg_split.primary.begin() as connection:
-            connection.execute(sa.delete(Condition_Occurrence.__table__))
-            connection.execute(sa.delete(Person.__table__))
+            connection.execute(sa.delete(table_of(Condition_Occurrence)))
+            connection.execute(sa.delete(table_of(Person)))
         _seed_conditions(pg_split, 25)
         assert vocab_queries_for_load() == one_row
         assert one_row > 0
@@ -148,7 +150,7 @@ class TestRoutedSession:
         sessions = cdm_sessionmaker(
             pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab
         )
-        with sessions() as session, pytest.raises(sa.exc.UnboundExecutionError):
+        with sessions() as session, pytest.raises(UnboundExecutionError):
             session.execute(sa.text("SELECT 1"))
 
     def test_swapped_engines_are_rejected(self, pg_split: SplitCDM):
@@ -224,7 +226,7 @@ def test_concept_set_membership_across_databases_needs_the_session(pg_split: Spl
     _seed_conditions(pg_split, 2, concept_ids=(CONDITION_CONCEPT_ID, MISSING_CONCEPT_ID))
     with pg_split.vocab.begin() as connection:
         connection.execute(
-            sa.insert(Concept_Ancestor.__table__).values(
+            sa.insert(table_of(Concept_Ancestor)).values(
                 ancestor_concept_id=CONDITION_CONCEPT_ID,
                 descendant_concept_id=CONDITION_CONCEPT_ID,
                 min_levels_of_separation=0,

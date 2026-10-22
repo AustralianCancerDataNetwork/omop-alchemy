@@ -31,6 +31,7 @@ from omop_alchemy.maintenance.cli_indexes import _manage_indexes
 from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
 from omop_alchemy.maintenance.cli_tables import reset_model_sequences
 from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import require_cdm
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -51,14 +52,14 @@ def scoped(pg_db) -> Iterator[ScopedTestSchema]:
 def test_fk_trigger_toggle_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
     _create_missing_tables(
         MaintenanceContext(
-            resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+            resolved=require_cdm(scoped.resolved), engine=scoped.engine, vocab_engine=scoped.engine
         ),
         vocabulary_included=True,
     )
 
     disabled = manage_foreign_key_triggers(
         MaintenanceContext(
-            resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+            resolved=require_cdm(scoped.resolved), engine=scoped.engine, vocab_engine=scoped.engine
         ),
         enable=False,
     )
@@ -69,7 +70,9 @@ def test_fk_trigger_toggle_targets_the_configured_schema(scoped: ScopedTestSchem
         result.table_name: result
         for result in collect_foreign_key_trigger_status(
             MaintenanceContext(
-                resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
             )
         )
     }
@@ -79,7 +82,7 @@ def test_fk_trigger_toggle_targets_the_configured_schema(scoped: ScopedTestSchem
 
     enabled = manage_foreign_key_triggers(
         MaintenanceContext(
-            resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+            resolved=require_cdm(scoped.resolved), engine=scoped.engine, vocab_engine=scoped.engine
         ),
         enable=True,
     )
@@ -89,7 +92,9 @@ def test_fk_trigger_toggle_targets_the_configured_schema(scoped: ScopedTestSchem
         result.table_name: result
         for result in collect_foreign_key_trigger_status(
             MaintenanceContext(
-                resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
             )
         )
     }
@@ -99,14 +104,14 @@ def test_fk_trigger_toggle_targets_the_configured_schema(scoped: ScopedTestSchem
 def test_index_disable_and_enable_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
     _create_missing_tables(
         MaintenanceContext(
-            resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+            resolved=require_cdm(scoped.resolved), engine=scoped.engine, vocab_engine=scoped.engine
         ),
         vocabulary_included=True,
     )
 
     disabled = _manage_indexes(
         MaintenanceContext(
-            resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+            resolved=require_cdm(scoped.resolved), engine=scoped.engine, vocab_engine=scoped.engine
         ),
         enable=False,
     )
@@ -120,7 +125,7 @@ def test_index_disable_and_enable_targets_the_configured_schema(scoped: ScopedTe
 
     enabled = _manage_indexes(
         MaintenanceContext(
-            resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+            resolved=require_cdm(scoped.resolved), engine=scoped.engine, vocab_engine=scoped.engine
         ),
         enable=True,
     )
@@ -138,14 +143,14 @@ def test_index_disable_and_enable_targets_the_configured_schema(scoped: ScopedTe
 def test_fulltext_install_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
     _create_missing_tables(
         MaintenanceContext(
-            resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+            resolved=require_cdm(scoped.resolved), engine=scoped.engine, vocab_engine=scoped.engine
         ),
         vocabulary_included=True,
     )
 
     results = _install_fulltext_columns(
         MaintenanceContext(
-            resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+            resolved=require_cdm(scoped.resolved), engine=scoped.engine, vocab_engine=scoped.engine
         )
     )
     assert results
@@ -163,7 +168,7 @@ def test_fulltext_install_targets_the_configured_schema(scoped: ScopedTestSchema
 def test_sequence_reset_targets_the_configured_schema(scoped: ScopedTestSchema) -> None:
     _create_missing_tables(
         MaintenanceContext(
-            resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+            resolved=require_cdm(scoped.resolved), engine=scoped.engine, vocab_engine=scoped.engine
         ),
         vocabulary_included=True,
     )
@@ -172,7 +177,9 @@ def test_sequence_reset_targets_the_configured_schema(scoped: ScopedTestSchema) 
         r.table_name: r
         for r in reset_model_sequences(
             MaintenanceContext(
-                resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
             )
         )
     }

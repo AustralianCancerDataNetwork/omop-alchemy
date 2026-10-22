@@ -46,6 +46,7 @@ from omop_alchemy.maintenance.tables import (
     select_omop_tables,
 )
 from omop_alchemy.maintenance.ui import render_index_summary
+from tests.conftest import require_cdm
 
 runner = CliRunner()
 PERSON_GENDER_INDEX = omop_index_name("person", "gender_concept_id")
@@ -89,7 +90,9 @@ def indexed_engine(request):
         with scoped_test_schema(pg_db.resolved, prefix="indexed_engine") as scoped:
             _create_missing_tables(
                 MaintenanceContext(
-                    resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+                    resolved=require_cdm(scoped.resolved),
+                    engine=scoped.engine,
+                    vocab_engine=scoped.engine,
                 )
             )
             yield scoped.engine
@@ -183,8 +186,10 @@ def test_orm_index_metadata_carries_cluster_configuration():
     assert person.table.info[OMOP_CLUSTER_INDEX_INFO_KEY] == "pk_person"
 
     episode = tables["episode"]
-    episode_indexes = {index.name: index for index in episode.table.indexes}
-    assert episode_indexes[EPISODE_PERSON_INDEX].info[OMOP_CLUSTER_INDEX_INFO_KEY] is True  # type: ignore[index]
+    episode_indexes: dict[str, sa.Index] = {
+        index.name: index for index in episode.table.indexes if index.name
+    }
+    assert episode_indexes[EPISODE_PERSON_INDEX].info[OMOP_CLUSTER_INDEX_INFO_KEY] is True
 
 
 def test_schema_metadata_indexes_keys_match_unadjusted_indexes():
@@ -688,7 +693,7 @@ def test_resolving_cdm_database_with_maintenance_schema_name_raises(
     reset_schema_registry_rows(cleanup_after_test, pg_db.committing_engine, [MAINTENANCE_SCHEMA])
     create_cdm_engines(pg_unscoped_resolved)[0].dispose()
 
-    colliding_resolved = (
+    colliding_resolved = require_cdm(
         Resolver.from_active_config()
         .with_overrides(
             databases={

@@ -35,7 +35,7 @@ from omop_alchemy.maintenance.cli_fulltext import (
 from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
 from omop_alchemy.maintenance.cli_vocab import load_vocab_source
 from omop_alchemy.maintenance.context import MaintenanceContext
-from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
+from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv, require_cdm
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -50,12 +50,16 @@ def installed(pg_db) -> Iterator[ScopedTestSchema]:
     with scoped_test_schema(pg_db.resolved, prefix="fulltext_column") as scoped:
         _create_missing_tables(
             MaintenanceContext(
-                resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
             )
         )
         _install_fulltext_columns(
             MaintenanceContext(
-                resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
             )
         )
         with so.Session(scoped.engine) as session:
@@ -77,7 +81,9 @@ def installed(pg_db) -> Iterator[ScopedTestSchema]:
             session.commit()
         populate_fulltext_columns(
             MaintenanceContext(
-                resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
             )
         )
         yield scoped
@@ -140,7 +146,9 @@ def test_missing_column_raises(pg_db) -> None:
     with scoped_test_schema(pg_db.resolved, prefix="fulltext_missing") as scoped:
         _create_missing_tables(
             MaintenanceContext(
-                resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
             )
         )
         with pytest.raises(FullTextError, match=CONCEPT_NAME_TSVECTOR_COLUMN):
@@ -163,7 +171,7 @@ def test_vocab_load_after_install_succeeds_in_a_schema_without_the_column(
     ) as other:
         report = load_vocab_source(
             MaintenanceContext(
-                resolved=other.resolved, engine=other.engine, vocab_engine=other.engine
+                resolved=require_cdm(other.resolved), engine=other.engine, vocab_engine=other.engine
             ),
             source_path=source_path,
         )

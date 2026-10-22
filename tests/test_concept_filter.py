@@ -406,6 +406,7 @@ class TestRelationshipFlagPredicates:
             Relationship.is_hierarchical_relationship_expr(),
             Relationship.is_ancestry_defining_expr(),
         ):
+            assert isinstance(expr, sa.ColumnElement)
             compiled = str(expr.compile(compile_kwargs={"literal_binds": True}))
             assert "'1'" in compiled
             assert "'0'" not in compiled

@@ -1,8 +1,10 @@
 from pathlib import Path
+from typing import cast
 
 import pytest
 import sqlalchemy as sa
 from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import sessionmaker
 from typer.testing import CliRunner
 
@@ -16,6 +18,8 @@ from omop_alchemy.maintenance.cli_vocab import (
     REQUIRED_VOCAB_MODELS,
     MergeStrategy,
     QuoteMode,
+    VocabularyLoadProgress,
+    VocabularyModel,
     _load_vocab_model_csv,
     load_vocab_source,
 )
@@ -301,7 +305,7 @@ def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_p
     with Session() as session:
         row_count = _load_vocab_model_csv(
             session,
-            model=FakeModel,  # type: ignore[arg-type]
+            model=cast(VocabularyModel, FakeModel),
             csv_path=_athena_source_path() / "CONCEPT.csv",
             merge_strategy="upsert",
             quote_mode="literal",
@@ -366,7 +370,7 @@ def test_load_vocab_source_reports_weighted_progress(
     _write_csv_with_size(source_path, "domain", 10)
     _write_csv_with_size(source_path, "vocabulary", 40)
 
-    events: list[object] = []
+    events: list[VocabularyLoadProgress] = []
 
     def fake_load_vocab_model_csv(
         session,
@@ -394,7 +398,7 @@ def test_load_vocab_source_reports_weighted_progress(
     )
 
     assert events
-    percents = [event.percent for event in events]  # type: ignore[attr-defined]
+    percents = [event.percent for event in events]
     assert percents[0] == pytest.approx(0.0)
     assert percents[-1] == pytest.approx(100.0)
     assert percents == sorted(percents)
@@ -420,7 +424,7 @@ def test_load_vocab_source_wraps_failed_table_load(
         staging_schema_tag=None,
     ):
         if model.__tablename__ == "domain":
-            raise sa.exc.ProgrammingError(  # type: ignore[attr-defined]
+            raise ProgrammingError(
                 "COPY domain FROM STDIN",
                 {},
                 Exception("value too long for type character varying(255)"),
@@ -474,7 +478,7 @@ def test_load_vocab_model_csv_retries_missing_staging_table(fresh_engine, monkey
     ):
         calls["load_csv"] += 1
         if calls["load_csv"] == 1:
-            raise sa.exc.ProgrammingError(  # type: ignore[attr-defined]
+            raise ProgrammingError(
                 'INSERT INTO _staging_drug_strength ("drug_concept_id") VALUES (1)',
                 {},
                 Exception('relation "_staging_drug_strength" does not exist'),
@@ -492,7 +496,7 @@ def test_load_vocab_model_csv_retries_missing_staging_table(fresh_engine, monkey
     with Session() as session:
         row_count = _load_vocab_model_csv(
             session,
-            model=FakeModel,  # type: ignore[arg-type]
+            model=cast(VocabularyModel, FakeModel),
             csv_path=_athena_source_path() / "DRUG_STRENGTH.csv",
             merge_strategy="upsert",
             staging_schema_tag="staging",
@@ -517,7 +521,7 @@ def test_load_vocab_source_cli_surfaces_database_error_detail(monkeypatch):
     )
 
     def fail_load_vocab_source(*args, **kwargs):
-        raise sa.exc.ProgrammingError(  # type: ignore[attr-defined]
+        raise ProgrammingError(
             "COPY concept FROM STDIN",
             {},
             Exception("value too long for type character varying(255)"),
