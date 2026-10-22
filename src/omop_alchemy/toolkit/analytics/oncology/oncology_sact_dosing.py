@@ -56,9 +56,7 @@ def sact_dose_evaluability(
     if any(exposure.quantity is None for exposure in exposures):
         return DoseEvaluability(False, "missing_quantity")
     units = {
-        exposure.dose_unit_source_value
-        for exposure in exposures
-        if exposure.dose_unit_source_value
+        exposure.dose_unit_source_value for exposure in exposures if exposure.dose_unit_source_value
     }
     if len(units) > 1:
         return DoseEvaluability(False, "mixed_dose_units")

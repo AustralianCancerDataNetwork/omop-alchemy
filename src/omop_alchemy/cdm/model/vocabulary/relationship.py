@@ -13,6 +13,7 @@ from omop_alchemy.cdm.base import (
 )
 from omop_alchemy.cdm.model.flags import BooleanFlag, normalised_flag_expr, normalised_flag
 
+
 @cdm_table
 class Relationship(Base, ReferenceTable, CDMTableBase):
     __tablename__ = "relationship"
@@ -24,8 +25,13 @@ class Relationship(Base, ReferenceTable, CDMTableBase):
     relationship_name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
     is_hierarchical: so.Mapped[str] = so.mapped_column(sa.String(1), nullable=False)
     defines_ancestry: so.Mapped[str] = so.mapped_column(sa.String(1), nullable=False)
-    reverse_relationship_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "relationship.relationship_id")),nullable=False)
-    relationship_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),nullable=False,)
+    reverse_relationship_id: so.Mapped[str] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "relationship.relationship_id")), nullable=False
+    )
+    relationship_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),
+        nullable=False,
+    )
 
     def __repr__(self):
         return f"<Relationship {self.relationship_id}>"

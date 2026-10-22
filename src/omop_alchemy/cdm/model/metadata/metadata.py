@@ -14,6 +14,7 @@ from omop_alchemy.cdm.base import (
     omop_index,
 )
 
+
 @cdm_table
 class Metadata(CDMTableBase, Base, ValueMixin):
     __tablename__ = "metadata"
@@ -28,8 +29,8 @@ class Metadata(CDMTableBase, Base, ValueMixin):
     metadata_type_concept_id: so.Mapped[int] = required_concept_fk()
     name: so.Mapped[str] = so.mapped_column(sa.String(250), nullable=False)
     value_as_string: so.Mapped[Optional[str]] = so.mapped_column(sa.String(250), nullable=True)
-    metadata_date: so.Mapped[Optional[date]] = so.mapped_column(sa.Date,nullable=True)
-    metadata_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime,nullable=True)
+    metadata_date: so.Mapped[Optional[date]] = so.mapped_column(sa.Date, nullable=True)
+    metadata_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
 
     def __repr__(self) -> str:
         return f"<Metadata {self.metadata_id}: {self.name}>"

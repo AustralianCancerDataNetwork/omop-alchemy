@@ -67,12 +67,12 @@ class Status(StrEnum):
     def __init__(self, code: str, severity: Severity):
         self.severity = severity
 
-    # shared across every dry-run/apply-style domain 
+    # shared across every dry-run/apply-style domain
     PLANNED = ("planned", Severity.INFO)
     APPLIED = ("applied", Severity.OK)
     SKIPPED = ("skipped", Severity.WARNING)
 
-    # domain-specific "applied" words 
+    # domain-specific "applied" words
     CREATED = ("created", Severity.OK)
     LOADED = ("loaded", Severity.OK)
     RESET = ("reset", Severity.OK)
@@ -136,6 +136,7 @@ def omop_command(
         database without rasing the adoption-drift error the calling command
         is meant to run *before*. Complements _NON_WRITING_MODES.
     """
+
     def decorator(func: _F) -> _F:
         orig_params = list(inspect.signature(func).parameters.values())
 
@@ -148,6 +149,7 @@ def omop_command(
             _register_claims = writes and _mode not in _NON_WRITING_MODES
             try:
                 from ..config import create_cdm_engines, get_cdm_context
+
                 pkg_config, resolved = get_cdm_context(_database)
                 engine, vocab_engine = create_cdm_engines(
                     resolved, register_claims=_register_claims
@@ -183,10 +185,7 @@ def omop_command(
         # • skip conn (decorator supplies it)
         # • skip dry_run if the decorator owns it
         # • always add --database
-        func_params = [
-            p for p in orig_params[1:]
-            if not (dry_run and p.name == "dry_run")
-        ]
+        func_params = [p for p in orig_params[1:] if not (dry_run and p.name == "dry_run")]
         new_params = func_params[:]
         new_params.append(
             inspect.Parameter(
@@ -216,10 +215,12 @@ def omop_command(
         wrapper.__signature__ = inspect.signature(func).replace(parameters=new_params)  # ty: ignore[unresolved-attribute]
 
         return wrapper  # ty: ignore[invalid-return-type]
+
     return decorator
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def handle_error(exc: Exception) -> None:
     if isinstance(exc, BackendNotSupportedError):

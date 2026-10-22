@@ -112,9 +112,7 @@ def _emit(
     **kwargs,
 ) -> None:
     if callback is not None:
-        callback(
-            VocabularyLoadProgress(description=description, percent=percent, **kwargs)
-        )
+        callback(VocabularyLoadProgress(description=description, percent=percent, **kwargs))
 
 
 REQUIRED_VOCAB_MODELS: tuple[VocabularyModel, ...] = cast(
@@ -158,9 +156,7 @@ _RETRYABLE_FRAGMENTS: tuple[str, ...] = (
 def _is_retryable_error(exc: Exception) -> bool:
     """True for transient PostgreSQL connection failures that are worth retrying."""
     msg = str(exc).lower()
-    return isinstance(exc, OperationalError) and any(
-        s in msg for s in _RETRYABLE_FRAGMENTS
-    )
+    return isinstance(exc, OperationalError) and any(s in msg for s in _RETRYABLE_FRAGMENTS)
 
 
 def _is_missing_staging_table_error(
@@ -255,7 +251,9 @@ def _create_missing_vocabulary_tables(context: MaintenanceContext) -> int:
     """
     missing = [
         target
-        for target in context.targets(select_maintenance_tables(categories=(TableCategory.VOCABULARY,)))
+        for target in context.targets(
+            select_maintenance_tables(categories=(TableCategory.VOCABULARY,))
+        )
         if not target.exists()
     ]
     by_engine: dict[sa.Engine, list[sa.Table]] = {}
@@ -328,9 +326,7 @@ def load_vocab_source(
     # When a specific table selection is given, check exactly those CSVs are present.
     # Otherwise check only the required tables, missing optional CSVs are allowed.
     models_to_preflight = all_models if tables is not None else REQUIRED_VOCAB_MODELS
-    missing = _missing_required_files(
-        resolved_source_path, required_models=models_to_preflight
-    )
+    missing = _missing_required_files(resolved_source_path, required_models=models_to_preflight)
     if missing:
         if tables is not None:
             raise RuntimeError(
@@ -338,8 +334,7 @@ def load_vocab_source(
                 + ", ".join(sorted(missing))
             )
         raise RuntimeError(
-            "Missing required Athena vocabulary CSV files: "
-            + ", ".join(sorted(missing))
+            "Missing required Athena vocabulary CSV files: " + ", ".join(sorted(missing))
         )
 
     table_count = sum(
@@ -363,7 +358,9 @@ def load_vocab_source(
     )
 
     _use_bulk_mode = (
-        bulk_mode and not dry_run and backend_supports(resolve_omop_backend(vocab_engine), "toggle_fk_triggers")
+        bulk_mode
+        and not dry_run
+        and backend_supports(resolve_omop_backend(vocab_engine), "toggle_fk_triggers")
     )
     if _use_bulk_mode:
         _emit(
@@ -459,10 +456,7 @@ def load_vocab_source(
             for attempt in range(3):
                 try:
                     with so.Session(vocab_engine) as session:
-                        if (
-                            _prev_attempt_was_crash
-                            and merge_strategy == "insert_if_empty"
-                        ):
+                        if _prev_attempt_was_crash and merge_strategy == "insert_if_empty":
                             # A DB crash left partial data committed in this table.
                             # Truncate so insert_if_empty can retry cleanly. Safe because
                             # bulk_mode's manage_foreign_key_triggers ran ALTER TABLE ...
@@ -498,8 +492,7 @@ def load_vocab_source(
                         "Athena vocabulary load failed for "
                         f"table `{model.__tablename__}` from `{csv_path}` "
                         f"using merge strategy `{merge_strategy}` on backend `{vocab_engine.dialect.name}`. "
-                        f"Underlying error: {exc.__class__.__name__}: {exc}"
-                        + recovery_hint
+                        f"Underlying error: {exc.__class__.__name__}: {exc}" + recovery_hint
                     ) from exc
 
             rows_cumulative += row_count
@@ -568,9 +561,7 @@ def load_vocab_source(
             vocabulary_only=True,
             dry_run=False,
         )
-        sequence_reset_count = sum(
-            result.status == Status.RESET for result in sequence_results
-        )
+        sequence_reset_count = sum(result.status == Status.RESET for result in sequence_results)
 
     return VocabularyLoadReport(
         source_path=str(resolved_source_path),
@@ -678,15 +669,11 @@ def load_vocab_source_command(
         console=console,
         transient=False,
     ) as progress:
-        task_id = progress.add_task(
-            "Preparing Athena vocabulary load...", total=100.0, completed=0
-        )
+        task_id = progress.add_task("Preparing Athena vocabulary load...", total=100.0, completed=0)
         completed_tables: list[str] = []
 
         def _update_progress(event: VocabularyLoadProgress) -> None:
-            progress.update(
-                task_id, completed=event.percent, description=event.description
-            )
+            progress.update(task_id, completed=event.percent, description=event.description)
             if event.table_done and event.table_name is not None:
                 completed_tables.append(event.table_name)
                 row_info = (
@@ -711,9 +698,7 @@ def load_vocab_source_command(
             merge_batch_size=merge_batch_size,
             progress_callback=_update_progress,
         )
-        progress.update(
-            task_id, completed=100.0, description="Athena vocabulary load complete"
-        )
+        progress.update(task_id, completed=100.0, description="Athena vocabulary load complete")
 
     console.print(render_vocab_load_results(report.results))
     console.print(render_vocab_load_summary(report, dry_run=dry_run))

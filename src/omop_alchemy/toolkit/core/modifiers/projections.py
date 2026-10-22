@@ -33,25 +33,17 @@ def canonical_modifier_projection(
     spec = modifier_source_model_spec(model)
     datetime_column = spec.event_datetime_column
     if datetime_column is None:  # pragma: no cover - the spec rejects such a model
-        raise UnsupportedModifierSourceModelError(
-            model, "must expose an event datetime column"
-        )
+        raise UnsupportedModifierSourceModelError(model, "must expose an event datetime column")
     columns: list[sa.ColumnElement[Any]] = [
         model.person_id.label(str(ModifierColumn.person_id)),
         getattr(model, spec.event_id_column).label(str(ModifierColumn.modifier_id)),
         getattr(model, spec.event_date_column).label(str(ModifierColumn.modifier_date)),
         getattr(model, datetime_column).label(str(ModifierColumn.modifier_datetime)),
-        getattr(model, spec.event_concept_id_column).label(
-            str(ModifierColumn.modifier_concept_id)
-        ),
-        sa.literal(spec.event_source_table).label(
-            str(ModifierColumn.modifier_source_table)
-        ),
+        getattr(model, spec.event_concept_id_column).label(str(ModifierColumn.modifier_concept_id)),
+        sa.literal(spec.event_source_table).label(str(ModifierColumn.modifier_source_table)),
         # Guaranteed by ModifierSourceMixin, whatever the physical column name.
         model.modifier_of_event_id.label(str(ModifierColumn.target_event_id)),
-        model.modifier_of_field_concept_id.label(
-            str(ModifierColumn.target_field_concept_id)
-        ),
+        model.modifier_of_field_concept_id.label(str(ModifierColumn.target_field_concept_id)),
     ]
     if include_values:
         columns.extend(
@@ -65,8 +57,7 @@ def canonical_modifier_union(
     *models: type[Any], include_values: bool = True
 ) -> sa.Select[Any] | sa.CompoundSelect[Any]:
     projections = [
-        canonical_modifier_projection(model, include_values=include_values)
-        for model in models
+        canonical_modifier_projection(model, include_values=include_values) for model in models
     ]
     return _select_or_union_all(
         projections,

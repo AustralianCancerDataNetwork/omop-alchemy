@@ -26,9 +26,7 @@ def test_filter_by_keys_is_a_subquery_on_one_database(fresh_engine: sa.Engine):
 
 
 def test_colocated_session_binds_untagged_statements(fresh_engine, fresh_resolved):
-    sessions = cdm_sessionmaker(
-        fresh_resolved, primary=fresh_engine, vocab=fresh_engine
-    )
+    sessions = cdm_sessionmaker(fresh_resolved, primary=fresh_engine, vocab=fresh_engine)
     with sessions() as session:
         assert session.get_bind() is fresh_engine
         assert session.get_bind(clause=sa.text("SELECT 1")) is fresh_engine
@@ -55,17 +53,15 @@ def test_split_session_prefers_vocab_role_over_staging_tag(tmp_path):
         metadata = sa.MetaData()
         vocab_table = sa.Table("concept", metadata, sa.Column("id", sa.Integer), schema="vocab")
         primary_table = sa.Table("person", metadata, sa.Column("id", sa.Integer), schema="primary")
-        staging_table = sa.Table("staging_concept", metadata, sa.Column("id", sa.Integer), schema="staging")
+        staging_table = sa.Table(
+            "staging_concept", metadata, sa.Column("id", sa.Integer), schema="staging"
+        )
         with sessions() as session:
             assert session.get_bind(clause=sa.insert(vocab_table).values(id=1)) is vocab
-            mixed = sa.insert(vocab_table).from_select(
-                ["id"], sa.select(staging_table.c.id)
-            )
+            mixed = sa.insert(vocab_table).from_select(["id"], sa.select(staging_table.c.id))
             assert session.get_bind(clause=mixed) is vocab
             primary_with_custom_tag = sa.select(primary_table.c.id).select_from(
-                primary_table.join(
-                    staging_table, primary_table.c.id == staging_table.c.id
-                )
+                primary_table.join(staging_table, primary_table.c.id == staging_table.c.id)
             )
             assert session.get_bind(clause=primary_with_custom_tag) is primary
             with pytest.raises(UnboundExecutionError):

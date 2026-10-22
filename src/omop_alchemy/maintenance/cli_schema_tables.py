@@ -34,7 +34,9 @@ class TableCreationResult:
     detail: str
 
 
-def _assert_tags_claimed(connection: sa.Connection, tables: list[sa.Table], *, context: str) -> None:
+def _assert_tags_claimed(
+    connection: sa.Connection, tables: list[sa.Table], *, context: str
+) -> None:
     """Raise a clear error if any of tables' declared schema tags isn't
     claimed on connection, instead of letting create_all() fail obscurely
     against a schema that was never created.
@@ -56,10 +58,7 @@ def _table_dependencies(table: MaintenanceTable) -> tuple[str, ...]:
     """Return the sorted names of tables that this table's ORM FK constraints refer to."""
     return tuple(
         sorted(
-            {
-                constraint.referred_table.name
-                for constraint in table.table.foreign_key_constraints
-            }
+            {constraint.referred_table.name for constraint in table.table.foreign_key_constraints}
         )
     )
 
@@ -143,7 +142,11 @@ def _create_missing_tables(
                 detail=(
                     "table blocked by unresolved dependencies: " + ", ".join(blocked)
                     if blocked is not None
-                    else dry_label(dry_run, "table would be created from ORM metadata", "table created from ORM metadata")
+                    else dry_label(
+                        dry_run,
+                        "table would be created from ORM metadata",
+                        "table created from ORM metadata",
+                    )
                 ),
             )
         )

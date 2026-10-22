@@ -42,9 +42,7 @@ class OncologyProcedure(Procedure_OccurrenceView):
 
     @hybrid_property
     def is_radiotherapy(self) -> bool:
-        return self.procedure_concept_id in resolve_rt_procedure_concept_ids(
-            require_session(self)
-        )
+        return self.procedure_concept_id in resolve_rt_procedure_concept_ids(require_session(self))
 
     @is_radiotherapy.inplace.expression
     @classmethod
@@ -53,11 +51,8 @@ class OncologyProcedure(Procedure_OccurrenceView):
 
     @hybrid_property
     def is_surgery(self) -> bool:
-        return (
-            self.procedure_concept_id
-            in resolve_cancer_indicating_surgery_procedure_concept_ids(
-                require_session(self)
-            )
+        return self.procedure_concept_id in resolve_cancer_indicating_surgery_procedure_concept_ids(
+            require_session(self)
         )
 
     @is_surgery.inplace.expression
@@ -67,11 +62,8 @@ class OncologyProcedure(Procedure_OccurrenceView):
 
     @hybrid_property
     def is_diagnostic_staging(self) -> bool:
-        return (
-            self.procedure_concept_id
-            in resolve_diagnostic_staging_procedure_concept_ids(
-                require_session(self)
-            )
+        return self.procedure_concept_id in resolve_diagnostic_staging_procedure_concept_ids(
+            require_session(self)
         )
 
     @is_diagnostic_staging.inplace.expression

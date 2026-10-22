@@ -7,7 +7,6 @@ from .base import Backend, FeatureNotSupportedError
 
 
 class SQLiteBackend(Backend):
-
     @property
     def name(self) -> str:
         return "SQLite"

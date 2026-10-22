@@ -5,12 +5,14 @@ from .cdm_table_base import CDMTableBase
 T = TypeVar("T", bound=type)
 MODEL_MODULE_PREFIX = "omop_alchemy.cdm.model."
 
+
 def _infer_table_category(cls: type) -> str | None:
     model_module = cls.__module__
     if not model_module.startswith(MODEL_MODULE_PREFIX):
         return None
     suffix = model_module.removeprefix(MODEL_MODULE_PREFIX)
     return suffix.split(".", 1)[0]
+
 
 def cdm_table(cls: T) -> T:
     """
@@ -25,15 +27,10 @@ def cdm_table(cls: T) -> T:
 
     # Safety: require an explicit tablename
     if not hasattr(cls, "__tablename__"):
-        raise TypeError(
-            f"@cdm_table applied to {cls.__name__} "
-            "but __tablename__ is not defined"
-        )
+        raise TypeError(f"@cdm_table applied to {cls.__name__} but __tablename__ is not defined")
 
     if not issubclass(cls, CDMTableBase):
-        raise TypeError(
-            f"{cls.__name__} must inherit from CDMTableBase "
-        )
+        raise TypeError(f"{cls.__name__} must inherit from CDMTableBase ")
 
     schema_tag = cls.__table__.schema  # ty: ignore[unresolved-attribute]
     if schema_tag is None:

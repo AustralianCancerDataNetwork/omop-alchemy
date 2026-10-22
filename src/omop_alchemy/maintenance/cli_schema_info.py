@@ -26,6 +26,7 @@ from .tables import (
 # info
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class DependencyStatus:
     """Installation status of a Python package or external tool dependency."""
@@ -113,9 +114,7 @@ def _command_support_for_backend(
         else f"Backend resolved to {current_backend}, but the connection test failed."
     )
     portable_status = Status.READY if connection_ready else Status.BLOCKED
-    portable_detail = (
-        f"Ready on {current_backend}." if connection_ready else blocked_detail
-    )
+    portable_detail = f"Ready on {current_backend}." if connection_ready else blocked_detail
 
     if backend == Dialect.POSTGRESQL:
         analyze_status = portable_status
@@ -193,11 +192,24 @@ def _command_support_for_backend(
         CommandSupport("doctor", "Any SQLAlchemy backend", portable_status, portable_detail),
         CommandSupport("data-summary", "Any SQLAlchemy backend", portable_status, portable_detail),
         CommandSupport("analyze-tables", "PostgreSQL/SQLite", analyze_status, analyze_detail),
-        CommandSupport("create-missing-tables", "Any SQLAlchemy backend", portable_status, portable_detail),
-        CommandSupport("indexes disable", "Any SQLAlchemy backend", portable_status, portable_detail),
-        CommandSupport("indexes enable", "Any SQLAlchemy backend", enable_indexes_status, enable_indexes_detail),
-        CommandSupport("reconcile-schema", "Any SQLAlchemy backend", portable_status, portable_detail),
-        CommandSupport("load-vocab-source", "SQLite/PostgreSQL + Athena CSV source", vocab_load_status, vocab_load_detail),
+        CommandSupport(
+            "create-missing-tables", "Any SQLAlchemy backend", portable_status, portable_detail
+        ),
+        CommandSupport(
+            "indexes disable", "Any SQLAlchemy backend", portable_status, portable_detail
+        ),
+        CommandSupport(
+            "indexes enable", "Any SQLAlchemy backend", enable_indexes_status, enable_indexes_detail
+        ),
+        CommandSupport(
+            "reconcile-schema", "Any SQLAlchemy backend", portable_status, portable_detail
+        ),
+        CommandSupport(
+            "load-vocab-source",
+            "SQLite/PostgreSQL + Athena CSV source",
+            vocab_load_status,
+            vocab_load_detail,
+        ),
         CommandSupport(
             "backup-database",
             "PostgreSQL + pg_dump",
@@ -225,7 +237,9 @@ def _command_support_for_backend(
             "PostgreSQL + pg_restore/psql",
             (
                 Status.READY
-                if connection_ready and backend == Dialect.POSTGRESQL and (pg_restore_path is not None or psql_path is not None)
+                if connection_ready
+                and backend == Dialect.POSTGRESQL
+                and (pg_restore_path is not None or psql_path is not None)
                 else Status.BLOCKED
                 if backend == Dialect.POSTGRESQL
                 else Status.UNSUPPORTED
@@ -234,7 +248,9 @@ def _command_support_for_backend(
             ),
             (
                 "Ready on PostgreSQL; restore client tooling is available."
-                if connection_ready and backend == Dialect.POSTGRESQL and (pg_restore_path is not None or psql_path is not None)
+                if connection_ready
+                and backend == Dialect.POSTGRESQL
+                and (pg_restore_path is not None or psql_path is not None)
                 else "PostgreSQL is configured, but neither `pg_restore` nor `psql` is on PATH."
                 if connection_ready and backend == Dialect.POSTGRESQL
                 else f"Requires PostgreSQL. Current backend: {current_backend}."
@@ -249,7 +265,9 @@ def _command_support_for_backend(
         CommandSupport("truncate-tables", "PostgreSQL", postgresql_status, postgresql_detail),
         CommandSupport("foreign-keys disable", "PostgreSQL", postgresql_status, postgresql_detail),
         CommandSupport("foreign-keys enable", "PostgreSQL", postgresql_status, postgresql_detail),
-        CommandSupport("foreign-keys enable --strict", "PostgreSQL", postgresql_status, postgresql_detail),
+        CommandSupport(
+            "foreign-keys enable --strict", "PostgreSQL", postgresql_status, postgresql_detail
+        ),
         CommandSupport("foreign-keys status", "PostgreSQL", postgresql_status, postgresql_detail),
         CommandSupport("foreign-keys validate", "PostgreSQL", postgresql_status, postgresql_detail),
     )

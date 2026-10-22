@@ -4,11 +4,11 @@ from oa_configurator import Role
 from sqlalchemy.ext.declarative import declared_attr
 from typing import ClassVar, Optional, TYPE_CHECKING, List
 from datetime import date
-from orm_loader.helpers import Base 
+from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     role_fk,
     cdm_table,
-    CDMTableBase, 
+    CDMTableBase,
     required_concept_fk,
     optional_concept_fk,
     PersonScoped,
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from .episode_event import Episode_EventView
     from ...base.typing import HasEpisodeId
 
+
 @cdm_table
 class Episode(CDMTableBase, Base, PersonScoped):
     __tablename__ = "episode"
@@ -42,7 +43,9 @@ class Episode(CDMTableBase, Base, PersonScoped):
     )
 
     episode_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    episode_parent_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "episode.episode_id")), nullable=True)
+    episode_parent_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "episode.episode_id")), nullable=True
+    )
 
     episode_start_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
     episode_start_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
@@ -59,24 +62,34 @@ class Episode(CDMTableBase, Base, PersonScoped):
 
     def __repr__(self) -> str:
         return f"<Episode {self.episode_id}>"
-    
+
+
 class EpisodeContext(ReferenceContext):
     __table__: ClassVar[sa.Table]
 
-    person: so.Mapped["Person"] = ReferenceContext._reference_relationship(target="Person",local_fk="person_id")  # type: ignore[assignment]
-    episode_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_concept_id")  # type: ignore[assignment]
-    episode_object_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_object_concept_id")  # type: ignore[assignment]
-    episode_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="episode_type_concept_id")  # type: ignore[assignment]
-    #parent_episode: so.Mapped[Optional["Episode"]] = ReferenceContext._reference_relationship(target="Episode",local_fk="episode_parent_id")  # type: ignore[assignment]
-    
+    person: so.Mapped["Person"] = ReferenceContext._reference_relationship(
+        target="Person", local_fk="person_id"
+    )  # type: ignore[assignment]
+    episode_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="episode_concept_id"
+    )  # type: ignore[assignment]
+    episode_object_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="episode_object_concept_id"
+    )  # type: ignore[assignment]
+    episode_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="episode_type_concept_id"
+    )  # type: ignore[assignment]
+    # parent_episode: so.Mapped[Optional["Episode"]] = ReferenceContext._reference_relationship(target="Episode",local_fk="episode_parent_id")  # type: ignore[assignment]
+
     @declared_attr
-    def episode_events(cls: type['HasEpisodeId']) -> so.Mapped[List["Episode_EventView"]]:
+    def episode_events(cls: type["HasEpisodeId"]) -> so.Mapped[List["Episode_EventView"]]:
         return so.relationship(
             "Episode_EventView",
             primaryjoin="Episode.episode_id == Episode_EventView.episode_id",
             viewonly=True,
             lazy="selectin",
         )
+
     @declared_attr
     def parent_episode(cls) -> so.Mapped[Optional["Episode"]]:
         return so.relationship(
@@ -103,6 +116,7 @@ class EpisodeContext(ReferenceContext):
             lazy="selectin",
             uselist=True,
         )
+
 
 class EpisodeView(Episode, EpisodeContext, DomainValidationMixin, ModifierTargetMixin):
     """
@@ -151,8 +165,4 @@ class EpisodeView(Episode, EpisodeContext, DomainValidationMixin, ModifierTarget
         return resolved
 
     def __repr__(self) -> str:
-        return (
-            f"<Episode {self.episode_id}: "
-            f"{self.episode_concept_id} "
-            f"({self.episode_start_date})>"
-        )
+        return f"<Episode {self.episode_id}: {self.episode_concept_id} ({self.episode_start_date})>"

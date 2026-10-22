@@ -15,6 +15,7 @@ from omop_alchemy.cdm.base import (
 )
 from omop_alchemy.cdm.model.flags import InvalidReasonMixin
 
+
 @cdm_table
 class Drug_Strength(
     CDMTableBase,
@@ -28,6 +29,7 @@ class Drug_Strength(
     This table links drug products to their ingredients
     and quantitative properties.
     """
+
     __tablename__ = "drug_strength"
     __table_args__ = merge_table_args(
         {"schema": Role.VOCAB.value},
@@ -35,8 +37,12 @@ class Drug_Strength(
         omop_index(__tablename__, "ingredient_concept_id"),
     )
 
-    drug_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)
-    ingredient_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)
+    drug_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), primary_key=True
+    )
+    ingredient_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), primary_key=True
+    )
     amount_value: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, nullable=True)
     amount_unit_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     numerator_value: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, nullable=True)

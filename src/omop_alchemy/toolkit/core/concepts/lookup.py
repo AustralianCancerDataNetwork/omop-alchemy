@@ -210,11 +210,7 @@ class OMOPConceptSource:
 
         rows = session.execute(query).all()
 
-        return [
-            (int(r.concept_id), r.concept_synonym_name)
-            for r in rows
-            if r.concept_synonym_name
-        ]
+        return [(int(r.concept_id), r.concept_synonym_name) for r in rows if r.concept_synonym_name]
 
     @staticmethod
     def fetch_concepts(
@@ -265,9 +261,7 @@ class OMOPConceptSource:
         parents = list(parents) if parents else None
         # Standardness is dropped only for an explicitly non-standard descendant
         # expansion; every other combination keeps it.
-        apply_standard = require_standard and not (
-            parents and include_non_standard_descendants
-        )
+        apply_standard = require_standard and not (parents and include_non_standard_descendants)
 
         query = sa.select(Concept)
         if parents:

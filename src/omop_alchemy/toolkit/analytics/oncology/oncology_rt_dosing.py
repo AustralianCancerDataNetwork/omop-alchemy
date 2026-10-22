@@ -44,9 +44,7 @@ class RTDoseSummary:
             if procedure.procedure_date is not None
         ]
         quantities = [
-            procedure.quantity
-            for procedure in procedures
-            if procedure.quantity is not None
+            procedure.quantity for procedure in procedures if procedure.quantity is not None
         ]
         return cls(
             group_key=group_key,

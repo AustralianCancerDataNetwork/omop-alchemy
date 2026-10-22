@@ -61,21 +61,14 @@ def _source_spec(model: type[Any]) -> ClinicalEventModelSpec:
     except UnsupportedClinicalEventModelError as error:
         raise UnsupportedModifierSourceModelError(model, error.reason) from error
     if event.event_datetime_column is None:
-        raise UnsupportedModifierSourceModelError(
-            model, "must expose an event datetime column"
-        )
+        raise UnsupportedModifierSourceModelError(model, "must expose an event datetime column")
     return event
 
 
 CDM_MODIFIER_SOURCE_MODELS: tuple[type[Any], ...] = (Measurement, Observation)
 
-MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE: Mapping[str, ClinicalEventModelSpec] = (
-    MappingProxyType(
-        {
-            model.__tablename__: _source_spec(model)
-            for model in CDM_MODIFIER_SOURCE_MODELS
-        }
-    )
+MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE: Mapping[str, ClinicalEventModelSpec] = MappingProxyType(
+    {model.__tablename__: _source_spec(model) for model in CDM_MODIFIER_SOURCE_MODELS}
 )
 
 
@@ -89,22 +82,15 @@ def _target_spec(target: type[Any]) -> ModifierTargetModelSpec:
     )
 
 
-MODIFIER_TARGET_SPECS_BY_TABLE: Mapping[str, ModifierTargetModelSpec] = (
-    MappingProxyType(
-        {
-            table_name: _target_spec(target)
-            for table_name, target in MODIFIER_TARGETS_BY_TABLE.items()
-        }
-    )
+MODIFIER_TARGET_SPECS_BY_TABLE: Mapping[str, ModifierTargetModelSpec] = MappingProxyType(
+    {table_name: _target_spec(target) for table_name, target in MODIFIER_TARGETS_BY_TABLE.items()}
 )
 
 
 def modifier_source_model_spec(model: type[Any]) -> ClinicalEventModelSpec:
     """Resolve and validate metadata for any model declaring the modifier link."""
     if not isinstance(model, type) or not hasattr(model, "__table__"):
-        raise UnsupportedModifierSourceModelError(
-            model, "expected a mapped ORM model class"
-        )
+        raise UnsupportedModifierSourceModelError(model, "expected a mapped ORM model class")
     if not issubclass(model, ModifierSourceMixin):
         raise UnsupportedModifierSourceModelError(
             model, "must declare the OMOP modifier link via ModifierSourceMixin"
@@ -115,9 +101,7 @@ def modifier_source_model_spec(model: type[Any]) -> ClinicalEventModelSpec:
     ):
         column_name = getattr(model, declaration, None)
         if not isinstance(column_name, str) or not column_name.strip():
-            raise UnsupportedModifierSourceModelError(
-                model, f"must declare {declaration}"
-            )
+            raise UnsupportedModifierSourceModelError(model, f"must declare {declaration}")
         if not hasattr(model, column_name):
             raise UnsupportedModifierSourceModelError(
                 model, f"{declaration} names a missing column: {column_name}"
@@ -135,13 +119,9 @@ def modifier_target_model_spec(model: type[Any]) -> ModifierTargetModelSpec:
         raise UnsupportedModifierTargetError(model, "expected a mapped ORM model class")
     spec = MODIFIER_TARGET_SPECS_BY_TABLE.get(str(getattr(model, "__tablename__", "")))
     if spec is None:
-        raise UnsupportedModifierTargetError(
-            model, "is not a supported modifier target"
-        )
+        raise UnsupportedModifierTargetError(model, "is not a supported modifier target")
     missing = tuple(
-        name
-        for name in ("person_id", spec.event_id_attribute)
-        if not hasattr(model, name)
+        name for name in ("person_id", spec.event_id_attribute) if not hasattr(model, name)
     )
     if missing:
         raise UnsupportedModifierTargetError(

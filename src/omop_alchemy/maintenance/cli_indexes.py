@@ -51,6 +51,7 @@ class IndexTarget:
 @dataclass(frozen=True)
 class IndexManagementResult(IndexTarget):
     """Outcome of creating or dropping one ORM-defined index, or clustering a table."""
+
     operation: str
     enable: bool
     status: Status
@@ -240,7 +241,7 @@ def _schema_key(db_schema: str | None) -> str:
     SQL UNIQUE constraints treat every NULL as distinct from every other NULL,
     so a nullable db_schema column would silently defeat uniqueness whenever
     db_schema is None (SQLite always, and PostgreSQL whenever no explicit
-    schema is configured). As a result, two captures for the same table/column-set 
+    schema is configured). As a result, two captures for the same table/column-set
     could both succeed instead of the second being rejected.
 
     Parameters
@@ -311,7 +312,10 @@ def _dropped_indexes_table(bookkeeping_schema: str | None) -> sa.Table:
         sa.Column("is_unique", sa.Boolean, nullable=False, server_default=sa.false()),
         sa.Column("captured_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
         sa.UniqueConstraint(
-            "table_name", "db_schema", "column_names_json", "is_unique",
+            "table_name",
+            "db_schema",
+            "column_names_json",
+            "is_unique",
             name=_DROPPED_INDEXES_UNIQUE_CONSTRAINT_NAME,
         ),
         schema=bookkeeping_schema,
@@ -383,7 +387,10 @@ def _record_captured_index(
         # Constraint naming differs between backends
         # We are preventing to swallow other unique constraint violations
         # by checking for a specific one
-        if _DROPPED_INDEXES_UNIQUE_CONSTRAINT_NAME not in message and _DROPPED_INDEXES_TABLE_NAME not in message:
+        if (
+            _DROPPED_INDEXES_UNIQUE_CONSTRAINT_NAME not in message
+            and _DROPPED_INDEXES_TABLE_NAME not in message
+        ):
             raise
         return False
     else:
@@ -505,7 +512,8 @@ def _restore_captured_index(
     # constraints. Reflecting the whole table would cost several extra
     # catalog round-trips to fetch metadata this function never uses.
     lightweight_table = sa.Table(
-        table_name, sa.MetaData(),
+        table_name,
+        sa.MetaData(),
         *(sa.Column(name) for name in column_names),
         schema=db_schema,
     )
@@ -660,6 +668,7 @@ def collect_index_targets(
 
     return targets
 
+
 @dataclass(frozen=True)
 class _IndexOutcome:
     """Resolved outcome of processing one ORM-defined index in _manage_indexes().
@@ -695,7 +704,7 @@ def _manage_indexes(
     cluster: bool = True,
 ) -> list[IndexManagementResult]:
     """Create or drop all ORM-defined indexes. CLUSTERs tables when enabling and cluster=True.
-    
+
     Notes
     -----
     - No provenance guard as the engines were just built in `omop_command`. There is no
@@ -709,7 +718,8 @@ def _manage_indexes(
     metadata_indexes = _schema_metadata_indexes(selected_tables)
     backends_by_engine = {candidate: resolve_backend(candidate) for candidate in context.engines}
     clustering_supported = any(
-        backend_supports(candidate_backend, "cluster_table") for candidate_backend in backends_by_engine.values()
+        backend_supports(candidate_backend, "cluster_table")
+        for candidate_backend in backends_by_engine.values()
     )
 
     results: list[IndexManagementResult] = []
@@ -735,11 +745,7 @@ def _manage_indexes(
             column_names = tuple(column.name for column in metadata_index.columns)
             unique = bool(metadata_index.unique)
             exists = index_name in existing_index_names
-            should_apply = (
-                not enable
-            ) or (
-                enable and not exists
-            )
+            should_apply = (not enable) or (enable and not exists)
 
             if not should_apply:
                 physical_index_names[index_name] = index_name
@@ -753,8 +759,12 @@ def _manage_indexes(
                 status=dry_status(dry_run),
                 detail=dry_label(
                     dry_run,
-                    planned="metadata-defined index would be dropped" if not enable else "metadata-defined index would be created",
-                    applied="metadata-defined index dropped" if not enable else "metadata-defined index created",
+                    planned="metadata-defined index would be dropped"
+                    if not enable
+                    else "metadata-defined index would be created",
+                    applied="metadata-defined index dropped"
+                    if not enable
+                    else "metadata-defined index created",
                 ),
                 physical_name=index_name,
             )
@@ -774,20 +784,26 @@ def _manage_indexes(
                         existed_before_drop = exists
                     if not existed_before_drop:
                         # Index under a different naming scheme than ours
-                        equivalent_name = _find_equivalent_index(existing_indexes, column_names, unique)
+                        equivalent_name = _find_equivalent_index(
+                            existing_indexes, column_names, unique
+                        )
                         if equivalent_name is not None:
                             if not dry_run:
                                 captured = _record_captured_index(
                                     connection,
-                                    table_name=table.table_name, db_schema=db_schema,
+                                    table_name=table.table_name,
+                                    db_schema=db_schema,
                                     index_name=equivalent_name,
-                                    column_names=column_names, unique=unique,
+                                    column_names=column_names,
+                                    unique=unique,
                                 )
                             else:
                                 pending_capture, _, _ = _peek_captured_index(
                                     connection,
-                                    table_name=table.table_name, db_schema=db_schema,
-                                    column_names=column_names, unique=unique,
+                                    table_name=table.table_name,
+                                    db_schema=db_schema,
+                                    column_names=column_names,
+                                    unique=unique,
                                 )
                                 captured = pending_capture is None
                             if captured:
@@ -846,21 +862,27 @@ def _manage_indexes(
                                     physical_name=index_name,
                                 )
                     elif not dry_run:
-                        backend.drop_index_if_exists(connection, index_name, schema_tag=table.schema_tag)
+                        backend.drop_index_if_exists(
+                            connection, index_name, schema_tag=table.schema_tag
+                        )
                         # outcome stays default: applied / "metadata-defined index dropped"
                     # dry-run, existed_before_drop True: outcome stays default ("would be dropped")
                 else:
                     if not dry_run:
                         restored_name = _restore_captured_index(
                             connection,
-                            table_name=table.table_name, db_schema=db_schema,
-                            column_names=column_names, unique=unique,
+                            table_name=table.table_name,
+                            db_schema=db_schema,
+                            column_names=column_names,
+                            unique=unique,
                         )
                     else:
                         restored_name, _, _ = _peek_captured_index(
                             connection,
-                            table_name=table.table_name, db_schema=db_schema,
-                            column_names=column_names, unique=unique,
+                            table_name=table.table_name,
+                            db_schema=db_schema,
+                            column_names=column_names,
+                            unique=unique,
                         )
                     if restored_name is not None:
                         if not dry_run:
@@ -875,7 +897,9 @@ def _manage_indexes(
                             physical_name=restored_name,
                         )
                     else:
-                        equivalent_name = _find_equivalent_index(existing_indexes, column_names, unique)
+                        equivalent_name = _find_equivalent_index(
+                            existing_indexes, column_names, unique
+                        )
                         if equivalent_name is not None:
                             outcome = _IndexOutcome(
                                 status=Status.SKIPPED,
@@ -968,7 +992,10 @@ def _manage_indexes(
                     if not dry_run:
                         with table_engine.begin() as connection:
                             backend.cluster_table(
-                                connection, table.table_name, physical_cluster_name, schema_tag=table.schema_tag
+                                connection,
+                                table.table_name,
+                                physical_cluster_name,
+                                schema_tag=table.schema_tag,
                             )
                         clustered_now = True
 
@@ -984,7 +1011,11 @@ def _manage_indexes(
                             clustered=True,
                             enable=enable,
                             status=dry_status(dry_run),
-                            detail=dry_label(dry_run, "table would be clustered using ORM-defined metadata", "table clustered using ORM-defined metadata"),
+                            detail=dry_label(
+                                dry_run,
+                                "table would be clustered using ORM-defined metadata",
+                                "table clustered using ORM-defined metadata",
+                            ),
                         )
                     )
 
@@ -1087,8 +1118,13 @@ def cluster_tables_command(
     possibility of schema drift between their creation and this command's execution.
     """
     backends_by_engine = {candidate: resolve_backend(candidate) for candidate in conn.engines}
-    if not any(backend_supports(candidate_backend, "cluster_table") for candidate_backend in backends_by_engine.values()):
-        console.print(f"[yellow]Clustering is not supported on {resolve_backend(conn.engine).name}.[/yellow]")
+    if not any(
+        backend_supports(candidate_backend, "cluster_table")
+        for candidate_backend in backends_by_engine.values()
+    ):
+        console.print(
+            f"[yellow]Clustering is not supported on {resolve_backend(conn.engine).name}.[/yellow]"
+        )
         raise typer.Exit(0)
 
     selected_tables = select_omop_tables(vocabulary_included=vocabulary_included)
@@ -1136,7 +1172,9 @@ def cluster_tables_command(
                 clustered=True,
                 enable=True,
                 status=dry_status(dry_run),
-                detail=dry_label(dry_run, "table would be clustered and analyzed", "table clustered and analyzed"),
+                detail=dry_label(
+                    dry_run, "table would be clustered and analyzed", "table clustered and analyzed"
+                ),
             )
         )
 

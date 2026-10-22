@@ -43,9 +43,9 @@ _CLINICAL_EVENT_TARGETS: tuple[tuple[type[Any], type[ClinicalEventMixin]], ...] 
     # therefore deliberately absent from this registry.
 )
 
-_STRUCTURAL_MODIFIER_TARGETS: tuple[
-    tuple[type[Any], type[ModifierTargetMixin]], ...
-] = ((Episode, EpisodeView),)
+_STRUCTURAL_MODIFIER_TARGETS: tuple[tuple[type[Any], type[ModifierTargetMixin]], ...] = (
+    (Episode, EpisodeView),
+)
 
 
 def _validate_unique_target_keys(
@@ -60,9 +60,7 @@ def _validate_unique_target_keys(
         identity = key(source, target)
         previous = seen.get(identity)
         if previous is not None:
-            raise ValueError(
-                f"duplicate {label} {identity!r}: {previous} and {target.__name__}"
-            )
+            raise ValueError(f"duplicate {label} {identity!r}: {previous} and {target.__name__}")
         seen[identity] = target.__name__
 
 
@@ -78,27 +76,17 @@ _validate_unique_target_keys(
     label="modifier field concept ID",
 )
 
-CLINICAL_EVENT_TARGETS_BY_TABLE: Mapping[str, type[ClinicalEventMixin]] = (
-    MappingProxyType(
-        {source.__tablename__: target for source, target in _CLINICAL_EVENT_TARGETS}
-    )
+CLINICAL_EVENT_TARGETS_BY_TABLE: Mapping[str, type[ClinicalEventMixin]] = MappingProxyType(
+    {source.__tablename__: target for source, target in _CLINICAL_EVENT_TARGETS}
 )
 CLINICAL_EVENT_TARGETS_BY_FIELD_CONCEPT_ID: Mapping[int, type[ClinicalEventMixin]] = (
     MappingProxyType(
-        {
-            target.modifier_field_concept_id(): target
-            for _, target in _CLINICAL_EVENT_TARGETS
-        }
+        {target.modifier_field_concept_id(): target for _, target in _CLINICAL_EVENT_TARGETS}
     )
 )
 
-STRUCTURAL_MODIFIER_TARGETS_BY_TABLE: Mapping[str, type[ModifierTargetMixin]] = (
-    MappingProxyType(
-        {
-            source.__tablename__: target
-            for source, target in _STRUCTURAL_MODIFIER_TARGETS
-        }
-    )
+STRUCTURAL_MODIFIER_TARGETS_BY_TABLE: Mapping[str, type[ModifierTargetMixin]] = MappingProxyType(
+    {source.__tablename__: target for source, target in _STRUCTURAL_MODIFIER_TARGETS}
 )
 
 MODIFIER_TARGETS_BY_TABLE: Mapping[str, type[ModifierTargetMixin]] = MappingProxyType(
@@ -119,10 +107,7 @@ def _metadata_candidate(model: type[Any]) -> type[ClinicalEventMixin] | None:
     # for that table; unrelated subclasses are never discovered by walking
     # Python's import-dependent subclass graph.
     if issubclass(model, ModifierTargetMixin):
-        if (
-            not issubclass(model, ClinicalEventMixin)
-            or not model.has_complete_metadata()
-        ):
+        if not issubclass(model, ClinicalEventMixin) or not model.has_complete_metadata():
             return None
         table_name = getattr(model, "__tablename__", None)
         registered_view = clinical_event_target_for_table(str(table_name))
@@ -146,9 +131,7 @@ def clinical_event_model_spec(model: type[Any]) -> ClinicalEventModelSpec:
     # Resolve metadata before building SQL so unsupported models fail at query
     # construction, rather than producing a partially shaped union at runtime.
     if not isinstance(model, type) or not hasattr(model, "__table__"):
-        raise UnsupportedClinicalEventModelError(
-            model, "expected a mapped ORM model class"
-        )
+        raise UnsupportedClinicalEventModelError(model, "expected a mapped ORM model class")
 
     metadata_model = _metadata_candidate(model)
     if metadata_model is None:

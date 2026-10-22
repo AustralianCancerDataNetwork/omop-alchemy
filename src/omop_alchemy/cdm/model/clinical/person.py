@@ -12,7 +12,7 @@ from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     role_fk,
     cdm_table,
-    CDMTableBase, 
+    CDMTableBase,
     required_concept_fk,
     optional_concept_fk,
     required_int,
@@ -32,8 +32,9 @@ from ..health_system import Location, Provider, Care_Site
 from .death import Death
 from .observation_period import Observation_Period
 
+
 @cdm_table
-class Person(CDMTableBase,Base,HealthSystemContext):
+class Person(CDMTableBase, Base, HealthSystemContext):
     __tablename__ = "person"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},
@@ -42,12 +43,12 @@ class Person(CDMTableBase,Base,HealthSystemContext):
     )
 
     person_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    
+
     year_of_birth: so.Mapped[int] = required_int()
     month_of_birth: so.Mapped[Optional[int]] = optional_int()
     day_of_birth: so.Mapped[Optional[int]] = optional_int()
     birth_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
-    
+
     gender_concept_id: so.Mapped[int] = required_concept_fk()
     race_concept_id: so.Mapped[int] = required_concept_fk()
     ethnicity_concept_id: so.Mapped[int] = required_concept_fk()
@@ -55,25 +56,46 @@ class Person(CDMTableBase,Base,HealthSystemContext):
     race_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     ethnicity_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
 
-    location_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "location.location_id")), nullable=True)
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")), nullable=True)
-    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "care_site.care_site_id")), nullable=True)
-    
+    location_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "location.location_id")), nullable=True
+    )
+    provider_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")), nullable=True
+    )
+    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "care_site.care_site_id")), nullable=True
+    )
+
     person_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
     gender_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
     race_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
-    ethnicity_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
+    ethnicity_source_value: so.Mapped[Optional[str]] = so.mapped_column(
+        sa.String(50), nullable=True
+    )
 
     def __repr__(self) -> str:
         return f"<Person {self.person_id}>"
 
+
 class PersonContext(ReferenceContext):
-    gender: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="gender_concept_id")  # type: ignore[assignment]
-    race: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="race_concept_id")  # type: ignore[assignment]
-    ethnicity: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept",local_fk="ethnicity_concept_id")  # type: ignore[assignment]
-    location: so.Mapped["Location"] = ReferenceContext._reference_relationship(target="Location",local_fk="location_id")  # type: ignore[assignment]
-    provider: so.Mapped["Provider"] = ReferenceContext._reference_relationship(target="Provider",local_fk="provider_id")  # type: ignore[assignment]
-    care_site: so.Mapped["Care_Site"] = ReferenceContext._reference_relationship(target="Care_Site",local_fk="care_site_id")  # type: ignore[assignment]
+    gender: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="gender_concept_id"
+    )  # type: ignore[assignment]
+    race: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="race_concept_id"
+    )  # type: ignore[assignment]
+    ethnicity: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="ethnicity_concept_id"
+    )  # type: ignore[assignment]
+    location: so.Mapped["Location"] = ReferenceContext._reference_relationship(
+        target="Location", local_fk="location_id"
+    )  # type: ignore[assignment]
+    provider: so.Mapped["Provider"] = ReferenceContext._reference_relationship(
+        target="Provider", local_fk="provider_id"
+    )  # type: ignore[assignment]
+    care_site: so.Mapped["Care_Site"] = ReferenceContext._reference_relationship(
+        target="Care_Site", local_fk="care_site_id"
+    )  # type: ignore[assignment]
 
     @declared_attr
     def death(cls) -> so.Mapped[Optional["Death"]]:
@@ -85,7 +107,7 @@ class PersonContext(ReferenceContext):
             viewonly=True,
             lazy="selectin",
         )
-    
+
     @declared_attr
     def observation_periods(cls) -> so.Mapped[list["Observation_Period"]]:
         return so.relationship(
@@ -95,7 +117,8 @@ class PersonContext(ReferenceContext):
             viewonly=True,
             lazy="selectin",
         )
-    
+
+
 class PersonView(Person, PersonContext, DomainValidationMixin):
     """
     Rich, navigable Person mapping.
@@ -107,6 +130,7 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
 
     Avoid in ETL loops.
     """
+
     __tablename__ = "person"
     # Must match Person's schema, or SQLAlchemy silently builds a second, unlinked Table object.
     __table_args__ = {"schema": Role.PRIMARY.value}
@@ -125,12 +149,12 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
 
     @age_at.expression
     def age_at(cls, on_date: date) -> ColumnElement[int]:
-        return sa.func.extract("year", on_date) - cls.year_of_birth # type: ignore
-    
+        return sa.func.extract("year", on_date) - cls.year_of_birth  # type: ignore
+
     @property
     def age(self) -> Optional[int]:
         return self.age_at(date.today())
-    
+
     @property
     def gender_code(self) -> Optional[str]:
         """
@@ -144,7 +168,7 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
         except Exception:
             pass
         return None
- 
+
     def __repr__(self) -> str:
         """
         Compact, safe representation:
@@ -157,27 +181,25 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
         age = self.age
         age_str = str(age) if age is not None else "?"
         return f"<Person {pid}: {gender_code}({age_str})>"
-    
+
     @hybrid_property
-    def is_deceased(self) -> bool: 
+    def is_deceased(self) -> bool:
         return hasattr(self, "death") and self.death is not None
 
     @is_deceased.expression
     @classmethod
     def _is_deceased(cls):
         return sa.exists().where(Death.person_id == cls.person_id)
-    
+
     @hybrid_property
-    def has_observation_period(self) -> bool: 
+    def has_observation_period(self) -> bool:
         return hasattr(self, "observation_periods") and bool(self.observation_periods)
 
     @has_observation_period.expression
     @classmethod
     def _has_observation_period(cls):
-        return sa.exists().where(
-            Observation_Period.person_id == cls.person_id
-        )
-    
+        return sa.exists().where(Observation_Period.person_id == cls.person_id)
+
     @property
     def age_group(self) -> Optional[str]:
         if self.age is None:
@@ -191,7 +213,7 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
         return "65+"
 
     @hybrid_property
-    def first_observation_date(self) -> date | None: 
+    def first_observation_date(self) -> date | None:
         if not getattr(self, "observation_periods", None):
             return None
         starts = [op.observation_period_start_date for op in self.observation_periods]
@@ -203,12 +225,12 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
         return (
             sa.select(sa.func.min(Observation_Period.observation_period_start_date))
             .where(Observation_Period.person_id == cls.person_id)
-            .correlate(cls) 
+            .correlate(cls)
             .scalar_subquery()
         )
 
     @hybrid_property
-    def last_observation_date(self) -> date | None: 
+    def last_observation_date(self) -> date | None:
         if not getattr(self, "observation_periods", None):
             return None
         ends = [op.observation_period_end_date for op in self.observation_periods]
@@ -220,12 +242,12 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
         return (
             sa.select(sa.func.max(Observation_Period.observation_period_end_date))
             .where(Observation_Period.person_id == cls.person_id)
-            .correlate(cls) 
+            .correlate(cls)
             .scalar_subquery()
         )
-    
+
     @hybrid_method
-    def under_observation_on(self, on_date: date) -> bool: 
+    def under_observation_on(self, on_date: date) -> bool:
         if not getattr(self, "observation_periods", None):
             return False
         return any(
@@ -236,7 +258,7 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
     @under_observation_on.expression
     @classmethod
     def _under_observation_on(
-        cls, 
+        cls,
         on_date: date,
     ) -> ColumnElement[bool]:
         return sa.exists().where(

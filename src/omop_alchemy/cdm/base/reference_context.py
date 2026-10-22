@@ -32,8 +32,7 @@ class ReferenceContext:
             lambda cls_: so.relationship(
                 target,
                 primaryjoin=lambda: (
-                    getattr(cls_, local_fk)
-                    == cls._reference_primary_key(cls_, target, remote_pk)
+                    getattr(cls_, local_fk) == cls._reference_primary_key(cls_, target, remote_pk)
                 ),
                 foreign_keys=lambda: getattr(cls_, local_fk),
                 viewonly=True,
@@ -57,7 +56,6 @@ class ReferenceContext:
         attribute = mapper.get_property_by_column(mapper.primary_key[0]).class_attribute
         if remote_pk is not None and remote_pk != attribute.key:
             raise ValueError(
-                f"reference target {target!r} primary key is {attribute.key!r}, "
-                f"not {remote_pk!r}"
+                f"reference target {target!r} primary key is {attribute.key!r}, not {remote_pk!r}"
             )
         return attribute

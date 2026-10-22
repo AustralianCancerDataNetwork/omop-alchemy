@@ -3,6 +3,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from typing import Optional
 
+
 class StandardConceptFlag(StrEnum):
     """Allowed non-null values of ``concept.standard_concept`` (OMOP CDM v5.4)."""
 
@@ -13,17 +14,21 @@ class StandardConceptFlag(StrEnum):
     # validate the column independently of the standard/classification split.
     values = nonmember(frozenset({STANDARD, CLASSIFICATION}))
 
+
 class InvalidReasonFlag(StrEnum):
     """Allowed non-null values of ``concept.invalid_reason`` (OMOP CDM v5.4)."""
 
     DELETED = "D"
     UPDATED = "U"
 
+
 class BooleanFlag(StrEnum):
-    """Allowed non-null values of ``relationship.is_hierarchical`` and 
+    """Allowed non-null values of ``relationship.is_hierarchical`` and
     ``relationship.defines_ancestry`` (OMOP CDM v5.4)."""
+
     TRUE = "1"
     FALSE = "0"
+
 
 def normalised_flag_expr(
     column: sa.SQLColumnExpression[Optional[str]],
@@ -41,6 +46,7 @@ def normalised_flag_expr(
     valid state.
     """
     return sa.func.nullif(sa.func.trim(column), "")
+
 
 def normalised_flag(value: str | None) -> str | None:
     """Python counterpart to :func:`normalised_flag_expr`.

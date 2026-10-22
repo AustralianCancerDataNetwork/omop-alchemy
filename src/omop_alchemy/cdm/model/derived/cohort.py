@@ -9,6 +9,7 @@ from omop_alchemy.cdm.base import (
     merge_table_args,
 )
 
+
 @cdm_table
 class Cohort(CDMTableBase, Base):
     __tablename__ = "cohort"

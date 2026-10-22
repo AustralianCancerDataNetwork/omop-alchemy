@@ -74,6 +74,7 @@ def required_concept_fk():
         default=0,
     )
 
+
 def optional_concept_fk(**kwargs: Any):
     """
     *optional_concept_fk*
@@ -92,6 +93,7 @@ def optional_concept_fk(**kwargs: Any):
         nullable=True,
         **kwargs,
     )
+
 
 def optional_fk(target: str):
     """
@@ -112,6 +114,7 @@ def optional_fk(target: str):
         nullable=True,
     )
 
+
 def required_int():
     """
     *required_int*
@@ -119,6 +122,7 @@ def required_int():
     Required integer column.
     """
     return so.mapped_column(sa.Integer, nullable=False)
+
 
 def optional_int():
     """

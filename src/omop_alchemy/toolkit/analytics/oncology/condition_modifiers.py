@@ -42,12 +42,9 @@ class StageSelectionSpec:
     def __post_init__(self) -> None:
         expected = set(StageBasis)
         if self.basis_priority and (
-            len(self.basis_priority) != len(expected)
-            or set(self.basis_priority) != expected
+            len(self.basis_priority) != len(expected) or set(self.basis_priority) != expected
         ):
-            raise ValueError(
-                "basis_priority must be empty or contain each StageBasis exactly once"
-            )
+            raise ValueError("basis_priority must be empty or contain each StageBasis exactly once")
 
     @classmethod
     def clinical_first(
@@ -105,10 +102,7 @@ def stage_basis_priority_expression(
         return sa.literal(0)
     basis = stage_basis_expression(concept_code)
     return sa.case(
-        *(
-            (basis == str(candidate), rank)
-            for rank, candidate in enumerate(spec.basis_priority)
-        ),
+        *((basis == str(candidate), rank) for rank, candidate in enumerate(spec.basis_priority)),
         else_=len(spec.basis_priority),
     )
 
@@ -128,21 +122,14 @@ def preferred_stage_select(
     priority: tuple[sa.ColumnElement[Any], ...] = ()
     if spec.basis_priority:
         if concept_code_column is None:
-            raise ValueError(
-                "concept_code_column is required when basis ranking is enabled"
-            )
+            raise ValueError("concept_code_column is required when basis ranking is enabled")
         if not concept_code_column.strip():
             raise ValueError("concept_code_column must not be empty")
         if concept_code_column not in modifiers.c:
             raise ValueError(
-                "stage source is missing required concept-code column: "
-                f"{concept_code_column}"
+                f"stage source is missing required concept-code column: {concept_code_column}"
             )
-        priority = (
-            stage_basis_priority_expression(
-                modifiers.c[concept_code_column], spec
-            ).asc(),
-        )
+        priority = (stage_basis_priority_expression(modifiers.c[concept_code_column], spec).asc(),)
     return selected_modifier_select(
         modifiers,
         spec=ModifierSelectionSpec(policy=spec.temporal_policy),

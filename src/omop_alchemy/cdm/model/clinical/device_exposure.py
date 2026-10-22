@@ -6,15 +6,15 @@ from datetime import date, datetime
 
 from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
-    PersonScoped, 
-    HealthSystemContext, 
-    FactTable, 
+    PersonScoped,
+    HealthSystemContext,
+    FactTable,
     CDMTableBase,
     DomainValidationMixin,
     ExpectedDomain,
     ModifierFieldConcepts,
     ReferenceContext,
-    cdm_table, 
+    cdm_table,
     required_concept_fk,
     optional_concept_fk,
     optional_int,
@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from ..health_system import Provider, Visit_Detail, Visit_Occurrence
     from ..vocabulary import Concept
     from .person import Person
+
 
 @cdm_table
 class Device_Exposure(
@@ -45,20 +46,24 @@ class Device_Exposure(
     )
 
     device_exposure_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    
+
     device_exposure_start_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
     device_exposure_end_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
-    device_exposure_start_datetime: so.Mapped[Optional[datetime]] = so.mapped_column(sa.DateTime, nullable=True)
-    device_exposure_end_datetime: so.Mapped[Optional[datetime]] = so.mapped_column(sa.DateTime, nullable=True)
-    
+    device_exposure_start_datetime: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime, nullable=True
+    )
+    device_exposure_end_datetime: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime, nullable=True
+    )
+
     device_concept_id: so.Mapped[int] = required_concept_fk()
     device_type_concept_id: so.Mapped[int] = required_concept_fk()
     device_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     unit_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     unit_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
 
-    unique_device_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String(255),nullable=True)
-    production_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String(255),nullable=True)
+    unique_device_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String(255), nullable=True)
+    production_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String(255), nullable=True)
     quantity: so.Mapped[Optional[int]] = optional_int()
     device_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
     unit_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
@@ -73,11 +78,9 @@ class Device_ExposureContext(ReferenceContext):
     device_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="device_concept_id"
     )  # type: ignore[assignment]
-    device_type_concept: so.Mapped["Concept"] = (
-        ReferenceContext._reference_relationship(
-            target="Concept",
-            local_fk="device_type_concept_id",
-        )
+    device_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept",
+        local_fk="device_type_concept_id",
     )  # type: ignore[assignment]
     device_source_concept: so.Mapped[Optional["Concept"]] = (
         ReferenceContext._reference_relationship(
@@ -85,21 +88,15 @@ class Device_ExposureContext(ReferenceContext):
             local_fk="device_source_concept_id",
         )
     )  # type: ignore[assignment]
-    unit_concept: so.Mapped[Optional["Concept"]] = (
-        ReferenceContext._reference_relationship(
-            target="Concept", local_fk="unit_concept_id"
-        )
+    unit_concept: so.Mapped[Optional["Concept"]] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="unit_concept_id"
     )  # type: ignore[assignment]
-    unit_source_concept: so.Mapped[Optional["Concept"]] = (
-        ReferenceContext._reference_relationship(
-            target="Concept",
-            local_fk="unit_source_concept_id",
-        )
+    unit_source_concept: so.Mapped[Optional["Concept"]] = ReferenceContext._reference_relationship(
+        target="Concept",
+        local_fk="unit_source_concept_id",
     )  # type: ignore[assignment]
-    provider: so.Mapped[Optional["Provider"]] = (
-        ReferenceContext._reference_relationship(
-            target="Provider", local_fk="provider_id"
-        )
+    provider: so.Mapped[Optional["Provider"]] = ReferenceContext._reference_relationship(
+        target="Provider", local_fk="provider_id"
     )  # type: ignore[assignment]
     visit_occurrence: so.Mapped[Optional["Visit_Occurrence"]] = (
         ReferenceContext._reference_relationship(
@@ -107,11 +104,9 @@ class Device_ExposureContext(ReferenceContext):
             local_fk="visit_occurrence_id",
         )
     )  # type: ignore[assignment]
-    visit_detail: so.Mapped[Optional["Visit_Detail"]] = (
-        ReferenceContext._reference_relationship(
-            target="Visit_Detail",
-            local_fk="visit_detail_id",
-        )
+    visit_detail: so.Mapped[Optional["Visit_Detail"]] = ReferenceContext._reference_relationship(
+        target="Visit_Detail",
+        local_fk="visit_detail_id",
     )  # type: ignore[assignment]
 
 

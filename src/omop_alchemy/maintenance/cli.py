@@ -44,7 +44,12 @@ for _sub in (schema.app, vocab.app, tables.app, backup.app):
 def _main(
     verbose: Annotated[
         int,
-        typer.Option("--verbose", "-v", count=True, help="Increase log verbosity (-v INFO, -vv DEBUG). Must come before the subcommand name."),
+        typer.Option(
+            "--verbose",
+            "-v",
+            count=True,
+            help="Increase log verbosity (-v INFO, -vv DEBUG). Must come before the subcommand name.",
+        ),
     ] = 0,
 ) -> None:
     OmopAlchemyConfig.configure_logging(verbosity=verbose, console=console)

@@ -55,14 +55,10 @@ class DrugExposureSummary:
         """Build shared constructor values for base and specialised summaries."""
         quantities = [e.quantity for e in exposures if e.quantity is not None]
         dates = [
-            e.drug_exposure_start_date
-            for e in exposures
-            if e.drug_exposure_start_date is not None
+            e.drug_exposure_start_date for e in exposures if e.drug_exposure_start_date is not None
         ]
         dose_units = frozenset(
-            e.dose_unit_source_value
-            for e in exposures
-            if e.dose_unit_source_value
+            e.dose_unit_source_value for e in exposures if e.dose_unit_source_value
         )
         drug_concept_ids = frozenset(e.drug_concept_id for e in exposures)
 

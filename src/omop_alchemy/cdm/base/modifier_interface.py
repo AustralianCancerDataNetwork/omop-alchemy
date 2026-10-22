@@ -1,8 +1,9 @@
 from __future__ import annotations
 from sqlalchemy.ext.hybrid import hybrid_property
-from typing import ClassVar,Optional
+from typing import ClassVar, Optional
 from datetime import date
 from sqlalchemy.sql.elements import SQLColumnExpression
+
 
 class ModifierSourceMixin:
     """
@@ -90,18 +91,17 @@ class ModifierTargetMixin:
 
     @classmethod
     def modifier_target_table(cls) -> str:
-        return cls.__tablename__ 
+        return cls.__tablename__
 
     @hybrid_property
     def event_id(self) -> int:
         return getattr(self, self.__event_id_col__)
-    
-        
+
     @event_id.inplace.expression
     @classmethod
     def _event_id(cls) -> SQLColumnExpression[int]:
         return getattr(cls, cls.__event_id_col__)
-    
+
     @property
     def concept_id(self) -> int:
         return getattr(self, self.__concept_id_col__)

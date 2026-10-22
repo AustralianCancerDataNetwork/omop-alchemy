@@ -140,6 +140,6 @@ def selected_modifier_select(
     ranked = ranked_modifier_select(source, spec=spec, priority=priority).subquery(
         "ranked_modifiers"
     )
-    return sa.select(
-        *(column for column in ranked.c if column.key != MODIFIER_RANK)
-    ).where(ranked.c[MODIFIER_RANK] == 1)
+    return sa.select(*(column for column in ranked.c if column.key != MODIFIER_RANK)).where(
+        ranked.c[MODIFIER_RANK] == 1
+    )

@@ -272,8 +272,7 @@ def concept_group_cache_stats() -> dict[str | int, dict[str, int]]:
     """
     with _REGISTRIES_LOCK:
         stats: dict[str | int, dict[str, int]] = {
-            identity: registry.stats.as_dict()
-            for identity, registry in _BY_IDENTITY.items()
+            identity: registry.stats.as_dict() for identity, registry in _BY_IDENTITY.items()
         }
         for engine, registry in _BY_ENGINE.items():
             stats[id(engine)] = registry.stats.as_dict()

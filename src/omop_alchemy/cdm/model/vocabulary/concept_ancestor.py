@@ -11,6 +11,7 @@ from omop_alchemy.cdm.base import (
     role_fk,
 )
 
+
 @cdm_table
 class Concept_Ancestor(Base, ReferenceTable, CDMTableBase):
     __tablename__ = "concept_ancestor"
@@ -19,8 +20,12 @@ class Concept_Ancestor(Base, ReferenceTable, CDMTableBase):
         omop_index(__tablename__, "ancestor_concept_id", cluster=True),
         omop_index(__tablename__, "descendant_concept_id"),
     )
-    ancestor_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)
-    descendant_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)
+    ancestor_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), primary_key=True
+    )
+    descendant_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), primary_key=True
+    )
     min_levels_of_separation: so.Mapped[int] = so.mapped_column(nullable=False)
     max_levels_of_separation: so.Mapped[int] = so.mapped_column(nullable=False)
 

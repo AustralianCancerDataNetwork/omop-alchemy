@@ -48,6 +48,7 @@ class _FKTableInfo(ForeignKeyBase):
 @dataclass(frozen=True)
 class ForeignKeyManagementResult(_FKTableInfo):
     """Outcome of a FK trigger enable or disable operation for one table."""
+
     enable: bool
     status: Status
     detail: str
@@ -56,6 +57,7 @@ class ForeignKeyManagementResult(_FKTableInfo):
 @dataclass(frozen=True)
 class ForeignKeyStatusResult(_FKTableInfo):
     """Current FK trigger state for one table: counts of disabled vs enabled PostgreSQL RI triggers."""
+
     disabled_trigger_count: int
     enabled_trigger_count: int
 
@@ -63,6 +65,7 @@ class ForeignKeyStatusResult(_FKTableInfo):
 @dataclass(frozen=True)
 class ForeignKeyValidationResult(_FKTableInfo):
     """FK constraint validation outcome for one table, with counts of violating constraints and rows."""
+
     violating_constraint_count: int
     violating_row_count: int
     status: Status
@@ -166,8 +169,7 @@ def _collect_strict_validation_failures(
     tables_by_name = {table.table_name: table for table in targets}
     selected_names = set(tables_by_name)
     failures: dict[str, list[ForeignKeyConstraintViolation]] = {
-        table_name: []
-        for table_name in selected_names
+        table_name: [] for table_name in selected_names
     }
 
     for table_name in sorted(selected_names):
@@ -208,11 +210,7 @@ def _collect_strict_validation_failures(
                 )
             )
 
-    return {
-        table_name: violations
-        for table_name, violations in failures.items()
-        if violations
-    }
+    return {table_name: violations for table_name, violations in failures.items() if violations}
 
 
 def _fk_violation_detail(
@@ -222,8 +220,7 @@ def _fk_violation_detail(
 ) -> str:
     """Format a list of FK violations into a human-readable detail string."""
     constraint_summary = ", ".join(
-        f"{v.constraint_name} ({v.violation_count})"
-        for v in violations[:3]
+        f"{v.constraint_name} ({v.violation_count})" for v in violations[:3]
     )
     if len(violations) > 3:
         constraint_summary = f"{constraint_summary}, +{len(violations) - 3} more"
@@ -268,7 +265,9 @@ def validate_foreign_key_constraints(
         group_backend = engine_backends[group_engine]
         with group_engine.connect() as connection:
             validation_failures.update(
-                _collect_strict_validation_failures(connection, group_backend, targets=group_targets)
+                _collect_strict_validation_failures(
+                    connection, group_backend, targets=group_targets
+                )
             )
 
     results: list[ForeignKeyValidationResult] = []
@@ -357,9 +356,18 @@ def manage_foreign_key_triggers(
             return results
 
     fk_planned_applied: dict[tuple[bool, bool], tuple[str, str]] = {
-        (False, False): ("FK trigger enforcement would be disabled", "FK trigger enforcement disabled"),
-        (True,  False): ("FK trigger enforcement would be enabled", "FK trigger enforcement enabled"),
-        (True,  True):  ("Strict FK validation passed; trigger enforcement would be enabled", "Strict FK validation passed; trigger enforcement enabled"),
+        (False, False): (
+            "FK trigger enforcement would be disabled",
+            "FK trigger enforcement disabled",
+        ),
+        (True, False): (
+            "FK trigger enforcement would be enabled",
+            "FK trigger enforcement enabled",
+        ),
+        (True, True): (
+            "Strict FK validation passed; trigger enforcement would be enabled",
+            "Strict FK validation passed; trigger enforcement enabled",
+        ),
     }
     for group_engine, group_targets in groups:
         group_backend = group_backends[group_engine]
@@ -426,6 +434,7 @@ app = typer.Typer(
     help=f"Manage RI trigger enforcement for OMOP tables. {backend_support_note('toggle_fk_triggers')}",
     rich_markup_mode="rich",
 )
+
 
 @app.command("disable")
 @omop_command("foreign-keys disable", dry_run=True)

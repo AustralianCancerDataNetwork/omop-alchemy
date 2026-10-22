@@ -131,8 +131,7 @@ def _fallback_ranking_columns(
     """Project the inputs needed for either ordinary or candidate-set ranking."""
     if ranking.stable_id_column not in episodes.c:
         raise InvalidAttachmentSourceError(
-            "fallback_episodes is missing temporal stable ID column: "
-            f"{ranking.stable_id_column}"
+            f"fallback_episodes is missing temporal stable ID column: {ranking.stable_id_column}"
         )
     start = episodes.c.episode_start_date
     anchor = events.c.event_date
@@ -142,11 +141,16 @@ def _fallback_ranking_columns(
             signed_day_delta(start, anchor).label(_FALLBACK_DAY_DELTA),
             stable_id.label(_FALLBACK_STABLE_ID),
         ]
-    return [temporal_row_number(
-        start, anchor, stable_id, ranking,
-        partition_by=(events.c.event_source_table, events.c.event_id),
-        label=_FALLBACK_RANK,
-    )]
+    return [
+        temporal_row_number(
+            start,
+            anchor,
+            stable_id,
+            ranking,
+            partition_by=(events.c.event_source_table, events.c.event_id),
+            label=_FALLBACK_RANK,
+        )
+    ]
 
 
 def _rank_upcoming_candidates(
@@ -166,20 +170,25 @@ def _rank_upcoming_candidates(
     ).cte("fallback_candidate_ages")
     delta = ages.c[_FALLBACK_DAY_DELTA]
     tier = sa.case(
-        (sa.and_(
-            delta > 0,
-            delta <= preference.max_days_before_start,
-            ages.c[_NEAREST_STARTED_AGE] >= preference.min_started_age_days,
-        ), 0),
+        (
+            sa.and_(
+                delta > 0,
+                delta <= preference.max_days_before_start,
+                ages.c[_NEAREST_STARTED_AGE] >= preference.min_started_age_days,
+            ),
+            0,
+        ),
         (delta <= 0, 1),
         else_=2,
     )
     return sa.select(
         *ages.c,
-        sa.func.row_number().over(
+        sa.func.row_number()
+        .over(
             partition_by=(ages.c.event_source_table, ages.c.event_id),
             order_by=(tier, sa.func.abs(delta), ages.c[_FALLBACK_STABLE_ID]),
-        ).label(_FALLBACK_RANK),
+        )
+        .label(_FALLBACK_RANK),
     ).cte("ranked_upcoming_candidates")
 
 
@@ -196,8 +205,7 @@ def _same_event(left: FromClause, right: FromClause) -> sa.ColumnElement[bool]:
     return sa.and_(
         left.c[str(ClinicalEventColumn.event_source_table)]
         == right.c[str(ClinicalEventColumn.event_source_table)],
-        left.c[str(ClinicalEventColumn.event_id)]
-        == right.c[str(ClinicalEventColumn.event_id)],
+        left.c[str(ClinicalEventColumn.event_id)] == right.c[str(ClinicalEventColumn.event_id)],
     )
 
 
@@ -205,9 +213,7 @@ def _not_exists_for_event(
     source: FromClause,
     keys: FromClause,
 ) -> sa.ColumnElement[bool]:
-    return sa.not_(
-        sa.exists(sa.select(1).select_from(keys).where(_same_event(source, keys)))
-    )
+    return sa.not_(sa.exists(sa.select(1).select_from(keys).where(_same_event(source, keys))))
 
 
 def _attachment_diagnostics(
@@ -236,15 +242,11 @@ def _attachment_diagnostics(
         message: str,
     ) -> tuple[sa.ColumnElement[Any], ...]:
         return (
-            sa.literal(str(code)).label(
-                str(AttachmentDiagnosticColumn.diagnostic_code)
-            ),
+            sa.literal(str(code)).label(str(AttachmentDiagnosticColumn.diagnostic_code)),
             events.c[source_table].label(source_table),
             events.c[event_id].label(event_id),
             events.c[event_field].label(event_field),
-            linked_field.label(
-                str(AttachmentDiagnosticColumn.linked_event_field_concept_id)
-            ),
+            linked_field.label(str(AttachmentDiagnosticColumn.linked_event_field_concept_id)),
             linked_episode_id.label(episode_id),
             candidate_count.label(str(AttachmentDiagnosticColumn.candidate_count)),
             sa.literal(message).label(str(AttachmentDiagnosticColumn.message)),
@@ -303,11 +305,7 @@ def _attachment_diagnostics(
                     message="more than one episode is eligible for fallback attachment",
                 )
             )
-            .select_from(
-                events.join(
-                    fallback_candidates, _same_event(events, fallback_candidates)
-                )
-            )
+            .select_from(events.join(fallback_candidates, _same_event(events, fallback_candidates)))
             .where(fallback_candidates.c[_FALLBACK_CANDIDATE_COUNT] > 1)
             .distinct()
         )
@@ -421,9 +419,7 @@ def episode_attachment_queries(
     _validate_policy_inputs(policy, ranking, fallback_episodes, upcoming_preference)
 
     event_source = _event_source(events)
-    explicit_source = _episode_source(
-        explicit_episodes, name="attachment_explicit_episodes"
-    )
+    explicit_source = _episode_source(explicit_episodes, name="attachment_explicit_episodes")
     link_source = _episode_event_source(episode_events)
     event_names = tuple(column.key for column in event_source.c)
 
@@ -475,8 +471,7 @@ def episode_attachment_queries(
                 link_source,
                 sa.and_(
                     event_source.c[event_id] == link_source.c[event_id],
-                    event_source.c[event_field]
-                    == link_source.c["episode_event_field_concept_id"],
+                    event_source.c[event_field] == link_source.c["episode_event_field_concept_id"],
                 ),
             ).join(
                 explicit_source,
@@ -559,9 +554,11 @@ def episode_attachment_queries(
         ]
         if policy.requires_fallback_ranking:
             assert ranking is not None  # validated above
-            fallback_columns.extend(_fallback_ranking_columns(
-                event_source, fallback_source, ranking, upcoming_preference
-            ))
+            fallback_columns.extend(
+                _fallback_ranking_columns(
+                    event_source, fallback_source, ranking, upcoming_preference
+                )
+            )
 
         # All fallback policies share the same finite episode-relative window.
         # The policy decides whether every admitted episode survives or exactly
@@ -569,22 +566,14 @@ def episode_attachment_queries(
         fallback_candidates = (
             sa.select(*fallback_columns)
             .select_from(
-                fallback_join.join(
-                    fallback_counts, _same_event(event_source, fallback_counts)
-                )
+                fallback_join.join(fallback_counts, _same_event(event_source, fallback_counts))
             )
             .cte("fallback_attachment_candidates")
         )
-        fallback_candidates = _rank_upcoming_candidates(
-            fallback_candidates, upcoming_preference
-        )
-        selected_fallback = sa.select(
-            *(fallback_candidates.c[name] for name in attachment_names)
-        )
+        fallback_candidates = _rank_upcoming_candidates(fallback_candidates, upcoming_preference)
+        selected_fallback = sa.select(*(fallback_candidates.c[name] for name in attachment_names))
         if policy.requires_fallback_ranking:
-            selected_fallback = selected_fallback.where(
-                fallback_candidates.c[_FALLBACK_RANK] == 1
-            )
+            selected_fallback = selected_fallback.where(fallback_candidates.c[_FALLBACK_RANK] == 1)
         attachment_branches.append(selected_fallback)
 
     # The builder accepts arbitrary selectables as inputs, so their source keys
@@ -603,8 +592,7 @@ def episode_attachment_queries(
             ),
             order_by=sa.case(
                 (
-                    combined.c[ATTACHMENT_METHOD]
-                    == str(EpisodeAttachmentMethod.explicit),
+                    combined.c[ATTACHMENT_METHOD] == str(EpisodeAttachmentMethod.explicit),
                     0,
                 ),
                 else_=1,
@@ -612,9 +600,9 @@ def episode_attachment_queries(
         )
         .label(_IDENTITY_RANK),
     ).cte("deduplicated_episode_attachments")
-    attachments = sa.select(
-        *(ranked_attachments.c[name] for name in attachment_names)
-    ).where(ranked_attachments.c[_IDENTITY_RANK] == 1)
+    attachments = sa.select(*(ranked_attachments.c[name] for name in attachment_names)).where(
+        ranked_attachments.c[_IDENTITY_RANK] == 1
+    )
 
     diagnostics = None
     if include_diagnostics:

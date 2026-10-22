@@ -79,7 +79,9 @@ def _bootstrap_vocab(engine: sa.Engine, vocab_schema: str) -> None:
                     valid_start_date=_TODAY,
                     valid_end_date=date(2099, 12, 31),
                 ),
-                Domain(domain_id="Metadata", domain_name="Metadata", domain_concept_id=META_CONCEPT_ID),
+                Domain(
+                    domain_id="Metadata", domain_name="Metadata", domain_concept_id=META_CONCEPT_ID
+                ),
                 Vocabulary(
                     vocabulary_id="OMOP",
                     vocabulary_name="OMOP",
@@ -103,7 +105,11 @@ def _bootstrap_vocab(engine: sa.Engine, vocab_schema: str) -> None:
 
 def test_tables_land_in_the_schema_their_role_declares(three_schema: ScopedTestSchema) -> None:
     _create_missing_tables(
-        MaintenanceContext(resolved=three_schema.resolved, engine=three_schema.engine, vocab_engine=three_schema.engine),
+        MaintenanceContext(
+            resolved=three_schema.resolved,
+            engine=three_schema.engine,
+            vocab_engine=three_schema.engine,
+        ),
         vocabulary_included=True,
     )
 
@@ -124,7 +130,11 @@ def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
     three_schema: ScopedTestSchema,
 ) -> None:
     _create_missing_tables(
-        MaintenanceContext(resolved=three_schema.resolved, engine=three_schema.engine, vocab_engine=three_schema.engine),
+        MaintenanceContext(
+            resolved=three_schema.resolved,
+            engine=three_schema.engine,
+            vocab_engine=three_schema.engine,
+        ),
         vocabulary_included=True,
     )
     _bootstrap_vocab(three_schema.engine, three_schema.schemas[Role.VOCAB])

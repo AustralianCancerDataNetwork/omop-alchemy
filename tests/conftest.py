@@ -7,7 +7,12 @@ import pytest
 import sqlalchemy as sa
 import typer.rich_utils as _typer_rich_utils
 from orm_loader.helpers import bootstrap
-from oa_configurator.testing import IsolatedTestDatabase, isolated_test_database, resolve_with_role_schemas, scoped_test_schema
+from oa_configurator.testing import (
+    IsolatedTestDatabase,
+    isolated_test_database,
+    resolve_with_role_schemas,
+    scoped_test_schema,
+)
 from oa_configurator import ResolvedCDMDatabase
 import sqlalchemy.orm as so
 from sqlalchemy.orm import Session, sessionmaker
@@ -111,8 +116,24 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
         "max_levels_of_separation": (),
     },
     "concept_class": {
-        "concept_class_id": ("Clinical Finding", "Episode", "Ethnicity", "Field", "Gender", "Race", "Type Concept"),
-        "concept_class_name": ("Clinical Finding", "Episode", "Ethnicity", "Field", "Gender", "Race", "Type Concept"),
+        "concept_class_id": (
+            "Clinical Finding",
+            "Episode",
+            "Ethnicity",
+            "Field",
+            "Gender",
+            "Race",
+            "Type Concept",
+        ),
+        "concept_class_name": (
+            "Clinical Finding",
+            "Episode",
+            "Ethnicity",
+            "Field",
+            "Gender",
+            "Race",
+            "Type Concept",
+        ),
         "concept_class_concept_id": (0, 0, 0, 0, 0, 0, 0),
     },
     "concept_relationship": {
@@ -139,8 +160,24 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
             "Disease Episode",
             "condition_occurrence.condition_occurrence_id",
         ),
-        "domain_id": ("Gender", "Race", "Ethnicity", "Type Concept", "Condition", "Episode", "Metadata"),
-        "vocabulary_id": ("Gender", "Race", "Ethnicity", "Type Concept", "SNOMED", "Episode", "CDM"),
+        "domain_id": (
+            "Gender",
+            "Race",
+            "Ethnicity",
+            "Type Concept",
+            "Condition",
+            "Episode",
+            "Metadata",
+        ),
+        "vocabulary_id": (
+            "Gender",
+            "Race",
+            "Ethnicity",
+            "Type Concept",
+            "SNOMED",
+            "Episode",
+            "CDM",
+        ),
         "concept_class_id": (
             "Gender",
             "Race",
@@ -181,8 +218,24 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
         "invalid_reason": (None, None, None, None, None, None, None),
     },
     "domain": {
-        "domain_id": ("Condition", "Episode", "Ethnicity", "Gender", "Metadata", "Race", "Type Concept"),
-        "domain_name": ("Condition", "Episode", "Ethnicity", "Gender", "Metadata", "Race", "Type Concept"),
+        "domain_id": (
+            "Condition",
+            "Episode",
+            "Ethnicity",
+            "Gender",
+            "Metadata",
+            "Race",
+            "Type Concept",
+        ),
+        "domain_name": (
+            "Condition",
+            "Episode",
+            "Ethnicity",
+            "Gender",
+            "Metadata",
+            "Race",
+            "Type Concept",
+        ),
         "domain_concept_id": (0, 0, 0, 0, 0, 0, 0),
     },
     "relationship": {
@@ -194,7 +247,15 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
         "relationship_concept_id": (0, 0),
     },
     "vocabulary": {
-        "vocabulary_id": ("CDM", "Episode", "Ethnicity", "Gender", "Race", "SNOMED", "Type Concept"),
+        "vocabulary_id": (
+            "CDM",
+            "Episode",
+            "Ethnicity",
+            "Gender",
+            "Race",
+            "SNOMED",
+            "Type Concept",
+        ),
         "vocabulary_name": (
             "Common Data Model",
             "OMOP Episode",
@@ -263,8 +324,7 @@ def _concept_id(
     concept_id = session.scalar(query.order_by(Concept.concept_id).limit(1))
     if concept_id is None:
         raise RuntimeError(
-            f"Missing concept fixture for concept_name={concept_name!r}, "
-            f"domain_id={domain_id!r}"
+            f"Missing concept fixture for concept_name={concept_name!r}, domain_id={domain_id!r}"
         )
     return int(concept_id)
 
@@ -415,7 +475,9 @@ def pg_resolved(pg_db) -> ResolvedCDMDatabase:
 @pytest.fixture
 def pg_unscoped_resolved(pg_db) -> ResolvedCDMDatabase:
     """pg_db.resolved with every role on the connection's own default schema."""
-    return resolve_with_role_schemas(pg_db.resolved, {role: None for role in pg_db.resolved.schema_tags()})
+    return resolve_with_role_schemas(
+        pg_db.resolved, {role: None for role in pg_db.resolved.schema_tags()}
+    )
 
 
 @pytest.fixture
@@ -432,9 +494,9 @@ def pg_engine(pg_unscoped_resolved):
 @pytest.fixture
 def pg_session(pg_engine, pg_unscoped_resolved, cleanup_after_test):
     """Function-scoped PostgreSQL session with every managed table empty for each test.
-    Re-uses one persistent database across the whole suite as creating/tearing down 
+    Re-uses one persistent database across the whole suite as creating/tearing down
     a real database per test would be far more expensive. Everything requiring
-    a genuinely committing engine (``.connect()``/``.begin()``) should requires 
+    a genuinely committing engine (``.connect()``/``.begin()``) should requires
     cleanup.
 
     Notes
@@ -458,7 +520,9 @@ def pg_session(pg_engine, pg_unscoped_resolved, cleanup_after_test):
 
     def _clear_managed_tables() -> None:
         _truncate_tables(
-            MaintenanceContext(resolved=pg_unscoped_resolved, engine=pg_engine, vocab_engine=pg_engine),
+            MaintenanceContext(
+                resolved=pg_unscoped_resolved, engine=pg_engine, vocab_engine=pg_engine
+            ),
             table_names=tuple(table.table_name for table in select_maintenance_tables()),
             cascade=True,
         )
@@ -502,12 +566,8 @@ def sqlite_split(tmp_path) -> Iterator[SplitSQLite]:
     from omop_alchemy.config import create_cdm_engines
 
     connections = {
-        "primary": ConnectionConfig(
-            dialect="sqlite", database_name=str(tmp_path / "primary.db")
-        ),
-        "vocab": ConnectionConfig(
-            dialect="sqlite", database_name=str(tmp_path / "vocab.db")
-        ),
+        "primary": ConnectionConfig(dialect="sqlite", database_name=str(tmp_path / "primary.db")),
+        "vocab": ConnectionConfig(dialect="sqlite", database_name=str(tmp_path / "vocab.db")),
     }
     stack = StackConfig.for_session(
         connections=connections,
@@ -546,8 +606,13 @@ def pg_split(pg_db, tmp_path) -> Iterator[SplitCDM]:
     suffix = uuid.uuid4().hex[:8]
     connections = {
         role: ConnectionConfig(
-            dialect=url.drivername, host=url.host, port=url.port, user=url.username,
-            password=url.password, database_name=f"split_{role}_{suffix}", test_only=True,
+            dialect=url.drivername,
+            host=url.host,
+            port=url.port,
+            user=url.username,
+            password=url.password,
+            database_name=f"split_{role}_{suffix}",
+            test_only=True,
         )
         for role in ("primary", "vocab")
     }
@@ -558,8 +623,10 @@ def pg_split(pg_db, tmp_path) -> Iterator[SplitCDM]:
         connections=connections,
         databases={
             "split_cdm": CDMDatabaseConfig(
-                connection="primary", vocab_connection="vocab",
-                cdm_schema="public", vocab_schema="public",
+                connection="primary",
+                vocab_connection="vocab",
+                cdm_schema="public",
+                vocab_schema="public",
             )
         },
     )

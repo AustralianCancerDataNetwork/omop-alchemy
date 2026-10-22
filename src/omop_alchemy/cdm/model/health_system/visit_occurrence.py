@@ -20,8 +20,8 @@ from omop_alchemy.cdm.base import (
     ExpectedDomain,
     merge_table_args,
     omop_index,
-
 )
+
 if TYPE_CHECKING:
     from ..clinical.person import Person
     from ..health_system.care_site import Care_Site
@@ -40,8 +40,10 @@ class Visit_Occurrence(CDMTableBase, Base):
     )
 
     visit_occurrence_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
-    
+    person_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False
+    )
+
     visit_concept_id: so.Mapped[int] = required_concept_fk()
     visit_start_date: so.Mapped[date] = so.mapped_column(sa.Date, nullable=False)
     visit_start_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
@@ -49,26 +51,45 @@ class Visit_Occurrence(CDMTableBase, Base):
     visit_end_datetime: so.Mapped[Optional[date]] = so.mapped_column(sa.DateTime, nullable=True)
     visit_type_concept_id: so.Mapped[int] = required_concept_fk()
 
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")), nullable=True)
-    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "care_site.care_site_id")), nullable=True)
+    provider_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")), nullable=True
+    )
+    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "care_site.care_site_id")), nullable=True
+    )
 
     visit_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
     visit_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     admitted_from_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    admitted_from_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
+    admitted_from_source_value: so.Mapped[Optional[str]] = so.mapped_column(
+        sa.String(50), nullable=True
+    )
     discharged_to_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    discharged_to_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
+    discharged_to_source_value: so.Mapped[Optional[str]] = so.mapped_column(
+        sa.String(50), nullable=True
+    )
 
-    preceding_visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")), nullable=True)
+    preceding_visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")), nullable=True
+    )
 
     def __repr__(self) -> str:
         return f"<VisitOccurrence {self.visit_occurrence_id}>"
 
 
 class VisitContext(ReferenceContext):
-    person: so.Mapped["Person"] = ReferenceContext._reference_relationship(target="Person", local_fk="person_id",)  # type: ignore[assignment]
-    provider: so.Mapped["Provider"] = ReferenceContext._reference_relationship(target="Provider",local_fk="provider_id",)  # type: ignore[assignment]
-    care_site: so.Mapped["Care_Site"] = ReferenceContext._reference_relationship(target="Care_Site",local_fk="care_site_id",)  # type: ignore[assignment]
+    person: so.Mapped["Person"] = ReferenceContext._reference_relationship(
+        target="Person",
+        local_fk="person_id",
+    )  # type: ignore[assignment]
+    provider: so.Mapped["Provider"] = ReferenceContext._reference_relationship(
+        target="Provider",
+        local_fk="provider_id",
+    )  # type: ignore[assignment]
+    care_site: so.Mapped["Care_Site"] = ReferenceContext._reference_relationship(
+        target="Care_Site",
+        local_fk="care_site_id",
+    )  # type: ignore[assignment]
 
     @declared_attr
     def procedure_providers(cls) -> so.Mapped[list["Provider"]]:
@@ -92,6 +113,7 @@ class VisitContext(ReferenceContext):
             lazy="selectin",
         )
 
+
 class VisitView(Visit_Occurrence, VisitContext, DomainValidationMixin):
     __tablename__ = "visit_occurrence"
     # Must match Visit_Occurrence's schema, or SQLAlchemy silently builds a second, unlinked Table object.
@@ -113,7 +135,7 @@ class VisitView(Visit_Occurrence, VisitContext, DomainValidationMixin):
         return providers
 
     @hybrid_method
-    def has_provider_specialty(self, specialty_concept_id: int) -> bool: 
+    def has_provider_specialty(self, specialty_concept_id: int) -> bool:
         for p in self.all_providers:
             try:
                 if p.specialty_source_concept_id == specialty_concept_id:
@@ -124,7 +146,9 @@ class VisitView(Visit_Occurrence, VisitContext, DomainValidationMixin):
 
     @has_provider_specialty.expression
     @classmethod
-    def _has_provider_specialty(cls, specialty_concept_id: int) -> sa.sql.expression.ColumnElement[bool]:  
+    def _has_provider_specialty(
+        cls, specialty_concept_id: int
+    ) -> sa.sql.expression.ColumnElement[bool]:
         return sa.exists().where(
             sa.and_(
                 Provider.provider_id.in_(

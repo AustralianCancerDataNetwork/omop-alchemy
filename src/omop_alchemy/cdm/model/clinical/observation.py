@@ -40,19 +40,31 @@ class Observation(Base, CDMTableBase, ValueMixin, ModifierSourceMixin):
     )
 
     observation_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
-    observation_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
+    person_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False
+    )
+    observation_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False
+    )
     observation_date: so.Mapped[date] = so.mapped_column(nullable=False)
     observation_datetime: so.Mapped[Optional[datetime]]
-    observation_type_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
-    #value_as_number: so.Mapped[Optional[float]]
+    observation_type_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False
+    )
+    # value_as_number: so.Mapped[Optional[float]]
     value_as_string: so.Mapped[Optional[str]]
-    #value_as_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
+    # value_as_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     qualifier_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     unit_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id")))
-    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")))
-    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id")))
+    provider_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "provider.provider_id"))
+    )
+    visit_occurrence_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id"))
+    )
+    visit_detail_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "visit_detail.visit_detail_id"))
+    )
     observation_source_value: so.Mapped[Optional[str]]
     observation_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     unit_source_value: so.Mapped[Optional[str]]
@@ -71,26 +83,18 @@ class ObservationContext(ReferenceContext):
     person: so.Mapped["Person"] = ReferenceContext._reference_relationship(
         target="Person", local_fk="person_id"
     )  # type: ignore[assignment]
-    observation_concept: so.Mapped["Concept"] = (
-        ReferenceContext._reference_relationship(
-            target="Concept", local_fk="observation_concept_id"
-        )
+    observation_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="observation_concept_id"
     )  # type: ignore[assignment]
-    observation_type_concept: so.Mapped["Concept"] = (
-        ReferenceContext._reference_relationship(
-            target="Concept",
-            local_fk="observation_type_concept_id",
-        )
+    observation_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept",
+        local_fk="observation_type_concept_id",
     )  # type: ignore[assignment]
-    unit_concept: so.Mapped[Optional["Concept"]] = (
-        ReferenceContext._reference_relationship(
-            target="Concept", local_fk="unit_concept_id"
-        )
+    unit_concept: so.Mapped[Optional["Concept"]] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="unit_concept_id"
     )  # type: ignore[assignment]
-    provider: so.Mapped[Optional["Provider"]] = (
-        ReferenceContext._reference_relationship(
-            target="Provider", local_fk="provider_id"
-        )
+    provider: so.Mapped[Optional["Provider"]] = ReferenceContext._reference_relationship(
+        target="Provider", local_fk="provider_id"
     )  # type: ignore[assignment]
     visit_occurrence: so.Mapped[Optional["Visit_Occurrence"]] = (
         ReferenceContext._reference_relationship(
@@ -98,11 +102,9 @@ class ObservationContext(ReferenceContext):
             local_fk="visit_occurrence_id",
         )
     )  # type: ignore[assignment]
-    visit_detail: so.Mapped[Optional["Visit_Detail"]] = (
-        ReferenceContext._reference_relationship(
-            target="Visit_Detail",
-            local_fk="visit_detail_id",
-        )
+    visit_detail: so.Mapped[Optional["Visit_Detail"]] = ReferenceContext._reference_relationship(
+        target="Visit_Detail",
+        local_fk="visit_detail_id",
     )  # type: ignore[assignment]
 
 

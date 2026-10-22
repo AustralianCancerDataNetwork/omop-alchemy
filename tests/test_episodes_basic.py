@@ -32,9 +32,7 @@ def test_episode_view_expected_domains():
     assert "episode_object_concept_id" in cls.__expected_domains__
     assert "episode_type_concept_id" in cls.__expected_domains__
 
-    assert cls.__expected_domains__["episode_concept_id"].domains == frozenset(
-        {"Episode"}
-    )
+    assert cls.__expected_domains__["episode_concept_id"].domains == frozenset({"Episode"})
 
 
 def test_episode_reference_context(session):
@@ -58,16 +56,13 @@ def test_episode_has_episode_events(session):
 
 def test_resolved_episode_event_mixin_targets_diagnostic_rows(session):
     episode = (
-        session.query(DiagnosticEpisode)
-        .filter(DiagnosticEpisode.episode_events.any())
-        .first()
+        session.query(DiagnosticEpisode).filter(DiagnosticEpisode.episode_events.any()).first()
     )
 
     assert episode is not None
     assert episode.episode_events
     assert all(
-        isinstance(episode_event, ResolvedEpisodeEvent)
-        for episode_event in episode.episode_events
+        isinstance(episode_event, ResolvedEpisodeEvent) for episode_event in episode.episode_events
     )
 
 
@@ -213,11 +208,7 @@ def test_episode_view_events_property(session):
 
 def test_episode_parent_relationship(session):
     """Test episode parent relationship."""
-    child = (
-        session.query(EpisodeView)
-        .filter(EpisodeView.episode_parent_id.isnot(None))
-        .first()
-    )
+    child = session.query(EpisodeView).filter(EpisodeView.episode_parent_id.isnot(None)).first()
 
     if child:
         assert child.parent_episode is not None

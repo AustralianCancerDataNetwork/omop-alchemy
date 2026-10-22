@@ -35,9 +35,7 @@ class EpisodeColumn(StrEnum):
 
 
 CANONICAL_EPISODE_COLUMNS: tuple[EpisodeColumn, ...] = tuple(
-    column
-    for column in EpisodeColumn
-    if column is not EpisodeColumn.episode_concept_name
+    column for column in EpisodeColumn if column is not EpisodeColumn.episode_concept_name
 )
 """Columns exposed by the canonical episode projection."""
 
@@ -171,18 +169,12 @@ class EpisodeAttachmentDiagnostic:
     ) -> "EpisodeAttachmentDiagnostic":
         """Convert one SQLAlchemy mapping result without leaking column-name handling."""
         return cls(
-            code=AttachmentDiagnosticCode(
-                row[AttachmentDiagnosticColumn.diagnostic_code.value]
-            ),
+            code=AttachmentDiagnosticCode(row[AttachmentDiagnosticColumn.diagnostic_code.value]),
             event=ClinicalEventIdentity(
-                event_source_table=row[
-                    AttachmentDiagnosticColumn.event_source_table.value
-                ],
+                event_source_table=row[AttachmentDiagnosticColumn.event_source_table.value],
                 event_id=row[AttachmentDiagnosticColumn.event_id.value],
             ),
-            event_field_concept_id=row[
-                AttachmentDiagnosticColumn.event_field_concept_id.value
-            ],
+            event_field_concept_id=row[AttachmentDiagnosticColumn.event_field_concept_id.value],
             linked_event_field_concept_id=row[
                 AttachmentDiagnosticColumn.linked_event_field_concept_id.value
             ],

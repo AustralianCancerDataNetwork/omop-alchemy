@@ -3,6 +3,7 @@ import sqlalchemy.orm as so
 from sqlalchemy.ext.declarative import declared_attr
 from typing import Optional, TYPE_CHECKING, List
 from datetime import date
+
 if TYPE_CHECKING:
     from .domain import Domain
     from .vocabulary import Vocabulary
@@ -30,13 +31,9 @@ from omop_alchemy.cdm.model.flags import (
     normalised_flag,
 )
 
+
 @cdm_table
-class Concept(
-    ReferenceTable,
-    CDMTableBase,
-    InvalidReasonMixin,
-    Base
-):
+class Concept(ReferenceTable, CDMTableBase, InvalidReasonMixin, Base):
     __tablename__ = "concept"
     __table_args__ = merge_table_args(
         {"schema": Role.VOCAB.value},
@@ -55,9 +52,15 @@ class Concept(
     )
     concept_id: so.Mapped[int] = so.mapped_column(primary_key=True)
     concept_name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
-    domain_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "domain.domain_id")), nullable=False)
-    vocabulary_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "vocabulary.vocabulary_id")), nullable=False)
-    concept_class_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept_class.concept_class_id")), nullable=False)
+    domain_id: so.Mapped[str] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "domain.domain_id")), nullable=False
+    )
+    vocabulary_id: so.Mapped[str] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "vocabulary.vocabulary_id")), nullable=False
+    )
+    concept_class_id: so.Mapped[str] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept_class.concept_class_id")), nullable=False
+    )
     standard_concept: so.Mapped[Optional[str]] = so.mapped_column(sa.String(1), nullable=True)
     concept_code: so.Mapped[str] = so.mapped_column(sa.String(50), nullable=False)
     valid_start_date: so.Mapped[date] = so.mapped_column(sa.Date(), nullable=False)
@@ -70,14 +73,14 @@ class Concept(
 
     @classmethod
     def is_standard_expr(cls) -> sa.SQLColumnExpression[bool]:
-        """SQL-side counterpart to :attr:`is_standard`. 
-        
-        Note that we use this somewhat goofy expression here and in similarly 
-        constructed flag-derived filters so that we can ensure that this never 
-        evaluates to NULL, which is important for filtering in queries, being 
-        able to robustly `or_` it with other expressions, query negation etc. 
-        
-        The `coalesce` ensures that if the `standard_concept` is NULL, it will 
+        """SQL-side counterpart to :attr:`is_standard`.
+
+        Note that we use this somewhat goofy expression here and in similarly
+        constructed flag-derived filters so that we can ensure that this never
+        evaluates to NULL, which is important for filtering in queries, being
+        able to robustly `or_` it with other expressions, query negation etc.
+
+        The `coalesce` ensures that if the `standard_concept` is NULL, it will
         return `False` instead of NULL.
         """
         return sa.func.coalesce(
@@ -99,6 +102,7 @@ class Concept(
             sa.false(),
         )
 
+
 class ConceptContext(ReferenceContext):
     """
     Navigational relationships for Concept.
@@ -106,16 +110,22 @@ class ConceptContext(ReferenceContext):
     This mixin defines read-only ORM relationships that resolve
     foreign keys into reference tables and hierarchy navigation.
     """
-    
-    domain: so.Mapped["Domain"] = ReferenceContext._reference_relationship(target="Domain",local_fk="domain_id") # type: ignore[assignment]
-    vocabulary: so.Mapped["Vocabulary"] = ReferenceContext._reference_relationship(target="Vocabulary",local_fk="vocabulary_id") # type: ignore[assignment]
-    concept_class: so.Mapped["Concept_Class"] = ReferenceContext._reference_relationship(target="Concept_Class",local_fk="concept_class_id") # type: ignore[assignment]
+
+    domain: so.Mapped["Domain"] = ReferenceContext._reference_relationship(
+        target="Domain", local_fk="domain_id"
+    )  # type: ignore[assignment]
+    vocabulary: so.Mapped["Vocabulary"] = ReferenceContext._reference_relationship(
+        target="Vocabulary", local_fk="vocabulary_id"
+    )  # type: ignore[assignment]
+    concept_class: so.Mapped["Concept_Class"] = ReferenceContext._reference_relationship(
+        target="Concept_Class", local_fk="concept_class_id"
+    )  # type: ignore[assignment]
 
     @declared_attr
     def outgoing_relationships(cls) -> so.Mapped[List["Concept_Relationship"]]:
         return so.relationship(
             "Concept_Relationship",
-            primaryjoin=f"{cls.__name__}.concept_id == Concept_Relationship.concept_id_1", # type: ignore
+            primaryjoin=f"{cls.__name__}.concept_id == Concept_Relationship.concept_id_1",  # type: ignore
             foreign_keys="Concept_Relationship.concept_id_1",
             viewonly=True,
             lazy="select",
@@ -125,7 +135,7 @@ class ConceptContext(ReferenceContext):
     def incoming_relationships(cls) -> so.Mapped[List["Concept_Relationship"]]:
         return so.relationship(
             "Concept_Relationship",
-            primaryjoin=f"{cls.__name__}.concept_id == Concept_Relationship.concept_id_2", # type: ignore
+            primaryjoin=f"{cls.__name__}.concept_id == Concept_Relationship.concept_id_2",  # type: ignore
             foreign_keys="Concept_Relationship.concept_id_2",
             viewonly=True,
             lazy="select",
@@ -135,7 +145,7 @@ class ConceptContext(ReferenceContext):
     def ancestors(cls) -> so.Mapped[List["Concept_Ancestor"]]:
         return so.relationship(
             "Concept_Ancestor",
-            primaryjoin=f"{cls.__name__}.concept_id == Concept_Ancestor.descendant_concept_id", # type: ignore
+            primaryjoin=f"{cls.__name__}.concept_id == Concept_Ancestor.descendant_concept_id",  # type: ignore
             foreign_keys="Concept_Ancestor.descendant_concept_id",
             viewonly=True,
             lazy="select",
@@ -145,11 +155,12 @@ class ConceptContext(ReferenceContext):
     def descendants(cls) -> so.Mapped[List["Concept_Ancestor"]]:
         return so.relationship(
             "Concept_Ancestor",
-            primaryjoin=f"{cls.__name__}.concept_id == Concept_Ancestor.ancestor_concept_id", # type: ignore
+            primaryjoin=f"{cls.__name__}.concept_id == Concept_Ancestor.ancestor_concept_id",  # type: ignore
             foreign_keys="Concept_Ancestor.ancestor_concept_id",
             viewonly=True,
             lazy="select",
         )
+
 
 class ConceptView(Concept, ConceptContext):
     """
@@ -162,6 +173,7 @@ class ConceptView(Concept, ConceptContext):
 
     Avoid in tight loops or ETL paths.
     """
+
     __tablename__ = "concept"
     # Must match Concept's schema, or SQLAlchemy silently builds a second, unlinked Table object.
     __table_args__ = {"schema": Role.VOCAB.value}

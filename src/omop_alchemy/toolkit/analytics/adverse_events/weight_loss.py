@@ -59,10 +59,9 @@ class MartinWeightLoss:
         if pct_change is None or bmi is None:
             return None
         loss_pct = max(0.0, -pct_change)
-        return cls.GRADE_MATRIX[
-            cls._weight_loss_category_index(loss_pct)
-        ][cls._bmi_category_index(bmi)]
-
+        return cls.GRADE_MATRIX[cls._weight_loss_category_index(loss_pct)][
+            cls._bmi_category_index(bmi)
+        ]
 
 
 class CTCAEWeightLoss:
@@ -110,4 +109,3 @@ def critical_weight_loss_grade(
     """
     grade = martin_weight_loss_grade(pct_change, bmi)
     return grade if grade is not None else ctcae_weight_loss_grade(pct_change)
-

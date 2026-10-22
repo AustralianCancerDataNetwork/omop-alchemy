@@ -15,6 +15,7 @@ CONCEPT_SYNONYM_NAME_TSVECTOR_COLUMN = "concept_synonym_name_tsvector"
 @dataclass(frozen=True)
 class FullTextTargetConfig:
     """Primitive fulltext target owned by the backend — no ORM dependencies."""
+
     table_name: str
     source_column_name: str
     vector_column_name: str
@@ -26,6 +27,7 @@ class FullTextError(RuntimeError):
 
 
 # ── Backend errors ────────────────────────────────────────────────────────────
+
 
 class BackendNotSupportedError(RuntimeError):
     """Raised when no backend exists for a dialect, or a backend does not implement a required operation."""
@@ -59,14 +61,16 @@ def backend_support_note(method_name: str) -> str:
     from .resolve import _DIALECT_TO_BACKEND_MAP
 
     supported = sorted(
-        b.name for b in _DIALECT_TO_BACKEND_MAP.values()
-        if backend_supports(b, method_name)
+        b.name for b in _DIALECT_TO_BACKEND_MAP.values() if backend_supports(b, method_name)
     )
-    return f"Supported backends: {', '.join(supported)}." if supported else "Not supported by any backend."
+    return (
+        f"Supported backends: {', '.join(supported)}."
+        if supported
+        else "Not supported by any backend."
+    )
 
 
 class Backend(ABC):
-
     @property
     @abstractmethod
     def name(self) -> str: ...
@@ -198,8 +202,7 @@ class Backend(ABC):
         restart_identities: bool,
         cascade: bool,
     ) -> None:
-        """Truncate every (schema_tag, table_name) pair in one statement.
-        """
+        """Truncate every (schema_tag, table_name) pair in one statement."""
         raise FeatureNotSupportedError("TRUNCATE with RESTART IDENTITY / CASCADE", self)
 
     # ── Sequence management ──────────────────────────────────────────────────
@@ -312,4 +315,3 @@ class Backend(ABC):
     ) -> tuple[str, list[str], dict[str, str], str]:
         """Return (tool_path, command, env, database_name). subprocess.run stays in CLI."""
         raise FeatureNotSupportedError("Database restore", self)
-

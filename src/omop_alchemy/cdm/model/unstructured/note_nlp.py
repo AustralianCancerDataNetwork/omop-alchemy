@@ -9,7 +9,7 @@ from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     role_fk,
     CDMTableBase,
-    cdm_table, 
+    cdm_table,
     optional_concept_fk,
     merge_table_args,
     omop_index,

@@ -42,6 +42,7 @@ from .ui import (
 # analyze_tables
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class AnalyzeTableResult:
     """Outcome of an ANALYZE or VACUUM ANALYZE operation for one ORM-managed table."""
@@ -96,7 +97,10 @@ def analyze_tables(
                         autocommit_connection(target.bind) if vacuum else target.bind.connect()
                     )
                 resolve_backend(target.bind).analyze_table(
-                    connections[target.bind], target.table_name, vacuum=vacuum, schema_tag=target.schema_tag
+                    connections[target.bind],
+                    target.table_name,
+                    vacuum=vacuum,
+                    schema_tag=target.schema_tag,
                 )
 
             results.append(
@@ -106,7 +110,9 @@ def analyze_tables(
                     schema_tag=target.schema_tag,
                     operation=operation,
                     status=dry_status(dry_run),
-                    detail=dry_label(dry_run, f"{operation.lower()} would run", f"{operation.lower()} completed"),
+                    detail=dry_label(
+                        dry_run, f"{operation.lower()} would run", f"{operation.lower()} completed"
+                    ),
                 )
             )
 
@@ -116,6 +122,7 @@ def analyze_tables(
 # ---------------------------------------------------------------------------
 # _truncate_tables
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class TruncateTableResult:
@@ -217,9 +224,11 @@ def _truncate_tables(
         for engine, targets in present.items():
             for target in targets:
                 row_counts[target.table_name] = int(
-                    connections[engine].exec_driver_sql(
+                    connections[engine]
+                    .exec_driver_sql(
                         f"SELECT COUNT(*) FROM {qualified(connections[engine], target.table_name, physical_schema=target.physical_schema)}"
-                    ).scalar_one()
+                    )
+                    .scalar_one()
                 )
 
         if not dry_run and not cascade:
@@ -268,6 +277,7 @@ def _truncate_tables(
 # ---------------------------------------------------------------------------
 # reset_sequences
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class SequenceTarget:
@@ -333,7 +343,9 @@ def reset_model_sequences(
     dry_run: bool = False,
 ) -> list[SequenceResetResult]:
     """Reset each owned sequence to MAX(pk_column) + 1 to prevent insert conflicts after bulk loads."""
-    targets = collect_sequence_targets(vocabulary_included=vocabulary_included, vocabulary_only=vocabulary_only)
+    targets = collect_sequence_targets(
+        vocabulary_included=vocabulary_included, vocabulary_only=vocabulary_only
+    )
     targets_by_engine: dict[sa.Engine, list[SequenceTarget]] = {}
     for target in targets:
         targets_by_engine.setdefault(context.engine_for(target.schema_tag), []).append(target)
@@ -346,11 +358,17 @@ def reset_model_sequences(
         inspector = sa.inspect(group_engine)
         with group_engine.begin() as connection:
             for target in group_targets:
-                if not inspector.has_table(target.table_name, schema=physical_schema_of(group_engine, schema_tag=target.schema_tag)):
+                if not inspector.has_table(
+                    target.table_name,
+                    schema=physical_schema_of(group_engine, schema_tag=target.schema_tag),
+                ):
                     continue
 
                 sequence_name = backend.find_sequence_name(
-                    connection, target.table_name, target.pk_column_name, schema_tag=target.schema_tag
+                    connection,
+                    target.table_name,
+                    target.pk_column_name,
+                    schema_tag=target.schema_tag,
                 )
 
                 if sequence_name is None:
@@ -369,12 +387,13 @@ def reset_model_sequences(
                     continue
 
                 fully_qualified = qualified(
-                    connection, target.table_name, physical_schema=physical_schema_of(connection, schema_tag=target.schema_tag)
+                    connection,
+                    target.table_name,
+                    physical_schema=physical_schema_of(connection, schema_tag=target.schema_tag),
                 )
                 current_max = connection.execute(
                     sa.text(
-                        f"SELECT COALESCE(MAX({target.pk_column_name}), 0) "
-                        f"FROM {fully_qualified}"
+                        f"SELECT COALESCE(MAX({target.pk_column_name}), 0) FROM {fully_qualified}"
                     )
                 ).scalar_one()
                 next_value = int(current_max) + 1
@@ -391,7 +410,11 @@ def reset_model_sequences(
                         sequence_name=sequence_name,
                         next_value=next_value,
                         status=dry_status(dry_run, applied=Status.RESET),
-                        detail=dry_label(dry_run, "sequence would be reset from table max + 1", "sequence reset from table max + 1"),
+                        detail=dry_label(
+                            dry_run,
+                            "sequence would be reset from table max + 1",
+                            "sequence reset from table max + 1",
+                        ),
                     )
                 )
 
@@ -402,7 +425,11 @@ def reset_model_sequences(
 # CLI commands
 # ---------------------------------------------------------------------------
 
-app = typer.Typer(rich_markup_mode="rich", help="Manage Database Tables: analyze, truncate, and reset sequences",)
+app = typer.Typer(
+    rich_markup_mode="rich",
+    help="Manage Database Tables: analyze, truncate, and reset sequences",
+)
+
 
 @app.command("analyze-tables")
 @omop_command("analyze-tables", dry_run=True, writes=False)
@@ -505,12 +532,16 @@ def truncate_tables_command(
     resolved_scope, resolved_tables = resolve_selection(scope=scope, tables=table)
     if resolved_scope is None and resolved_tables is None:
         console.print(
-            render_error("Select tables to truncate with `--scope` or one or more `--table` values.")
+            render_error(
+                "Select tables to truncate with `--scope` or one or more `--table` values."
+            )
         )
         raise typer.Exit(code=1)
     if not dry_run and not yes:
         console.print(
-            render_error("Truncation is destructive. Re-run with `--yes`, or use `--dry-run` first.")
+            render_error(
+                "Truncation is destructive. Re-run with `--yes`, or use `--dry-run` first."
+            )
         )
         raise typer.Exit(code=1)
     with console.status("Truncating selected tables..."):

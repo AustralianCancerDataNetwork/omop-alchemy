@@ -35,9 +35,8 @@ class ConceptValidationMixin:
         return {
             c.key: c
             for c in cols
-            if c.key and c.key.endswith("_concept_id") and 'source' not in c.key
+            if c.key and c.key.endswith("_concept_id") and "source" not in c.key
         }
-
 
     @classmethod
     def get_queryable_table(
@@ -57,7 +56,6 @@ class ConceptValidationMixin:
             return mapper.local_table
 
         raise TypeError(f"Cannot resolve queryable table for {cls.__name__}")
-
 
     @classmethod
     def _non_standard_concepts_for_column(
@@ -118,7 +116,6 @@ class ConceptValidationMixin:
             join_cond,
         )
 
-
         stmt = (
             sa.select(sa.distinct(col))
             .select_from(from_clause)
@@ -140,7 +137,6 @@ class ConceptValidationMixin:
             stmt = stmt.limit(limit)
 
         return stmt
-
 
     @classmethod
     def _non_standard_concepts_across_databases(
@@ -197,8 +193,7 @@ class ConceptValidationMixin:
         table = cls.get_queryable_table(session)
         cols = cls.concept_id_columns()
         colocated = (
-            session.get_bind(clause=sa.select(table)).engine
-            is session.get_bind(Concept).engine
+            session.get_bind(clause=sa.select(table)).engine is session.get_bind(Concept).engine
         )
 
         violations: dict[str, set[int]] = {}

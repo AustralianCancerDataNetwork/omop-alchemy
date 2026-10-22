@@ -25,9 +25,9 @@ def _strip_backend_flag(helptext: str) -> tuple[str, str | None]:
     marker = f". {_BACKEND_NOTE_MARKER}"
     idx = helptext.rfind(marker)
     if idx != -1:
-        tail = helptext[idx + len(marker):]
+        tail = helptext[idx + len(marker) :]
         if ". " not in tail:  # guard: note must be the final sentence
-            return helptext[:idx], helptext[idx + 2:]  # skip leading ". "
+            return helptext[:idx], helptext[idx + 2 :]  # skip leading ". "
     if helptext.startswith(_BACKEND_NOTE_MARKER):
         return "", helptext
     return helptext, None
@@ -42,11 +42,7 @@ def _print_commands_panel_with_backend_grouping(
     cmd_len: int,
 ) -> None:
     box_name = str(typer_rich_utils.STYLE_COMMANDS_TABLE_BOX)
-    box_style = (
-        cast(Box | None, getattr(box, box_name, None))
-        if box_name
-        else None
-    )
+    box_style = cast(Box | None, getattr(box, box_name, None)) if box_name else None
 
     commands_table = Table(
         highlight=False,
@@ -104,16 +100,8 @@ def _print_commands_panel_with_backend_grouping(
             )
         )
 
-    portable_rows = [
-        row
-        for row, is_backend_specific in rows
-        if not is_backend_specific
-    ]
-    flagged_rows = [
-        row
-        for row, is_backend_specific in rows
-        if is_backend_specific
-    ]
+    portable_rows = [row for row, is_backend_specific in rows if not is_backend_specific]
+    flagged_rows = [row for row, is_backend_specific in rows if is_backend_specific]
 
     ordered_rows = portable_rows[:]
     if portable_rows and flagged_rows:

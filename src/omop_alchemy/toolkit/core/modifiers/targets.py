@@ -40,15 +40,11 @@ def canonical_modifier_target_projection(model: type[Any]) -> sa.Select[Any]:
     spec = modifier_target_model_spec(model)
     return sa.select(
         model.person_id.label(str(ClinicalEventColumn.person_id)),
-        getattr(model, spec.event_id_attribute).label(
-            str(ClinicalEventColumn.event_id)
-        ),
+        getattr(model, spec.event_id_attribute).label(str(ClinicalEventColumn.event_id)),
         sa.literal(spec.event_field_concept_id).label(
             str(ClinicalEventColumn.event_field_concept_id)
         ),
-        sa.literal(spec.event_source_table).label(
-            str(ClinicalEventColumn.event_source_table)
-        ),
+        sa.literal(spec.event_source_table).label(str(ClinicalEventColumn.event_source_table)),
     )
 
 
@@ -96,9 +92,7 @@ def modifier_target_queries(
         else _as_from_clause(modifier_source, name="target_modifiers")
     )
     target_spec = (
-        modifier_target_model_spec(target_source)
-        if isinstance(target_source, type)
-        else None
+        modifier_target_model_spec(target_source) if isinstance(target_source, type) else None
     )
     targets = (
         canonical_modifier_target_projection(target_source).subquery("modifier_targets")
@@ -142,9 +136,7 @@ def modifier_target_queries(
         targets.c[person].label(RESOLVED_TARGET_PERSON_ID),
         targets.c[event_id].label(RESOLVED_TARGET_EVENT_ID),
         targets.c[event_field].label(RESOLVED_TARGET_FIELD_CONCEPT_ID),
-        targets.c[str(ClinicalEventColumn.event_source_table)].label(
-            RESOLVED_TARGET_SOURCE_TABLE
-        ),
+        targets.c[str(ClinicalEventColumn.event_source_table)].label(RESOLVED_TARGET_SOURCE_TABLE),
     ).select_from(joined)
 
     if not diagnostics:
@@ -169,9 +161,7 @@ def modifier_target_queries(
         message: str,
     ) -> sa.Select[Any]:
         return sa.select(
-            sa.literal(str(code)).label(
-                str(ModifierTargetDiagnosticColumn.diagnostic_code)
-            ),
+            sa.literal(str(code)).label(str(ModifierTargetDiagnosticColumn.diagnostic_code)),
             modifiers.c[str(ModifierColumn.modifier_source_table)],
             modifiers.c[str(ModifierColumn.modifier_id)],
             modifiers.c[target_field],

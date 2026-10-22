@@ -63,9 +63,9 @@ def _seed_condition(session, *, condition_occurrence_id, condition_concept_id, t
 def _violations_for(session, condition_occurrence_id) -> set[int]:
     table = Condition_Occurrence.__table__
     col = table.c.condition_concept_id
-    stmt = ConceptValidationMixin._non_standard_concepts_for_column(
-        table=table, col=col
-    ).where(table.c.condition_occurrence_id == condition_occurrence_id)
+    stmt = ConceptValidationMixin._non_standard_concepts_for_column(table=table, col=col).where(
+        table.c.condition_occurrence_id == condition_occurrence_id
+    )
     return {int(cid) for (cid,) in session.execute(stmt)}
 
 
@@ -102,9 +102,7 @@ def test_non_standard_concepts_for_column_matches_is_standard_expr(
     concept = session.get(Concept, concept_id)
     assert concept is not None
     expected_standard = standard_concept is not None and standard_concept.strip() == "S"
-    expected_classification = (
-        standard_concept is not None and standard_concept.strip() == "C"
-    )
+    expected_classification = standard_concept is not None and standard_concept.strip() == "C"
     assert concept.is_standard is expected_standard
     assert concept.is_classification is expected_classification
 

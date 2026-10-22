@@ -19,20 +19,35 @@ def test_truncate_tables_requires_postgresql(fresh_engine, fresh_resolved):
     engine = fresh_engine
 
     with pytest.raises(RuntimeError) as exc_info:
-        _truncate_tables(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), scope=TableCategory.CLINICAL, dry_run=True)
+        _truncate_tables(
+            MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+            scope=TableCategory.CLINICAL,
+            dry_run=True,
+        )
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
-def test_truncate_tables_reports_blocking_foreign_key_references(monkeypatch, fresh_engine, fresh_resolved):
+def test_truncate_tables_reports_blocking_foreign_key_references(
+    monkeypatch, fresh_engine, fresh_resolved
+):
     """Test truncate tables reports blocking foreign key references."""
     engine = fresh_engine
-    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), vocabulary_included=True)
+    _create_missing_tables(
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+        vocabulary_included=True,
+    )
 
-    monkeypatch.setattr(truncate_tables_module, "require_backend_support", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        truncate_tables_module, "require_backend_support", lambda *args, **kwargs: None
+    )
 
     with pytest.raises(RuntimeError) as exc_info:
-        _truncate_tables(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), scope=TableCategory.CLINICAL, dry_run=False)
+        _truncate_tables(
+            MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+            scope=TableCategory.CLINICAL,
+            dry_run=False,
+        )
 
     message = str(exc_info.value)
     assert "foreign key references from tables outside the current selection" in message

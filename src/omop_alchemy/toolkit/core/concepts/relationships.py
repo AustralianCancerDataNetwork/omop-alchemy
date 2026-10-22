@@ -82,30 +82,14 @@ def standard_concept_mapping_select(
     # prevent source predicates from accidentally being applied to the target.
     statement = (
         sa.select(
-            source.concept_id.label(
-                str(StandardConceptMappingColumn.source_concept_id)
-            ),
-            source.vocabulary_id.label(
-                str(StandardConceptMappingColumn.source_vocabulary_id)
-            ),
-            source.concept_code.label(
-                str(StandardConceptMappingColumn.source_concept_code)
-            ),
-            source.concept_name.label(
-                str(StandardConceptMappingColumn.source_concept_name)
-            ),
-            standard.concept_id.label(
-                str(StandardConceptMappingColumn.standard_concept_id)
-            ),
-            standard.vocabulary_id.label(
-                str(StandardConceptMappingColumn.standard_vocabulary_id)
-            ),
-            standard.concept_code.label(
-                str(StandardConceptMappingColumn.standard_concept_code)
-            ),
-            standard.concept_name.label(
-                str(StandardConceptMappingColumn.standard_concept_name)
-            ),
+            source.concept_id.label(str(StandardConceptMappingColumn.source_concept_id)),
+            source.vocabulary_id.label(str(StandardConceptMappingColumn.source_vocabulary_id)),
+            source.concept_code.label(str(StandardConceptMappingColumn.source_concept_code)),
+            source.concept_name.label(str(StandardConceptMappingColumn.source_concept_name)),
+            standard.concept_id.label(str(StandardConceptMappingColumn.standard_concept_id)),
+            standard.vocabulary_id.label(str(StandardConceptMappingColumn.standard_vocabulary_id)),
+            standard.concept_code.label(str(StandardConceptMappingColumn.standard_concept_code)),
+            standard.concept_name.label(str(StandardConceptMappingColumn.standard_concept_name)),
             relationship.valid_start_date.label(
                 str(StandardConceptMappingColumn.relationship_valid_start_date)
             ),

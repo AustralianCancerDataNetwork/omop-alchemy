@@ -12,6 +12,7 @@ from omop_alchemy.cdm.base import (
     omop_index,
 )
 
+
 @cdm_table
 class Cost(CDMTableBase, Base):
     __tablename__ = "cost"
@@ -47,7 +48,9 @@ class Cost(CDMTableBase, Base):
     amount_allowed: so.Mapped[Optional[float]] = so.mapped_column(nullable=True)
 
     revenue_code_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    revenue_code_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
+    revenue_code_source_value: so.Mapped[Optional[str]] = so.mapped_column(
+        sa.String(50), nullable=True
+    )
 
     drg_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     drg_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(3), nullable=True)

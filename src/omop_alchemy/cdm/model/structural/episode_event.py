@@ -36,9 +36,13 @@ class Episode_Event(CDMTableBase, Base):
         omop_index(__tablename__, "episode_event_field_concept_id"),
     )
 
-    episode_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "episode.episode_id")),nullable=False,primary_key=True)
-    event_id: so.Mapped[int] = so.mapped_column(nullable=False,primary_key=True)
-    episode_event_field_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),nullable=False,primary_key=True)
+    episode_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "episode.episode_id")), nullable=False, primary_key=True
+    )
+    event_id: so.Mapped[int] = so.mapped_column(nullable=False, primary_key=True)
+    episode_event_field_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False, primary_key=True
+    )
 
     def __repr__(self) -> str:
         return f"<EpisodeEvent ep={self.episode_id} event={self.event_id}>"
@@ -90,9 +94,7 @@ class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMix
 
     @property
     def resolved_event_class(self) -> Type[Any] | None:
-        return self.resolved_event_target_classes().get(
-            self.episode_event_field_concept_id
-        )
+        return self.resolved_event_target_classes().get(self.episode_event_field_concept_id)
 
     @cached_property
     def resolved_event(self) -> Any | None:
@@ -116,8 +118,7 @@ class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMix
         target = self.resolved_event
         if target is not None:
             return (
-                f"<EpisodeEvent ep={self.episode_id} "
-                f"{target.__class__.__name__}#{self.event_id}>"
+                f"<EpisodeEvent ep={self.episode_id} {target.__class__.__name__}#{self.event_id}>"
             )
         return f"<EpisodeEvent ep={self.episode_id} event={self.event_id}>"
 

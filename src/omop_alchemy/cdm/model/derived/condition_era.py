@@ -13,6 +13,7 @@ from omop_alchemy.cdm.base import (
     omop_index,
 )
 
+
 @cdm_table
 class Condition_Era(CDMTableBase, Base):
     __tablename__ = "condition_era"
@@ -23,7 +24,9 @@ class Condition_Era(CDMTableBase, Base):
     )
 
     condition_era_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
+    person_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False
+    )
     condition_concept_id: so.Mapped[int] = required_concept_fk()
     condition_era_start_date: so.Mapped[date] = so.mapped_column(nullable=False)
     condition_era_end_date: so.Mapped[date] = so.mapped_column(nullable=False)

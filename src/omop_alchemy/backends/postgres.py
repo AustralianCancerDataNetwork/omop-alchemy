@@ -18,7 +18,6 @@ _TEXTLIKE_CAST = re.compile(r"::(?:text|varchar|character varying|bpchar|char)\b
 
 
 class PostgresBackend(Backend):
-
     @property
     def name(self) -> str:
         return "PostgreSQL"
@@ -64,7 +63,10 @@ class PostgresBackend(Backend):
                   AND (CAST(:db_schema AS TEXT) IS NULL OR n.nspname = :db_schema)
                 """
             ),
-            {"table_name": table_name, "db_schema": physical_schema_of(conn, schema_tag=schema_tag)},
+            {
+                "table_name": table_name,
+                "db_schema": physical_schema_of(conn, schema_tag=schema_tag),
+            },
         ).one()
         return int(disabled_count or 0), int(enabled_count or 0)
 
@@ -79,11 +81,17 @@ class PostgresBackend(Backend):
         source_schema_tag: str = Role.PRIMARY.value,
         referred_schema_tag: str = Role.PRIMARY.value,
     ) -> int:
-        source = qualified(conn, source_table, physical_schema=physical_schema_of(conn, schema_tag=source_schema_tag))
-        referred = qualified(conn, referred_table, physical_schema=physical_schema_of(conn, schema_tag=referred_schema_tag))
-        non_null_predicate = " AND ".join(
-            f"src.{col} IS NOT NULL" for col in constrained_cols
+        source = qualified(
+            conn,
+            source_table,
+            physical_schema=physical_schema_of(conn, schema_tag=source_schema_tag),
         )
+        referred = qualified(
+            conn,
+            referred_table,
+            physical_schema=physical_schema_of(conn, schema_tag=referred_schema_tag),
+        )
+        non_null_predicate = " AND ".join(f"src.{col} IS NOT NULL" for col in constrained_cols)
         join_predicate = " AND ".join(
             f"ref.{ref_col} = src.{src_col}"
             for src_col, ref_col in zip(constrained_cols, referred_cols, strict=True)
@@ -137,7 +145,10 @@ class PostgresBackend(Backend):
                   AND (CAST(:db_schema AS TEXT) IS NULL OR n.nspname = :db_schema)
                 """
             ),
-            {"table_name": table_name, "db_schema": physical_schema_of(conn, schema_tag=schema_tag)},
+            {
+                "table_name": table_name,
+                "db_schema": physical_schema_of(conn, schema_tag=schema_tag),
+            },
         ).scalar_one_or_none()
         return str(result) if result is not None else None
 
@@ -176,7 +187,9 @@ class PostgresBackend(Backend):
         schema_tag: str = Role.PRIMARY.value,
     ) -> None:
         operation = "VACUUM ANALYZE" if vacuum else "ANALYZE"
-        conn.exec_driver_sql(f"{operation} {qualified(conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}")
+        conn.exec_driver_sql(
+            f"{operation} {qualified(conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}"
+        )
 
     def index_exists(
         self,
@@ -185,19 +198,17 @@ class PostgresBackend(Backend):
         *,
         schema_tag: str = Role.PRIMARY.value,
     ) -> bool:
-        qualified_index_name = qualified(conn, index_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))
-        return bool(
-            conn.scalar(
-                sa.select(
-                    sa.func.to_regclass(qualified_index_name).is_not(None)
-                )
-            )
+        qualified_index_name = qualified(
+            conn, index_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag)
         )
+        return bool(conn.scalar(sa.select(sa.func.to_regclass(qualified_index_name).is_not(None))))
 
     def drop_index_if_exists(
         self, conn: sa.Connection, index_name: str, *, schema_tag: str = Role.PRIMARY.value
     ) -> None:
-        conn.exec_driver_sql(f"DROP INDEX IF EXISTS {qualified(conn, index_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}")
+        conn.exec_driver_sql(
+            f"DROP INDEX IF EXISTS {qualified(conn, index_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}"
+        )
 
     def truncate_table_batch(
         self,
@@ -209,10 +220,9 @@ class PostgresBackend(Backend):
     ) -> None:
         sql = "TRUNCATE TABLE " + ", ".join(
             qualified(
-                conn, 
-                table_name, 
-                physical_schema=physical_schema_of(conn, schema_tag=schema_tag)
-            ) for schema_tag, table_name in tables
+                conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag)
+            )
+            for schema_tag, table_name in tables
         )
         if restart_identities:
             sql += " RESTART IDENTITY"
@@ -230,7 +240,9 @@ class PostgresBackend(Backend):
         *,
         schema_tag: str = Role.PRIMARY.value,
     ) -> str | None:
-        fully_qualified = qualified(conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))
+        fully_qualified = qualified(
+            conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag)
+        )
         return conn.execute(
             sa.text("SELECT pg_get_serial_sequence(:table_name, :column_name)"),
             {"table_name": fully_qualified, "column_name": column_name},
@@ -273,7 +285,10 @@ class PostgresBackend(Backend):
         if target is None:
             raise FullTextError(f"Table {table.name!r} is not a full-text target.")
         physical_schema = physical_schema_of(bindable, schema_tag=table.schema)
-        columns = {column["name"] for column in sa.inspect(bindable).get_columns(table.name, schema=physical_schema)}
+        columns = {
+            column["name"]
+            for column in sa.inspect(bindable).get_columns(table.name, schema=physical_schema)
+        }
         if target.vector_column_name not in columns:
             raise FullTextError(
                 f"Full-text search column {target.vector_column_name!r} not found in table {table.name!r}. "
@@ -295,7 +310,9 @@ class PostgresBackend(Backend):
         fastupdate: bool,
         schema_tag: str = Role.PRIMARY.value,
     ) -> None:
-        qualified_table = qualified(conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))
+        qualified_table = qualified(
+            conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag)
+        )
         conn.exec_driver_sql(
             f"ALTER TABLE {qualified_table} ADD COLUMN IF NOT EXISTS {vector_column_name} tsvector"
         )
@@ -355,7 +372,9 @@ class PostgresBackend(Backend):
         schema_tag: str = Role.PRIMARY.value,
     ) -> None:
         if drop_indexes:
-            conn.exec_driver_sql(f"DROP INDEX IF EXISTS {qualified(conn, index_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}")
+            conn.exec_driver_sql(
+                f"DROP INDEX IF EXISTS {qualified(conn, index_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}"
+            )
         conn.exec_driver_sql(
             f"ALTER TABLE {qualified(conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}"
             f" DROP COLUMN IF EXISTS {vector_column_name}"
@@ -381,9 +400,12 @@ class PostgresBackend(Backend):
         connection_uri = _libpq_connection_uri(url)
         command = [
             tool_path,
-            "--format", backup_format,
-            "--file", output_path,
-            "--dbname", connection_uri,
+            "--format",
+            backup_format,
+            "--file",
+            output_path,
+            "--dbname",
+            connection_uri,
             "--no-password",
             "--no-owner",
             "--no-privileges",
@@ -415,7 +437,8 @@ class PostgresBackend(Backend):
             tool_path = _pg_restore_path()
             command = [
                 tool_path,
-                "--dbname", connection_uri,
+                "--dbname",
+                connection_uri,
                 "--no-password",
                 "--no-owner",
                 "--no-privileges",
@@ -428,11 +451,14 @@ class PostgresBackend(Backend):
             tool_path = _psql_path()
             command = [
                 tool_path,
-                "--dbname", connection_uri,
+                "--dbname",
+                connection_uri,
                 "--no-password",
-                "--set", "ON_ERROR_STOP=1",
+                "--set",
+                "ON_ERROR_STOP=1",
                 "--single-transaction",
-                "--file", input_path,
+                "--file",
+                input_path,
             ]
 
         env = os.environ.copy()
@@ -442,6 +468,7 @@ class PostgresBackend(Backend):
 
 
 # ── subprocess tool helpers ───────────────────────────────────────────────────
+
 
 def _pg_dump_path() -> str:
     tool_path = shutil.which("pg_dump")
@@ -477,9 +504,7 @@ def _psql_path() -> str:
 
 def _libpq_connection_uri(url: sa.engine.URL) -> str:
     if not url.database:
-        raise RuntimeError(
-            "Database backup requires a database name in the configured engine URL."
-        )
+        raise RuntimeError("Database backup requires a database name in the configured engine URL.")
     libpq_url = sa.engine.URL.create(
         drivername="postgresql",
         username=url.username,

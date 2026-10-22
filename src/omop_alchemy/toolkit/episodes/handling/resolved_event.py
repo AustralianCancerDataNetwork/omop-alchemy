@@ -83,8 +83,7 @@ class ResolvedEpisodeEvent(Episode_EventView):
                     event_id=self.event_id,
                     episode_event_field_concept_id=field_concept_id,
                     message=(
-                        "episode_event_field_concept_id is not a known "
-                        "ModifierFieldConcepts value"
+                        "episode_event_field_concept_id is not a known ModifierFieldConcepts value"
                     ),
                 )
             ]

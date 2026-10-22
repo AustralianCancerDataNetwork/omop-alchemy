@@ -122,9 +122,7 @@ def treatment_cycle_episode_concept_id() -> int:
 
 def laterality_modifier_concept_id() -> int:
     """Governed modifier concept used when a value records laterality."""
-    return int(
-        default_semantics_runtime().condition_modifiers.condition_modifier_values.laterality
-    )
+    return int(default_semantics_runtime().condition_modifiers.condition_modifier_values.laterality)
 
 
 def tumor_size_modifier_concept_id() -> int:

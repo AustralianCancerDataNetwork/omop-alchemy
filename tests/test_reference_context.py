@@ -37,9 +37,7 @@ def reference_models(request):
 def test_reference_join_uses_mapped_attribute_and_batches_loading(reference_models):
     base, source, target = reference_models
     relationship = sa.inspect(source).relationships.reference
-    assert relationship.primaryjoin.compare(
-        source.target_identifier == target.identifier
-    )
+    assert relationship.primaryjoin.compare(source.target_identifier == target.identifier)
     assert relationship.viewonly
     assert relationship.lazy == "selectin"
     assert not relationship.uselist
@@ -56,9 +54,7 @@ def test_reference_join_uses_mapped_attribute_and_batches_loading(reference_mode
         )
         session.commit()
     statements = []
-    sa.event.listen(
-        engine, "before_cursor_execute", lambda *args: statements.append(args[2])
-    )
+    sa.event.listen(engine, "before_cursor_execute", lambda *args: statements.append(args[2]))
     try:
         with so.Session(engine) as session:
             rows = session.scalars(sa.select(source).order_by(source.id)).all()
@@ -68,9 +64,7 @@ def test_reference_join_uses_mapped_attribute_and_batches_loading(reference_mode
         engine.dispose()
 
 
-@pytest.mark.parametrize(
-    "reference_models", ["alternative", "physical_key"], indirect=True
-)
+@pytest.mark.parametrize("reference_models", ["alternative", "physical_key"], indirect=True)
 def test_wrong_legacy_reference_key_is_rejected(reference_models):
     base, _, _ = reference_models
     with pytest.raises(ValueError, match="primary key is 'identifier', not"):
@@ -89,9 +83,7 @@ def test_missing_reference_target_is_rejected(reference_models):
             local_fk="target_id",
         )
 
-    with pytest.raises(
-        ValueError, match="reference target 'Missing' is missing or ambiguous"
-    ):
+    with pytest.raises(ValueError, match="reference target 'Missing' is missing or ambiguous"):
         base.registry.configure()
 
 

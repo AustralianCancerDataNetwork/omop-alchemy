@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from ..vocabulary import Concept
     from ..health_system import Visit_Occurrence
 
+
 @cdm_table
 class Condition_Occurrence(
     PersonScoped,
@@ -37,41 +38,53 @@ class Condition_Occurrence(
         {"schema": Role.PRIMARY.value},
         omop_index(__tablename__, "person_id", cluster=True),
         omop_index(__tablename__, "condition_concept_id"),
-        omop_index(__tablename__, "visit_occurrence_id")
+        omop_index(__tablename__, "visit_occurrence_id"),
     )
     condition_occurrence_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    condition_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
+    condition_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False
+    )
     condition_start_date: so.Mapped[date] = so.mapped_column(nullable=False)
     condition_start_datetime: so.Mapped[Optional[datetime]] = so.mapped_column()
     condition_end_date: so.Mapped[Optional[date]] = so.mapped_column()
     condition_end_datetime: so.Mapped[Optional[datetime]] = so.mapped_column()
-    condition_type_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False)
+    condition_type_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False
+    )
     stop_reason: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20))
     condition_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
     condition_status_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
     condition_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     condition_status_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
 
+
 class Condition_OccurrenceContext(ReferenceContext):
-    condition_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_concept_id")  # type: ignore[assignment]
-    condition_type: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_type_concept_id")  # type: ignore[assignment]
-    condition_source_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_source_concept_id")  # type: ignore[assignment]
-    condition_status: so.Mapped["Concept"] = ReferenceContext._reference_relationship(target="Concept", local_fk="condition_status_concept_id")  # type: ignore[assignment]
+    condition_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="condition_concept_id"
+    )  # type: ignore[assignment]
+    condition_type: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="condition_type_concept_id"
+    )  # type: ignore[assignment]
+    condition_source_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="condition_source_concept_id"
+    )  # type: ignore[assignment]
+    condition_status: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept", local_fk="condition_status_concept_id"
+    )  # type: ignore[assignment]
 
     @declared_attr
     def visit_occurrence(cls) -> so.Mapped[Optional["Visit_Occurrence"]]:
         return so.relationship(
             "Visit_Occurrence",
             primaryjoin=f"{cls.__name__}.visit_occurrence_id == Visit_Occurrence.visit_occurrence_id",  # type: ignore
-            foreign_keys=f"{cls.__name__}.visit_occurrence_id", # type: ignore
+            foreign_keys=f"{cls.__name__}.visit_occurrence_id",  # type: ignore
             viewonly=True,
             lazy="selectin",
         )
 
+
 class Condition_OccurrenceView(
-    Condition_Occurrence, 
-    Condition_OccurrenceContext, 
-    ClinicalEventMixin
+    Condition_Occurrence, Condition_OccurrenceContext, ClinicalEventMixin
 ):
     __tablename__ = "condition_occurrence"
     # Must match Condition_Occurrence's schema, or SQLAlchemy silently builds a second, unlinked Table object.
@@ -82,8 +95,7 @@ class Condition_OccurrenceView(
     __start_date_col__ = "condition_start_date"
     __end_date_col__ = "condition_end_date"
     __type_concept_id_col__ = "condition_type_concept_id"
-    
+
     @classmethod
     def modifier_field_concept_id(cls) -> int:
         return ModifierFieldConcepts.CONDITION_OCCURRENCE
-    

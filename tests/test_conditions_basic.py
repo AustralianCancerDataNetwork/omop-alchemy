@@ -32,16 +32,13 @@ def test_modifier_target_properties_python():
     assert c.type_concept_id == 789
 
 
-
 def test_event_id_hybrid_expression(session):
     """The event_id hybrid compiles to condition_occurrence_id in SQL."""
-    q = (
-        session.query(Condition_OccurrenceView)
-        .filter(Condition_OccurrenceView.event_id == 1)
-    )
+    q = session.query(Condition_OccurrenceView).filter(Condition_OccurrenceView.event_id == 1)
 
     sql = str(q.statement.compile(compile_kwargs={"literal_binds": True}))
     assert "condition_occurrence_id" in sql
+
 
 def test_modifier_target_identity():
     """Modifier target identity methods return stable OMOP metadata values."""

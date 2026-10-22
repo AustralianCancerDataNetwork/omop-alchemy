@@ -25,6 +25,7 @@ from omop_alchemy.cdm.base import (
     role_fk,
 )
 
+
 @cdm_table
 class Vocabulary(Base, ReferenceTable, CDMTableBase):
     __tablename__ = "vocabulary"
@@ -36,7 +37,10 @@ class Vocabulary(Base, ReferenceTable, CDMTableBase):
     vocabulary_name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
     vocabulary_reference: so.Mapped[Optional[str]] = so.mapped_column(sa.String(255), nullable=True)
     vocabulary_version: so.Mapped[Optional[str]] = so.mapped_column(sa.String(255), nullable=True)
-    vocabulary_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),nullable=False,)
+    vocabulary_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),
+        nullable=False,
+    )
 
     def __repr__(self):
         return f"<Vocabulary {self.vocabulary_id}>"

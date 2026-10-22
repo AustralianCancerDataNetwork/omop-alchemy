@@ -9,13 +9,15 @@ from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy import Column
 
 TableArg = Union[
-    SchemaItem,                  # Index, Constraint, etc.
-    Mapping[str, object],        # __table_args__ dict
-    Tuple["TableArg", ...],      # nested tuples
+    SchemaItem,  # Index, Constraint, etc.
+    Mapping[str, object],  # __table_args__ dict
+    Tuple["TableArg", ...],  # nested tuples
 ]
+
 
 class OmopInfoDict(TypedDict, total=False):
     omop_cluster: bool | str
+
 
 ColumnLike = Union[str, Column[object], ColumnElement[object]]
 
@@ -34,6 +36,7 @@ at table definition time.
 
 Use maintenance cli to apply indices and clustering to existing tables.
 """
+
 
 def _truncate_identifier(name: str, *, max_length: int = OMOP_IDENTIFIER_MAX_LENGTH) -> str:
     if len(name) <= max_length:
@@ -72,7 +75,6 @@ def omop_index(
     cluster: bool = False,
     name: str | None = None,
 ) -> sa.Index:
-
     """
     Construct a SQLAlchemy Index with optional OMOP-specific metadata.
 
@@ -120,6 +122,7 @@ def omop_index(
         info=info,
     )
 
+
 def omop_primary_key_index_name(table_name: str) -> str:
     """
     Generate a conventional primary key index name.
@@ -135,6 +138,7 @@ def omop_primary_key_index_name(table_name: str) -> str:
         Index name in the form ``pk_<table_name>``.
     """
     return _truncate_identifier(f"pk_{table_name}")
+
 
 def omop_table_options(
     *,
@@ -167,11 +171,12 @@ def omop_table_options(
         }
     }
 
+
 def _normalize_mapping(m: Mapping[Any, Any]) -> dict[str, object]:
     return {str(k): v for k, v in m.items()}
 
-def merge_table_args(*parts: TableArg) -> tuple[TableArg, ...]:
 
+def merge_table_args(*parts: TableArg) -> tuple[TableArg, ...]:
     """
     Merge and normalize SQLAlchemy `__table_args__` components.
 
@@ -208,8 +213,8 @@ def merge_table_args(*parts: TableArg) -> tuple[TableArg, ...]:
     merged_info: dict[str, object] = {}
 
     def consume(part: TableArg) -> None:
-        # A Constraint/Index built from unresolved string column names 
-        # (e.g. PrimaryKeyConstraint("col_a")) has an empty .columns 
+        # A Constraint/Index built from unresolved string column names
+        # (e.g. PrimaryKeyConstraint("col_a")) has an empty .columns
         # collection and is falsy until it's attached to a Table,
         #  which would silently drop it from __table_args__.
         if part is None:

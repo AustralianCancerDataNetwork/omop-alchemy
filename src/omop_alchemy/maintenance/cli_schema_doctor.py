@@ -32,6 +32,7 @@ from .tables import select_maintenance_tables
 # doctor
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class DoctorCheck:
     """Result of a single named maintenance health check (e.g. 'managed tables', 'schema drift')."""
@@ -92,9 +93,7 @@ def _build_recommendations(
         )
 
     if reconciliation is not None:
-        blocking_issue_count = sum(
-            1 for issue in reconciliation.issues if is_blocking_issue(issue)
-        )
+        blocking_issue_count = sum(1 for issue in reconciliation.issues if is_blocking_issue(issue))
         if blocking_issue_count:
             recommendations.append(
                 DoctorRecommendation(
@@ -127,12 +126,8 @@ def _build_recommendations(
             )
         )
 
-    if (
-        foreign_key_validation is not None
-        and any(
-            result.status == Status.FAILED
-            for result in foreign_key_validation.results
-        )
+    if foreign_key_validation is not None and any(
+        result.status == Status.FAILED for result in foreign_key_validation.results
     ):
         recommendations.append(
             DoctorRecommendation(
@@ -274,11 +269,7 @@ def collect_doctor_report(
             checks.append(
                 DoctorCheck(
                     name="schema drift",
-                    status=(
-                        Status.PASSED
-                        if not blocking_issue_count
-                        else Status.WARNING
-                    ),
+                    status=(Status.PASSED if not blocking_issue_count else Status.WARNING),
                     detail=(
                         "ORM metadata matches the target database."
                         if not blocking_issue_count
@@ -298,19 +289,13 @@ def collect_doctor_report(
         backend = resolve_backend(context.engine)
         if backend_supports(backend, "get_fk_trigger_counts"):
             foreign_key_status = tuple(
-                collect_foreign_key_trigger_status(
-                    context, vocabulary_included=vocabulary_included
-                )
+                collect_foreign_key_trigger_status(context, vocabulary_included=vocabulary_included)
             )
-            disabled_tables = sum(
-                item.disabled_trigger_count > 0 for item in foreign_key_status
-            )
+            disabled_tables = sum(item.disabled_trigger_count > 0 for item in foreign_key_status)
             checks.append(
                 DoctorCheck(
                     name="foreign keys",
-                    status=(
-                        Status.PASSED if disabled_tables == 0 else Status.WARNING
-                    ),
+                    status=(Status.PASSED if disabled_tables == 0 else Status.WARNING),
                     detail=(
                         "All inspected RI triggers are enabled."
                         if disabled_tables == 0
@@ -324,17 +309,12 @@ def collect_doctor_report(
                     context, vocabulary_included=vocabulary_included
                 )
                 violating_tables = sum(
-                    result.status == Status.FAILED
-                    for result in foreign_key_validation.results
+                    result.status == Status.FAILED for result in foreign_key_validation.results
                 )
                 checks.append(
                     DoctorCheck(
                         name="foreign key validation",
-                        status=(
-                            Status.PASSED
-                            if violating_tables == 0
-                            else Status.FAILED
-                        ),
+                        status=(Status.PASSED if violating_tables == 0 else Status.FAILED),
                         detail=(
                             "All selected foreign key relationships passed validation."
                             if violating_tables == 0

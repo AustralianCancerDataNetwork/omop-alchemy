@@ -127,16 +127,12 @@ class WeightTrajectoryMixin:
     @cached_property
     def weight_readings(self) -> list[MeasurementReading]:
         """Weight readings normalized to kg."""
-        return normalize_weight_readings(
-            self._raw_weight_series, self.body_metric_rules()
-        )
+        return normalize_weight_readings(self._raw_weight_series, self.body_metric_rules())
 
     @cached_property
     def height_readings_cm(self) -> list[MeasurementReading]:
         """Height readings normalized to cm and resolved without an episode date window."""
-        return normalize_height_readings(
-            self._raw_height_series, self.body_metric_rules()
-        )
+        return normalize_height_readings(self._raw_height_series, self.body_metric_rules())
 
     @property
     def height_m(self) -> Optional[float]:
@@ -210,12 +206,8 @@ class WeightTrajectoryMixin:
             or earliest_in_window.measurement_id == latest.measurement_id
         ):
             return WeightChange.not_evaluable()
-        pct = (
-            100.0 * (latest.value - earliest_in_window.value) / earliest_in_window.value
-        )
-        return WeightChange(
-            pct_change=pct, evaluable=True, reference=earliest_in_window
-        )
+        pct = 100.0 * (latest.value - earliest_in_window.value) / earliest_in_window.value
+        return WeightChange(pct_change=pct, evaluable=True, reference=earliest_in_window)
 
     def pct_change_trajectory(self) -> list[WeightTrajectoryPoint]:
         """Return each valid reading's percentage change from baseline."""

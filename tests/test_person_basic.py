@@ -5,6 +5,7 @@ from omop_alchemy.cdm.model.clinical import Person, PersonView
 
 from omop_alchemy.cdm.model.vocabulary import Concept
 
+
 def test_person_table_exists(engine):
     """Test person table exists."""
     insp = sa.inspect(engine)
@@ -71,7 +72,6 @@ def test_person_view_repr_contains_semantics(session: Session):
     assert "(" in s
 
 
-
 def test_age_property(session):
     """Test age property."""
     p = session.scalars(sa.select(PersonView).limit(1)).first()
@@ -80,11 +80,7 @@ def test_age_property(session):
 
 def test_age_at_expression(session):
     """Test age at expression."""
-    q = (
-        sa.select(PersonView)
-        .where(PersonView.age_at(date(2020, 1, 1)) > 0)
-        .limit(5)
-    )
+    q = sa.select(PersonView).where(PersonView.age_at(date(2020, 1, 1)) > 0).limit(5)
     rows = session.scalars(q).all()
     assert len(rows) > 0
 
@@ -109,9 +105,7 @@ def test_domain_validation_detects_violation(session):
     p = session.scalars(sa.select(PersonView).limit(1)).first()
 
     # Force a wrong domain (e.g. use a Race concept as gender)
-    wrong = session.scalar(
-        sa.select(Concept.concept_id).where(Concept.domain_id == "Race")
-    )
+    wrong = session.scalar(sa.select(Concept.concept_id).where(Concept.domain_id == "Race"))
 
     p.gender_concept_id = wrong
 

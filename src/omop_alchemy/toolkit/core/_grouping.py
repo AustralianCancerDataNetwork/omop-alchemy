@@ -34,7 +34,4 @@ def group_and_summarize(
     grouped: dict[Hashable, list[RowT]] = defaultdict(list)
     for row in rows:
         grouped[key(row)].append(row)
-    return [
-        summarize(group_rows, group_key=group_key)
-        for group_key, group_rows in grouped.items()
-    ]
+    return [summarize(group_rows, group_key=group_key) for group_key, group_rows in grouped.items()]

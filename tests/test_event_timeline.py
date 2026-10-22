@@ -125,9 +125,7 @@ def test_interval_events_infer_independent_endpoints(model, has_datetime):
     expected_end = datetime(2026, 9, 17, 23, 59, 59, 999999)
     if has_datetime:
         fields[mapping.start_datetime_field] = datetime(2026, 9, 16, 9, 30)
-        fields[mapping.end_datetime_field] = expected_end = datetime(
-            2026, 9, 17, 11, 30
-        )
+        fields[mapping.end_datetime_field] = expected_end = datetime(2026, 9, 17, 11, 30)
     event = model(**fields)
     assert event.event_time.kind == "interval"
     assert event.event_time.end == expected_end

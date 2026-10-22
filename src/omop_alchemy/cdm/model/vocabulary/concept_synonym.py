@@ -11,6 +11,7 @@ from omop_alchemy.cdm.base import (
     role_fk,
 )
 
+
 @cdm_table
 class Concept_Synonym(Base, ReferenceTable, CDMTableBase):
     __tablename__ = "concept_synonym"
@@ -25,6 +26,10 @@ class Concept_Synonym(Base, ReferenceTable, CDMTableBase):
             name="ix_concept_synonym_concept_synonym_name_lower",
         ),
     )
-    concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)
-    concept_synonym_name: so.Mapped[str] = so.mapped_column(sa.String(1000),primary_key=True)
-    language_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),primary_key=True)
+    concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), primary_key=True
+    )
+    concept_synonym_name: so.Mapped[str] = so.mapped_column(sa.String(1000), primary_key=True)
+    language_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), primary_key=True
+    )

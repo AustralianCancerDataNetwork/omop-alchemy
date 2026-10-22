@@ -15,7 +15,13 @@ from __future__ import annotations
 from pathlib import Path
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from oa_configurator import Role, UnregisteredSchemaTagError, connection_key, is_ephemeral_url, physical_schema_of
+from oa_configurator import (
+    Role,
+    UnregisteredSchemaTagError,
+    connection_key,
+    is_ephemeral_url,
+    physical_schema_of,
+)
 
 
 def vocabulary_engine_of(session: so.Session) -> sa.Engine:
@@ -43,6 +49,10 @@ def cache_scope(session: so.Session) -> str | sa.Engine:
     except UnregisteredSchemaTagError:
         return engine
     url = engine.url
-    if url.get_backend_name() == "sqlite" and url.database and not url.database.startswith(("/", ":")):
+    if (
+        url.get_backend_name() == "sqlite"
+        and url.database
+        and not url.database.startswith(("/", ":"))
+    ):
         url = url.set(database=str(Path(url.database).expanduser().resolve()))
     return f"{connection_key(url)}|{schema or ''}"

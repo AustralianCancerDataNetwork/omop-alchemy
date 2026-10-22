@@ -156,11 +156,7 @@ class OncologyEpisode(
 
     @cached_property
     def child_treatment_episodes(self) -> list[Self]:
-        return [
-            child
-            for child in cast(list[Self], self.children)
-            if child.is_treatment_episode
-        ]
+        return [child for child in cast(list[Self], self.children) if child.is_treatment_episode]
 
     @cached_property
     def _linked_oncology_events(self) -> list[object]:
@@ -239,10 +235,7 @@ class OncologyEpisode(
     def child_treatment_episodes_by_modality(
         self,
     ) -> dict[OncologyModality, list[Self]]:
-        groups: dict[OncologyModality, list[Self]] = {
-            modality: []
-            for modality in OncologyModality
-        }
+        groups: dict[OncologyModality, list[Self]] = {modality: [] for modality in OncologyModality}
         for child in self.child_treatment_episodes:
             groups[child.structural_modality].append(child)
         return groups
@@ -251,10 +244,7 @@ class OncologyEpisode(
     def child_treatment_episodes_by_concept_modality(
         self,
     ) -> dict[OncologyModality, list[Self]]:
-        groups: dict[OncologyModality, list[Self]] = {
-            modality: []
-            for modality in OncologyModality
-        }
+        groups: dict[OncologyModality, list[Self]] = {modality: [] for modality in OncologyModality}
         for child in self.child_treatment_episodes:
             groups[child.concept_modality].append(child)
         return groups

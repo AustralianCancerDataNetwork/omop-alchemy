@@ -45,7 +45,12 @@ from .cli_tables import (
     reset_model_sequences,
 )
 from .cli_vocab import VocabularyLoadReport, VocabularyLoadResult, load_vocab_source
-from .tables import MaintenanceTable, TableCategory, collect_maintenance_tables, select_maintenance_tables
+from .tables import (
+    MaintenanceTable,
+    TableCategory,
+    collect_maintenance_tables,
+    select_maintenance_tables,
+)
 
 __all__ = [
     "analyze_tables",

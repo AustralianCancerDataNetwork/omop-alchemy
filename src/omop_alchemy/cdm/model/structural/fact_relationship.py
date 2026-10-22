@@ -11,6 +11,7 @@ from omop_alchemy.cdm.base import (
     role_fk,
 )
 
+
 @cdm_table
 class Fact_Relationship(CDMTableBase, Base):
     __tablename__ = "fact_relationship"

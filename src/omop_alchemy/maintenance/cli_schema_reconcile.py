@@ -134,11 +134,7 @@ def _actual_foreign_keys(
 
 def _expected_indexes(table: sa.Table) -> dict[str, sa.Index]:
     """Return ORM-defined named indexes for a table, keyed by index name."""
-    return {
-        str(index.name): index
-        for index in table.indexes
-        if index.name is not None
-    }
+    return {str(index.name): index for index in table.indexes if index.name is not None}
 
 
 def _actual_indexes(
@@ -226,7 +222,8 @@ def reconcile_schema(
             for candidate_engine in context.engines
         }
         engine_backends = {
-            candidate_engine: resolve_backend(candidate_engine) for candidate_engine in engine_connections
+            candidate_engine: resolve_backend(candidate_engine)
+            for candidate_engine in engine_connections
         }
         for target in context.targets(selected_tables):
             maintenance_table = target.table
@@ -298,10 +295,15 @@ def reconcile_schema(
             expected_columns = {column.name: column for column in expected_table.columns}
             actual_columns = {
                 str(column["name"]): column
-                for column in inspector.get_columns(maintenance_table.table_name, schema=table_schema)
+                for column in inspector.get_columns(
+                    maintenance_table.table_name, schema=table_schema
+                )
             }
             actual_pk_names = tuple(
-                inspector.get_pk_constraint(maintenance_table.table_name, schema=table_schema).get("constrained_columns") or []
+                inspector.get_pk_constraint(maintenance_table.table_name, schema=table_schema).get(
+                    "constrained_columns"
+                )
+                or []
             )
             expected_pk_names = tuple(column.name for column in expected_table.primary_key.columns)
 
@@ -354,8 +356,12 @@ def reconcile_schema(
                         )
                     )
 
-                expected_nullable = False if column_name in expected_pk_names else bool(expected_column.nullable)
-                actual_nullable = False if column_name in actual_pk_names else bool(actual_column["nullable"])
+                expected_nullable = (
+                    False if column_name in expected_pk_names else bool(expected_column.nullable)
+                )
+                actual_nullable = (
+                    False if column_name in actual_pk_names else bool(actual_column["nullable"])
+                )
                 if expected_nullable != actual_nullable:
                     table_issues.append(
                         ReconciliationIssue(
@@ -394,16 +400,16 @@ def reconcile_schema(
                 if signature not in actual_fks:
                     raw_constraint = raw_expected_fks.get(signature)
                     referred_tag = (
-                        raw_constraint.referred_table.schema
-                        if raw_constraint is not None
-                        else None
+                        raw_constraint.referred_table.schema if raw_constraint is not None else None
                     )
                     if (
                         referred_tag is not None
                         and referred_tag != table_schema_tag
                         and not (
                             _cross_schema_fk_supported
-                            and context.resolved.foreign_key_can_span(table_schema_tag, referred_tag)
+                            and context.resolved.foreign_key_can_span(
+                                table_schema_tag, referred_tag
+                            )
                         )
                     ):
                         # SQLite cannot create an inline cross-schema FK at all, and no
@@ -415,7 +421,9 @@ def reconcile_schema(
                             table_name=maintenance_table.table_name,
                             category=maintenance_table.category,
                             component="foreign_key",
-                            object_name=constraint.name if isinstance(constraint.name, str) else ",".join(constrained_columns),
+                            object_name=constraint.name
+                            if isinstance(constraint.name, str)
+                            else ",".join(constrained_columns),
                             status=Status.MISSING,
                             expected=f"{','.join(constrained_columns)} -> {referred_table}({','.join(referred_columns)})",
                             actual=None,
@@ -431,7 +439,9 @@ def reconcile_schema(
                             table_name=maintenance_table.table_name,
                             category=maintenance_table.category,
                             component="foreign_key",
-                            object_name=str(foreign_key.get("name") or ",".join(constrained_columns)),
+                            object_name=str(
+                                foreign_key.get("name") or ",".join(constrained_columns)
+                            ),
                             status=Status.UNEXPECTED,
                             expected=None,
                             actual=f"{','.join(constrained_columns)} -> {referred_table}({','.join(referred_columns)})",
@@ -581,7 +591,9 @@ def reconcile_schema(
                             object_name=index_name,
                             status=Status.UNEXPECTED,
                             expected=None,
-                            actual=", ".join(c for c in (index.get("column_names") or []) if c is not None),
+                            actual=", ".join(
+                                c for c in (index.get("column_names") or []) if c is not None
+                            ),
                             detail="Index exists in the database but is not defined in ORM metadata.",
                         )
                     )

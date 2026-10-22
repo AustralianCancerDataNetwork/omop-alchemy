@@ -11,7 +11,10 @@ runner = CliRunner()
 
 def test_analyze_tables_runs_on_sqlite(fresh_engine, fresh_resolved):
     """Analyze applies successfully on SQLite for selected OMOP tables."""
-    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine), vocabulary_included=True)
+    _create_missing_tables(
+        MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine),
+        vocabulary_included=True,
+    )
 
     results = analyze_tables(
         MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine),
@@ -19,17 +22,23 @@ def test_analyze_tables_runs_on_sqlite(fresh_engine, fresh_resolved):
         dry_run=False,
     )
 
-    assert any(
-        result.table_name == "person" and result.status == "applied"
-        for result in results
-    )
+    assert any(result.table_name == "person" and result.status == "applied" for result in results)
 
 
 def test_analyze_tables_rejects_vacuum_on_sqlite(fresh_engine, fresh_resolved):
     """VACUUM ANALYZE is rejected on SQLite with a clear runtime error."""
-    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine), vocabulary_included=True)
+    _create_missing_tables(
+        MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine),
+        vocabulary_included=True,
+    )
 
     with pytest.raises(RuntimeError) as exc_info:
-        analyze_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine), scope=TableCategory.CLINICAL, vacuum=True)
+        analyze_tables(
+            MaintenanceContext(
+                resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine
+            ),
+            scope=TableCategory.CLINICAL,
+            vacuum=True,
+        )
 
     assert "not supported by the SQLite backend" in str(exc_info.value)

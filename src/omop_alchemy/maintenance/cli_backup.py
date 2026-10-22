@@ -17,17 +17,8 @@ from oa_configurator import (
     ensure_schema,
 )
 
-from ..backends import (
-    resolve_backend, 
-    require_backend_support, 
-    backend_support_note
-)
-from ._cli_utils import (
-    Status,
-    dry_label,
-    dry_status,
-    omop_command
-)
+from ..backends import resolve_backend, require_backend_support, backend_support_note
+from ._cli_utils import Status, dry_label, dry_status, omop_command
 from .context import MaintenanceContext
 from ..config import MAINTENANCE_SCHEMA
 from .ui import (
@@ -93,7 +84,9 @@ def _single_connection_backup(
     physical server, in one pg_dump invocation."""
     backend = resolve_backend(engine)
     require_backend_support(backend, "prepare_backup", "Database backup")
-    resolved_output_path = Path(output_path) if output_path is not None else _default_output_path(backup_format)
+    resolved_output_path = (
+        Path(output_path) if output_path is not None else _default_output_path(backup_format)
+    )
     resolved_output_path = resolved_output_path.expanduser().resolve()
     with engine.connect() as connection:
         schemas = sorted(resolved.occupied_schemas(connection))
@@ -126,7 +119,11 @@ def _single_connection_backup(
         file_path=str(resolved_output_path),
         backup_format=backup_format,
         status=dry_status(dry_run, applied=Status.CREATED),
-        detail=dry_label(dry_run, "Database backup would be created with pg_dump.", "Database backup created with pg_dump."),
+        detail=dry_label(
+            dry_run,
+            "Database backup would be created with pg_dump.",
+            "Database backup created with pg_dump.",
+        ),
         database_name=database_name,
         backend=engine.dialect.name,
         schema_names=tuple(schemas),
@@ -168,9 +165,7 @@ def _execute_restore(
         subprocess.run(command, env=env, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as exc:
         stderr = (exc.stderr or "").strip()
-        raise RuntimeError(
-            "Database restore failed." + (f" {stderr}" if stderr else "")
-        ) from exc
+        raise RuntimeError("Database restore failed." + (f" {stderr}" if stderr else "")) from exc
     except FileNotFoundError as exc:
         raise RuntimeError(
             f"Restore executable not found at {tool_path!r}. "
@@ -212,7 +207,11 @@ def _single_connection_restore(
         file_path=str(resolved_input_path),
         backup_format=backup_format,
         status=dry_status(dry_run),
-        detail=dry_label(dry_run, "Database restore would be executed using PostgreSQL client tools.", "Database restore completed using PostgreSQL client tools."),
+        detail=dry_label(
+            dry_run,
+            "Database restore would be executed using PostgreSQL client tools.",
+            "Database restore completed using PostgreSQL client tools.",
+        ),
         database_name=database_name,
         backend=engine.dialect.name,
         schema_names=tuple(schemas),
@@ -244,11 +243,11 @@ def create_database_backup(
     """
     results = [
         _single_connection_backup(
-            context.engine, 
-            context.resolved, 
-            output_path=output_path, 
-            backup_format=backup_format, 
-            dry_run=dry_run
+            context.engine,
+            context.resolved,
+            output_path=output_path,
+            backup_format=backup_format,
+            dry_run=dry_run,
         )
     ]
 
@@ -256,11 +255,11 @@ def create_database_backup(
         vocab_output_path = _vocab_sibling_path(results[0].file_path, backup_format)
         results.append(
             _single_connection_backup(
-                context.vocab_engine, 
-                context.resolved, 
-                output_path=vocab_output_path, 
-                backup_format=backup_format, 
-                dry_run=dry_run
+                context.vocab_engine,
+                context.resolved,
+                output_path=vocab_output_path,
+                backup_format=backup_format,
+                dry_run=dry_run,
             )
         )
 
@@ -287,7 +286,7 @@ def _register_restored_schemas(context: MaintenanceContext, input_path: str | Pa
         database_name = context.resource_name or context.resolved.name
         raise RuntimeError(
             "Restore complete, but this backup has no schema-registry baseline. "
-            f'Run: omop-config acknowledge-schema-migration --database {database_name} '
+            f"Run: omop-config acknowledge-schema-migration --database {database_name} "
             f'--reason "restored from {Path(input_path).expanduser().resolve()}"'
         ) from exc
     for engine in {primary, vocab}:
@@ -318,11 +317,11 @@ def restore_database_backup(
     """
     results = [
         _single_connection_restore(
-            context.engine, 
-            context.resolved, 
-            input_path=input_path, 
-            backup_format=backup_format, 
-            dry_run=dry_run
+            context.engine,
+            context.resolved,
+            input_path=input_path,
+            backup_format=backup_format,
+            dry_run=dry_run,
         )
     ]
 
@@ -334,11 +333,11 @@ def restore_database_backup(
             )
         results.append(
             _single_connection_restore(
-                context.vocab_engine, 
-                context.resolved, 
-                input_path=vocab_input_path, 
-                backup_format=backup_format, 
-                dry_run=dry_run
+                context.vocab_engine,
+                context.resolved,
+                input_path=vocab_input_path,
+                backup_format=backup_format,
+                dry_run=dry_run,
             )
         )
 
@@ -355,6 +354,7 @@ app = typer.Typer(
     rich_markup_mode="rich",
     help=f"Manage database backup and restore operations. {backend_support_note('prepare_backup')}",
 )
+
 
 @app.command("backup-database")
 @omop_command("backup-database", dry_run=True, writes=False)
@@ -393,7 +393,9 @@ def backup_database_command(
 @omop_command("restore-database", dry_run=True, writes=False)
 def restore_database_command(
     conn: MaintenanceContext,
-    input_path: str = typer.Argument(help="Path to the backup artifact (.dump or .sql) to restore."),
+    input_path: str = typer.Argument(
+        help="Path to the backup artifact (.dump or .sql) to restore."
+    ),
     backup_format: BackupFormat = typer.Option(
         ...,
         help="Format of the artifact to restore. Must match the format used when the backup was created.",

@@ -82,9 +82,7 @@ def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
     ) -> int:
-        loaded_tables.append(
-            (model.__tablename__, merge_strategy, quote_mode, csv_path)
-        )
+        loaded_tables.append((model.__tablename__, merge_strategy, quote_mode, csv_path))
         return 1
 
     monkeypatch.setattr(
@@ -92,18 +90,19 @@ def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
         fake_load_vocab_model_csv,
     )
 
-    report = load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path)
+    report = load_vocab_source(
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+        source_path=source_path,
+    )
 
     result_by_name = {result.table_name: result for result in report.results}
 
     assert report.merge_strategy == "replace"
     assert all(
-        result_by_name[model.__tablename__].status == "loaded"
-        for model in REQUIRED_VOCAB_MODELS
+        result_by_name[model.__tablename__].status == "loaded" for model in REQUIRED_VOCAB_MODELS
     )
     assert all(
-        result_by_name[model.__tablename__].status == "skipped"
-        for model in OPTIONAL_VOCAB_MODELS
+        result_by_name[model.__tablename__].status == "skipped" for model in OPTIONAL_VOCAB_MODELS
     )
     assert all(merge_strategy == "replace" for _, merge_strategy, _, _ in loaded_tables)
     assert all(quote_mode == "by_delimiter" for _, _, quote_mode, _ in loaded_tables)
@@ -141,7 +140,9 @@ def test_load_vocab_source_clears_concept_group_cache(
     assert cleared
 
 
-def test_load_vocab_source_requires_full_required_athena_fixture(fresh_engine, fresh_resolved, tmp_path):
+def test_load_vocab_source_requires_full_required_athena_fixture(
+    fresh_engine, fresh_resolved, tmp_path
+):
     """Test load vocab source requires full required athena fixture."""
     engine = fresh_engine
 
@@ -182,9 +183,7 @@ def test_load_vocab_source_dry_run_does_not_create_tables(fresh_engine, fresh_re
         dry_run=True,
     )
 
-    assert all(
-        result.status == "planned" for result in report.results if result.required
-    )
+    assert all(result.status == "planned" for result in report.results if result.required)
     assert report.created_table_count == 0
     inspector = sa.inspect(engine)
     assert not inspector.has_table("concept")
@@ -202,9 +201,7 @@ def test_load_vocab_source_cli_uses_configured_athena_source(monkeypatch, tmp_pa
     athena_dir.mkdir()
 
     cfg = StackConfig.for_session(
-        connections={
-            "db": ConnectionConfig(dialect="sqlite", database_name=":memory:")
-        },
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
         tools={OmopAlchemyConfig.tool_name: {"athena_source_path": str(athena_dir)}},
     )
@@ -275,9 +272,7 @@ def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_p
         __tablename__ = "concept"
 
         @staticmethod
-        def load_csv(
-            session, path, *, merge_strategy, quote_mode, index_strategy="auto"
-        ):
+        def load_csv(session, path, *, merge_strategy, quote_mode, index_strategy="auto"):
             return 7
 
         @staticmethod
@@ -318,7 +313,9 @@ def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_p
     assert calls["quote_mode"] == "literal"
 
 
-def test_load_vocab_source_loads_in_fk_dependency_order(fresh_engine, fresh_resolved, monkeypatch, tmp_path):
+def test_load_vocab_source_loads_in_fk_dependency_order(
+    fresh_engine, fresh_resolved, monkeypatch, tmp_path
+):
     """Tables must be loaded in REQUIRED_VOCAB_MODELS order to respect FK dependencies."""
     engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
@@ -351,13 +348,18 @@ def test_load_vocab_source_loads_in_fk_dependency_order(fresh_engine, fresh_reso
         fake_load_vocab_model_csv,
     )
 
-    load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path)
+    load_vocab_source(
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+        source_path=source_path,
+    )
 
     expected_order = [m.__tablename__ for m in REQUIRED_VOCAB_MODELS]
     assert loaded_order[: len(expected_order)] == expected_order
 
 
-def test_load_vocab_source_reports_weighted_progress(fresh_engine, fresh_resolved, monkeypatch, tmp_path):
+def test_load_vocab_source_reports_weighted_progress(
+    fresh_engine, fresh_resolved, monkeypatch, tmp_path
+):
     """Test load vocab source reports weighted progress."""
     engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
@@ -399,7 +401,9 @@ def test_load_vocab_source_reports_weighted_progress(fresh_engine, fresh_resolve
     assert percents == sorted(percents)
 
 
-def test_load_vocab_source_wraps_failed_table_load(fresh_engine, fresh_resolved, monkeypatch, tmp_path):
+def test_load_vocab_source_wraps_failed_table_load(
+    fresh_engine, fresh_resolved, monkeypatch, tmp_path
+):
     """Test load vocab source wraps failed table load."""
     engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
@@ -449,9 +453,7 @@ def test_load_vocab_model_csv_retries_missing_staging_table(fresh_engine, monkey
         __tablename__ = "drug_strength"
 
         @staticmethod
-        def load_csv(
-            session, path, *, merge_strategy, quote_mode, index_strategy="auto"
-        ):
+        def load_csv(session, path, *, merge_strategy, quote_mode, index_strategy="auto"):
             raise NotImplementedError
 
         @staticmethod
@@ -507,9 +509,7 @@ def test_load_vocab_source_cli_surfaces_database_error_detail(monkeypatch):
     """Test load vocab source cli surfaces database error detail."""
 
     cfg = StackConfig.for_session(
-        connections={
-            "db": ConnectionConfig(dialect="sqlite", database_name=":memory:")
-        },
+        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
@@ -543,7 +543,9 @@ def test_load_vocab_source_cli_surfaces_database_error_detail(monkeypatch):
     assert "value too long for type character varying(255)" in result.stdout
 
 
-def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(fresh_engine, fresh_resolved, monkeypatch, tmp_path):
+def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(
+    fresh_engine, fresh_resolved, monkeypatch, tmp_path
+):
     """Tab-delimited Athena quotes are literal data unless explicitly overridden."""
     engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
@@ -570,7 +572,10 @@ def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(fresh_engine, fre
         fake_load_vocab_model_csv,
     )
 
-    load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path)
+    load_vocab_source(
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+        source_path=source_path,
+    )
 
     assert all(mode == "by_delimiter" for mode in received_quote_modes), (
         f"Expected all tables to use quote_mode='by_delimiter', got: {received_quote_modes}"
@@ -579,16 +584,24 @@ def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(fresh_engine, fre
     assert "csv" not in received_quote_modes
 
 
-def test_load_vocab_source_tables_unknown_name_raises_runtime_error(fresh_engine, fresh_resolved, tmp_path):
+def test_load_vocab_source_tables_unknown_name_raises_runtime_error(
+    fresh_engine, fresh_resolved, tmp_path
+):
     """Unknown table name in tables= is rejected before any DB connection."""
     engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
 
     with pytest.raises(RuntimeError, match="Unknown vocabulary table"):
-        load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path, tables=["not_a_table"])
+        load_vocab_source(
+            MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+            source_path=source_path,
+            tables=["not_a_table"],
+        )
 
 
-def test_load_vocab_source_tables_single_loads_only_that_table(fresh_engine, fresh_resolved, monkeypatch, tmp_path):
+def test_load_vocab_source_tables_single_loads_only_that_table(
+    fresh_engine, fresh_resolved, monkeypatch, tmp_path
+):
     """tables=['concept'] loads only concept and skips every other table."""
     engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
@@ -614,14 +627,20 @@ def test_load_vocab_source_tables_single_loads_only_that_table(fresh_engine, fre
         fake_load_vocab_model_csv,
     )
 
-    report = load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path, tables=["concept"])
+    report = load_vocab_source(
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+        source_path=source_path,
+        tables=["concept"],
+    )
 
     assert loaded_tables == ["concept"]
     result_names = {r.table_name for r in report.results}
     assert result_names == {"concept"}
 
 
-def test_load_vocab_source_tables_multiple_loads_exactly_those(fresh_engine, fresh_resolved, monkeypatch, tmp_path):
+def test_load_vocab_source_tables_multiple_loads_exactly_those(
+    fresh_engine, fresh_resolved, monkeypatch, tmp_path
+):
     """tables=['concept', 'vocabulary'] loads exactly those two tables."""
     engine = fresh_engine
     source_path = _build_required_athena_source(tmp_path)
@@ -647,12 +666,18 @@ def test_load_vocab_source_tables_multiple_loads_exactly_those(fresh_engine, fre
         fake_load_vocab_model_csv,
     )
 
-    load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path, tables=["concept", "vocabulary"])
+    load_vocab_source(
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+        source_path=source_path,
+        tables=["concept", "vocabulary"],
+    )
 
     assert set(loaded_tables) == {"concept", "vocabulary"}
 
 
-def test_load_vocab_source_tables_skips_required_files_preflight(fresh_engine, fresh_resolved, tmp_path):
+def test_load_vocab_source_tables_skips_required_files_preflight(
+    fresh_engine, fresh_resolved, tmp_path
+):
     """tables= skips the all-required-files gate even when most CSVs are absent."""
     engine = fresh_engine
 
@@ -674,7 +699,9 @@ def test_load_vocab_source_tables_skips_required_files_preflight(fresh_engine, f
     assert result_names == {"concept"}
 
 
-def test_load_vocab_source_tables_missing_csv_raises_runtime_error(fresh_engine, fresh_resolved, tmp_path):
+def test_load_vocab_source_tables_missing_csv_raises_runtime_error(
+    fresh_engine, fresh_resolved, tmp_path
+):
     """Explicitly named table whose CSV is absent raises RuntimeError, not a silent skip."""
     engine = fresh_engine
 
@@ -683,10 +710,16 @@ def test_load_vocab_source_tables_missing_csv_raises_runtime_error(fresh_engine,
     # No CSVs at all — concept is in tables= but its file is missing.
 
     with pytest.raises(RuntimeError, match="concept"):
-        load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path, tables=["concept"])
+        load_vocab_source(
+            MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+            source_path=source_path,
+            tables=["concept"],
+        )
 
 
-def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, fresh_resolved, monkeypatch, tmp_path):
+def test_load_vocab_source_bulk_mode_surfaces_index_warnings(
+    fresh_engine, fresh_resolved, monkeypatch, tmp_path
+):
     """A foreign index that _manage_indexes(enable=False) leaves in place (status=warning)
     during the bulk-mode disable step must be surfaced on the returned report, not
     silently discarded -- this is the only call site that inspects those results."""
@@ -755,7 +788,11 @@ def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, fresh
         fake_manage_indexes,
     )
 
-    report = load_vocab_source(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), source_path=source_path, bulk_mode=True)
+    report = load_vocab_source(
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+        source_path=source_path,
+        bulk_mode=True,
+    )
 
     assert disable_calls == [False, True]
     assert report.index_warnings == (
@@ -812,9 +849,7 @@ def test_render_vocab_index_warnings_lists_messages_when_present():
     assert "idx_concept_partial" in text
 
     summary_buffer = io.StringIO()
-    Console(file=summary_buffer, width=200).print(
-        render_vocab_load_summary(report, dry_run=False)
-    )
+    Console(file=summary_buffer, width=200).print(render_vocab_load_summary(report, dry_run=False))
     summary_text = summary_buffer.getvalue()
     assert "Index warnings" in summary_text
     assert "1" in summary_text

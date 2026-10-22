@@ -4,17 +4,21 @@ from sqlalchemy.orm import DeclarativeMeta
 if TYPE_CHECKING:
     from omop_alchemy.cdm.base import ExpectedDomain, DomainRule
 
+
 @runtime_checkable
 class HasConceptId(Protocol):
     concept_id: int
+
 
 @runtime_checkable
 class HasEpisodeId(Protocol):
     episode_id: int
 
+
 @runtime_checkable
 class HasPersonId(Protocol):
     person_id: int
+
 
 @runtime_checkable
 class DomainSemanticTable(Protocol):
@@ -24,4 +28,3 @@ class DomainSemanticTable(Protocol):
 
     @classmethod
     def collect_domain_rules(cls) -> list["DomainRule"]: ...
-

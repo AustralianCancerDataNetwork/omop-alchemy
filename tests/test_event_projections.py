@@ -85,8 +85,7 @@ def test_projection_resolves_source_metadata(
     assert tuple(statement.selected_columns.keys()) == tuple(
         map(
             str,
-            ClinicalEventColumn.required_columns()
-            + ClinicalEventColumn.optional_columns(),
+            ClinicalEventColumn.required_columns() + ClinicalEventColumn.optional_columns(),
         )
     )
 
@@ -94,9 +93,7 @@ def test_projection_resolves_source_metadata(
 @pytest.mark.parametrize("dialect", [sqlite.dialect(), postgresql.dialect()])
 def test_projection_compiles_discriminator_and_source_as_literals(dialect):
     statement = canonical_event_projection(Measurement)
-    compiled = str(
-        statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True})
-    )
+    compiled = str(statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True}))
 
     assert str(ModifierFieldConcepts.MEASUREMENT) in compiled
     assert "'measurement'" in compiled
@@ -126,8 +123,7 @@ def test_projection_union_preserves_one_shared_shape():
     assert tuple(statement.selected_columns.keys()) == tuple(
         map(
             str,
-            ClinicalEventColumn.required_columns()
-            + ClinicalEventColumn.optional_columns(),
+            ClinicalEventColumn.required_columns() + ClinicalEventColumn.optional_columns(),
         )
     )
     assert compiled.count("UNION ALL") == 2

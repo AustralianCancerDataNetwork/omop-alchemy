@@ -178,9 +178,7 @@ class ModifierTargetDiagnostic:
     message: str
 
     @classmethod
-    def from_mapping(
-        cls, row: _ModifierTargetDiagnosticMapping
-    ) -> ModifierTargetDiagnostic:
+    def from_mapping(cls, row: _ModifierTargetDiagnosticMapping) -> ModifierTargetDiagnostic:
         return cls(
             diagnostic_code=ModifierTargetDiagnosticCode(
                 row[ModifierTargetDiagnosticColumn.diagnostic_code.value]

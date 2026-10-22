@@ -210,9 +210,9 @@ class ClinicalEvent:
             # OMOP quantity fields are numeric even though their names do not
             # contain ``number``. Keep the mapping semantic here so callers do
             # not need table-specific special cases when serialising timelines.
-            if (
-                "number" in field.lower() or field.lower() == "quantity"
-            ) and isinstance(value, (int, float)):
+            if ("number" in field.lower() or field.lower() == "quantity") and isinstance(
+                value, (int, float)
+            ):
                 return EventValue(type="numeric", value=value)
 
             if "string" in field.lower() and isinstance(value, str) and value.strip():
@@ -229,9 +229,7 @@ class ClinicalEvent:
         if start is None:
             start = _as_datetime(getattr(self, m.start_date_field), end=False)
         if start is None:
-            raise ValueError(
-                f"{self.__class__.__name__}: could not resolve event start time"
-            )
+            raise ValueError(f"{self.__class__.__name__}: could not resolve event start time")
         end = None
         if m.end_datetime_field:
             end = getattr(self, m.end_datetime_field)

@@ -1,16 +1,17 @@
 from sqlalchemy import orm as so
 from orm_loader.helpers import get_model_by_tablename
-#from .domain_rule import DomainRule
+
+# from .domain_rule import DomainRule
 from typing import FrozenSet
 from dataclasses import dataclass
 from typing import Optional
 
+
 @dataclass(frozen=True)
 class DomainRule:
-
     """
     *DomainRule*
-    
+
     Immutable specification of an expected OMOP domain constraint.
 
     A DomainRule describes the semantic expectation that a given
@@ -32,6 +33,7 @@ class DomainRule:
     allowed_classes : Optional[set[str]]
         Optional restriction to specific concept classes.
     """
+
     table: str
     field: str
     allowed_domains: FrozenSet[str]
@@ -55,6 +57,7 @@ class ExpectedDomain:
     >>> ExpectedDomain("Race", "Ethnicity").domains
     frozenset({'Race', 'Ethnicity'})
     """
+
     domains: FrozenSet[str]
 
     def __init__(self, *domains: str):
@@ -99,6 +102,7 @@ class DomainValidationMixin:
     >>> p.domain_violations
     ["gender_concept_id not in domain(s): ['Gender']"]
     """
+
     __expected_domains__: dict[str, ExpectedDomain] = {}
 
     @classmethod
@@ -112,16 +116,14 @@ class DomainValidationMixin:
             Domain rules derived from ``__expected_domains__``.
         """
         rules: list[DomainRule] = []
-        
+
         if not hasattr(cls, "__tablename__"):
-            raise TypeError(
-                f"{cls.__name__} defines domain rules but is not a mapped table"
-            )
-        
+            raise TypeError(f"{cls.__name__} defines domain rules but is not a mapped table")
+
         for field, spec in cls.__expected_domains__.items():
             rules.append(
                 DomainRule(
-                    table=cls.__tablename__, # ty: ignore[invalid-argument-type]
+                    table=cls.__tablename__,  # ty: ignore[invalid-argument-type]
                     field=field,
                     allowed_domains=spec.domains,
                 )
@@ -156,7 +158,6 @@ class DomainValidationMixin:
         concept = session.get(ConceptCls, concept_id)
         return concept.domain_id in expected.domains if concept else False  # type: ignore[union-attr]
 
-
     @property
     def domain_violations(self) -> list[str]:
         """
@@ -165,9 +166,7 @@ class DomainValidationMixin:
         issues = []
         for field, expected in self.__expected_domains__.items():
             if not self._check_domain(field):
-                issues.append(
-                    f"{field} not in domain(s): {sorted(expected.domains)}"
-                )
+                issues.append(f"{field} not in domain(s): {sorted(expected.domains)}")
         return issues
 
     @property
@@ -176,4 +175,3 @@ class DomainValidationMixin:
         Whether this object satisfies all declared domain expectations.
         """
         return not self.domain_violations
-

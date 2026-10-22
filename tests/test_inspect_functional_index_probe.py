@@ -8,10 +8,13 @@ from omop_alchemy.maintenance.context import MaintenanceContext
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
+
 def test_inspect_functional_index(pg_db):
     with scoped_test_schema(pg_db.resolved, prefix="funcidx_probe") as scoped:
         _create_missing_tables(
-            MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine),
+            MaintenanceContext(
+                resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine
+            ),
             vocabulary_included=True,
         )
         with scoped.engine.connect() as conn:

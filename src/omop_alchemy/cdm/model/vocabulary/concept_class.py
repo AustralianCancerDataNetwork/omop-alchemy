@@ -12,6 +12,7 @@ from omop_alchemy.cdm.base import (
     role_fk,
 )
 
+
 @cdm_table
 class Concept_Class(Base, ReferenceTable, CDMTableBase):
     __tablename__ = "concept_class"
@@ -21,7 +22,10 @@ class Concept_Class(Base, ReferenceTable, CDMTableBase):
     )
     concept_class_id: so.Mapped[str] = so.mapped_column(sa.String(20), primary_key=True)
     concept_class_name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
-    concept_class_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),nullable=False,)
+    concept_class_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),
+        nullable=False,
+    )
 
     def __repr__(self):
         return f"<ConceptClass {self.concept_class_id}>"

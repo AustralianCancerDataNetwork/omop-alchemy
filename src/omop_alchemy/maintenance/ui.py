@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 
 console = Console()
 
+
 def _status_style(status: Status) -> str:
     """Resolve the render color for a status via its severity.
 
@@ -116,7 +117,6 @@ def render_error(message: str, *, title: str = "Error") -> Panel:
         title=f"[bold red]{title}[/bold red]",
         border_style="red",
     )
-
 
 
 def _status_text(status: Status) -> Text:
@@ -213,7 +213,11 @@ def render_backup_result(result: BackupResult) -> Panel:
     grid.add_row("Output", result.file_path)
     grid.add_row("Tool", result.tool_path)
     grid.add_row("Detail", result.detail)
-    return Panel.fit(grid, title="[bold]Backup[/bold]", border_style="green" if result.status == "created" else "cyan")
+    return Panel.fit(
+        grid,
+        title="[bold]Backup[/bold]",
+        border_style="green" if result.status == "created" else "cyan",
+    )
 
 
 def render_backup_summary(result: BackupResult, *, dry_run: bool) -> Panel:
@@ -230,9 +234,13 @@ def render_backup_summary(result: BackupResult, *, dry_run: bool) -> Panel:
     grid.add_row("Restore", restore_hint)
     grid.add_row(
         "Summary",
-        "Backup planned; no dump file was created." if dry_run else "Backup completed; artifact is ready for restore.",
+        "Backup planned; no dump file was created."
+        if dry_run
+        else "Backup completed; artifact is ready for restore.",
     )
-    return Panel.fit(grid, title="[bold]Summary[/bold]", border_style="cyan" if dry_run else "green")
+    return Panel.fit(
+        grid, title="[bold]Summary[/bold]", border_style="cyan" if dry_run else "green"
+    )
 
 
 def render_restore_result(result: BackupResult) -> Panel:
@@ -247,7 +255,11 @@ def render_restore_result(result: BackupResult) -> Panel:
     grid.add_row("Input", result.file_path)
     grid.add_row("Tool", result.tool_path)
     grid.add_row("Detail", result.detail)
-    return Panel.fit(grid, title="[bold]Restore[/bold]", border_style="green" if result.status == "applied" else "cyan")
+    return Panel.fit(
+        grid,
+        title="[bold]Restore[/bold]",
+        border_style="green" if result.status == "applied" else "cyan",
+    )
 
 
 def render_restore_summary(result: BackupResult, *, dry_run: bool) -> Panel:
@@ -262,13 +274,19 @@ def render_restore_summary(result: BackupResult, *, dry_run: bool) -> Panel:
         if dry_run
         else "Restore completed; the target database has been updated from the backup artifact.",
     )
-    return Panel.fit(grid, title="[bold]Summary[/bold]", border_style="cyan" if dry_run else "green")
+    return Panel.fit(
+        grid, title="[bold]Summary[/bold]", border_style="cyan" if dry_run else "green"
+    )
 
 
 def render_reconciliation_results(results: Iterable[TableReconciliationResult]) -> RenderableType:
     items = list(results)
     if not items:
-        return Panel.fit("No ORM-managed tables matched the current selection.", title="No Data", border_style="yellow")
+        return Panel.fit(
+            "No ORM-managed tables matched the current selection.",
+            title="No Data",
+            border_style="yellow",
+        )
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
     table.add_column("Status")
@@ -292,7 +310,11 @@ def render_reconciliation_results(results: Iterable[TableReconciliationResult]) 
 def render_reconciliation_issues(issues: Iterable[ReconciliationIssue]) -> RenderableType:
     items = list(issues)
     if not items:
-        return Panel.fit("No schema drift detected between ORM metadata and the target database.", title="No Drift", border_style="green")
+        return Panel.fit(
+            "No schema drift detected between ORM metadata and the target database.",
+            title="No Drift",
+            border_style="green",
+        )
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
     table.title = "[bold]Differences[/bold]"
@@ -358,7 +380,9 @@ def render_reconciliation_summary(report: SchemaReconciliationReport) -> Panel:
         grid.add_row(Status.RENAMED.value.capitalize(), str(renamed_count))
     grid.add_row(
         "Summary",
-        "Schema drift detected." if blocking_issues else "Database schema matches ORM metadata for the selected scope.",
+        "Schema drift detected."
+        if blocking_issues
+        else "Database schema matches ORM metadata for the selected scope.",
     )
     return Panel.fit(
         grid,
@@ -484,7 +508,11 @@ def render_doctor_summary(report: DoctorReport, *, deep: bool) -> Panel:
 def render_sequence_reset_results(results: Iterable[SequenceResetResult]) -> RenderableType:
     items = list(results)
     if not items:
-        return Panel.fit("No sequence-backed tables matched the current selection.", title="No Action", border_style="yellow")
+        return Panel.fit(
+            "No sequence-backed tables matched the current selection.",
+            title="No Action",
+            border_style="yellow",
+        )
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
     table.add_column("Status")
@@ -508,7 +536,9 @@ def render_sequence_reset_results(results: Iterable[SequenceResetResult]) -> Ren
     return table
 
 
-def render_sequence_reset_summary(results: Iterable[SequenceResetResult], *, dry_run: bool) -> Panel:
+def render_sequence_reset_summary(
+    results: Iterable[SequenceResetResult], *, dry_run: bool
+) -> Panel:
     items = list(results)
     reset_count = sum(result.status in {"planned", "reset"} for result in items)
     skipped_count = sum(result.status == "skipped" for result in items)
@@ -522,13 +552,19 @@ def render_sequence_reset_summary(results: Iterable[SequenceResetResult], *, dry
         "Summary",
         f"{'Planned' if dry_run else 'Applied'} {reset_count} sequence(s); skipped {skipped_count} table(s).",
     )
-    return Panel.fit(grid, title="[bold]Summary[/bold]", border_style="green" if not dry_run else "cyan")
+    return Panel.fit(
+        grid, title="[bold]Summary[/bold]", border_style="green" if not dry_run else "cyan"
+    )
 
 
 def render_data_summary_results(results: Iterable[TableSummaryResult]) -> RenderableType:
     items = list(results)
     if not items:
-        return Panel.fit("No OMOP Alchemy tables were found for the current selection.", title="No Data", border_style="yellow")
+        return Panel.fit(
+            "No OMOP Alchemy tables were found for the current selection.",
+            title="No Data",
+            border_style="yellow",
+        )
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
     table.add_column("Table", style="bold")
@@ -570,7 +606,11 @@ def render_vocab_load_results(
 ) -> RenderableType:
     items = list(results)
     if not items:
-        return Panel.fit("No Athena vocabulary CSV files matched the current selection.", title="No Data", border_style="yellow")
+        return Panel.fit(
+            "No Athena vocabulary CSV files matched the current selection.",
+            title="No Data",
+            border_style="yellow",
+        )
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
     table.add_column("Status")
@@ -644,7 +684,11 @@ def render_vocab_index_warnings(report: VocabularyLoadReport) -> Panel | None:
 def render_foreign_key_results(results: Iterable[ForeignKeyManagementResult]) -> RenderableType:
     items = list(results)
     if not items:
-        return Panel.fit("No FK-participating OMOP tables matched the current selection.", title="No Action", border_style="yellow")
+        return Panel.fit(
+            "No FK-participating OMOP tables matched the current selection.",
+            title="No Action",
+            border_style="yellow",
+        )
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
     table.add_column("Status")
@@ -668,7 +712,9 @@ def render_foreign_key_results(results: Iterable[ForeignKeyManagementResult]) ->
     return table
 
 
-def render_foreign_key_summary(results: Iterable[ForeignKeyManagementResult], *, dry_run: bool) -> Panel:
+def render_foreign_key_summary(
+    results: Iterable[ForeignKeyManagementResult], *, dry_run: bool
+) -> Panel:
     items = list(results)
     action = "Enable" if items and items[0].enable else "Disable"
     failed = sum(item.status == "failed" for item in items)
@@ -714,7 +760,11 @@ def render_foreign_key_note(enable: bool, *, strict: bool = False) -> Panel:
 def render_foreign_key_status_results(results: Iterable[ForeignKeyStatusResult]) -> RenderableType:
     items = list(results)
     if not items:
-        return Panel.fit("No FK-participating OMOP tables matched the current selection.", title="No Data", border_style="yellow")
+        return Panel.fit(
+            "No FK-participating OMOP tables matched the current selection.",
+            title="No Data",
+            border_style="yellow",
+        )
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
     table.add_column("Table", style="bold")
@@ -753,7 +803,11 @@ def render_foreign_key_validation_results(
 ) -> RenderableType:
     items = list(results)
     if not items:
-        return Panel.fit("No FK-participating OMOP tables matched the current selection.", title="No Data", border_style="yellow")
+        return Panel.fit(
+            "No FK-participating OMOP tables matched the current selection.",
+            title="No Data",
+            border_style="yellow",
+        )
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
     table.add_column("Status")
@@ -808,19 +862,9 @@ def render_foreign_key_validation_issues(
 def render_foreign_key_validation_summary(
     report: ForeignKeyValidationReport,
 ) -> Panel:
-    failed_tables = [
-        result
-        for result in report.results
-        if result.status == "failed"
-    ]
-    total_constraints = sum(
-        result.violating_constraint_count
-        for result in report.results
-    )
-    total_rows = sum(
-        result.violating_row_count
-        for result in report.results
-    )
+    failed_tables = [result for result in report.results if result.status == "failed"]
+    total_constraints = sum(result.violating_constraint_count for result in report.results)
+    total_rows = sum(result.violating_row_count for result in report.results)
 
     grid = Table.grid(padding=(0, 2))
     grid.add_column(style="bold cyan")
@@ -847,7 +891,11 @@ def render_foreign_key_validation_summary(
 def render_table_creation_results(results: Iterable[TableCreationResult]) -> RenderableType:
     items = list(results)
     if not items:
-        return Panel.fit("No missing OMOP tables were found for the current selection.", title="No Action", border_style="yellow")
+        return Panel.fit(
+            "No missing OMOP tables were found for the current selection.",
+            title="No Action",
+            border_style="yellow",
+        )
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
     table.add_column("Status")
@@ -867,20 +915,28 @@ def render_table_creation_results(results: Iterable[TableCreationResult]) -> Ren
     return table
 
 
-def render_table_creation_summary(results: Iterable[TableCreationResult], *, dry_run: bool) -> Panel:
+def render_table_creation_summary(
+    results: Iterable[TableCreationResult], *, dry_run: bool
+) -> Panel:
     items = list(results)
     grid = Table.grid(padding=(0, 2))
     grid.add_column(style="bold cyan")
     grid.add_column()
     grid.add_row("Tables", str(len(items)))
     grid.add_row("Summary", f"{'Planned' if dry_run else 'Created'} {len(items)} table(s).")
-    return Panel.fit(grid, title="[bold]Summary[/bold]", border_style="green" if not dry_run else "cyan")
+    return Panel.fit(
+        grid, title="[bold]Summary[/bold]", border_style="green" if not dry_run else "cyan"
+    )
 
 
 def render_index_results(results: Iterable[IndexManagementResult]) -> RenderableType:
     items = list(results)
     if not items:
-        return Panel.fit("No metadata-defined indexes matched the current selection.", title="No Action", border_style="yellow")
+        return Panel.fit(
+            "No metadata-defined indexes matched the current selection.",
+            title="No Action",
+            border_style="yellow",
+        )
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
     table.add_column("Status")
@@ -1041,11 +1097,7 @@ def render_truncate_summary(
     cascade: bool,
 ) -> Panel:
     items = list(results)
-    truncated = [
-        result
-        for result in items
-        if result.status in {"planned", "applied"}
-    ]
+    truncated = [result for result in items if result.status in {"planned", "applied"}]
     total_rows = sum(result.row_count or 0 for result in truncated)
     skipped = sum(result.status == "skipped" for result in items)
 
@@ -1115,11 +1167,7 @@ def render_analyze_summary(
     dry_run: bool,
 ) -> Panel:
     items = list(results)
-    analyzed = [
-        result
-        for result in items
-        if result.status in {"planned", "applied"}
-    ]
+    analyzed = [result for result in items if result.status in {"planned", "applied"}]
     skipped = sum(result.status == "skipped" for result in items)
 
     grid = Table.grid(padding=(0, 2))

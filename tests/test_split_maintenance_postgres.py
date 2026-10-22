@@ -95,15 +95,9 @@ def test_pg_split_fulltext_install_populate_drop_use_vocab_database(pg_split):
 def test_pg_split_fk_status_and_toggle_use_vocabulary_database(pg_split):
     context = _context(pg_split)
 
-    disabled = manage_foreign_key_triggers(
-        context, enable=False, vocabulary_only=True
-    )
-    status = collect_foreign_key_trigger_status(
-        context, vocabulary_included=True
-    )
-    enabled = manage_foreign_key_triggers(
-        context, enable=True, vocabulary_only=True
-    )
+    disabled = manage_foreign_key_triggers(context, enable=False, vocabulary_only=True)
+    status = collect_foreign_key_trigger_status(context, vocabulary_included=True)
+    enabled = manage_foreign_key_triggers(context, enable=True, vocabulary_only=True)
 
     assert disabled and enabled
     assert any(result.table_name == "concept" for result in status)

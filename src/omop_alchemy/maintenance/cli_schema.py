@@ -103,7 +103,9 @@ def doctor_command(
     console.print(render_info_database(report.info))
     console.print(render_doctor_checks(report.checks))
     if deep and report.foreign_key_validation is not None:
-        console.print(render_foreign_key_validation_issues(report.foreign_key_validation.violations))
+        console.print(
+            render_foreign_key_validation_issues(report.foreign_key_validation.violations)
+        )
     console.print(render_doctor_recommendations(report.recommendations))
     console.print(render_doctor_summary(report, deep=deep))
 
@@ -172,5 +174,3 @@ def data_summary_command(
         )
     console.print(render_data_summary_results(results))
     console.print(render_data_summary_summary(results))
-
-

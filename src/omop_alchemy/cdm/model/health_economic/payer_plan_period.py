@@ -13,6 +13,7 @@ from omop_alchemy.cdm.base import (
     omop_index,
 )
 
+
 @cdm_table
 class Payer_Plan_Period(CDMTableBase, Base):
     __tablename__ = "payer_plan_period"
@@ -22,7 +23,9 @@ class Payer_Plan_Period(CDMTableBase, Base):
     )
 
     payer_plan_period_id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    person_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False)
+    person_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "person.person_id")), nullable=False
+    )
     payer_plan_period_start_date: so.Mapped[date] = so.mapped_column(nullable=False)
     payer_plan_period_end_date: so.Mapped[date] = so.mapped_column(nullable=False)
 
@@ -41,5 +44,7 @@ class Payer_Plan_Period(CDMTableBase, Base):
     family_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
 
     stop_reason_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    stop_reason_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
+    stop_reason_source_value: so.Mapped[Optional[str]] = so.mapped_column(
+        sa.String(50), nullable=True
+    )
     stop_reason_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()

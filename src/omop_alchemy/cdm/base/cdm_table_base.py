@@ -2,10 +2,12 @@ from orm_loader.tables import CSVLoadableTableInterface, SerialisableTableInterf
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
-class CDMTableBase(CSVLoadableTableInterface, SerialisableTableInterface):  
+
+class CDMTableBase(CSVLoadableTableInterface, SerialisableTableInterface):
     """
     Base class for CDM tables that support CSV loading and validation.
     """
+
     __abstract__ = True
     __omop_is_cdm_table__ = False
     __omop_table_category__: str | None = None
@@ -23,8 +25,7 @@ class CDMTableBase(CSVLoadableTableInterface, SerialisableTableInterface):
 
     @classmethod
     def table_has_rows(cls, session: so.Session) -> bool:
-        return session.execute(
-            sa.select(sa.literal(True))
-            .select_from(cls)
-            .limit(1)
-        ).scalar() is not None
+        return (
+            session.execute(sa.select(sa.literal(True)).select_from(cls).limit(1)).scalar()
+            is not None
+        )

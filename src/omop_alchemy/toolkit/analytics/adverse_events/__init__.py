@@ -2,7 +2,8 @@ from .weight_loss import (
     MartinWeightLoss,
     critical_weight_loss_grade,
     martin_weight_loss_grade,
-    CTCAEWeightLoss, ctcae_weight_loss_grade
+    CTCAEWeightLoss,
+    ctcae_weight_loss_grade,
 )
 
 __all__ = [

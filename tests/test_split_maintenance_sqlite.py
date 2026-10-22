@@ -29,9 +29,7 @@ def _assert_vocab_only(split_sqlite, table_name: str) -> None:
 def test_split_analyze_targets_vocabulary_file(sqlite_split):
     _create_split_tables(sqlite_split.context)
 
-    results = analyze_tables(
-        sqlite_split.context, scope=TableCategory.VOCABULARY
-    )
+    results = analyze_tables(sqlite_split.context, scope=TableCategory.VOCABULARY)
 
     assert any(result.table_name == "concept" for result in results)
     _assert_vocab_only(sqlite_split, "concept")
@@ -103,9 +101,7 @@ def test_split_fk_status_and_toggle_use_vocab_engine(sqlite_split, monkeypatch):
         vocabulary_only=True,
         dry_run=True,
     )
-    status = collect_foreign_key_trigger_status(
-        sqlite_split.context, vocabulary_included=True
-    )
+    status = collect_foreign_key_trigger_status(sqlite_split.context, vocabulary_included=True)
 
     assert any(result.table_name == "concept" for result in toggles)
     assert any(result.table_name == "concept" for result in status)
@@ -126,9 +122,7 @@ def test_split_data_summary_reads_vocabulary_rows(sqlite_split):
 
     summary = {
         result.table_name: result
-        for result in collect_data_summary(
-            sqlite_split.context, vocabulary_included=True
-        )
+        for result in collect_data_summary(sqlite_split.context, vocabulary_included=True)
     }
 
     assert summary["concept"].exists
@@ -139,17 +133,13 @@ def test_split_data_summary_reads_vocabulary_rows(sqlite_split):
 def test_split_index_targets_inspect_vocabulary_file(sqlite_split):
     _create_split_tables(sqlite_split.context)
 
-    targets = collect_index_targets(
-        sqlite_split.context, vocabulary_included=True
-    )
+    targets = collect_index_targets(sqlite_split.context, vocabulary_included=True)
 
     assert any(target.table_name == "concept" for target in targets)
     _assert_vocab_only(sqlite_split, "concept")
 
 
-def test_split_load_vocab_source_writes_only_vocabulary_file(
-    sqlite_split, athena_source_dir
-):
+def test_split_load_vocab_source_writes_only_vocabulary_file(sqlite_split, athena_source_dir):
     from omop_alchemy.maintenance.cli_vocab import load_vocab_source
 
     load_vocab_source(

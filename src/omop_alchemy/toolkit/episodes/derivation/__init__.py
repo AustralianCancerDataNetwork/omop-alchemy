@@ -5,9 +5,9 @@ Episodes in the CDM are rows that reference each other through
 
 The public contracts in this area define episode-attachment identities and
 policies used by query builders. Shared clinical-event row names and identities
-live in ``toolkit.core.events``. 
+live in ``toolkit.core.events``.
 
-Projection, attachment, and ranking helpers return SQLAlchemy statements or 
+Projection, attachment, and ranking helpers return SQLAlchemy statements or
 expressions without executing them.
 """
 

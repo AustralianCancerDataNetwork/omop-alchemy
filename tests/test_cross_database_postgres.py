@@ -37,6 +37,7 @@ def statements(pg_split: SplitCDM) -> Iterator[Counter[str]]:
     counts: Counter[str] = Counter()
     listeners = []
     for role, engine in (("primary", pg_split.primary), ("vocab", pg_split.vocab)):
+
         def _count(*_args, role=role, **_kwargs) -> None:
             counts[role] += 1
 
@@ -54,14 +55,18 @@ def _seed_conditions(
     with sessions() as session:
         session.add(
             Person(
-                person_id=1, year_of_birth=1980, gender_concept_id=8507,
-                race_concept_id=8527, ethnicity_concept_id=38003564,
+                person_id=1,
+                year_of_birth=1980,
+                gender_concept_id=8507,
+                race_concept_id=8527,
+                ethnicity_concept_id=38003564,
             )
         )
         session.flush()
         session.add_all(
             Condition_Occurrence(
-                condition_occurrence_id=index, person_id=1,
+                condition_occurrence_id=index,
+                person_id=1,
                 condition_concept_id=concept_ids[(index - 1) % len(concept_ids)],
                 condition_start_date=date(2020, 1, 1),
                 condition_type_concept_id=TYPE_CONCEPT_ID,
@@ -97,7 +102,9 @@ class TestRoutedSession:
         self, pg_split: SplitCDM, statements: Counter[str]
     ):
         _seed_conditions(pg_split, 1)
-        sessions = cdm_sessionmaker(pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab)
+        sessions = cdm_sessionmaker(
+            pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab
+        )
         with sessions() as session:
             row = session.scalars(sa.select(Condition_OccurrenceView)).one()
             assert row.condition_concept.concept_name == "Type 2 diabetes mellitus"
@@ -107,7 +114,9 @@ class TestRoutedSession:
     def test_reference_loading_is_batched_by_relationship_not_by_row(
         self, pg_split: SplitCDM, statements: Counter[str]
     ):
-        sessions = cdm_sessionmaker(pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab)
+        sessions = cdm_sessionmaker(
+            pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab
+        )
 
         def vocab_queries_for_load() -> int:
             statements.clear()
@@ -126,7 +135,9 @@ class TestRoutedSession:
         assert one_row > 0
 
     def test_join_across_the_boundary_is_refused(self, pg_split: SplitCDM):
-        sessions = cdm_sessionmaker(pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab)
+        sessions = cdm_sessionmaker(
+            pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab
+        )
         with sessions() as session, pytest.raises(CrossDatabaseStatementError):
             session.execute(
                 sa.select(Condition_Occurrence.condition_occurrence_id).join(
@@ -135,7 +146,9 @@ class TestRoutedSession:
             )
 
     def test_statement_naming_no_table_is_refused(self, pg_split: SplitCDM):
-        sessions = cdm_sessionmaker(pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab)
+        sessions = cdm_sessionmaker(
+            pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab
+        )
         with sessions() as session, pytest.raises(sa.exc.UnboundExecutionError):
             session.execute(sa.text("SELECT 1"))
 
@@ -147,7 +160,9 @@ class TestRoutedSession:
 class TestFilterByKeys:
     def test_filters_clinical_rows_by_vocabulary_keys_across_databases(self, pg_split: SplitCDM):
         _seed_conditions(pg_split, 3)
-        sessions = cdm_sessionmaker(pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab)
+        sessions = cdm_sessionmaker(
+            pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab
+        )
         with sessions() as session:
             predicate = filter_by_keys(
                 Condition_Occurrence.condition_concept_id,
@@ -162,16 +177,21 @@ class TestFilterByKeys:
 
     def test_no_matching_keys_matches_no_rows(self, pg_split: SplitCDM):
         _seed_conditions(pg_split, 1)
-        sessions = cdm_sessionmaker(pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab)
+        sessions = cdm_sessionmaker(
+            pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab
+        )
         with sessions() as session:
             predicate = filter_by_keys(
                 Condition_Occurrence.condition_concept_id,
                 keys_select=sa.select(Concept.concept_id).where(Concept.domain_id == "Nope"),
                 session=session,
             )
-            assert session.scalars(
-                sa.select(Condition_Occurrence.condition_occurrence_id).where(predicate)
-            ).all() == []
+            assert (
+                session.scalars(
+                    sa.select(Condition_Occurrence.condition_occurrence_id).where(predicate)
+                ).all()
+                == []
+            )
 
 
 MISSING_CONCEPT_ID = 999_999
@@ -196,9 +216,9 @@ def test_concept_validation_reports_violations_across_databases(pg_split: SplitC
         assert _ConditionValidation.referenced_concept_violations(session) == {
             "condition_concept_id": {MISSING_CONCEPT_ID}
         }
-        assert _ConditionValidation.referenced_concept_violations(
-            session, domain_id="Drug"
-        ) == {"condition_concept_id": {CONDITION_CONCEPT_ID, MISSING_CONCEPT_ID}}
+        assert _ConditionValidation.referenced_concept_violations(session, domain_id="Drug") == {
+            "condition_concept_id": {CONDITION_CONCEPT_ID, MISSING_CONCEPT_ID}
+        }
 
 
 def test_concept_set_membership_across_databases_needs_the_session(pg_split: SplitCDM):

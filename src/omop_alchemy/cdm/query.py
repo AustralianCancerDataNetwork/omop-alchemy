@@ -51,9 +51,7 @@ class ConceptFilter:
 
     def __post_init__(self) -> None:
         if self.limit is not None and self.limit <= 0:
-            raise ValueError(
-                f"ConceptFilter.limit must be a positive integer, got {self.limit}."
-            )
+            raise ValueError(f"ConceptFilter.limit must be a positive integer, got {self.limit}.")
 
     def apply(self, query: sa.Select) -> sa.Select:
         """Apply filter constraints to a Select whose FROM clause includes Concept."""

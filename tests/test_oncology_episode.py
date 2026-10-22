@@ -192,30 +192,22 @@ def oncology_session(fresh_engine, fresh_resolved) -> Iterator[so.Session]:
                 Episode_Event(
                     episode_id=201,
                     event_id=11,
-                    episode_event_field_concept_id=(
-                        ModifierFieldConcepts.PROCEDURE_OCCURRENCE
-                    ),
+                    episode_event_field_concept_id=(ModifierFieldConcepts.PROCEDURE_OCCURRENCE),
                 ),
                 Episode_Event(
                     episode_id=201,
                     event_id=12,
-                    episode_event_field_concept_id=(
-                        ModifierFieldConcepts.PROCEDURE_OCCURRENCE
-                    ),
+                    episode_event_field_concept_id=(ModifierFieldConcepts.PROCEDURE_OCCURRENCE),
                 ),
                 Episode_Event(
                     episode_id=202,
                     event_id=21,
-                    episode_event_field_concept_id=(
-                        ModifierFieldConcepts.DRUG_EXPOSURE
-                    ),
+                    episode_event_field_concept_id=(ModifierFieldConcepts.DRUG_EXPOSURE),
                 ),
                 Episode_Event(
                     episode_id=200,
                     event_id=999,
-                    episode_event_field_concept_id=(
-                        ModifierFieldConcepts.PROCEDURE_OCCURRENCE
-                    ),
+                    episode_event_field_concept_id=(ModifierFieldConcepts.PROCEDURE_OCCURRENCE),
                 ),
             ]
         )
@@ -313,6 +305,5 @@ def test_oncology_episode_event_reports_dangling_target(oncology_session: so.Ses
     assert episode is not None
     assert len(episode.episode_events) == 1
     assert [
-        diagnostic.kind
-        for diagnostic in episode.episode_events[0].event_resolution_diagnostics
+        diagnostic.kind for diagnostic in episode.episode_events[0].event_resolution_diagnostics
     ] == ["dangling_event"]

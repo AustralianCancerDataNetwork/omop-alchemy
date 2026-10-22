@@ -13,11 +13,11 @@ if TYPE_CHECKING:
 class TableCategory(StrEnum):
     """An OMOP CDM table's structural category, carrying its render style.
 
-    Represents a logical grouping of tables as defined by the 
-    [OMOP CDM spec](https://ohdsi.github.io/CommonDataModel/). 
-    The grouping is also reflected in the subpackage under 
+    Represents a logical grouping of tables as defined by the
+    [OMOP CDM spec](https://ohdsi.github.io/CommonDataModel/).
+    The grouping is also reflected in the subpackage under
     ``omop_alchemy.cdm.model``, where the same logical grouping is used
-    to organize the ORM classes. 
+    to organize the ORM classes.
 
     Notes
     -----
@@ -94,9 +94,8 @@ class MaintenanceTable:
 
     @property
     def has_single_integer_primary_key(self) -> bool:
-        return (
-            self.has_single_primary_key
-            and isinstance(self.primary_key_columns[0].type, sa.Integer)
+        return self.has_single_primary_key and isinstance(
+            self.primary_key_columns[0].type, sa.Integer
         )
 
 
@@ -161,9 +160,7 @@ class TableTarget:
         """
         if sa.inspect(self.bind).has_table(self.table_name, schema=self.physical_schema):
             return True
-        return self.table_name in all_table_names(
-            self.bind, schema=self.physical_schema
-        )
+        return self.table_name in all_table_names(self.bind, schema=self.physical_schema)
 
 
 def _mapped_cdm_table_classes() -> Iterable[type]:
@@ -180,9 +177,7 @@ def _mapped_cdm_table_classes() -> Iterable[type]:
 def _table_category(mapped_class: type) -> TableCategory:
     category_name = getattr(mapped_class, "__omop_table_category__", None)
     if category_name is None:
-        raise RuntimeError(
-            f"{mapped_class.__name__} is missing __omop_table_category__"
-        )
+        raise RuntimeError(f"{mapped_class.__name__} is missing __omop_table_category__")
     return TableCategory(category_name)
 
 
@@ -209,10 +204,7 @@ def collect_maintenance_tables() -> list[MaintenanceTable]:
 
 
 def maintenance_table_map() -> dict[str, MaintenanceTable]:
-    return {
-        table.table_name: table
-        for table in collect_maintenance_tables()
-    }
+    return {table.table_name: table for table in collect_maintenance_tables()}
 
 
 def _unique_table_names(table_names: Iterable[str]) -> list[str]:
@@ -236,23 +228,14 @@ def select_maintenance_tables(
 
     if categories is not None:
         allowed = set(categories)
-        selected = [
-            table for table in selected
-            if table.category in allowed
-        ]
+        selected = [table for table in selected if table.category in allowed]
 
     if exclude_categories is not None:
         excluded = set(exclude_categories)
-        selected = [
-            table for table in selected
-            if table.category not in excluded
-        ]
+        selected = [table for table in selected if table.category not in excluded]
 
     if require_single_integer_primary_key:
-        selected = [
-            table for table in selected
-            if table.has_single_integer_primary_key
-        ]
+        selected = [table for table in selected if table.has_single_integer_primary_key]
 
     return selected
 
@@ -267,28 +250,14 @@ def resolve_maintenance_tables(
         selected_by_name = maintenance_table_map()
         ordered_names = _unique_table_names(table_names)
         unknown_names = sorted(
-            {
-                table_name
-                for table_name in ordered_names
-                if table_name not in selected_by_name
-            }
+            {table_name for table_name in ordered_names if table_name not in selected_by_name}
         )
         if unknown_names:
-            raise RuntimeError(
-                "Unknown ORM-managed table(s): "
-                + ", ".join(unknown_names)
-            )
+            raise RuntimeError("Unknown ORM-managed table(s): " + ", ".join(unknown_names))
 
-        selected = [
-            selected_by_name[table_name]
-            for table_name in ordered_names
-        ]
+        selected = [selected_by_name[table_name] for table_name in ordered_names]
         if require_single_integer_primary_key:
-            selected = [
-                table
-                for table in selected
-                if table.has_single_integer_primary_key
-            ]
+            selected = [table for table in selected if table.has_single_integer_primary_key]
         return selected
 
     if scope is not None:
@@ -338,7 +307,8 @@ def existing_maintenance_targets(
     """
     selected = (
         select_maintenance_tables(
-            categories=categories, require_single_integer_primary_key=require_single_integer_primary_key
+            categories=categories,
+            require_single_integer_primary_key=require_single_integer_primary_key,
         )
         if categories is not None
         else select_omop_tables(

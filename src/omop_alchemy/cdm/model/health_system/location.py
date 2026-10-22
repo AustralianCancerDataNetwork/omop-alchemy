@@ -14,6 +14,7 @@ from omop_alchemy.cdm.base import (
     omop_table_options,
 )
 
+
 @cdm_table
 class Location(CDMTableBase, Base):
     __tablename__ = "location"

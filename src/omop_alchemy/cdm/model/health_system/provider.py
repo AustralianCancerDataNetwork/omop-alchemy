@@ -14,6 +14,7 @@ from omop_alchemy.cdm.base import (
     omop_table_options,
 )
 
+
 @cdm_table
 class Provider(CDMTableBase, Base):
     __tablename__ = "provider"
@@ -30,11 +31,15 @@ class Provider(CDMTableBase, Base):
     npi: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), nullable=True)
     dea: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), nullable=True)
     specialty_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
-    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(role_fk(Role.PRIMARY, "care_site.care_site_id")), nullable=True)
+    care_site_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "care_site.care_site_id")), nullable=True
+    )
     year_of_birth: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, nullable=True)
     gender_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     provider_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
-    specialty_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
+    specialty_source_value: so.Mapped[Optional[str]] = so.mapped_column(
+        sa.String(50), nullable=True
+    )
     specialty_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()
     gender_source_value: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50), nullable=True)
     gender_source_concept_id: so.Mapped[Optional[int]] = optional_concept_fk()

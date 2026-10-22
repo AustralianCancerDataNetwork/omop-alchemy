@@ -42,10 +42,7 @@ def canonical_episode_projection(
     # can be consumed by attachments and hierarchy helpers without table-specific
     # column knowledge.
     columns = [
-        *(
-            episodes.c[str(column)].label(str(column))
-            for column in CANONICAL_EPISODE_COLUMNS
-        )
+        *(episodes.c[str(column)].label(str(column)) for column in CANONICAL_EPISODE_COLUMNS)
     ]
     if not include_concept_label:
         return sa.select(*columns).select_from(episodes)
@@ -53,16 +50,13 @@ def canonical_episode_projection(
     # Keep the episode row when vocabulary data is absent; labels are an
     # optional presentation enrichment, not a filter on structural episodes.
     episode_concept = so.aliased(Concept, name="episode_projection_concept")
-    columns.append(
-        episode_concept.concept_name.label(str(EpisodeColumn.episode_concept_name))
-    )
+    columns.append(episode_concept.concept_name.label(str(EpisodeColumn.episode_concept_name)))
     return (
         sa.select(*columns)
         .select_from(episodes)
         .join(
             episode_concept,
-            episode_concept.concept_id
-            == episodes.c[str(EpisodeColumn.episode_concept_id)],
+            episode_concept.concept_id == episodes.c[str(EpisodeColumn.episode_concept_id)],
             isouter=True,
         )
     )
@@ -80,9 +74,7 @@ def direct_episode_relationship_projection(
     return sa.select(
         parent.c[str(EpisodeColumn.episode_id)].label("root_episode_id"),
         child.c[str(EpisodeColumn.episode_id)].label(str(EpisodeColumn.episode_id)),
-        child.c[str(EpisodeColumn.episode_parent_id)].label(
-            str(EpisodeColumn.episode_parent_id)
-        ),
+        child.c[str(EpisodeColumn.episode_parent_id)].label(str(EpisodeColumn.episode_parent_id)),
         child.c[str(EpisodeColumn.person_id)].label(str(EpisodeColumn.person_id)),
         sa.literal(1).label("depth"),
     ).select_from(
@@ -91,8 +83,7 @@ def direct_episode_relationship_projection(
             sa.and_(
                 child.c[str(EpisodeColumn.episode_parent_id)]
                 == parent.c[str(EpisodeColumn.episode_id)],
-                child.c[str(EpisodeColumn.person_id)]
-                == parent.c[str(EpisodeColumn.person_id)],
+                child.c[str(EpisodeColumn.person_id)] == parent.c[str(EpisodeColumn.person_id)],
             ),
         )
     )

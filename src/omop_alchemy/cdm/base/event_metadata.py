@@ -62,9 +62,7 @@ class ClinicalEventMixin(ModifierTargetMixin):
         """
         model = cls if source_model is None else source_model
         if not isinstance(model, type) or not hasattr(model, "__table__"):
-            raise UnsupportedClinicalEventModelError(
-                model, "expected a mapped ORM model class"
-            )
+            raise UnsupportedClinicalEventModelError(model, "expected a mapped ORM model class")
         if not cls.has_complete_metadata():
             raise UnsupportedClinicalEventModelError(
                 model, "no complete ClinicalEventMixin metadata is available"

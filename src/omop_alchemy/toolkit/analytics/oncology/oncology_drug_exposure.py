@@ -29,9 +29,7 @@ class OncologyDrugExposure(Drug_ExposureView):
 
     @hybrid_property
     def is_sact(self) -> bool:
-        return self.drug_concept_id in resolve_sact_drug_concept_ids(
-            require_session(self)
-        )
+        return self.drug_concept_id in resolve_sact_drug_concept_ids(require_session(self))
 
     @is_sact.inplace.expression
     @classmethod

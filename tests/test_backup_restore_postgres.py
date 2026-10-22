@@ -33,6 +33,7 @@ from omop_alchemy.maintenance.context import MaintenanceContext
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
+
 def _unique_role_schemas(prefix: str = "roundtrip") -> dict[Role, str]:
     suffix = uuid.uuid4().hex[:8]
     return {
@@ -48,9 +49,7 @@ def _create_target(pg_db, role_schemas):
     config_name = pg_db.resolved.name
     target_url = source_url.set(database=database_name)
     _refuse_production_collision(target_url)
-    admin = sa.create_engine(
-        target_url.set(database="postgres"), isolation_level="AUTOCOMMIT"
-    )
+    admin = sa.create_engine(target_url.set(database="postgres"), isolation_level="AUTOCOMMIT")
     try:
         with admin.connect() as connection:
             connection.exec_driver_sql(f'CREATE DATABASE "{database_name}"')
@@ -91,9 +90,7 @@ def _create_target(pg_db, role_schemas):
 
 def _drop_target(target_url):
     _refuse_production_collision(target_url)
-    admin = sa.create_engine(
-        target_url.set(database="postgres"), isolation_level="AUTOCOMMIT"
-    )
+    admin = sa.create_engine(target_url.set(database="postgres"), isolation_level="AUTOCOMMIT")
     try:
         with admin.connect() as connection:
             connection.execute(
@@ -112,8 +109,11 @@ def _source_context(pg_db, role_schemas):
     resolved = resolve_with_role_schemas(pg_db.resolved, role_schemas)
     assert isinstance(resolved, ResolvedCDMDatabase)
     primary, vocab = create_cdm_engines(resolved)
-    return resolved, primary, vocab, MaintenanceContext(
-        resolved=resolved, engine=primary, vocab_engine=vocab
+    return (
+        resolved,
+        primary,
+        vocab,
+        MaintenanceContext(resolved=resolved, engine=primary, vocab_engine=vocab),
     )
 
 
@@ -185,9 +185,12 @@ def test_current_plain_backup_restores_and_registers_non_test_target(pg_db, tmp_
             backup_format=BackupFormat.PLAIN,
         )
         with target_vocab.connect() as connection:
-            assert connection.execute(
-                sa.text(f'SELECT id FROM "{role_schemas[Role.VOCAB]}".round_trip')
-            ).scalar_one() == 17
+            assert (
+                connection.execute(
+                    sa.text(f'SELECT id FROM "{role_schemas[Role.VOCAB]}".round_trip')
+                ).scalar_one()
+                == 17
+            )
 
         check_primary, check_vocab = create_cdm_engines(target_resolved)
         check_primary.dispose()
@@ -217,17 +220,24 @@ def test_old_plain_backup_restores_data_then_reports_acknowledgment(pg_db, tmp_p
     try:
         _seed_round_trip_table(source_vocab, role_schemas)
         _old_plain_backup(source_primary, resolved, backup_path)
-        with pytest.raises(RuntimeError, match="Restore complete, but this backup has no schema-registry baseline") as error:
+        with pytest.raises(
+            RuntimeError, match="Restore complete, but this backup has no schema-registry baseline"
+        ) as error:
             restore_database_backup(
                 target_context,
                 input_path=backup_path,
                 backup_format=BackupFormat.PLAIN,
             )
-        assert f"omop-config acknowledge-schema-migration --database {resolved.name}" in str(error.value)
+        assert f"omop-config acknowledge-schema-migration --database {resolved.name}" in str(
+            error.value
+        )
         with target_vocab.connect() as connection:
-            assert connection.execute(
-                sa.text(f'SELECT id FROM "{role_schemas[Role.VOCAB]}".round_trip')
-            ).scalar_one() == 17
+            assert (
+                connection.execute(
+                    sa.text(f'SELECT id FROM "{role_schemas[Role.VOCAB]}".round_trip')
+                ).scalar_one()
+                == 17
+            )
 
         with target_primary.begin() as connection:
             for tag, schema in (
@@ -276,13 +286,16 @@ def test_restore_with_schema_drift_does_not_acknowledge(pg_db, tmp_path):
                 backup_format=BackupFormat.PLAIN,
             )
         with target_primary.connect() as connection:
-            assert connection.execute(
-                sa.text(
-                    "SELECT physical_schema FROM oa_configurator_provenance.schema_registry "
-                    "WHERE database_config_name = :name AND schema_tag = 'primary'"
-                ),
-                {"name": target_resolved.name},
-            ).scalar_one() == role_schemas[Role.PRIMARY]
+            assert (
+                connection.execute(
+                    sa.text(
+                        "SELECT physical_schema FROM oa_configurator_provenance.schema_registry "
+                        "WHERE database_config_name = :name AND schema_tag = 'primary'"
+                    ),
+                    {"name": target_resolved.name},
+                ).scalar_one()
+                == role_schemas[Role.PRIMARY]
+            )
     finally:
         _drop_source_schemas(source_primary, role_schemas)
         source_primary.dispose()
@@ -294,9 +307,7 @@ def test_restore_with_schema_drift_does_not_acknowledge(pg_db, tmp_path):
         _drop_target(target_url)
 
 
-def test_plain_restore_refuses_existing_dumped_schema_before_psql(
-    pg_db, tmp_path, monkeypatch
-):
+def test_plain_restore_refuses_existing_dumped_schema_before_psql(pg_db, tmp_path, monkeypatch):
     if not shutil.which("pg_dump") or not shutil.which("psql"):
         pytest.skip("plain PostgreSQL round trip requires pg_dump and psql")
 
