@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Literal, TypeAlias, cast
+from typing import Annotated, Any, Literal, TypeAlias, cast
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -191,7 +191,7 @@ def _load_vocab_model_csv(
     staging_schema_tag: str | None = None,
 ) -> int:
     """Call model.load_csv. If the staging table is absent, create it and retry once."""
-    load_kwargs: dict[str, object] = {
+    load_kwargs: dict[str, Any] = {
         "merge_strategy": merge_strategy,
         "quote_mode": quote_mode,
         "index_strategy": index_strategy,
@@ -202,14 +202,14 @@ def _load_vocab_model_csv(
         load_kwargs["chunksize"] = chunksize
 
     try:
-        return int(model.load_csv(session, csv_path, **load_kwargs))  # ty: ignore[invalid-argument-type]
+        return int(model.load_csv(session, csv_path, **load_kwargs))
     except Exception as exc:
         if not _is_missing_staging_table_error(exc, model=model, session=session):
             raise
 
         session.rollback()
         model.create_staging_table(session, staging_schema_tag=staging_schema_tag)
-        return int(model.load_csv(session, csv_path, **load_kwargs))  # ty: ignore[invalid-argument-type]
+        return int(model.load_csv(session, csv_path, **load_kwargs))
 
 
 def _find_vocab_csv_path(source_path: Path, table_name: str) -> Path | None:

@@ -125,7 +125,7 @@ class DomainValidationMixin:
         for field, spec in cls.__expected_domains__.items():
             rules.append(
                 DomainRule(
-                    table=cls.__tablename__,  # ty: ignore[invalid-argument-type]
+                    table=str(cls.__tablename__),
                     field=field,
                     allowed_domains=spec.domains,
                 )

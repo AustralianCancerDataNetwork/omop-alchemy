@@ -83,15 +83,15 @@ class VisitContext(ReferenceContext):
     person: so.Mapped["Person"] = ReferenceContext._reference_relationship(
         target="Person",
         local_fk="person_id",
-    )  # type: ignore[assignment]
+    )
     provider: so.Mapped["Provider"] = ReferenceContext._reference_relationship(
         target="Provider",
         local_fk="provider_id",
-    )  # type: ignore[assignment]
+    )
     care_site: so.Mapped["Care_Site"] = ReferenceContext._reference_relationship(
         target="Care_Site",
         local_fk="care_site_id",
-    )  # type: ignore[assignment]
+    )
 
     @declared_attr
     def procedure_providers(cls) -> so.Mapped[list["Provider"]]:

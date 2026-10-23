@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from hashlib import sha1
-from typing import Any, TypedDict, cast
+from typing import Any, TypedDict
 
 import sqlalchemy as sa
 from sqlalchemy import Column
@@ -222,15 +222,15 @@ def merge_table_args(*parts: TableArg) -> tuple[TableArg, ...]:
             return
 
         if isinstance(part, Mapping):
-            options = _normalize_mapping(cast(Mapping[Any, Any], part))
+            options = _normalize_mapping(part)
             info = options.pop("info", None)
             if isinstance(info, Mapping):
-                merged_info.update(_normalize_mapping(cast(Mapping[Any, Any], info)))
+                merged_info.update(_normalize_mapping(info))
             merged_options.update(_normalize_mapping(options))
             return
 
         if isinstance(part, tuple):
-            for item in cast(tuple[TableArg, ...], part):
+            for item in part:
                 consume(item)
             return
 

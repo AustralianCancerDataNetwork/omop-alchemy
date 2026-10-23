@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Literal, cast
+from typing import Literal
 
 import click
 import typer.rich_utils as typer_rich_utils
 from rich import box
-from rich.box import Box
 from rich.console import Console, RenderableType
 from rich.panel import Panel
 from rich.table import Table
@@ -42,7 +41,7 @@ def _print_commands_panel_with_backend_grouping(
     cmd_len: int,
 ) -> None:
     box_name = str(typer_rich_utils.STYLE_COMMANDS_TABLE_BOX)
-    box_style = cast(Box | None, getattr(box, box_name, None)) if box_name else None
+    box_style = getattr(box, box_name, None) if box_name else None
 
     commands_table = Table(
         highlight=False,
@@ -152,4 +151,8 @@ def _print_commands_panel_with_backend_grouping(
 
 
 def install_help_customizations() -> None:
+    """Replace Typer's private commands-panel renderer with the backend-grouping one.
+
+    Typer exposes no hook for this panel, so the module attribute is assigned directly.
+    """
     typer_rich_utils._print_commands_panel = _print_commands_panel_with_backend_grouping  # ty: ignore[invalid-assignment]

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Self
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -64,23 +64,23 @@ class Condition_Occurrence(
 class Condition_OccurrenceContext(ReferenceContext):
     condition_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="condition_concept_id"
-    )  # type: ignore[assignment]
+    )
     condition_type: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="condition_type_concept_id"
-    )  # type: ignore[assignment]
+    )
     condition_source_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="condition_source_concept_id"
-    )  # type: ignore[assignment]
+    )
     condition_status: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="condition_status_concept_id"
-    )  # type: ignore[assignment]
+    )
 
     @declared_attr
-    def visit_occurrence(cls) -> so.Mapped[Optional["Visit_Occurrence"]]:
+    def visit_occurrence(cls: type[Self]) -> so.Mapped[Optional["Visit_Occurrence"]]:
         return so.relationship(
             "Visit_Occurrence",
-            primaryjoin=f"{cls.__name__}.visit_occurrence_id == Visit_Occurrence.visit_occurrence_id",  # type: ignore
-            foreign_keys=f"{cls.__name__}.visit_occurrence_id",  # type: ignore
+            primaryjoin=f"{cls.__name__}.visit_occurrence_id == Visit_Occurrence.visit_occurrence_id",
+            foreign_keys=f"{cls.__name__}.visit_occurrence_id",
             viewonly=True,
             lazy="selectin",
         )

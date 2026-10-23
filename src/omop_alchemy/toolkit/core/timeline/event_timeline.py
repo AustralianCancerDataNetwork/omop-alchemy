@@ -394,4 +394,9 @@ class Person_Timeline(Person):
         )
 
     def to_json(self) -> list[str]:  # ty: ignore[invalid-method-override]
+        """Return one JSON string per event, in timeline order.
+
+        The return type differs from the single-string ``to_json`` of the serialisable
+        table interface this class inherits.
+        """
         return [e.to_json() for e in self.timeline]

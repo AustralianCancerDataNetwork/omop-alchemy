@@ -67,49 +67,49 @@ class NoteContext(ReferenceContext):
     person: so.Mapped["Person"] = ReferenceContext._reference_relationship(
         target="Person",
         local_fk="person_id",
-    )  # type: ignore[assignment]
+    )
 
     note_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="note_type_concept_id",
-    )  # type: ignore[assignment]
+    )
 
     note_class_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="note_class_concept_id",
-    )  # type: ignore[assignment]
+    )
 
     encoding_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="encoding_concept_id",
-    )  # type: ignore[assignment]
+    )
 
     language_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="language_concept_id",
-    )  # type: ignore[assignment]
+    )
 
     provider: so.Mapped[Optional["Provider"]] = ReferenceContext._reference_relationship(
         target="Provider",
         local_fk="provider_id",
-    )  # type: ignore[assignment]
+    )
 
     visit_occurrence: so.Mapped[Optional["Visit_Occurrence"]] = (
         ReferenceContext._reference_relationship(
             target="Visit_Occurrence",
             local_fk="visit_occurrence_id",
         )
-    )  # type: ignore[assignment]
+    )
 
     visit_detail: so.Mapped[Optional["Visit_Detail"]] = ReferenceContext._reference_relationship(
         target="Visit_Detail",
         local_fk="visit_detail_id",
-    )  # type: ignore[assignment]
+    )
 
     note_event_field: so.Mapped[Optional["Concept"]] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="note_event_field_concept_id",
-    )  # type: ignore[assignment]
+    )
 
 
 class NoteView(Note, NoteContext, DomainValidationMixin):

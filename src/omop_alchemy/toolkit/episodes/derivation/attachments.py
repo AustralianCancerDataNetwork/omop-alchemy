@@ -73,8 +73,7 @@ def _episode_source(
     name: str,
 ) -> FromClause:
     if isinstance(source, type):
-        model = cast(type[Episode], source)
-        return canonical_episode_projection(model).subquery(name)
+        return canonical_episode_projection(source).subquery(name)
     return _as_from_clause(source, name=name)
 
 

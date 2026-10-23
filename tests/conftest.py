@@ -686,7 +686,7 @@ def pg_schema_session(pg_db):
 
 
 @pytest.fixture(scope="function")
-def session(engine) -> Session:  # type: ignore
+def session(engine) -> Iterator[Session]:
     """
     Function-scoped SQLAlchemy session.
 

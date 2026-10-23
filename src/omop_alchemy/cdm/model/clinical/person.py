@@ -83,22 +83,22 @@ class Person(CDMTableBase, Base, HealthSystemContext):
 class PersonContext(ReferenceContext):
     gender: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="gender_concept_id"
-    )  # type: ignore[assignment]
+    )
     race: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="race_concept_id"
-    )  # type: ignore[assignment]
+    )
     ethnicity: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="ethnicity_concept_id"
-    )  # type: ignore[assignment]
+    )
     location: so.Mapped["Location"] = ReferenceContext._reference_relationship(
         target="Location", local_fk="location_id"
-    )  # type: ignore[assignment]
+    )
     provider: so.Mapped["Provider"] = ReferenceContext._reference_relationship(
         target="Provider", local_fk="provider_id"
-    )  # type: ignore[assignment]
+    )
     care_site: so.Mapped["Care_Site"] = ReferenceContext._reference_relationship(
         target="Care_Site", local_fk="care_site_id"
-    )  # type: ignore[assignment]
+    )
 
     @declared_attr
     def death(cls) -> so.Mapped[Optional["Death"]]:
@@ -152,7 +152,7 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
 
     @age_at.expression
     def age_at(cls, on_date: date) -> ColumnElement[int]:
-        return sa.func.extract("year", on_date) - cls.year_of_birth  # type: ignore
+        return sa.extract("year", sa.literal(on_date)) - cls.year_of_birth
 
     @property
     def age(self) -> int | None:

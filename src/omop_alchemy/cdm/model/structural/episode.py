@@ -72,17 +72,17 @@ class EpisodeContext(ReferenceContext):
 
     person: so.Mapped["Person"] = ReferenceContext._reference_relationship(
         target="Person", local_fk="person_id"
-    )  # type: ignore[assignment]
+    )
     episode_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="episode_concept_id"
-    )  # type: ignore[assignment]
+    )
     episode_object_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="episode_object_concept_id"
-    )  # type: ignore[assignment]
+    )
     episode_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="episode_type_concept_id"
-    )  # type: ignore[assignment]
-    # parent_episode: so.Mapped[Optional["Episode"]] = ReferenceContext._reference_relationship(target="Episode",local_fk="episode_parent_id")  # type: ignore[assignment]
+    )
+    # parent_episode: so.Mapped[Optional["Episode"]] = ReferenceContext._reference_relationship(target="Episode",local_fk="episode_parent_id")
 
     @declared_attr
     def episode_events(cls: type["HasEpisodeId"]) -> so.Mapped[list["Episode_EventView"]]:

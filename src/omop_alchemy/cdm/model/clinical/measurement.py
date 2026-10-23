@@ -92,32 +92,32 @@ class MeasurementContext(ReferenceContext):
 
     person: so.Mapped[Person] = ReferenceContext._reference_relationship(
         target="Person", local_fk="person_id"
-    )  # type: ignore[assignment]
+    )
     measurement_concept: so.Mapped[Concept] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="measurement_concept_id"
-    )  # type: ignore[assignment]
+    )
     measurement_type_concept: so.Mapped[Concept] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="measurement_type_concept_id",
-    )  # type: ignore[assignment]
+    )
     unit_concept: so.Mapped[Concept | None] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="unit_concept_id"
-    )  # type: ignore[assignment]
+    )
     unit_source_concept: so.Mapped[Concept | None] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="unit_source_concept_id",
-    )  # type: ignore[assignment]
+    )
     provider: so.Mapped[Provider | None] = ReferenceContext._reference_relationship(
         target="Provider", local_fk="provider_id"
-    )  # type: ignore[assignment]
+    )
     visit_occurrence: so.Mapped[Visit_Occurrence | None] = ReferenceContext._reference_relationship(
         target="Visit_Occurrence",
         local_fk="visit_occurrence_id",
-    )  # type: ignore[assignment]
+    )
     visit_detail: so.Mapped[Visit_Detail | None] = ReferenceContext._reference_relationship(
         target="Visit_Detail",
         local_fk="visit_detail_id",
-    )  # type: ignore[assignment]
+    )
 
 
 class MeasurementView(

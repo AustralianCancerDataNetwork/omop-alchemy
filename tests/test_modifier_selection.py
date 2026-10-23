@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 import pytest
 import sqlalchemy as sa
@@ -93,9 +94,13 @@ def test_stage_selection_default_and_overrides(spec, expected_id: int):
     assert selected["modifier_id"] == expected_id
 
 
+def _assign_basis_priority(spec: Any, value: tuple[StageBasis, ...]) -> None:
+    spec.basis_priority = value
+
+
 def test_stage_selection_spec_is_immutable_and_validates_basis_permutation():
     with pytest.raises(AttributeError):
-        DEFAULT_STAGE_SELECTION.basis_priority = (StageBasis.clinical,)  # ty: ignore[invalid-assignment]
+        _assign_basis_priority(DEFAULT_STAGE_SELECTION, (StageBasis.clinical,))
 
     with pytest.raises(ValueError, match="each StageBasis exactly once"):
         StageSelectionSpec(basis_priority=(StageBasis.pathological,))

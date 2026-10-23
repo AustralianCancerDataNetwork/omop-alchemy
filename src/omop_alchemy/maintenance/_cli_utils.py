@@ -211,6 +211,7 @@ def omop_command[**P, R](
                     annotation=bool,
                 )
             )
+        # Typer reads the dynamic __signature__, which functools.wraps types do not declare.
         wrapper.__signature__ = signature.replace(parameters=new_params)  # ty: ignore[unresolved-attribute]
 
         # The wrapper takes keyword options only; its Typer-visible signature is set above.

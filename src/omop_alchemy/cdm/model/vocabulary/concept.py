@@ -1,6 +1,6 @@
 from datetime import date
 from types import MappingProxyType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -116,49 +116,49 @@ class ConceptContext(ReferenceContext):
 
     domain: so.Mapped["Domain"] = ReferenceContext._reference_relationship(
         target="Domain", local_fk="domain_id"
-    )  # type: ignore[assignment]
+    )
     vocabulary: so.Mapped["Vocabulary"] = ReferenceContext._reference_relationship(
         target="Vocabulary", local_fk="vocabulary_id"
-    )  # type: ignore[assignment]
+    )
     concept_class: so.Mapped["Concept_Class"] = ReferenceContext._reference_relationship(
         target="Concept_Class", local_fk="concept_class_id"
-    )  # type: ignore[assignment]
+    )
 
     @declared_attr
-    def outgoing_relationships(cls) -> so.Mapped[list["Concept_Relationship"]]:
+    def outgoing_relationships(cls: type[Self]) -> so.Mapped[list["Concept_Relationship"]]:
         return so.relationship(
             "Concept_Relationship",
-            primaryjoin=f"{cls.__name__}.concept_id == Concept_Relationship.concept_id_1",  # type: ignore
+            primaryjoin=f"{cls.__name__}.concept_id == Concept_Relationship.concept_id_1",
             foreign_keys="Concept_Relationship.concept_id_1",
             viewonly=True,
             lazy="select",
         )
 
     @declared_attr
-    def incoming_relationships(cls) -> so.Mapped[list["Concept_Relationship"]]:
+    def incoming_relationships(cls: type[Self]) -> so.Mapped[list["Concept_Relationship"]]:
         return so.relationship(
             "Concept_Relationship",
-            primaryjoin=f"{cls.__name__}.concept_id == Concept_Relationship.concept_id_2",  # type: ignore
+            primaryjoin=f"{cls.__name__}.concept_id == Concept_Relationship.concept_id_2",
             foreign_keys="Concept_Relationship.concept_id_2",
             viewonly=True,
             lazy="select",
         )
 
     @declared_attr
-    def ancestors(cls) -> so.Mapped[list["Concept_Ancestor"]]:
+    def ancestors(cls: type[Self]) -> so.Mapped[list["Concept_Ancestor"]]:
         return so.relationship(
             "Concept_Ancestor",
-            primaryjoin=f"{cls.__name__}.concept_id == Concept_Ancestor.descendant_concept_id",  # type: ignore
+            primaryjoin=f"{cls.__name__}.concept_id == Concept_Ancestor.descendant_concept_id",
             foreign_keys="Concept_Ancestor.descendant_concept_id",
             viewonly=True,
             lazy="select",
         )
 
     @declared_attr
-    def descendants(cls) -> so.Mapped[list["Concept_Ancestor"]]:
+    def descendants(cls: type[Self]) -> so.Mapped[list["Concept_Ancestor"]]:
         return so.relationship(
             "Concept_Ancestor",
-            primaryjoin=f"{cls.__name__}.concept_id == Concept_Ancestor.ancestor_concept_id",  # type: ignore
+            primaryjoin=f"{cls.__name__}.concept_id == Concept_Ancestor.ancestor_concept_id",
             foreign_keys="Concept_Ancestor.ancestor_concept_id",
             viewonly=True,
             lazy="select",

@@ -76,40 +76,40 @@ class Device_ExposureContext(ReferenceContext):
 
     person: so.Mapped["Person"] = ReferenceContext._reference_relationship(
         target="Person", local_fk="person_id"
-    )  # type: ignore[assignment]
+    )
     device_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="device_concept_id"
-    )  # type: ignore[assignment]
+    )
     device_type_concept: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="device_type_concept_id",
-    )  # type: ignore[assignment]
+    )
     device_source_concept: so.Mapped[Optional["Concept"]] = (
         ReferenceContext._reference_relationship(
             target="Concept",
             local_fk="device_source_concept_id",
         )
-    )  # type: ignore[assignment]
+    )
     unit_concept: so.Mapped[Optional["Concept"]] = ReferenceContext._reference_relationship(
         target="Concept", local_fk="unit_concept_id"
-    )  # type: ignore[assignment]
+    )
     unit_source_concept: so.Mapped[Optional["Concept"]] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="unit_source_concept_id",
-    )  # type: ignore[assignment]
+    )
     provider: so.Mapped[Optional["Provider"]] = ReferenceContext._reference_relationship(
         target="Provider", local_fk="provider_id"
-    )  # type: ignore[assignment]
+    )
     visit_occurrence: so.Mapped[Optional["Visit_Occurrence"]] = (
         ReferenceContext._reference_relationship(
             target="Visit_Occurrence",
             local_fk="visit_occurrence_id",
         )
-    )  # type: ignore[assignment]
+    )
     visit_detail: so.Mapped[Optional["Visit_Detail"]] = ReferenceContext._reference_relationship(
         target="Visit_Detail",
         local_fk="visit_detail_id",
-    )  # type: ignore[assignment]
+    )
 
 
 class Device_ExposureView(

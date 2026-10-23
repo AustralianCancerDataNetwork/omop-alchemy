@@ -55,11 +55,11 @@ class Episode_EventContext(ReferenceContext):
     episode: so.Mapped["Episode"] = ReferenceContext._reference_relationship(
         target="Episode",
         local_fk="episode_id",
-    )  # type: ignore[assignment]
+    )
     event_field: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
         target="Concept",
         local_fk="episode_event_field_concept_id",
-    )  # type: ignore[assignment]
+    )
 
 
 class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMixin):
