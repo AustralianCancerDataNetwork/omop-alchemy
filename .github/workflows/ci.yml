@@ -23,8 +23,6 @@ jobs:
       ty-src: omop_alchemy
   build-test-duckdb:
     uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-duckdb.yml@main
-    with:
-      ty-src: omop_alchemy
   build-test-postgres:
     uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-postgres-v2.yml@main
     with:
