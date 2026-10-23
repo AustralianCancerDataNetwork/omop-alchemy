@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import TypedDict
 
 import pytest
 import sqlalchemy as sa
@@ -28,12 +29,12 @@ from omop_alchemy.toolkit.episodes.derivation.attachments import (
 )
 from tests.fixtures.query_contract_cases import (
     COLLIDING_EVENTS,
+    COLLIDING_VALID_LINK,
     CROSS_PERSON_LINK,
     DIRECTIONAL_PREFERENCE_EPISODES,
-    OVERLAPPING_EPISODES,
     OUT_OF_SCOPE_LINK,
+    OVERLAPPING_EPISODES,
     VALID_EXPLICIT_LINK,
-    COLLIDING_VALID_LINK,
     EpisodeCase,
     EventCase,
     ExplicitLinkCase,
@@ -49,12 +50,8 @@ def _event_source(*events: EventCase) -> sa.CTE:
                 sa.literal(event.event_date).label("event_date"),
                 sa.cast(sa.null(), sa.DateTime()).label("event_datetime"),
                 sa.literal(900_001).label("event_concept_id"),
-                sa.literal(event.event_field_concept_id).label(
-                    "event_field_concept_id"
-                ),
-                sa.literal(event.identity.event_source_table).label(
-                    "event_source_table"
-                ),
+                sa.literal(event.event_field_concept_id).label("event_field_concept_id"),
+                sa.literal(event.identity.event_source_table).label("event_source_table"),
             )
             for event in events
         )
@@ -75,7 +72,12 @@ def _episode_source(*episodes: EpisodeCase, name: str = "episodes") -> sa.CTE:
     ).cte(name)
 
 
-def _shared_episodes(source: sa.CTE) -> dict[str, sa.CTE]:
+class _SharedEpisodes(TypedDict):
+    explicit_episodes: sa.CTE
+    fallback_episodes: sa.CTE
+
+
+def _shared_episodes(source: sa.CTE) -> _SharedEpisodes:
     """Use one episode population for explicit validation and fallback."""
     return {"explicit_episodes": source, "fallback_episodes": source}
 
@@ -139,9 +141,7 @@ def test_valid_explicit_links_suppress_ranked_fallback_with_colliding_ids(sessio
     )
 
     rows = session.execute(sources.attachments).mappings().all()
-    identities = {
-        (row["event_source_table"], row["event_id"], row["episode_id"]) for row in rows
-    }
+    identities = {(row["event_source_table"], row["event_id"], row["episode_id"]) for row in rows}
 
     assert len(identities) == len(rows)
     assert ("measurement", 7, 1001) in identities
@@ -193,9 +193,7 @@ def test_explicit_only_returns_valid_links_without_fallback(session):
     rows = session.execute(queries.attachments).mappings().all()
 
     assert queries.diagnostics is None
-    assert {
-        (row["event_source_table"], row["event_id"], row["episode_id"]) for row in rows
-    } == {
+    assert {(row["event_source_table"], row["event_id"], row["episode_id"]) for row in rows} == {
         ("measurement", 7, 1001),
         ("procedure_occurrence", 7, 1002),
     }
@@ -351,10 +349,7 @@ def test_diagnostics_explain_person_mismatches_and_fallback_outcomes(session):
     typed = EpisodeAttachmentDiagnostic.from_mapping(person_rows[0])
     assert typed.code is AttachmentDiagnosticCode.person_mismatch
     assert typed.event.event_id == 7
-    assert (
-        typed.linked_event_field_concept_id
-        == CROSS_PERSON_LINK.episode_event_field_concept_id
-    )
+    assert typed.linked_event_field_concept_id == CROSS_PERSON_LINK.episode_event_field_concept_id
     assert typed.episode_id == CROSS_PERSON_LINK.episode_id
 
 
@@ -460,9 +455,7 @@ def test_attachment_builder_accepts_a_supported_event_model():
         policy=EpisodeAttachmentPolicy.explicit_only,
     )
 
-    assert "procedure_occurrence" in str(
-        queries.attachments.compile(dialect=postgresql.dialect())
-    )
+    assert "procedure_occurrence" in str(queries.attachments.compile(dialect=postgresql.dialect()))
 
 
 def test_episode_model_can_supply_both_stages():
@@ -496,9 +489,7 @@ def test_postgresql_executes_collision_and_stable_tie_contracts(pg_session):
     )
 
     rows = pg_session.execute(queries.attachments).mappings().all()
-    assert {
-        (row["event_source_table"], row["event_id"], row["episode_id"]) for row in rows
-    } == {
+    assert {(row["event_source_table"], row["event_id"], row["episode_id"]) for row in rows} == {
         ("measurement", 7, 1001),
         ("procedure_occurrence", 7, 1002),
         ("procedure_occurrence", 8, 1001),
@@ -511,10 +502,7 @@ def test_postgresql_executes_collision_and_stable_tie_contracts(pg_session):
         policy=EpisodeAttachmentPolicy.explicit_only,
         include_diagnostics=True,
     )
-    assert (
-        pg_session.execute(single_model.attachments).mappings().one()["episode_id"]
-        == 1001
-    )
+    assert pg_session.execute(single_model.attachments).mappings().one()["episode_id"] == 1001
     assert single_model.diagnostics is not None
     assert pg_session.execute(single_model.diagnostics).all() == []
 
@@ -549,9 +537,7 @@ def _procedure_link(event_id: int, episode_id: int) -> ExplicitLinkCase:
 
 def _attachment_rows(session, queries) -> set[tuple[int, int, str]]:
     rows = session.execute(queries.attachments).mappings().all()
-    result = {
-        (row["event_id"], row["episode_id"], row["attachment_method"]) for row in rows
-    }
+    result = {(row["event_id"], row["episode_id"], row["attachment_method"]) for row in rows}
     assert len(result) == len(rows)
     return result
 
@@ -622,9 +608,7 @@ def test_explicit_links_to_episodes_outside_the_fallback_source_are_kept(
             _procedure_link(10, 3002),
         ),
         policy=policy,
-        ranking=_nearest(started_first=True)
-        if policy.requires_fallback_ranking
-        else None,
+        ranking=_nearest(started_first=True) if policy.requires_fallback_ranking else None,
     )
 
     assert _attachment_rows(session, queries) == {
@@ -666,9 +650,7 @@ def test_fallback_ambiguity_counts_only_fallback_candidates(session):
     queries = episode_attachment_queries(
         _event_source(_procedure(8, date(2025, 7, 1))),
         explicit_episodes=_episode_source(ROOT_EPISODE, CHILD_EPISODE, second_root),
-        fallback_episodes=_episode_source(
-            ROOT_EPISODE, second_root, name="root_episodes"
-        ),
+        fallback_episodes=_episode_source(ROOT_EPISODE, second_root, name="root_episodes"),
         episode_events=_empty_link_source(),
         policy=EpisodeAttachmentPolicy.explicit_first_ranked,
         ranking=_nearest(started_first=True),
@@ -678,9 +660,7 @@ def test_fallback_ambiguity_counts_only_fallback_candidates(session):
     assert _attachment_rows(session, queries) == {(8, 3003, "fallback")}
     assert queries.diagnostics is not None
     diagnostic = session.execute(queries.diagnostics).mappings().one()
-    assert diagnostic["diagnostic_code"] == str(
-        AttachmentDiagnosticCode.ambiguous_fallback
-    )
+    assert diagnostic["diagnostic_code"] == str(AttachmentDiagnosticCode.ambiguous_fallback)
     assert diagnostic["candidate_count"] == 2
 
 
@@ -760,16 +740,16 @@ def test_fallback_source_must_expose_the_ranking_stable_id():
 @pytest.mark.parametrize(
     "started_ages,future_offsets,expected",
     [
-        ((730,), (40,), 2),        # pre-diagnosis referral, older cancer two years in
-        ((195,), (17,), 1),        # recent cancer must keep its referral
-        ((730, 195), (17,), 3),    # nearest started winner determines the threshold
-        ((365,), (60,), 2),        # both thresholds are inclusive
+        ((730,), (40,), 2),  # pre-diagnosis referral, older cancer two years in
+        ((195,), (17,), 1),  # recent cancer must keep its referral
+        ((730, 195), (17,), 3),  # nearest started winner determines the threshold
+        ((365,), (60,), 2),  # both thresholds are inclusive
         ((364,), (60,), 1),
         ((365,), (61,), 1),
-        ((0,), (17,), 1),          # same-day start is already started
-        ((), (40, 17), 3),         # no started candidate keeps ordinary nearest
-        ((730,), (60, 17), 3),     # earliest upcoming candidate, not any future row
-        ((730,), (40, 40), 2),     # stable episode ID breaks equal dates
+        ((0,), (17,), 1),  # same-day start is already started
+        ((), (40, 17), 3),  # no started candidate keeps ordinary nearest
+        ((730,), (60, 17), 3),  # earliest upcoming candidate, not any future row
+        ((730,), (40, 40), 2),  # stable episode ID breaks equal dates
         ((730,), (), 1),
     ],
 )
@@ -824,16 +804,29 @@ def test_upcoming_preference_preserves_explicit_identity_and_diagnostics(request
         include_diagnostics=True,
     )
     rows = session.execute(queries.attachments).mappings().all()
-    assert {(r["event_source_table"], r["event_id"], r["episode_id"], r["attachment_method"]) for r in rows} == {
+    assert {
+        (r["event_source_table"], r["event_id"], r["episode_id"], r["attachment_method"])
+        for r in rows
+    } == {
         ("procedure_occurrence", 8, 1, "explicit"),
         ("measurement", 8, 2, "fallback"),
     }
     assert len(rows) == 2
     diagnostics = session.execute(queries.diagnostics).mappings().all()
-    assert any(r["diagnostic_code"] == "ambiguous_fallback" and r["candidate_count"] == 2 for r in diagnostics)
+    assert any(
+        r["diagnostic_code"] == "ambiguous_fallback" and r["candidate_count"] == 2
+        for r in diagnostics
+    )
     assert set(rows[0]) == {
-        "person_id", "event_id", "event_date", "event_datetime", "event_concept_id",
-        "event_field_concept_id", "event_source_table", "episode_id", "attachment_method",
+        "person_id",
+        "event_id",
+        "event_date",
+        "event_datetime",
+        "event_concept_id",
+        "event_field_concept_id",
+        "event_source_table",
+        "episode_id",
+        "attachment_method",
     }
 
 
@@ -868,9 +861,14 @@ def test_upcoming_preference_rejects_invalid_thresholds(horizon, age):
         (EpisodeAttachmentPolicy.explicit_only, None),
         (EpisodeAttachmentPolicy.explicit_first_all_in_window, None),
         (EpisodeAttachmentPolicy.explicit_first_ranked, _nearest()),
-        (EpisodeAttachmentPolicy.explicit_first_ranked, TemporalRankingSpec(
-            TemporalSelectionPolicy.latest, "episode_id", TemporalSidePreference.on_or_before_anchor
-        )),
+        (
+            EpisodeAttachmentPolicy.explicit_first_ranked,
+            TemporalRankingSpec(
+                TemporalSelectionPolicy.latest,
+                "episode_id",
+                TemporalSidePreference.on_or_before_anchor,
+            ),
+        ),
     ],
 )
 def test_upcoming_preference_rejects_incompatible_policies(policy, ranking):
@@ -878,7 +876,9 @@ def test_upcoming_preference_rejects_incompatible_policies(policy, ranking):
         episode_attachment_queries(
             _event_source(_procedure(8, date(2026, 1, 20))),
             explicit_episodes=_episode_source(ROOT_EPISODE),
-            fallback_episodes=_episode_source(ROOT_EPISODE, name="fallback") if policy.uses_fallback else None,
+            fallback_episodes=_episode_source(ROOT_EPISODE, name="fallback")
+            if policy.uses_fallback
+            else None,
             episode_events=_empty_link_source(),
             policy=policy,
             ranking=ranking,

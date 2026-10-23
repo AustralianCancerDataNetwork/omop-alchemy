@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 
-from omop_alchemy.maintenance.cli_schema import _create_missing_tables, collect_data_summary
-from omop_alchemy.maintenance.cli_schema_reconcile import reconcile_schema
-from omop_alchemy.maintenance.cli_tables import _truncate_tables, analyze_tables
-from omop_alchemy.maintenance.tables import TableCategory
-from omop_alchemy.maintenance.cli_indexes import collect_index_targets
-from omop_alchemy.maintenance.cli_fulltext import _fulltext_groups
 from omop_alchemy.backends.base import FullTextTargetConfig
 from omop_alchemy.maintenance.cli_foreign_keys import (
     collect_foreign_key_trigger_status,
     manage_foreign_key_triggers,
 )
+from omop_alchemy.maintenance.cli_fulltext import _fulltext_groups
+from omop_alchemy.maintenance.cli_indexes import collect_index_targets
+from omop_alchemy.maintenance.cli_schema import _create_missing_tables, collect_data_summary
+from omop_alchemy.maintenance.cli_schema_reconcile import reconcile_schema
+from omop_alchemy.maintenance.cli_tables import _truncate_tables, analyze_tables
+from omop_alchemy.maintenance.tables import TableCategory
 
 
 def _create_split_tables(context):
@@ -29,9 +29,7 @@ def _assert_vocab_only(split_sqlite, table_name: str) -> None:
 def test_split_analyze_targets_vocabulary_file(sqlite_split):
     _create_split_tables(sqlite_split.context)
 
-    results = analyze_tables(
-        sqlite_split.context, scope=TableCategory.VOCABULARY
-    )
+    results = analyze_tables(sqlite_split.context, scope=TableCategory.VOCABULARY)
 
     assert any(result.table_name == "concept" for result in results)
     _assert_vocab_only(sqlite_split, "concept")
@@ -103,9 +101,7 @@ def test_split_fk_status_and_toggle_use_vocab_engine(sqlite_split, monkeypatch):
         vocabulary_only=True,
         dry_run=True,
     )
-    status = collect_foreign_key_trigger_status(
-        sqlite_split.context, vocabulary_included=True
-    )
+    status = collect_foreign_key_trigger_status(sqlite_split.context, vocabulary_included=True)
 
     assert any(result.table_name == "concept" for result in toggles)
     assert any(result.table_name == "concept" for result in status)
@@ -126,9 +122,7 @@ def test_split_data_summary_reads_vocabulary_rows(sqlite_split):
 
     summary = {
         result.table_name: result
-        for result in collect_data_summary(
-            sqlite_split.context, vocabulary_included=True
-        )
+        for result in collect_data_summary(sqlite_split.context, vocabulary_included=True)
     }
 
     assert summary["concept"].exists
@@ -139,17 +133,13 @@ def test_split_data_summary_reads_vocabulary_rows(sqlite_split):
 def test_split_index_targets_inspect_vocabulary_file(sqlite_split):
     _create_split_tables(sqlite_split.context)
 
-    targets = collect_index_targets(
-        sqlite_split.context, vocabulary_included=True
-    )
+    targets = collect_index_targets(sqlite_split.context, vocabulary_included=True)
 
     assert any(target.table_name == "concept" for target in targets)
     _assert_vocab_only(sqlite_split, "concept")
 
 
-def test_split_load_vocab_source_writes_only_vocabulary_file(
-    sqlite_split, athena_source_dir
-):
+def test_split_load_vocab_source_writes_only_vocabulary_file(sqlite_split, athena_source_dir):
     from omop_alchemy.maintenance.cli_vocab import load_vocab_source
 
     load_vocab_source(

@@ -14,16 +14,18 @@ def test_martin_weight_loss_reference_cells():
 
 
 def test_martin_bmi_category_boundaries():
-    assert [
-        MartinWeightLoss._bmi_category_index(bmi)
-        for bmi in (30, 26, 23, 21, 18)
-    ] == [0, 1, 2, 3, 4]
+    assert [MartinWeightLoss._bmi_category_index(bmi) for bmi in (30, 26, 23, 21, 18)] == [
+        0,
+        1,
+        2,
+        3,
+        4,
+    ]
 
 
 def test_martin_weight_loss_category_boundaries():
     assert [
-        MartinWeightLoss._weight_loss_category_index(loss_pct)
-        for loss_pct in (0, 2, 4, 8, 12, 20)
+        MartinWeightLoss._weight_loss_category_index(loss_pct) for loss_pct in (0, 2, 4, 8, 12, 20)
     ] == [0, 0, 1, 2, 3, 4]
 
 

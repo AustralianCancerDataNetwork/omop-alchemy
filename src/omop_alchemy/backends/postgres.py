@@ -1,0 +1,516 @@
+from __future__ import annotations
+
+import os
+import re
+import shutil
+from collections.abc import Sequence
+
+import sqlalchemy as sa
+from oa_configurator import Dialect, Role, physical_schema_of, qualified
+from sqlalchemy.dialects.postgresql import REGCONFIG, TSVECTOR
+from sqlalchemy.sql import func
+
+from .base import Backend, FullTextError, FullTextTargetConfig
+
+_STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
+_TEXTLIKE_CAST = re.compile(r"::(?:text|varchar|character varying|bpchar|char)\b", re.IGNORECASE)
+
+
+class PostgresBackend(Backend):
+    @property
+    def name(self) -> str:
+        return "PostgreSQL"
+
+    @property
+    def dialect(self) -> str:
+        return Dialect.POSTGRESQL
+
+    # ── FK trigger management ────────────────────────────────────────────────
+
+    def toggle_fk_triggers(
+        self,
+        conn: sa.Connection,
+        table_name: str,
+        *,
+        enable: bool,
+        schema_tag: str = Role.PRIMARY.value,
+    ) -> None:
+        action = "ENABLE" if enable else "DISABLE"
+        conn.exec_driver_sql(
+            f"ALTER TABLE {qualified(conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))} {action} TRIGGER ALL"
+        )
+
+    def get_fk_trigger_counts(
+        self,
+        conn: sa.Connection,
+        table_name: str,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
+    ) -> tuple[int, int]:
+        disabled_count, enabled_count = conn.execute(
+            sa.text(
+                """
+                SELECT
+                    SUM(CASE WHEN t.tgenabled = 'D' THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN t.tgenabled <> 'D' THEN 1 ELSE 0 END)
+                FROM pg_trigger t
+                JOIN pg_class c ON c.oid = t.tgrelid
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE t.tgisinternal
+                  AND t.tgname LIKE 'RI_ConstraintTrigger%'
+                  AND c.relname = :table_name
+                  AND (CAST(:db_schema AS TEXT) IS NULL OR n.nspname = :db_schema)
+                """
+            ),
+            {
+                "table_name": table_name,
+                "db_schema": physical_schema_of(conn, schema_tag=schema_tag),
+            },
+        ).one()
+        return int(disabled_count or 0), int(enabled_count or 0)
+
+    def count_fk_violations(
+        self,
+        conn: sa.Connection,
+        source_table: str,
+        referred_table: str,
+        constrained_cols: list[str],
+        referred_cols: list[str],
+        *,
+        source_schema_tag: str = Role.PRIMARY.value,
+        referred_schema_tag: str = Role.PRIMARY.value,
+    ) -> int:
+        source = qualified(
+            conn,
+            source_table,
+            physical_schema=physical_schema_of(conn, schema_tag=source_schema_tag),
+        )
+        referred = qualified(
+            conn,
+            referred_table,
+            physical_schema=physical_schema_of(conn, schema_tag=referred_schema_tag),
+        )
+        non_null_predicate = " AND ".join(f"src.{col} IS NOT NULL" for col in constrained_cols)
+        join_predicate = " AND ".join(
+            f"ref.{ref_col} = src.{src_col}"
+            for src_col, ref_col in zip(constrained_cols, referred_cols, strict=True)
+        )
+        return int(
+            conn.exec_driver_sql(
+                f"""
+                SELECT COUNT(*)
+                FROM {source} AS src
+                WHERE {non_null_predicate}
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM {referred} AS ref
+                      WHERE {join_predicate}
+                  )
+                """
+            ).scalar_one()
+        )
+
+    # ── Clustering ───────────────────────────────────────────────────────────
+
+    def cluster_table(
+        self,
+        conn: sa.Connection,
+        table_name: str,
+        index_name: str,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
+    ) -> None:
+        conn.exec_driver_sql(
+            f"CLUSTER {qualified(conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))} USING {index_name}"
+        )
+
+    def get_clustered_index_name(
+        self,
+        conn: sa.Connection,
+        table_name: str,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
+    ) -> str | None:
+        result = conn.execute(
+            sa.text(
+                """
+                SELECT i.relname
+                FROM pg_index ix
+                JOIN pg_class t ON t.oid = ix.indrelid
+                JOIN pg_class i ON i.oid = ix.indexrelid
+                JOIN pg_namespace n ON n.oid = t.relnamespace
+                WHERE ix.indisclustered
+                  AND t.relname = :table_name
+                  AND (CAST(:db_schema AS TEXT) IS NULL OR n.nspname = :db_schema)
+                """
+            ),
+            {
+                "table_name": table_name,
+                "db_schema": physical_schema_of(conn, schema_tag=schema_tag),
+            },
+        ).scalar_one_or_none()
+        return str(result) if result is not None else None
+
+    # ── Schema reconciliation ────────────────────────────────────────────────
+
+    def normalize_index_expression(self, sql_text: str) -> str:
+        """Strip whitespace and casts to a text-ish type outside string
+        literals, and fold case the same way.
+
+        Postgres's own catalog inserts these casts around string functions
+        as cosmetic noise when reflecting an index back, e.g.
+        ``lower(concept_name::text)``. A cast to any other type
+        (``::numeric``, ``::integer``, ...) is left intact, since that
+        changes the expression's actual computation. Literal contents are
+        never touched: identifiers, keywords, and casts are
+        case/whitespace-insensitive in Postgres, but a literal value isn't.
+        """
+        parts = []
+        last_end = 0
+        for match in _STRING_LITERAL.finditer(sql_text):
+            before = sql_text[last_end : match.start()]
+            parts.append(_TEXTLIKE_CAST.sub("", before).replace(" ", "").lower())
+            parts.append(match.group(0))
+            last_end = match.end()
+        parts.append(_TEXTLIKE_CAST.sub("", sql_text[last_end:]).replace(" ", "").lower())
+        return "".join(parts)
+
+    # ── Table operations ─────────────────────────────────────────────────────
+
+    def analyze_table(
+        self,
+        conn: sa.Connection,
+        table_name: str,
+        *,
+        vacuum: bool = False,
+        schema_tag: str = Role.PRIMARY.value,
+    ) -> None:
+        operation = "VACUUM ANALYZE" if vacuum else "ANALYZE"
+        conn.exec_driver_sql(
+            f"{operation} {qualified(conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}"
+        )
+
+    def index_exists(
+        self,
+        conn: sa.Connection,
+        index_name: str,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
+    ) -> bool:
+        qualified_index_name = qualified(
+            conn, index_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag)
+        )
+        return bool(conn.scalar(sa.select(sa.func.to_regclass(qualified_index_name).is_not(None))))
+
+    def drop_index_if_exists(
+        self, conn: sa.Connection, index_name: str, *, schema_tag: str = Role.PRIMARY.value
+    ) -> None:
+        conn.exec_driver_sql(
+            f"DROP INDEX IF EXISTS {qualified(conn, index_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}"
+        )
+
+    def truncate_table_batch(
+        self,
+        conn: sa.Connection,
+        tables: list[tuple[str, str]],
+        *,
+        restart_identities: bool,
+        cascade: bool,
+    ) -> None:
+        sql = "TRUNCATE TABLE " + ", ".join(
+            qualified(
+                conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag)
+            )
+            for schema_tag, table_name in tables
+        )
+        if restart_identities:
+            sql += " RESTART IDENTITY"
+        if cascade:
+            sql += " CASCADE"
+        conn.exec_driver_sql(sql)
+
+    # ── Sequence management ──────────────────────────────────────────────────
+
+    def find_sequence_name(
+        self,
+        conn: sa.Connection,
+        table_name: str,
+        column_name: str,
+        *,
+        schema_tag: str = Role.PRIMARY.value,
+    ) -> str | None:
+        fully_qualified = qualified(
+            conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag)
+        )
+        return conn.execute(
+            sa.text("SELECT pg_get_serial_sequence(:table_name, :column_name)"),
+            {"table_name": fully_qualified, "column_name": column_name},
+        ).scalar_one_or_none()
+
+    def set_sequence_value(
+        self,
+        conn: sa.Connection,
+        sequence_name: str,
+        value: int,
+    ) -> None:
+        conn.execute(
+            sa.text("SELECT setval(:sequence_name, :value, false)"),
+            {"sequence_name": sequence_name, "value": value},
+        )
+
+    # ── Full-text search ─────────────────────────────────────────────────────
+
+    @property
+    def fulltext_targets(self) -> tuple[FullTextTargetConfig, ...]:
+        return (
+            FullTextTargetConfig(
+                table_name="concept",
+                source_column_name="concept_name",
+                vector_column_name="concept_name_tsvector",
+                index_name="idx_gin_concept_name_tsvector",
+            ),
+            FullTextTargetConfig(
+                table_name="concept_synonym",
+                source_column_name="concept_synonym_name",
+                vector_column_name="concept_synonym_name_tsvector",
+                index_name="idx_gin_concept_synonym_name_tsvector",
+            ),
+        )
+
+    def fulltext_vector_column(
+        self, bindable: sa.Engine | sa.Connection, table: sa.Table
+    ) -> sa.ColumnClause:
+        target = next((cfg for cfg in self.fulltext_targets if cfg.table_name == table.name), None)
+        if target is None:
+            raise FullTextError(f"Table {table.name!r} is not a full-text target.")
+        physical_schema = physical_schema_of(bindable, schema_tag=table.schema)
+        columns = {
+            column["name"]
+            for column in sa.inspect(bindable).get_columns(table.name, schema=physical_schema)
+        }
+        if target.vector_column_name not in columns:
+            raise FullTextError(
+                f"Full-text search column {target.vector_column_name!r} not found in table {table.name!r}. "
+                "Run 'omop-alchemy fulltext install' and 'omop-alchemy fulltext populate' to set it up."
+            )
+        column = sa.column(target.vector_column_name, TSVECTOR)
+        # Bound for qualification and schema translation; table.c stays unchanged.
+        column.table = table
+        return column
+
+    def install_fulltext_on_table(
+        self,
+        conn: sa.Connection,
+        *,
+        table_name: str,
+        vector_column_name: str,
+        index_name: str,
+        create_indexes: bool,
+        fastupdate: bool,
+        schema_tag: str = Role.PRIMARY.value,
+    ) -> None:
+        qualified_table = qualified(
+            conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag)
+        )
+        conn.exec_driver_sql(
+            f"ALTER TABLE {qualified_table} ADD COLUMN IF NOT EXISTS {vector_column_name} tsvector"
+        )
+        if create_indexes:
+            lightweight_table = sa.Table(
+                table_name,
+                sa.MetaData(),
+                sa.Column(vector_column_name, TSVECTOR),
+                schema=physical_schema_of(conn, schema_tag=schema_tag),
+            )
+            index = sa.Index(
+                index_name,
+                lightweight_table.c[vector_column_name],
+                postgresql_using="gin",
+                postgresql_with={"fastupdate": "on" if fastupdate else "off"},
+            )
+            conn.execute(sa.schema.CreateIndex(index, if_not_exists=True))
+
+    def populate_fulltext_on_table(
+        self,
+        conn: sa.Connection,
+        *,
+        table_name: str,
+        vector_column_name: str,
+        source_column_name: str,
+        regconfig: str,
+        schema_tag: str = Role.PRIMARY.value,
+    ) -> int | None:
+        lightweight_table = sa.table(
+            table_name,
+            sa.column(vector_column_name),
+            sa.column(source_column_name),
+            schema=physical_schema_of(conn, schema_tag=schema_tag),
+        )
+        source_column = lightweight_table.c[source_column_name]
+        stmt = lightweight_table.update().values(
+            **{
+                vector_column_name: func.to_tsvector(
+                    sa.cast(sa.bindparam("regconfig"), REGCONFIG),
+                    func.coalesce(source_column, ""),
+                )
+            }
+        )
+        result = conn.execute(stmt, {"regconfig": regconfig})
+        if result.rowcount is None or result.rowcount < 0:
+            return None
+        return int(result.rowcount)
+
+    def drop_fulltext_on_table(
+        self,
+        conn: sa.Connection,
+        *,
+        table_name: str,
+        vector_column_name: str,
+        index_name: str,
+        drop_indexes: bool,
+        schema_tag: str = Role.PRIMARY.value,
+    ) -> None:
+        if drop_indexes:
+            conn.exec_driver_sql(
+                f"DROP INDEX IF EXISTS {qualified(conn, index_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}"
+            )
+        conn.exec_driver_sql(
+            f"ALTER TABLE {qualified(conn, table_name, physical_schema=physical_schema_of(conn, schema_tag=schema_tag))}"
+            f" DROP COLUMN IF EXISTS {vector_column_name}"
+        )
+
+    # ── Backup / restore ─────────────────────────────────────────────────────
+
+    def prepare_backup(
+        self,
+        engine: sa.Engine,
+        output_path: str,
+        backup_format: str,
+        *,
+        schemas: Sequence[str],
+    ) -> tuple[str, list[str], dict[str, str], str]:
+        tool_path = _pg_dump_path()
+        url = engine.url
+        database_name = url.database
+        if not database_name:
+            raise RuntimeError(
+                "Database backup requires a database name in the configured engine URL."
+            )
+        connection_uri = _libpq_connection_uri(url)
+        command = [
+            tool_path,
+            "--format",
+            backup_format,
+            "--file",
+            output_path,
+            "--dbname",
+            connection_uri,
+            "--no-password",
+            "--no-owner",
+            "--no-privileges",
+        ]
+        for schema in schemas:
+            command.extend(["--schema", schema])
+        env = os.environ.copy()
+        if url.password:
+            env["PGPASSWORD"] = str(url.password)
+        return tool_path, command, env, database_name
+
+    def prepare_restore(
+        self,
+        engine: sa.Engine,
+        input_path: str,
+        backup_format: str,
+        *,
+        schemas: Sequence[str],
+    ) -> tuple[str, list[str], dict[str, str], str]:
+        url = engine.url
+        database_name = url.database
+        if not database_name:
+            raise RuntimeError(
+                "Database restore requires a database name in the configured engine URL."
+            )
+        connection_uri = _libpq_connection_uri(url)
+
+        if backup_format == "custom":
+            tool_path = _pg_restore_path()
+            command = [
+                tool_path,
+                "--dbname",
+                connection_uri,
+                "--no-password",
+                "--no-owner",
+                "--no-privileges",
+                "--exit-on-error",
+            ]
+            for schema in schemas:
+                command.extend(["--schema", schema])
+            command.append(input_path)
+        else:
+            tool_path = _psql_path()
+            command = [
+                tool_path,
+                "--dbname",
+                connection_uri,
+                "--no-password",
+                "--set",
+                "ON_ERROR_STOP=1",
+                "--single-transaction",
+                "--file",
+                input_path,
+            ]
+
+        env = os.environ.copy()
+        if url.password:
+            env["PGPASSWORD"] = str(url.password)
+        return tool_path, command, env, database_name
+
+
+# ── subprocess tool helpers ───────────────────────────────────────────────────
+
+
+def _pg_dump_path() -> str:
+    tool_path = shutil.which("pg_dump")
+    if tool_path is None:
+        raise RuntimeError(
+            "The `pg_dump` executable is required for database backups but was not found on PATH. "
+            "Install PostgreSQL client tools and ensure `pg_dump` is available."
+        )
+    return tool_path
+
+
+def _pg_restore_path() -> str:
+    tool_path = shutil.which("pg_restore")
+    if tool_path is None:
+        raise RuntimeError(
+            "The `pg_restore` executable is required to restore custom PostgreSQL dumps "
+            "but was not found on PATH. "
+            "Install PostgreSQL client tools and ensure `pg_restore` is available."
+        )
+    return tool_path
+
+
+def _psql_path() -> str:
+    tool_path = shutil.which("psql")
+    if tool_path is None:
+        raise RuntimeError(
+            "The `psql` executable is required to restore plain SQL PostgreSQL dumps "
+            "but was not found on PATH. "
+            "Install PostgreSQL client tools and ensure `psql` is available."
+        )
+    return tool_path
+
+
+def _libpq_connection_uri(url: sa.engine.URL) -> str:
+    if not url.database:
+        raise RuntimeError("Database backup requires a database name in the configured engine URL.")
+    libpq_url = sa.engine.URL.create(
+        drivername="postgresql",
+        username=url.username,
+        password=None,
+        host=url.host,
+        port=url.port,
+        database=url.database,
+        query=url.query,
+    )
+    return libpq_url.render_as_string(hide_password=False)

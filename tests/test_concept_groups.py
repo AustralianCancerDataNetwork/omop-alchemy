@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from sqlalchemy import event
 
 from omop_alchemy.toolkit.core.concepts import (
     ConceptGroupSpec,
@@ -67,7 +68,7 @@ def test_importing_oncology_touches_no_database_or_semantics():
         "print('ok')\n"
     )
     result = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False
     )
     assert result.returncode == 0, result.stderr
     assert "ok" in result.stdout
@@ -149,9 +150,7 @@ def test_excluded_parents_subtract_their_descendants(session):
 
 def test_exact_ids_are_included_without_expansion(session):
     """Exact members join the set directly, needing no ancestry at all."""
-    group = build_concept_group(
-        session, _spec(name="exact", parents=(), exact=(999999,))
-    )
+    group = build_concept_group(session, _spec(name="exact", parents=(), exact=(999999,)))
     assert group.ids == frozenset({999999})
 
 
@@ -238,10 +237,12 @@ def test_engines_on_one_vocabulary_share_expansions(session):
     engine = session.get_bind().engine
     other = sa.create_engine(
         engine.url,
-        execution_options={"schema_translate_map": engine.get_execution_options()["schema_translate_map"]},
+        execution_options={
+            "schema_translate_map": engine.get_execution_options()["schema_translate_map"]
+        },
     )
     statements: list[str] = []
-    sa.event.listen(other, "before_cursor_execute", lambda *args: statements.append(args[2]))
+    event.listen(other, "before_cursor_execute", lambda *args: statements.append(args[2]))
     try:
         with so.Session(other) as other_session:
             assert concept_group_registry(other_session) is concept_group_registry(session)
@@ -253,9 +254,7 @@ def test_engines_on_one_vocabulary_share_expansions(session):
 
 def test_engines_on_different_databases_do_not_share(session, fresh_engine):
     with so.Session(fresh_engine) as other_session:
-        assert concept_group_registry(session) is not concept_group_registry(
-            other_session
-        )
+        assert concept_group_registry(session) is not concept_group_registry(other_session)
 
 
 def test_in_memory_engines_do_not_share():
@@ -277,11 +276,8 @@ def test_connection_bound_sessions_share_their_engine_scope(session):
     themselves use.
     """
     engine = session.get_bind().engine
-    with engine.connect() as connection:
-        with so.Session(bind=connection) as conn_session:
-            assert concept_group_registry(conn_session) is concept_group_registry(
-                session
-            )
+    with engine.connect() as connection, so.Session(bind=connection) as conn_session:
+        assert concept_group_registry(conn_session) is concept_group_registry(session)
 
 
 # ── bounded cache and its observability ─────────────────────────────────────
@@ -380,9 +376,7 @@ def test_radiotherapy_spec_matches_governed_group():
 def _rendered(spec) -> str:
     """Compile the group's membership predicate to inspectable SQL."""
     column = sa.column("concept_id")
-    return str(
-        spec.expression_for(column).compile(compile_kwargs={"literal_binds": True})
-    ).lower()
+    return str(spec.expression_for(column).compile(compile_kwargs={"literal_binds": True})).lower()
 
 
 def test_require_standard_defaults_off_and_adds_no_join():

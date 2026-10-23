@@ -10,9 +10,9 @@ from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.exc import UnsupportedCompilationError
 
 from omop_alchemy.toolkit.episodes.derivation import (
+    EpisodeWindowSpec,
     ObservationSelectionPolicy,
     ObservationSelectionSpec,
-    EpisodeWindowSpec,
     TemporalRankingSpec,
     TemporalSelectionPolicy,
     TemporalSidePreference,
@@ -169,9 +169,7 @@ def _observation_source() -> sa.CTE:
 
 def test_as_of_observation_selection_filters_before_ranking(session):
     source = _observation_source()
-    spec = ObservationSelectionSpec(
-        policy=ObservationSelectionPolicy.latest_on_or_before_anchor
-    )
+    spec = ObservationSelectionSpec(policy=ObservationSelectionPolicy.latest_on_or_before_anchor)
     ranked = ranked_observation_select(
         source,
         spec,
@@ -197,9 +195,7 @@ def test_as_of_observation_selection_can_exclude_the_anchor_date(session):
     ).subquery()
 
     assert (
-        session.scalar(
-            sa.select(ranked.c.observation_id).where(ranked.c.observation_rank == 1)
-        )
+        session.scalar(sa.select(ranked.c.observation_id).where(ranked.c.observation_rank == 1))
         == 21
     )
 
@@ -208,9 +204,7 @@ def test_as_of_observation_selection_requires_an_anchor():
     with pytest.raises(ValueError, match="requires anchor_date"):
         ranked_observation_select(
             _observation_source(),
-            ObservationSelectionSpec(
-                policy=ObservationSelectionPolicy.latest_on_or_before_anchor
-            ),
+            ObservationSelectionSpec(policy=ObservationSelectionPolicy.latest_on_or_before_anchor),
         )
 
 

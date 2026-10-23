@@ -31,23 +31,21 @@ from omop_alchemy.toolkit.episodes.derivation import (
 from tests.fixtures.query_contract_cases import (
     BOUNDARY_EVENTS,
     COLLIDING_EVENTS,
+    COLLIDING_VALID_LINK,
     CONSTRUCTS_EXACT_180_DAY_EPISODE,
     CONSTRUCTS_FUTURE_VISIT_EPISODES,
     CROSS_PERSON_LINK,
     DIRECTIONAL_PREFERENCE_EPISODES,
     OBSERVATION_ANCHOR_DATE,
+    OUT_OF_SCOPE_LINK,
     OVERLAPPING_EPISODES,
     REPEATED_OBSERVATIONS,
     VALID_EXPLICIT_LINK,
-    COLLIDING_VALID_LINK,
-    OUT_OF_SCOPE_LINK,
 )
 
 
 def test_canonical_event_shape_has_unique_stable_names():
-    all_columns = (
-        ClinicalEventColumn.required_columns() + ClinicalEventColumn.optional_columns()
-    )
+    all_columns = ClinicalEventColumn.required_columns() + ClinicalEventColumn.optional_columns()
 
     assert len(all_columns) == len(set(all_columns))
     assert tuple(str(column) for column in ClinicalEventColumn.required_columns()) == (
@@ -99,9 +97,7 @@ def test_attachment_identity_keeps_the_event_source_and_episode():
     assert first != second
 
 
-@pytest.mark.parametrize(
-    "identity_type", [ClinicalEventIdentity, EpisodeAttachmentIdentity]
-)
+@pytest.mark.parametrize("identity_type", [ClinicalEventIdentity, EpisodeAttachmentIdentity])
 def test_event_source_table_cannot_be_empty(identity_type):
     args = ("", 7) if identity_type is ClinicalEventIdentity else ("", 7, 1001)
     with pytest.raises(ValueError, match="event_source_table"):
@@ -133,13 +129,8 @@ def test_counterexample_links_cover_valid_out_of_scope_and_person_cases():
     episode_by_id = {case.episode_id: case for case in OVERLAPPING_EPISODES}
 
     valid_event = event_by_identity[VALID_EXPLICIT_LINK.event]
-    assert (
-        valid_event.event_field_concept_id
-        == VALID_EXPLICIT_LINK.episode_event_field_concept_id
-    )
-    assert (
-        valid_event.person_id == episode_by_id[VALID_EXPLICIT_LINK.episode_id].person_id
-    )
+    assert valid_event.event_field_concept_id == VALID_EXPLICIT_LINK.episode_event_field_concept_id
+    assert valid_event.person_id == episode_by_id[VALID_EXPLICIT_LINK.episode_id].person_id
 
     colliding_event = event_by_identity[COLLIDING_VALID_LINK.event]
     assert (
@@ -152,10 +143,7 @@ def test_counterexample_links_cover_valid_out_of_scope_and_person_cases():
     )
 
     cross_person_event = event_by_identity[CROSS_PERSON_LINK.event]
-    assert (
-        cross_person_event.person_id
-        != episode_by_id[CROSS_PERSON_LINK.episode_id].person_id
-    )
+    assert cross_person_event.person_id != episode_by_id[CROSS_PERSON_LINK.episode_id].person_id
 
 
 def test_nearest_temporal_contract_uses_absolute_distance_and_stable_id():
@@ -240,9 +228,7 @@ def test_boundary_fixture_makes_closed_window_expectations_visible():
     upper = episode.end_date
     assert upper is not None
     included = [
-        event.identity.event_id
-        for event in BOUNDARY_EVENTS
-        if lower <= event.event_date <= upper
+        event.identity.event_id for event in BOUNDARY_EVENTS if lower <= event.event_date <= upper
     ]
 
     assert spec.include_lower_bound
@@ -251,18 +237,13 @@ def test_boundary_fixture_makes_closed_window_expectations_visible():
 
 
 def test_observation_as_of_contract_excludes_future_and_breaks_ties_by_id():
-    spec = ObservationSelectionSpec(
-        policy=ObservationSelectionPolicy.latest_on_or_before_anchor
-    )
+    spec = ObservationSelectionSpec(policy=ObservationSelectionPolicy.latest_on_or_before_anchor)
     candidates = [
-        row
-        for row in REPEATED_OBSERVATIONS
-        if row.observation_date <= OBSERVATION_ANCHOR_DATE
+        row for row in REPEATED_OBSERVATIONS if row.observation_date <= OBSERVATION_ANCHOR_DATE
     ]
-    selected = sorted(
-        candidates,
-        key=lambda row: (-row.observation_date.toordinal(), row.observation_id),
-    )[0]
+    selected = min(
+        candidates, key=lambda row: (-row.observation_date.toordinal(), row.observation_id)
+    )
 
     assert spec.requires_anchor
     assert selected.observation_id == 22
@@ -315,9 +296,7 @@ def _projection_contract_select() -> sa.Select:
 @pytest.mark.parametrize("dialect", [sqlite.dialect(), postgresql.dialect()])
 def test_required_projection_contract_compiles_without_execution(dialect):
     statement = _projection_contract_select()
-    compiled = str(
-        statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True})
-    )
+    compiled = str(statement.compile(dialect=dialect, compile_kwargs={"literal_binds": True}))
 
     assert tuple(statement.selected_columns.keys()) == tuple(
         str(column) for column in ClinicalEventColumn.required_columns()

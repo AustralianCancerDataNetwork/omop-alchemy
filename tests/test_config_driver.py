@@ -1,4 +1,5 @@
 """Tests for typed CDM resolution, engine creation, and the concept cache scope."""
+
 from oa_configurator import (
     CDMDatabaseConfig,
     ConnectionConfig,
@@ -50,9 +51,7 @@ def test_create_cdm_engines_supports_sqlite():
 
 
 def test_create_cdm_engines_keeps_distinct_in_memory_connections_separate():
-    resolved = _resolved_cdm_database(
-        primary_database=":memory:", vocab_database=":memory:"
-    )
+    resolved = _resolved_cdm_database(primary_database=":memory:", vocab_database=":memory:")
     primary, vocab = create_cdm_engines(resolved)
     try:
         assert primary is not vocab
@@ -63,9 +62,7 @@ def test_create_cdm_engines_keeps_distinct_in_memory_connections_separate():
 
 def test_get_cdm_context_resolves_the_typed_database_field(monkeypatch) -> None:
     stack = StackConfig.for_session(
-        connections={
-            "cdm": ConnectionConfig(dialect="sqlite", database_name=":memory:")
-        },
+        connections={"cdm": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="cdm")},
     )
     monkeypatch.setattr("omop_alchemy.config.load_stack_config", lambda: stack)
@@ -116,7 +113,9 @@ def test_cache_scope_resolves_relative_sqlite_paths(tmp_path, monkeypatch) -> No
 def test_primaries_sharing_one_vocabulary_share_a_scope(tmp_path) -> None:
     """Expansions depend only on the vocabulary, so both CDMs reuse them."""
     shared = str(tmp_path / "shared_vocab.db")
-    alpha = _resolved_cdm_database(primary_database=str(tmp_path / "alpha.db"), vocab_database=shared)
+    alpha = _resolved_cdm_database(
+        primary_database=str(tmp_path / "alpha.db"), vocab_database=shared
+    )
     beta = _resolved_cdm_database(primary_database=str(tmp_path / "beta.db"), vocab_database=shared)
 
     assert _scope(alpha) == _scope(beta)

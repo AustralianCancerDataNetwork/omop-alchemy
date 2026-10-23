@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pytest
 import sqlalchemy as sa
+from oa_configurator import SCHEMA_REGISTRY_SCHEMA
 
+from omop_alchemy.config import MAINTENANCE_SCHEMA
+from omop_alchemy.maintenance.cli_backup import BackupFormat, _single_connection_backup
 from omop_alchemy.maintenance.cli_foreign_keys import (
     collect_foreign_key_trigger_status,
     manage_foreign_key_triggers,
@@ -15,12 +18,8 @@ from omop_alchemy.maintenance.cli_fulltext import (
     populate_fulltext_columns,
 )
 from omop_alchemy.maintenance.cli_tables import _truncate_tables
-from omop_alchemy.maintenance.tables import TableCategory
 from omop_alchemy.maintenance.context import MaintenanceContext
-from omop_alchemy.config import MAINTENANCE_SCHEMA
-from oa_configurator import SCHEMA_REGISTRY_SCHEMA
-from omop_alchemy.maintenance.cli_backup import BackupFormat, _single_connection_backup
-
+from omop_alchemy.maintenance.tables import TableCategory
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -95,15 +94,9 @@ def test_pg_split_fulltext_install_populate_drop_use_vocab_database(pg_split):
 def test_pg_split_fk_status_and_toggle_use_vocabulary_database(pg_split):
     context = _context(pg_split)
 
-    disabled = manage_foreign_key_triggers(
-        context, enable=False, vocabulary_only=True
-    )
-    status = collect_foreign_key_trigger_status(
-        context, vocabulary_included=True
-    )
-    enabled = manage_foreign_key_triggers(
-        context, enable=True, vocabulary_only=True
-    )
+    disabled = manage_foreign_key_triggers(context, enable=False, vocabulary_only=True)
+    status = collect_foreign_key_trigger_status(context, vocabulary_included=True)
+    enabled = manage_foreign_key_triggers(context, enable=True, vocabulary_only=True)
 
     assert disabled and enabled
     assert any(result.table_name == "concept" for result in status)

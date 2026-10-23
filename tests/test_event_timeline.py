@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
 import json
+from datetime import date, datetime
 
-import sqlalchemy as sa
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.clinical import MeasurementView, ObservationView
 from omop_alchemy.toolkit.core.events import ClinicalEventRow
-from omop_alchemy.toolkit.core.timeline.event_timeline import EventMapping
 from omop_alchemy.toolkit.core.timeline import (
     ClinicalEvent,
     Condition_Event,
@@ -21,6 +20,7 @@ from omop_alchemy.toolkit.core.timeline import (
     Observation_Event,
     Person_Timeline,
 )
+from omop_alchemy.toolkit.core.timeline.event_timeline import EventMapping
 
 
 def test_observation_event_implements_the_timeline_contract():
@@ -104,8 +104,10 @@ def test_all_timeline_events_use_clinical_event_behaviour():
 @pytest.mark.parametrize("has_datetime", [False, True])
 def test_single_date_events_remain_points_with_inferred_metadata(model, has_datetime):
     mapping = EventMapping.from_model(model)
+    assert mapping.start_date_field is not None
     fields = {mapping.start_date_field: date(2026, 9, 17)}
     if has_datetime:
+        assert mapping.start_datetime_field is not None
         fields[mapping.start_datetime_field] = datetime(2026, 9, 17, 9, 30)
     event = model(**fields)
     assert mapping.end_date_field is None
@@ -118,16 +120,18 @@ def test_single_date_events_remain_points_with_inferred_metadata(model, has_date
 @pytest.mark.parametrize("has_datetime", [False, True])
 def test_interval_events_infer_independent_endpoints(model, has_datetime):
     mapping = EventMapping.from_model(model)
+    assert mapping.start_date_field is not None
+    assert mapping.end_date_field is not None
     fields = {
         mapping.start_date_field: date(2026, 9, 16),
         mapping.end_date_field: date(2026, 9, 17),
     }
     expected_end = datetime(2026, 9, 17, 23, 59, 59, 999999)
     if has_datetime:
+        assert mapping.start_datetime_field is not None
+        assert mapping.end_datetime_field is not None
         fields[mapping.start_datetime_field] = datetime(2026, 9, 16, 9, 30)
-        fields[mapping.end_datetime_field] = expected_end = datetime(
-            2026, 9, 17, 11, 30
-        )
+        fields[mapping.end_datetime_field] = expected_end = datetime(2026, 9, 17, 11, 30)
     event = model(**fields)
     assert event.event_time.kind == "interval"
     assert event.event_time.end == expected_end

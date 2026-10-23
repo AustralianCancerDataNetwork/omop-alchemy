@@ -60,7 +60,6 @@ The core `Person` table defines:
 - *no ORM relationships*
 
 ```python
-
 @cdm_table
 class Person(CDMTableBase, Base, HealthSystemContext):
     __tablename__ = "person"
@@ -92,7 +91,6 @@ This is the class you want in ETL loops.
 Reference relationships are defined separately in a `Context` class:
 
 ```python
-
 class PersonContext(ReferenceContext):
     gender = ReferenceContext._reference_relationship(
         target="Concept",
@@ -105,7 +103,6 @@ class PersonContext(ReferenceContext):
         local_fk="location_id",
         remote_pk="location_id",
     )
-
 ```
 
 Key properties of these relationships:
@@ -120,7 +117,6 @@ Key properties of these relationships:
 Finally, the `PersonView` composes everything together:
 
 ```python
-
 class PersonView(Person, PersonContext, DomainValidationMixin):
     __tablename__ = "person"
     __mapper_args__ = {"concrete": False}
@@ -129,7 +125,6 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
         "gender_concept_id": ExpectedDomain("Gender"),
         "race_concept_id": ExpectedDomain("Race"),
     }
-
 ```
 
 This is the class you use for:

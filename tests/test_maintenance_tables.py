@@ -10,10 +10,7 @@ from omop_alchemy.maintenance.tables import (
 
 def test_collect_maintenance_tables_uses_decorator_metadata():
     """Test collect maintenance tables uses decorator metadata."""
-    tables = {
-        table.table_name: table
-        for table in collect_maintenance_tables()
-    }
+    tables = {table.table_name: table for table in collect_maintenance_tables()}
 
     assert tables["person"].category is TableCategory.CLINICAL
     assert tables["concept"].category is TableCategory.VOCABULARY
@@ -38,10 +35,7 @@ def test_select_maintenance_tables_can_require_single_integer_primary_key():
 
     assert "person" in table_names
     assert "concept_relationship" not in table_names
-    assert all(
-        isinstance(table.primary_key_columns[0].type, sa.Integer)
-        for table in tables
-    )
+    assert all(isinstance(table.primary_key_columns[0].type, sa.Integer) for table in tables)
 
 
 def test_resolve_maintenance_tables_deduplicates_repeated_names_preserving_order():

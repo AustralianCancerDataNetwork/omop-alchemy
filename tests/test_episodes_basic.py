@@ -1,9 +1,14 @@
+import datetime
+from types import MappingProxyType
+
+import sqlalchemy as sa
 from oa_configurator import Role
+
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.structural import (
-    EpisodeView,
     Episode_Event,
     Episode_EventView,
+    EpisodeView,
     clear_episode_event_target_class_cache,
 )
 from omop_alchemy.toolkit.episodes.handling import (
@@ -12,16 +17,14 @@ from omop_alchemy.toolkit.episodes.handling import (
     ResolvedEpisodeEventMixin,
     episode_attachment_window,
 )
-import datetime
-import sqlalchemy as sa
 
 
 class DiagnosticEpisode(ResolvedEpisodeEventMixin, EpisodeView):
     """Non-oncology episode view used to verify the generic extension point."""
 
     __tablename__ = "episode"
-    __table_args__ = {"schema": Role.PRIMARY.value}
-    __mapper_args__ = {"concrete": False}
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
 
 
 def test_episode_view_expected_domains():
@@ -32,9 +35,7 @@ def test_episode_view_expected_domains():
     assert "episode_object_concept_id" in cls.__expected_domains__
     assert "episode_type_concept_id" in cls.__expected_domains__
 
-    assert cls.__expected_domains__["episode_concept_id"].domains == frozenset(
-        {"Episode"}
-    )
+    assert cls.__expected_domains__["episode_concept_id"].domains == frozenset({"Episode"})
 
 
 def test_episode_reference_context(session):
@@ -58,16 +59,13 @@ def test_episode_has_episode_events(session):
 
 def test_resolved_episode_event_mixin_targets_diagnostic_rows(session):
     episode = (
-        session.query(DiagnosticEpisode)
-        .filter(DiagnosticEpisode.episode_events.any())
-        .first()
+        session.query(DiagnosticEpisode).filter(DiagnosticEpisode.episode_events.any()).first()
     )
 
     assert episode is not None
     assert episode.episode_events
     assert all(
-        isinstance(episode_event, ResolvedEpisodeEvent)
-        for episode_event in episode.episode_events
+        isinstance(episode_event, ResolvedEpisodeEvent) for episode_event in episode.episode_events
     )
 
 
@@ -213,11 +211,7 @@ def test_episode_view_events_property(session):
 
 def test_episode_parent_relationship(session):
     """Test episode parent relationship."""
-    child = (
-        session.query(EpisodeView)
-        .filter(EpisodeView.episode_parent_id.isnot(None))
-        .first()
-    )
+    child = session.query(EpisodeView).filter(EpisodeView.episode_parent_id.isnot(None)).first()
 
     if child:
         assert child.parent_episode is not None

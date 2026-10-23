@@ -16,10 +16,10 @@ from typing import cast
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from sqlalchemy.dialects import postgresql
 from oa_configurator.testing import ScopedTestSchema, scoped_test_schema
 from orm_loader.backends import staging_schema_claim
 from orm_loader.helpers import bulk_load_context
+from sqlalchemy.dialects import postgresql
 
 from omop_alchemy.backends import (
     CONCEPT_NAME_TSVECTOR_COLUMN,
@@ -28,11 +28,14 @@ from omop_alchemy.backends import (
     PostgresBackend,
 )
 from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Synonym, Domain
-from omop_alchemy.maintenance.cli_fulltext import _install_fulltext_columns, populate_fulltext_columns
+from omop_alchemy.maintenance.cli_fulltext import (
+    _install_fulltext_columns,
+    populate_fulltext_columns,
+)
 from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
 from omop_alchemy.maintenance.cli_vocab import load_vocab_source
-from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv, require_cdm
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -45,8 +48,20 @@ _CONCEPT_ID = 4181412
 def installed(pg_db) -> Iterator[ScopedTestSchema]:
     """A scoped schema with fulltext installed and one populated concept."""
     with scoped_test_schema(pg_db.resolved, prefix="fulltext_column") as scoped:
-        _create_missing_tables(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
-        _install_fulltext_columns(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
+        _create_missing_tables(
+            MaintenanceContext(
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
+            )
+        )
+        _install_fulltext_columns(
+            MaintenanceContext(
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
+            )
+        )
         with so.Session(scoped.engine) as session:
             with bulk_load_context(session):
                 session.add(
@@ -64,7 +79,13 @@ def installed(pg_db) -> Iterator[ScopedTestSchema]:
                 )
                 session.flush()
             session.commit()
-        populate_fulltext_columns(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
+        populate_fulltext_columns(
+            MaintenanceContext(
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
+            )
+        )
         yield scoped
 
 
@@ -82,13 +103,17 @@ def test_column_is_bound_to_the_table_without_attaching_it(installed: ScopedTest
         .join(Domain, Domain.domain_id == Concept.domain_id)
         .where(column.op("@@")(_query()))
     )
-    rendered = str(stmt.compile(dialect=postgresql.dialect(), schema_translate_map={"vocab": "vocab"}))
+    rendered = str(
+        stmt.compile(dialect=postgresql.dialect(), schema_translate_map={"vocab": "vocab"})
+    )
     assert f"__[SCHEMA_vocab].concept.{CONCEPT_NAME_TSVECTOR_COLUMN}" in rendered
     assert rendered.count("FROM ") == 1
 
 
 def test_synonym_table_resolves_its_own_column(installed: ScopedTestSchema) -> None:
-    column = _backend.fulltext_vector_column(installed.engine, cast(sa.Table, Concept_Synonym.__table__))
+    column = _backend.fulltext_vector_column(
+        installed.engine, cast(sa.Table, Concept_Synonym.__table__)
+    )
 
     assert column.name == CONCEPT_SYNONYM_NAME_TSVECTOR_COLUMN
     assert CONCEPT_SYNONYM_NAME_TSVECTOR_COLUMN not in Concept_Synonym.__table__.c
@@ -119,7 +144,13 @@ def test_orm_does_not_know_the_column(installed: ScopedTestSchema) -> None:
 
 def test_missing_column_raises(pg_db) -> None:
     with scoped_test_schema(pg_db.resolved, prefix="fulltext_missing") as scoped:
-        _create_missing_tables(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
+        _create_missing_tables(
+            MaintenanceContext(
+                resolved=require_cdm(scoped.resolved),
+                engine=scoped.engine,
+                vocab_engine=scoped.engine,
+            )
+        )
         with pytest.raises(FullTextError, match=CONCEPT_NAME_TSVECTOR_COLUMN):
             _backend.fulltext_vector_column(scoped.engine, _CONCEPT)
 
@@ -139,7 +170,9 @@ def test_vocab_load_after_install_succeeds_in_a_schema_without_the_column(
         pg_db.resolved, prefix="fulltext_regression_load", schema_claims=[staging_schema_claim()]
     ) as other:
         report = load_vocab_source(
-            MaintenanceContext(resolved=other.resolved, engine=other.engine, vocab_engine=other.engine),
+            MaintenanceContext(
+                resolved=require_cdm(other.resolved), engine=other.engine, vocab_engine=other.engine
+            ),
             source_path=source_path,
         )
 

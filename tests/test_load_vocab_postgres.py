@@ -10,6 +10,7 @@ db_dialect'", see oa_configurator.testing). Run explicitly:
 """
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 import sqlalchemy as sa
@@ -20,11 +21,12 @@ from omop_alchemy.backends.postgres import PostgresBackend
 from omop_alchemy.cdm.model.vocabulary import Concept
 from omop_alchemy.config import create_cdm_engines
 from omop_alchemy.maintenance.cli_vocab import (
+    VocabularyModel,
     _load_vocab_model_csv,
     load_vocab_source,
 )
-from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv, require_cdm
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -99,7 +101,10 @@ def _make_concept_source(
 def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, pg_resolved, tmp_path):
     """load_vocab_source() completes end-to-end on real Postgres via orm-loader>=0.4.0."""
     source_path = _copy_fixture_source(tmp_path)
-    report = load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path)
+    report = load_vocab_source(
+        MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine),
+        source_path=source_path,
+    )
 
     assert report.merge_strategy == "replace"
     assert all(r.status == "loaded" for r in report.results if r.required)
@@ -144,7 +149,10 @@ def test_default_quote_mode_preserves_literal_quotes_on_postgres(
         {col: (val,) for col, val in zip(concept_cols, concept_row)},
     )
 
-    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path)
+    load_vocab_source(
+        MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine),
+        source_path=source_path,
+    )
 
     concept_name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
@@ -183,7 +191,11 @@ def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
         {col: (val,) for col, val in zip(concept_cols, concept_row)},
     )
 
-    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path, quote_mode="csv")
+    load_vocab_source(
+        MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine),
+        source_path=source_path,
+        quote_mode="csv",
+    )
 
     concept_name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
@@ -203,7 +215,7 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
 
     row_count = _load_vocab_model_csv(
         pg_session,
-        model=Concept,  # type: ignore[arg-type]
+        model=cast(VocabularyModel, Concept),
         csv_path=csv_path,
         merge_strategy="replace",
     )
@@ -228,16 +240,24 @@ def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
         concept_id=source_absent_id,
         concept_name="preserved",
     )
-    source_v1 = _make_concept_source(
-        tmp_path / "v1", concept_id=concept_id, concept_name="name_v1"
-    )
-    source_v2 = _make_concept_source(
-        tmp_path / "v2", concept_id=concept_id, concept_name="name_v2"
-    )
+    source_v1 = _make_concept_source(tmp_path / "v1", concept_id=concept_id, concept_name="name_v1")
+    source_v2 = _make_concept_source(tmp_path / "v2", concept_id=concept_id, concept_name="name_v2")
 
-    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_absent, merge_strategy="replace")
-    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v1, merge_strategy="replace")
-    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v2, merge_strategy="replace")
+    load_vocab_source(
+        MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine),
+        source_path=source_absent,
+        merge_strategy="replace",
+    )
+    load_vocab_source(
+        MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine),
+        source_path=source_v1,
+        merge_strategy="replace",
+    )
+    load_vocab_source(
+        MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine),
+        source_path=source_v2,
+        merge_strategy="replace",
+    )
 
     names = dict(
         pg_session.execute(
@@ -255,15 +275,19 @@ def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
 def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, pg_resolved, tmp_path):
     """merge_strategy='upsert' preserves existing rows on second load with same PKs."""
     concept_id = 99998
-    source_v1 = _make_concept_source(
-        tmp_path / "v1", concept_id=concept_id, concept_name="name_v1"
-    )
-    source_v2 = _make_concept_source(
-        tmp_path / "v2", concept_id=concept_id, concept_name="name_v2"
-    )
+    source_v1 = _make_concept_source(tmp_path / "v1", concept_id=concept_id, concept_name="name_v1")
+    source_v2 = _make_concept_source(tmp_path / "v2", concept_id=concept_id, concept_name="name_v2")
 
-    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v1, merge_strategy="upsert")
-    load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_v2, merge_strategy="upsert")
+    load_vocab_source(
+        MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine),
+        source_path=source_v1,
+        merge_strategy="upsert",
+    )
+    load_vocab_source(
+        MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine),
+        source_path=source_v2,
+        merge_strategy="upsert",
+    )
 
     name = pg_session.execute(
         sa.text("SELECT concept_name FROM concept WHERE concept_id = :cid"),
@@ -296,11 +320,15 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cle
 
     # A single-schema deployment: vocab/results fall back to the CDM schema.
     scoped_resolved = resolve_with_role_schemas(pg_resolved, {Role.PRIMARY: schema})
-    scoped_engine, _ = create_cdm_engines(scoped_resolved)
+    scoped_engine, _ = create_cdm_engines(require_cdm(scoped_resolved))
 
     try:
         report = load_vocab_source(
-            MaintenanceContext(resolved=scoped_resolved, engine=scoped_engine, vocab_engine=scoped_engine),
+            MaintenanceContext(
+                resolved=require_cdm(scoped_resolved),
+                engine=scoped_engine,
+                vocab_engine=scoped_engine,
+            ),
             source_path=source_path,
         )
 
@@ -312,9 +340,7 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cle
         )
 
         with pg_engine.connect() as conn:
-            count = conn.execute(
-                sa.text(f"SELECT COUNT(*) FROM {quoted_schema}.concept")
-            ).scalar()
+            count = conn.execute(sa.text(f"SELECT COUNT(*) FROM {quoted_schema}.concept")).scalar()
         assert count == 7
     finally:
         scoped_engine.dispose()
