@@ -6,6 +6,10 @@ on:
 jobs:
   label-gate:
     uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/label-gate.yml@main
+  ruff:
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/ruff.yml@ruff-ty-workflows
+  ty:
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/ty.yml@ruff-ty-workflows
   lint-imports:
     runs-on: ubuntu-latest
     steps:
@@ -18,13 +22,10 @@ jobs:
       - run: uv sync --all-extras --dev
       - run: uv run lint-imports
   build-test-sqlite:
-    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test.yml@main
-    with:
-      ty-src: src
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-sqlite.yml@ruff-ty-workflows
   build-test-postgres:
-    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-postgres-v2.yml@main
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-postgres-v3.yml@ruff-ty-workflows
     with:
-      ty-src: src
       postgres-image: postgres:17
       postgres-db: omop_alchemy_ci
       setup-commands: |
