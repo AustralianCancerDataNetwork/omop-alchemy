@@ -6,7 +6,12 @@ from dataclasses import dataclass
 from typing import Iterable
 
 import sqlalchemy as sa
-from oa_configurator import ResolvedCDMDatabase, physical_schema_of, referred_schema_tag
+from oa_configurator import (
+    ResolvedCDMDatabase,
+    claimed_schema_tags,
+    physical_schema_of,
+    referred_schema_tag,
+)
 
 from ..cross_database import check_engine_pair
 from .tables import MaintenanceTable, TableTarget
@@ -69,7 +74,7 @@ class MaintenanceContext:
                     table=table,
                     bind=bind,
                     physical_schema=physical_schema_of(bind, schema_tag=table.schema_tag),
-                    foreign_keys_creatable=self._foreign_keys_creatable(table),
+                    foreign_keys_creatable=self._foreign_keys_creatable(table, bind),
                 )
             )
         return targets
@@ -83,11 +88,21 @@ class MaintenanceContext:
             groups.setdefault(target.bind, []).append(target)
         return groups
 
-    def _foreign_keys_creatable(self, table: MaintenanceTable) -> bool:
-        """Can every foreign key declared on *table* physically exist?"""
+    def _foreign_keys_creatable(self, table: MaintenanceTable, bind: sa.Engine) -> bool:
+        """Can every foreign key declared on *table* physically exist?
+
+        physical_schemas comes from bind's own claimed schema_translate_map,
+        so a tag claimed only via create_engine(schema_claims=[...]) resolves
+        too.
+        """
         own_tag = table.schema_tag
+        physical_schemas = {
+            tag: physical_schema_of(bind, schema_tag=tag) for tag in claimed_schema_tags(bind)
+        }
         return all(
-            self.resolved.foreign_key_can_span(own_tag, referred_schema_tag(element, own_tag))
+            self.resolved.foreign_key_can_span(
+                own_tag, referred_schema_tag(element, own_tag), physical_schemas=physical_schemas
+            )
             for constraint in table.table.foreign_key_constraints
             for element in constraint.elements
         )

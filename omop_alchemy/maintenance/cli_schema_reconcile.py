@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from oa_configurator import (
+    claimed_schema_tags,
     find_table_in_other_schemas,
     physical_schema_of,
     reflects_float_as_double_precision,
@@ -269,6 +270,15 @@ def reconcile_schema(
         engine_backends = {
             candidate_engine: resolve_backend(candidate_engine) for candidate_engine in engine_connections
         }
+        # Includes tags claimed only via create_engine(schema_claims=[...]),
+        # for foreign_key_can_span() below.
+        engine_physical_schemas = {
+            candidate_engine: {
+                tag: physical_schema_of(candidate_engine, schema_tag=tag)
+                for tag in claimed_schema_tags(candidate_engine)
+            }
+            for candidate_engine in context.engines
+        }
         for target in context.targets(selected_tables):
             maintenance_table = target.table
             table_issues: list[ReconciliationIssue] = []
@@ -476,7 +486,11 @@ def reconcile_schema(
                         and referred_tag != table_schema_tag
                         and not (
                             _cross_schema_fk_supported
-                            and context.resolved.foreign_key_can_span(table_schema_tag, referred_tag)
+                            and context.resolved.foreign_key_can_span(
+                                table_schema_tag,
+                                referred_tag,
+                                physical_schemas=engine_physical_schemas[table_engine],
+                            )
                         )
                     ):
                         # SQLite cannot create an inline cross-schema FK at all, and no
