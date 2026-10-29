@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 import typer
 
-from oa_configurator import physical_schema_of
+from oa_configurator import ResolvedDatabase, physical_schema_of
 from orm_loader.backends import resolve_backend as resolve_loader_backend
 from ..backends import Backend, resolve_backend, require_backend_support, backend_support_note
 from ._cli_utils import Status, dry_label, dry_status, omop_command
@@ -128,7 +128,7 @@ def _collect_fk_info(
 
         # FKs deferred by this backend still gets selected as a validation target
         # by counting them here
-        deferred = _deferred_fk_signatures(resolve_loader_backend(target.bind), target.table.model_cls)
+        deferred = _deferred_fk_signatures(resolve_loader_backend(target.bind, resolved=context.resolved), target.table.model_cls)
         relevant_deferred = [signature for signature in deferred if signature[1] in selected_names]
         outgoing_counts[table_name] += len(relevant_deferred)
         for _, referred_table, _ in relevant_deferred:
@@ -161,6 +161,7 @@ def _collect_strict_validation_failures(
     *,
     targets: list[_FKTableInfo],
     table_map: dict[str, MaintenanceTable],
+    resolved: ResolvedDatabase,
 ) -> dict[str, list[ForeignKeyConstraintViolation]]:
     """Query every FK constraint across targets and return a mapping of table name → violation list.
     Checks enforced FKs (via reflection) and deferred FKs (via anti-join). Only tables with at 
@@ -177,6 +178,9 @@ def _collect_strict_validation_failures(
     table_map : dict[str, MaintenanceTable]
         Looked up by table name to resolve each target's ORM model class,
         needed to find its deferred FK constraints.
+    resolved : ResolvedDatabase
+        Topology the engines were resolved from, which a backend needs to
+        classify the foreign keys it cannot enforce.
     """
     inspector = sa.inspect(connection)
     tables_by_name = {table.table_name: table for table in targets}
@@ -185,7 +189,7 @@ def _collect_strict_validation_failures(
         table_name: []
         for table_name in selected_names
     }
-    loader_backend = resolve_loader_backend(connection)
+    loader_backend = resolve_loader_backend(connection, resolved=resolved)
 
     for table_name in sorted(selected_names):
         source_schema_tag = tables_by_name[table_name].schema_tag
@@ -303,7 +307,7 @@ def validate_foreign_key_constraints(
         with group_engine.connect() as connection:
             validation_failures.update(
                 _collect_strict_validation_failures(
-                    connection, group_backend, targets=group_targets, table_map=table_map
+                    connection, group_backend, targets=group_targets, table_map=table_map, resolved=context.resolved
                 )
             )
 
@@ -369,7 +373,8 @@ def manage_foreign_key_triggers(
             with group_engine.connect() as connection:
                 validation_failures.update(
                     _collect_strict_validation_failures(
-                        connection, group_backends[group_engine], targets=group_targets, table_map=table_map
+                        connection, group_backends[group_engine], targets=group_targets, table_map=table_map,
+                        resolved=context.resolved,
                     )
                 )
         if validation_failures:

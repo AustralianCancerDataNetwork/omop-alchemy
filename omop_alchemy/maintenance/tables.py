@@ -6,10 +6,9 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
+from orm_loader.tables.typing import FileTableProtocol
 
 if TYPE_CHECKING:
-    from orm_loader.tables.typing import CSVTableProtocol
-
     from .context import MaintenanceContext
 
 
@@ -58,7 +57,7 @@ class MaintenanceTable:
     table_name: str
     model_name: str
     model_module: str
-    model_cls: type[CSVTableProtocol]
+    model_cls: type[FileTableProtocol]
     category: TableCategory
     table: sa.Table
     primary_key_columns: tuple[sa.Column[object], ...]
@@ -170,7 +169,7 @@ class TableTarget:
         )
 
 
-def _mapped_cdm_table_classes() -> Iterable[type[CSVTableProtocol]]:
+def _mapped_cdm_table_classes() -> Iterable[type[FileTableProtocol]]:
     import omop_alchemy.cdm.model  # noqa: F401
     from orm_loader.helpers import Base
 

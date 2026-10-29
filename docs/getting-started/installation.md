@@ -35,60 +35,33 @@ with so.Session(engine) as session:
 
 **Database configuration** is handled by oa_configurator. See [Configuration](configuration.md) for how to set up `~/.config/omop/config.toml`.
 
-## Session & Engine Management for Bulk Operations
+## Loading files
 
-ORM-loader module provides context managers for safely relaxing database constraints during high-volume operations such as CSV loads, staging-table merges, and backfills.
-
-These utilities temporarily change database behaviour and guarantee restoration even on failure.
-
-`bulk_load_context` temporarily adjusts session-level behaviour to make bulk inserts faster:
-
-* Optionally disables foreign key enforcement
-* Optionally disables SQLAlchemy autoflush
-* Ensures all settings are restored on exit
-* Rolls back the session if an exception occurs
-
-This context manager is session-scoped and safe to use alongside ORM loaders, and is supported for sqlite and postgres backends.
-
-```python
-@contextmanager
-def bulk_load_context(
-    session: Session,
-    *,
-    disable_fk: bool = True,
-    no_autoflush: bool = True,
-):
-```
-
-Usage:
+`load_file` is the entry point for bulk loads. It reads the file in bounded batches, stages the rows, and merges them into the table. During the merge each backend relaxes foreign key checks where it can, and DuckDB, which cannot, validates the constraints it never enforces. Load parent tables before their children.
 
 ```python
 from sqlalchemy.orm import Session
-from orm_loader.helpers import bulk_load_context
 
 with Session(engine) as session:
-    with bulk_load_context(session):
-        MyTable.load_csv(
-            session,
-            path="MY_TABLE.csv",
-            dedupe=True,
-            merge_strategy="upsert",
-        )
-
+    MyTable.load_file(
+        session,
+        path="MY_TABLE.csv",
+        dedupe=True,
+        merge_strategy="upsert",
+    )
     session.commit()
 ```
 
-`engine_with_replica_role` enforces replica mode at the engine level, meaning:
+To insert ORM objects that reference each other without file loading, wrap the inserts in the backend's `bulk_load_context`. It disables foreign key enforcement and autoflush for the block, restores them on exit and rolls back on error. It is supported for SQLite and PostgreSQL only.
 
-* All new connections opened during the context run with `session_replication_role = replica`
-* The role is restored to DEFAULT afterward
+```python
+from orm_loader.backends import resolve_backend
 
-This is supported for postgres only.
-
-Use engine_with_replica_role when:
-
-* Running schema-level operations that may open independent sessions
-* Using tooling that opens its own connections
+with Session(engine) as session:
+    with resolve_backend(session).bulk_load_context(session):
+        session.add_all(objects)
+    session.commit()
+```
 
 ## Optional PostgreSQL full-text search
 

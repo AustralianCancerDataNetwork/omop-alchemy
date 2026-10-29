@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from contextlib import ExitStack
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from oa_configurator import (
@@ -19,6 +18,7 @@ from oa_configurator import (
 )
 from orm_loader.backends import DatabaseBackend
 from orm_loader.backends import resolve_backend as resolve_loader_backend
+from orm_loader.tables.typing import FileTableProtocol
 from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, ReflectedIndex
 
 from ..backends import Backend, backend_supports, resolve_backend
@@ -33,9 +33,6 @@ from .tables import (
     TableCategory,
     select_maintenance_tables,
 )
-
-if TYPE_CHECKING:
-    from orm_loader.tables.typing import CSVTableProtocol
 
 _VARCHAR_LENGTH = re.compile(r"(varchar)\(\d+\)")
 
@@ -152,7 +149,7 @@ def _expected_foreign_keys(
 
 
 def _deferred_fk_signatures(
-    loader_backend: DatabaseBackend, table_cls: type[CSVTableProtocol]
+    loader_backend: DatabaseBackend, table_cls: type[FileTableProtocol]
 ) -> dict[tuple[tuple[str, ...], str, tuple[str, ...]], sa.ForeignKeyConstraint]:
     """table_cls's FK constraints this engine's loader backend never enforces at the DB level,
     keyed the same way as _expected_foreign_keys. Empty for every backend but DuckDB today."""
@@ -440,7 +437,7 @@ def reconcile_schema(
             # Uses the unqualified table, since two differently-tagged tables can collapse to
             # the same schema (e.g. all-None on SQLite) and hide a genuine cross-tag FK.
             raw_expected_fks = _expected_foreign_keys(maintenance_table.table)
-            deferred_fks = _deferred_fk_signatures(resolve_loader_backend(table_engine), maintenance_table.model_cls)
+            deferred_fks = _deferred_fk_signatures(resolve_loader_backend(table_engine, resolved=context.resolved), maintenance_table.model_cls)
 
             for signature, constraint in expected_fks.items():
                 if signature in deferred_fks:

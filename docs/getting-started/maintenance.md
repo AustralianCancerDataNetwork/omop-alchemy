@@ -16,7 +16,7 @@ Some commands depend on PostgreSQL-specific features and will return an error if
 
 | Command group | Requires PostgreSQL | Why |
 | --- | --- | --- |
-| `load-vocab-source` | No (PostgreSQL + SQLite) | Uses ORM CSV loader; `--bulk-mode` is PostgreSQL-only |
+| `load-vocab-source` | No (PostgreSQL + SQLite) | Uses the staged file loader; `--bulk-mode` is PostgreSQL-only |
 | `indexes` | No (cluster apply is PostgreSQL-only) | Index DDL is standard SQL; `CLUSTER` is PostgreSQL |
 | `create-missing-tables`, `reconcile-schema`, `data-summary`, `info`, `doctor` | No | Pure SQLAlchemy metadata operations |
 | `reset-sequences` | Yes | PostgreSQL sequences (`SETVAL`) |
@@ -82,7 +82,7 @@ omop-alchemy fulltext populate
 `replace` overwrites rows whose primary keys occur in the CSV; it does not delete rows that are absent from the source. The explicit `truncate-tables` step above is therefore required when the database must exactly mirror a new Athena export. Use `upsert` for incremental vocabulary patches that must preserve existing conflicting rows. Use `insert_if_empty` as the fastest path when the target tables are guaranteed empty.
 
 **About `--quote-mode by_delimiter`:**
-The default preserves double-quotes as data in tab-delimited Athena exports and uses RFC-4180 quoting for comma-delimited files. Use `--quote-mode csv` only when the source genuinely wraps fields in CSV quotes; `--quote-mode literal` forces quotes to remain data. The `auto` mode samples content and may be less predictable for large files.
+The default preserves double-quotes as data in tab-delimited Athena exports and uses RFC-4180 quoting for comma-delimited files. Use `--quote-mode csv` only when the source genuinely wraps fields in CSV quotes; `--quote-mode literal` forces quotes to remain data.
 
 **About `--strict` on `foreign-keys enable`:**
 `--strict` validates all FK relationships before re-enabling RI triggers. If violations are found, no triggers are re-enabled and you get a report of the problematic rows. Omit `--strict` to re-enable unconditionally.

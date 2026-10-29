@@ -19,7 +19,7 @@ import sqlalchemy.orm as so
 from sqlalchemy.dialects import postgresql
 from oa_configurator.testing import ScopedTestSchema, scoped_test_schema
 from orm_loader.backends import staging_schema_claim
-from orm_loader.helpers import bulk_load_context
+from orm_loader.backends import resolve_backend
 
 from omop_alchemy.backends import (
     CONCEPT_NAME_TSVECTOR_COLUMN,
@@ -48,7 +48,7 @@ def installed(pg_db) -> Iterator[ScopedTestSchema]:
         _create_missing_tables(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
         _install_fulltext_columns(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
         with so.Session(scoped.engine) as session:
-            with bulk_load_context(session):
+            with resolve_backend(session).bulk_load_context(session):
                 session.add(
                     Concept(
                         concept_id=_CONCEPT_ID,

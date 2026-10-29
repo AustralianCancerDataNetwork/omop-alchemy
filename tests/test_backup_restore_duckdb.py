@@ -18,9 +18,8 @@ from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.cli_vocab import load_vocab_source
 from omop_alchemy.maintenance.context import MaintenanceContext
 
-from .conftest import _write_fixture_csv
+from .conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 from .test_duckdb_load_vocab_source import (
-    _fixtures_with_sentinel_concept,
     staged_duckdb_db,
     staged_duckdb_engine,
     staged_duckdb_resolved,
@@ -35,7 +34,7 @@ pytestmark = [pytest.mark.duckdb, pytest.mark.db_dialect]
 def _seed(context: MaintenanceContext, tmp_path) -> None:
     source = tmp_path / "athena_source"
     source.mkdir()
-    for table_name, data in _fixtures_with_sentinel_concept().items():
+    for table_name, data in _ATHENA_FIXTURE_DATA.items():
         _write_fixture_csv(source, table_name, data)
     load_vocab_source(context, source_path=source)
 

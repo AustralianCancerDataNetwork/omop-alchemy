@@ -191,7 +191,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_strict_validation_failures",
-        lambda connection, backend, *, targets=(), table_map=None, vocabulary_included=False: {
+        lambda connection, backend, *, targets=(), table_map=None, resolved=None, vocabulary_included=False: {
             "visit_occurrence": [
                 ForeignKeyConstraintViolation(
                     source_table_name="visit_occurrence",
@@ -257,7 +257,7 @@ def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(monke
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_strict_validation_failures",
-        lambda connection, backend, *, targets=(), table_map=None, vocabulary_included=False: {},
+        lambda connection, backend, *, targets=(), table_map=None, resolved=None, vocabulary_included=False: {},
     )
 
     results = manage_foreign_key_triggers(
@@ -366,7 +366,7 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch, fresh_re
     )
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_strict_validation_failures",
-        lambda connection, backend, *, targets=(), table_map=None, vocabulary_included=False: {
+        lambda connection, backend, *, targets=(), table_map=None, resolved=None, vocabulary_included=False: {
             "visit_occurrence": [
                 ForeignKeyConstraintViolation(
                     source_table_name="visit_occurrence",

@@ -52,6 +52,7 @@ class FakeMaintenanceContext:
     def __init__(self, engine: Any) -> None:
         self.engine = engine
         self.engines = (engine,)
+        self.resolved = None
 
     def engine_for(self, schema_tag: str) -> Any:
         """Return the one fake engine for any *schema_tag*."""
@@ -162,8 +163,18 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
         "language_concept_id": (),
     },
     "concept": {
-        "concept_id": (8507, 8527, 38003564, 32817, 201826, 32546, 1147127),
+        "concept_id": (
+            0,
+            8507,
+            8527,
+            38003564,
+            32817,
+            201826,
+            32546,
+            1147127,
+        ),
         "concept_name": (
+            "No matching concept",
             "MALE",
             "White",
             "Not Hispanic or Latino",
@@ -172,9 +183,28 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
             "Disease Episode",
             "condition_occurrence.condition_occurrence_id",
         ),
-        "domain_id": ("Gender", "Race", "Ethnicity", "Type Concept", "Condition", "Episode", "Metadata"),
-        "vocabulary_id": ("Gender", "Race", "Ethnicity", "Type Concept", "SNOMED", "Episode", "CDM"),
+        "domain_id": (
+            "Metadata",
+            "Gender",
+            "Race",
+            "Ethnicity",
+            "Type Concept",
+            "Condition",
+            "Episode",
+            "Metadata",
+        ),
+        "vocabulary_id": (
+            "CDM",
+            "Gender",
+            "Race",
+            "Ethnicity",
+            "Type Concept",
+            "SNOMED",
+            "Episode",
+            "CDM",
+        ),
         "concept_class_id": (
+            "Field",
             "Gender",
             "Race",
             "Ethnicity",
@@ -183,8 +213,18 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
             "Episode",
             "Field",
         ),
-        "standard_concept": ("S", "S", "S", "S", "S", "S", "S"),
+        "standard_concept": (
+            None,
+            "S",
+            "S",
+            "S",
+            "S",
+            "S",
+            "S",
+            "S",
+        ),
         "concept_code": (
+            "OMOP generated",
             "M",
             "White",
             "Not Hispanic or Latino",
@@ -201,6 +241,7 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
             "19700101",
             "19700101",
             "19700101",
+            "19700101",
         ),
         "valid_end_date": (
             "20991231",
@@ -210,8 +251,18 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
             "20991231",
             "20991231",
             "20991231",
+            "20991231",
         ),
-        "invalid_reason": (None, None, None, None, None, None, None),
+        "invalid_reason": (
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ),
     },
     "domain": {
         "domain_id": ("Condition", "Episode", "Ethnicity", "Gender", "Metadata", "Race", "Type Concept"),
@@ -271,7 +322,7 @@ def _load_fixture_vocabulary(engine: sa.Engine, tmp_dir: Path) -> None:
                     model=model,
                     csv_path=csv_path,
                     merge_strategy="upsert",
-                    quote_mode="auto",
+                    quote_mode="by_delimiter",
                 )
                 session.commit()
             connection.commit()

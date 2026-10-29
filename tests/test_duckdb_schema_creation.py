@@ -107,7 +107,7 @@ def test_duckdb_circular_fk_is_not_db_enforced(fresh_duckdb_engine, fresh_duckdb
 
 @pytest.mark.duckdb
 @pytest.mark.db_dialect
-def test_duckdb_load_csv_self_referential_relationship_pair(fresh_duckdb_engine, fresh_duckdb_resolved, tmp_path):
+def test_duckdb_load_file_self_referential_relationship_pair(fresh_duckdb_engine, fresh_duckdb_resolved, tmp_path):
     """Self-referential relationships: relationship.reverse_relationship_id."""
     _create_missing_tables(
         MaintenanceContext(
@@ -137,7 +137,8 @@ def test_duckdb_load_csv_self_referential_relationship_pair(fresh_duckdb_engine,
     csv_path = _write_fixture_csv(tmp_path, "relationship", _ATHENA_FIXTURE_DATA["relationship"])
     with Session(fresh_duckdb_engine) as session:
         rows = _load_vocab_model_csv(
-            session, model=Relationship, csv_path=csv_path, merge_strategy="upsert", quote_mode="auto"  # ty: ignore[invalid-argument-type]
+            session, model=Relationship, csv_path=csv_path, merge_strategy="upsert", quote_mode="by_delimiter",  # ty: ignore[invalid-argument-type]
+            resolved=fresh_duckdb_resolved,
         )
         session.commit()
     assert rows == 2

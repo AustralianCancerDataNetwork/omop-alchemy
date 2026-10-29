@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 import pytest
 import sqlalchemy as sa
@@ -65,39 +65,12 @@ def staged_duckdb_resolved(staged_duckdb_db: IsolatedTestDatabase) -> ResolvedCD
     return staged_duckdb_db.resolved
 
 
-def _fixtures_with_sentinel_concept() -> dict[str, dict[str, tuple[Any, ...]]]:
-    """Athena fixture data plus concept_id=0, the sentinel every other
-    fixture row's domain_concept_id/concept_class_concept_id/
-    relationship_concept_id points at.
-
-    domain_id="Metadata", vocabulary_id="CDM", and concept_class_id="Field"
-    are reused from the existing fixture rows rather than OMOP's real
-    "None"/"Undefined" placeholders, so this sentinel row doesn't need its
-    own new domain/vocabulary/concept_class rows to satisfy its own FKs.
-    """
-    fixtures = {k: dict(v) for k, v in _ATHENA_FIXTURE_DATA.items()}
-    concept = fixtures["concept"]
-    fixtures["concept"] = {
-        "concept_id": (0,) + concept["concept_id"],
-        "concept_name": ("No matching concept",) + concept["concept_name"],
-        "domain_id": ("Metadata",) + concept["domain_id"],
-        "vocabulary_id": ("CDM",) + concept["vocabulary_id"],
-        "concept_class_id": ("Field",) + concept["concept_class_id"],
-        "standard_concept": (None,) + concept["standard_concept"],
-        "concept_code": ("OMOP generated",) + concept["concept_code"],
-        "valid_start_date": ("19700101",) + concept["valid_start_date"],
-        "valid_end_date": ("20991231",) + concept["valid_end_date"],
-        "invalid_reason": (None,) + concept["invalid_reason"],
-    }
-    return fixtures
-
-
 @pytest.mark.duckdb
 @pytest.mark.db_dialect
 def test_load_vocab_source_end_to_end_on_duckdb(staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path):
     source = tmp_path / "athena_source"
     source.mkdir()
-    for table_name, data in _fixtures_with_sentinel_concept().items():
+    for table_name, data in _ATHENA_FIXTURE_DATA.items():
         _write_fixture_csv(source, table_name, data)
 
     context = MaintenanceContext(
@@ -122,7 +95,7 @@ def test_load_vocab_source_repeat_replace_load_on_duckdb(
 ):
     source = tmp_path / "athena_source"
     source.mkdir()
-    for table_name, data in _fixtures_with_sentinel_concept().items():
+    for table_name, data in _ATHENA_FIXTURE_DATA.items():
         _write_fixture_csv(source, table_name, data)
 
     context = MaintenanceContext(
@@ -150,7 +123,7 @@ def test_load_vocab_source_raises_on_orphaned_deferred_fk_on_duckdb(
 ):
     source = tmp_path / "athena_source"
     source.mkdir()
-    fixtures = _fixtures_with_sentinel_concept()
+    fixtures = {k: dict(v) for k, v in _ATHENA_FIXTURE_DATA.items()}
     domain = fixtures["domain"]
     fixtures["domain"] = {**domain, "domain_concept_id": (999_999,) + domain["domain_concept_id"][1:]}
     for table_name, data in fixtures.items():
@@ -183,7 +156,7 @@ def test_load_vocab_source_standalone_cyclic_table_load_rolls_back_on_duckdb(
     csv_path = _write_fixture_csv(source, "domain", orphaned_domain)
 
     with so.Session(staged_duckdb_engine) as session, pytest.raises(DeferredForeignKeyViolationError):
-        Domain.load_csv(session, csv_path)
+        Domain.load_file(session, csv_path, resolved=staged_duckdb_resolved)
 
     with so.Session(staged_duckdb_engine) as verify_session:
         assert verify_session.execute(sa.select(Domain)).scalars().all() == []
@@ -196,7 +169,7 @@ def test_load_vocab_source_single_cyclic_table_selection_rolls_back_on_duckdb(
     staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path, merge_strategy: Literal["replace", "upsert"]
 ):
     """`load-vocab-source --table domain` (selecting one cyclic table on its
-    own, through load_vocab_source itself rather than load_csv directly)
+    own, through load_vocab_source itself rather than load_file directly)
     must roll back an orphaned deferred FK too: concept isn't part of this
     call's selection, so there's nothing to gain from load_vocab_source's
     usual after-the-whole-batch validation, and it must check inline instead.

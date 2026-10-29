@@ -86,7 +86,7 @@ def _make_concept_source(
     _write_fixture_csv(
         source_path,
         "concept",
-        {col: (val,) for col, val in zip(concept_cols, concept_row)},
+        {col: (_ATHENA_FIXTURE_DATA["concept"][col][0], val) for col, val in zip(concept_cols, concept_row)},
     )
     return source_path
 
@@ -106,7 +106,7 @@ def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, pg_resolved, t
     assert all(r.status == "skipped" for r in report.results if not r.required)
 
     count = pg_session.execute(sa.text("SELECT COUNT(*) FROM concept")).scalar()
-    assert count == 7
+    assert count == 8
 
 
 def test_default_quote_mode_preserves_literal_quotes_on_postgres(
@@ -141,7 +141,7 @@ def test_default_quote_mode_preserves_literal_quotes_on_postgres(
     _write_fixture_csv(
         source_path,
         "concept",
-        {col: (val,) for col, val in zip(concept_cols, concept_row)},
+        {col: (_ATHENA_FIXTURE_DATA["concept"][col][0], val) for col, val in zip(concept_cols, concept_row)},
     )
 
     load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path)
@@ -180,7 +180,7 @@ def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
     _write_fixture_csv(
         source_path,
         "concept",
-        {col: (val,) for col, val in zip(concept_cols, concept_row)},
+        {col: (_ATHENA_FIXTURE_DATA["concept"][col][0], val) for col, val in zip(concept_cols, concept_row)},
     )
 
     load_vocab_source(MaintenanceContext(resolved=pg_resolved, engine=pg_engine, vocab_engine=pg_engine), source_path=source_path, quote_mode="csv")
@@ -209,9 +209,9 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
     )
     pg_session.commit()
 
-    assert row_count == 7
+    assert row_count == 8
     count = pg_session.execute(sa.text("SELECT COUNT(*) FROM concept")).scalar()
-    assert count == 7
+    assert count == 8
 
 
 def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
@@ -315,7 +315,7 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cle
             count = conn.execute(
                 sa.text(f"SELECT COUNT(*) FROM {quoted_schema}.concept")
             ).scalar()
-        assert count == 7
+        assert count == 8
     finally:
         scoped_engine.dispose()
 

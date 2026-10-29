@@ -1,10 +1,10 @@
-from orm_loader.tables import CSVLoadableTableInterface, SerialisableTableInterface
+from orm_loader.tables import FileLoadableTableInterface, SerialisableTableInterface
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
-class CDMTableBase(CSVLoadableTableInterface, SerialisableTableInterface):  
+class CDMTableBase(FileLoadableTableInterface, SerialisableTableInterface):  
     """
-    Base class for CDM tables that support CSV loading and validation.
+    Base class for CDM tables that support file loading and validation.
     """
     __abstract__ = True
     __omop_is_cdm_table__ = False
