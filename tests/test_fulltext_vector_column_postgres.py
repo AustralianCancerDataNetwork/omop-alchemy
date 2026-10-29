@@ -48,7 +48,7 @@ def installed(pg_db) -> Iterator[ScopedTestSchema]:
         _create_missing_tables(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
         _install_fulltext_columns(MaintenanceContext(resolved=scoped.resolved, engine=scoped.engine, vocab_engine=scoped.engine))
         with so.Session(scoped.engine) as session:
-            with resolve_backend(session).bulk_load_context(session):
+            with resolve_backend(session).relaxed_foreign_keys(session):
                 session.add(
                     Concept(
                         concept_id=_CONCEPT_ID,
