@@ -109,11 +109,11 @@ Leave unset for the fastest load on a system with sufficient RAM. Set to a posit
 ```bash
 omop-alchemy load-vocab-source \
   --athena-source /path/to/omop_vocab/ \
-  --merge-strategy insert_if_empty \
+  --merge-strategy insert \
   --bulk-mode
 ```
 
-`--merge-strategy insert_if_empty` is the fastest strategy for a fresh (empty) database — it skips the delete phase entirely. `--bulk-mode` drops all indexes and disables FK triggers globally before loading and rebuilds after, which is much faster than per-table management for a full reload.
+`--merge-strategy insert` is the fastest strategy for a fresh (empty) database. It skips the delete phase and the key check, so a key that already exists fails. `--bulk-mode` drops all indexes and disables FK triggers globally before loading and rebuilds after, which is much faster than per-table management for a full reload.
 
 Pass `-vv` **before** the subcommand to see detailed progress from the orm-loader internals:
 

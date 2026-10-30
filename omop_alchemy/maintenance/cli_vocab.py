@@ -61,7 +61,7 @@ from .ui import (
     render_vocab_load_summary,
 )
 
-MergeStrategy: TypeAlias = Literal["replace", "upsert", "insert_if_empty"]
+MergeStrategy: TypeAlias = Literal["replace", "upsert", "insert"]
 QuoteMode: TypeAlias = Literal["by_delimiter", "csv", "literal"]
 
 VocabularyModel: TypeAlias = type[FileTableProtocol]
@@ -462,16 +462,10 @@ def load_vocab_source(
                     with so.Session(vocab_engine) as session:
                         if (
                             _prev_attempt_was_crash
-                            and merge_strategy == "insert_if_empty"
+                            and merge_strategy == "insert"
                         ):
-                            # A DB crash left partial data committed in this table.
-                            # Truncate so insert_if_empty can retry cleanly. Safe because
-                            # bulk_mode's manage_foreign_key_triggers ran ALTER TABLE ...
-                            # DISABLE TRIGGER ALL on all vocabulary tables, and that state
-                            # persists across crash+recovery in pg_trigger.tgenabled.
-                            # Schema-qualified explicitly so this targets the CDM table
-                            # regardless of search_path ordering -- vocab_schema, since
-                            # this session and the table itself both live on vocab_engine.
+                            # A crash left partial rows committed; truncate so insert can retry.
+                            # Safe because bulk mode already disabled the FK triggers.
                             table_ref = qualified(
                                 session, model.__tablename__, physical_schema=vocab_schema
                             )
@@ -625,7 +619,8 @@ def load_vocab_source_command(
             "CSV merge strategy. `replace` (default) overwrites rows whose primary keys "
             "appear in the source but does not delete source-absent rows. `upsert` preserves "
             "existing rows on primary-key conflicts. "
-            "`insert_if_empty` is the fast path for a fresh empty target."
+            "`insert` adds the rows without checking keys: the fast path for a fresh empty target, "
+            "and an existing key fails."
         ),
     ),
     quote_mode: QuoteMode = typer.Option(

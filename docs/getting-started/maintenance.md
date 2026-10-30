@@ -79,7 +79,7 @@ omop-alchemy fulltext populate
 `load-vocab-source` disables FK triggers and drops vocabulary indexes once before the load loop, then rebuilds them once at the end. This is much faster than the alternative of toggling per table — for a full Athena export the difference can be 10–20×. SQLite ignores this flag. Pass `--no-bulk-mode` if you need per-table rollback safety.
 
 **About `--merge-strategy replace`:**
-`replace` overwrites rows whose primary keys occur in the CSV; it does not delete rows that are absent from the source. The explicit `truncate-tables` step above is therefore required when the database must exactly mirror a new Athena export. Use `upsert` for incremental vocabulary patches that must preserve existing conflicting rows. Use `insert_if_empty` as the fastest path when the target tables are guaranteed empty.
+`replace` overwrites rows whose primary keys occur in the CSV; it does not delete rows that are absent from the source. The explicit `truncate-tables` step above is therefore required when the database must exactly mirror a new Athena export. Use `upsert` for incremental vocabulary patches that must preserve existing conflicting rows. Use `insert` as the fastest path when the target tables are guaranteed empty; a key that already exists fails.
 
 **About `--quote-mode by_delimiter`:**
 The default preserves double-quotes as data in tab-delimited Athena exports and uses RFC-4180 quoting for comma-delimited files. Use `--quote-mode csv` only when the source genuinely wraps fields in CSV quotes; `--quote-mode literal` forces quotes to remain data.

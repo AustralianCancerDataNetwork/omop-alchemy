@@ -164,9 +164,9 @@ def test_load_vocab_source_standalone_cyclic_table_load_rolls_back_on_duckdb(
 
 @pytest.mark.duckdb
 @pytest.mark.db_dialect
-@pytest.mark.parametrize("merge_strategy", ["replace", "upsert"])
+@pytest.mark.parametrize("merge_strategy", ["replace", "upsert", "insert"])
 def test_load_vocab_source_single_cyclic_table_selection_rolls_back_on_duckdb(
-    staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path, merge_strategy: Literal["replace", "upsert"]
+    staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path, merge_strategy: Literal["replace", "upsert", "insert"]
 ):
     """`load-vocab-source --table domain` (selecting one cyclic table on its
     own, through load_vocab_source itself rather than load_file directly)
