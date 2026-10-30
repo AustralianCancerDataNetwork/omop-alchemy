@@ -76,11 +76,12 @@ def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
         model,
         csv_path,
         merge_strategy,
-        quote_mode="auto",
-        chunksize=None,
+        quote_mode="by_delimiter",
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
+        resolved=None,
     ) -> int:
         loaded_tables.append(
             (model.__tablename__, merge_strategy, quote_mode, csv_path)
@@ -225,7 +226,6 @@ def test_load_vocab_source_cli_uses_configured_athena_source(monkeypatch, tmp_pa
         dry_run: bool = False,
         merge_strategy: MergeStrategy = "replace",
         quote_mode: QuoteMode = "by_delimiter",
-        chunksize: int | None = None,
         bulk_mode: bool = True,
         merge_batch_size: int = 1_000_000,
         progress_callback=None,
@@ -275,7 +275,7 @@ def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_p
         __tablename__ = "concept"
 
         @staticmethod
-        def load_csv(
+        def load_file(
             session, path, *, merge_strategy, quote_mode, index_strategy="auto"
         ):
             return 7
@@ -286,7 +286,7 @@ def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_p
 
     calls: dict[str, object] = {}
 
-    def fake_load_csv(
+    def fake_load_file(
         session,
         path,
         *,
@@ -295,13 +295,15 @@ def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_p
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
+        resolved=None,
     ):
         calls["merge_strategy"] = merge_strategy
         calls["quote_mode"] = quote_mode
         calls["path"] = path
         return 7
 
-    monkeypatch.setattr(FakeModel, "load_csv", fake_load_csv)
+    monkeypatch.setattr(FakeModel, "load_file", fake_load_file)
 
     Session = sessionmaker(engine, future=True)
     with Session() as session:
@@ -337,11 +339,12 @@ def test_load_vocab_source_loads_in_fk_dependency_order(fresh_engine, fresh_reso
         model,
         csv_path,
         merge_strategy,
-        quote_mode="auto",
-        chunksize=None,
+        quote_mode="by_delimiter",
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
+        resolved=None,
     ) -> int:
         loaded_order.append(model.__tablename__)
         return 1
@@ -373,11 +376,12 @@ def test_load_vocab_source_reports_weighted_progress(fresh_engine, fresh_resolve
         model,
         csv_path,
         merge_strategy,
-        quote_mode="auto",
-        chunksize=None,
+        quote_mode="by_delimiter",
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
+        resolved=None,
     ) -> int:
         return 1
 
@@ -410,11 +414,12 @@ def test_load_vocab_source_wraps_failed_table_load(fresh_engine, fresh_resolved,
         model,
         csv_path,
         merge_strategy,
-        quote_mode="auto",
-        chunksize=None,
+        quote_mode="by_delimiter",
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
+        resolved=None,
     ):
         if model.__tablename__ == "domain":
             raise sa.exc.ProgrammingError(  # type: ignore[attr-defined]
@@ -439,68 +444,6 @@ def test_load_vocab_source_wraps_failed_table_load(fresh_engine, fresh_resolved,
     assert "table `domain`" in message
     assert "ProgrammingError" in message
     assert "value too long for type character varying(255)" in message
-
-
-def test_load_vocab_model_csv_retries_missing_staging_table(fresh_engine, monkeypatch, tmp_path):
-    """Test load vocab model csv retries missing staging table."""
-    engine = fresh_engine
-
-    class FakeModel:
-        __tablename__ = "drug_strength"
-
-        @staticmethod
-        def load_csv(
-            session, path, *, merge_strategy, quote_mode, index_strategy="auto"
-        ):
-            raise NotImplementedError
-
-        @staticmethod
-        def create_staging_table(session):
-            raise NotImplementedError
-
-    calls = {"load_csv": 0, "create_staging_table": 0}
-    created_staging_schemas: list[str | None] = []
-
-    def fake_load_csv(
-        session,
-        path,
-        *,
-        merge_strategy,
-        quote_mode,
-        index_strategy="auto",
-        merge_batch_size: int = 1_000_000,
-        staging_schema_tag=None,
-    ):
-        calls["load_csv"] += 1
-        if calls["load_csv"] == 1:
-            raise sa.exc.ProgrammingError(  # type: ignore[attr-defined]
-                'INSERT INTO _staging_drug_strength ("drug_concept_id") VALUES (1)',
-                {},
-                Exception('relation "_staging_drug_strength" does not exist'),
-            )
-        return 123
-
-    def fake_create_staging_table(session, *, staging_schema_tag=None):
-        calls["create_staging_table"] += 1
-        created_staging_schemas.append(staging_schema_tag)
-
-    monkeypatch.setattr(FakeModel, "load_csv", fake_load_csv)
-    monkeypatch.setattr(FakeModel, "create_staging_table", fake_create_staging_table)
-
-    Session = sessionmaker(engine, future=True)
-    with Session() as session:
-        row_count = _load_vocab_model_csv(
-            session,
-            model=FakeModel,  # type: ignore[arg-type]
-            csv_path=_athena_source_path() / "DRUG_STRENGTH.csv",
-            merge_strategy="upsert",
-            staging_schema_tag="staging",
-        )
-
-    assert row_count == 123
-    assert calls["load_csv"] == 2
-    assert calls["create_staging_table"] == 1
-    assert created_staging_schemas == ["staging"]
 
 
 def test_load_vocab_source_cli_surfaces_database_error_detail(monkeypatch):
@@ -556,11 +499,12 @@ def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(fresh_engine, fre
         model,
         csv_path,
         merge_strategy,
-        quote_mode="auto",
-        chunksize=None,
+        quote_mode="by_delimiter",
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
+        resolved=None,
     ) -> int:
         received_quote_modes.append(quote_mode)
         return 1
@@ -600,11 +544,12 @@ def test_load_vocab_source_tables_single_loads_only_that_table(fresh_engine, fre
         model,
         csv_path,
         merge_strategy,
-        quote_mode="auto",  # noqa: ARG001
-        chunksize=None,
+        quote_mode="by_delimiter",  # noqa: ARG001
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
+        resolved=None,
     ) -> int:
         loaded_tables.append(model.__tablename__)
         return 1
@@ -633,11 +578,12 @@ def test_load_vocab_source_tables_multiple_loads_exactly_those(fresh_engine, fre
         model,
         csv_path,
         merge_strategy,
-        quote_mode="auto",  # noqa: ARG001
-        chunksize=None,
+        quote_mode="by_delimiter",  # noqa: ARG001
         index_strategy="auto",
         merge_batch_size: int = 1_000_000,
         staging_schema_tag=None,
+        validate_deferred_fks=False,
+        resolved=None,
     ) -> int:
         loaded_tables.append(model.__tablename__)
         return 1
@@ -700,7 +646,7 @@ def test_load_vocab_source_bulk_mode_surfaces_index_warnings(fresh_engine, fresh
 
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_vocab._load_vocab_model_csv",
-        lambda session, *, model, csv_path, merge_strategy, quote_mode="auto", chunksize=None, index_strategy="auto", merge_batch_size=1_000_000, staging_schema_tag=None: (
+        lambda session, *, model, csv_path, merge_strategy, quote_mode="by_delimiter", index_strategy="auto", merge_batch_size=1_000_000, staging_schema_tag=None, validate_deferred_fks=False, resolved=None: (
             1
         ),
     )

@@ -21,7 +21,11 @@ class Concept_Class(Base, ReferenceTable, CDMTableBase):
     )
     concept_class_id: so.Mapped[str] = so.mapped_column(sa.String(20), primary_key=True)
     concept_class_name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
-    concept_class_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),nullable=False,)
+    # use_alter=True breaks the cyclical FK at creation time, and instead defers it to a
+    # separate ALTER TABLE ADD CONSTRAINT statement that is handled differently per dialect
+    concept_class_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id"), use_alter=True), nullable=False,
+    )
 
     def __repr__(self):
         return f"<ConceptClass {self.concept_class_id}>"

@@ -105,7 +105,7 @@ class TestConceptFilterApply:
 
         returned_ids = set(session.scalars(result).all())
         all_ids = set(session.scalars(sa.select(Concept.concept_id)).all())
-        assert returned_ids == all_ids
+        assert returned_ids == all_ids - {0}  # the sentinel concept is not standard
         assert returned_ids  # sanity: fixtures aren't empty
 
     def test_require_standard_compiles_with_literal_binds(self):

@@ -18,7 +18,7 @@ The result is a system that is:
 
 flowchart BT
     subgraph L0["orm-loader"]
-        L0a["CSVLoadableTableInterface"]
+        L0a["FileLoadableTableInterface"]
         L0b["SerialisableTableInterface"]
         L0c["Bulk load & casting helpers"]
         L0d["Materialized-view lifecycle"]
@@ -86,7 +86,7 @@ flowchart BT
 
 | Layer | Purpose | Responsibilities | Boundary and examples |
 | --- | --- | --- | --- |
-| **orm-loader (L0)** | Ingestion and infrastructure | CSV loading; bulk inserts; type casting; serialization; materialized-view definition and lifecycle operations | Domain-agnostic: it does not understand OMOP concepts, vocabularies, or clinical meaning. OMOP Alchemy may provide a selectable and logical row identity, while applications own view collections, dependency policy, and deployment. [CSVLoadableTableInterface](https://australiancancerdatanetwork.github.io/orm-loader/loaders/)<br>[SerialisableTableInterface](https://australiancancerdatanetwork.github.io/orm-loader/tables/serialisable_table/)<br>[Materialized views](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/) |
+| **orm-loader (L0)** | Ingestion and infrastructure | File loading; bulk inserts; type casting; serialization; materialized-view definition and lifecycle operations | Domain-agnostic: it does not understand OMOP concepts, vocabularies, or clinical meaning. OMOP Alchemy may provide a selectable and logical row identity, while applications own view collections, dependency policy, and deployment. [FileLoadableTableInterface](https://australiancancerdatanetwork.github.io/orm-loader/loaders/)<br>[SerialisableTableInterface](https://australiancancerdatanetwork.github.io/orm-loader/tables/serialisable_table/)<br>[Materialized views](https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/) |
 | **cdm.base (L1)** | Structural OMOP semantics | Common table structure; required and optional column patterns; reusable mixins; reference relationship mechanics; domain validation primitives | Defines OMOP’s shape, not its analytical meaning. Answers: “What does a valid OMOP table look like?” [CDMTableBase](./base.md); [PersonScoped](./columns.md); [ReferenceContext](./relationships.md) |
 | **cdm.models (L2)** | Concrete OMOP tables | Actual CDM tables; exact column layouts; primary and foreign keys; official OMOP schemas | Safe for ETL and bulk loading; avoids eager relationships and analytical helpers. Example: [Person](../models/clinical/person.md) |
 | **Views & Contexts (L3)** | Navigation and analysis | Reference relationships; derived properties; hybrid expressions; query-friendly helpers | Designed for interactive use, not ingestion: *tables are for pipelines; views are for people.* [PersonContext](../models/clinical/person.md); [PersonView](../models/clinical/person.md) |

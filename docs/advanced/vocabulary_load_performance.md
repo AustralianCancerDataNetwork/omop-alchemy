@@ -8,7 +8,7 @@ Every table goes through two distinct phases:
 
 | Phase | What happens | Relevant parameter |
 |-------|--------------|--------------------|
-| **1 — Staging load** | CSV is streamed into a temporary UNLOGGED staging table. On PostgreSQL the native `COPY` command is used (fast path); ORM/pandas chunked inserts are a fallback. | `--staging-chunk-size` *(fallback only)* |
+| **1 — Staging load** | The file is read in batches, converted, and written to a temporary staging table with the fastest bulk interface of the backend (`COPY` on PostgreSQL). | none |
 | **2 — Merge** | Rows are moved from staging → target. With `--bulk-mode`, indexes are already dropped and FK triggers disabled for the duration of the full load. | `--merge-batch-size` |
 
 ## Pagination and why it is disabled by default
@@ -104,20 +104,16 @@ Leave unset for the fastest load on a system with sufficient RAM. Set to a posit
 --merge-batch-size 5_000_000   # ~11 batches for concept_relationship; adds ~15 min overhead
 ```
 
-### `--staging-chunk-size`
-
-Controls ORM/pandas batch size for the CSV → staging phase. **Irrelevant on PostgreSQL** when the `COPY` fast-path is active (the default for well-formed Athena CSVs). Only tune this if you see `COPY` errors in the load output. Default: 100,000.
-
 ## Recommended invocation
 
 ```bash
 omop-alchemy load-vocab-source \
   --athena-source /path/to/omop_vocab/ \
-  --merge-strategy insert_if_empty \
+  --merge-strategy insert \
   --bulk-mode
 ```
 
-`--merge-strategy insert_if_empty` is the fastest strategy for a fresh (empty) database — it skips the delete phase entirely. `--bulk-mode` drops all indexes and disables FK triggers globally before loading and rebuilds after, which is much faster than per-table management for a full reload.
+`--merge-strategy insert` is the fastest strategy for a fresh (empty) database. It skips the delete phase and the key check, so a key that already exists fails. `--bulk-mode` drops all indexes and disables FK triggers globally before loading and rebuilds after, which is much faster than per-table management for a full reload.
 
 Pass `-vv` **before** the subcommand to see detailed progress from the orm-loader internals:
 

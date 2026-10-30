@@ -16,7 +16,7 @@ Some commands depend on PostgreSQL-specific features and will return an error if
 
 | Command group | Requires PostgreSQL | Why |
 | --- | --- | --- |
-| `load-vocab-source` | No (PostgreSQL + SQLite) | Uses ORM CSV loader; `--bulk-mode` is PostgreSQL-only |
+| `load-vocab-source` | No (PostgreSQL + SQLite) | Uses the staged file loader; `--bulk-mode` is PostgreSQL-only |
 | `indexes` | No (cluster apply is PostgreSQL-only) | Index DDL is standard SQL; `CLUSTER` is PostgreSQL |
 | `create-missing-tables`, `reconcile-schema`, `data-summary`, `info`, `doctor` | No | Pure SQLAlchemy metadata operations |
 | `reset-sequences` | Yes | PostgreSQL sequences (`SETVAL`) |
@@ -24,7 +24,7 @@ Some commands depend on PostgreSQL-specific features and will return an error if
 | `foreign-keys` | Yes | PostgreSQL internal RI trigger `ALTER TABLE ... DISABLE/ENABLE TRIGGER ALL` |
 | `analyze-tables` | No (`--vacuum` is PostgreSQL-only) | `ANALYZE` is standard; `VACUUM ANALYZE` is PostgreSQL |
 | `fulltext` | Yes | PostgreSQL `tsvector`, `tsquery`, and `GIN` indexes |
-| `backup-database`, `restore-database` | Yes | `pg_dump` / `pg_restore` / `psql` |
+| `backup-database`, `restore-database` | No (PostgreSQL + DuckDB) | `pg_dump` / `pg_restore` / `psql` on PostgreSQL; in-process on DuckDB |
 
 ---
 
@@ -79,10 +79,10 @@ omop-alchemy fulltext populate
 `load-vocab-source` disables FK triggers and drops vocabulary indexes once before the load loop, then rebuilds them once at the end. This is much faster than the alternative of toggling per table — for a full Athena export the difference can be 10–20×. SQLite ignores this flag. Pass `--no-bulk-mode` if you need per-table rollback safety.
 
 **About `--merge-strategy replace`:**
-`replace` overwrites rows whose primary keys occur in the CSV; it does not delete rows that are absent from the source. The explicit `truncate-tables` step above is therefore required when the database must exactly mirror a new Athena export. Use `upsert` for incremental vocabulary patches that must preserve existing conflicting rows. Use `insert_if_empty` as the fastest path when the target tables are guaranteed empty.
+`replace` overwrites rows whose primary keys occur in the CSV; it does not delete rows that are absent from the source. The explicit `truncate-tables` step above is therefore required when the database must exactly mirror a new Athena export. Use `upsert` for incremental vocabulary patches that must preserve existing conflicting rows. Use `insert` as the fastest path when the target tables are guaranteed empty; a key that already exists fails.
 
 **About `--quote-mode by_delimiter`:**
-The default preserves double-quotes as data in tab-delimited Athena exports and uses RFC-4180 quoting for comma-delimited files. Use `--quote-mode csv` only when the source genuinely wraps fields in CSV quotes; `--quote-mode literal` forces quotes to remain data. The `auto` mode samples content and may be less predictable for large files.
+The default preserves double-quotes as data in tab-delimited Athena exports and uses RFC-4180 quoting for comma-delimited files. Use `--quote-mode csv` only when the source genuinely wraps fields in CSV quotes; `--quote-mode literal` forces quotes to remain data.
 
 **About `--strict` on `foreign-keys enable`:**
 `--strict` validates all FK relationships before re-enabling RI triggers. If violations are found, no triggers are re-enabled and you get a report of the problematic rows. Omit `--strict` to re-enable unconditionally.
@@ -137,7 +137,7 @@ Adds a full FK constraint scan — it actually queries the data to find rows tha
 omop-alchemy info
 ```
 
-Shows the active engine URL, installed backend driver, OMOP Alchemy version, optional dependency state (orm-loader, psycopg2/psycopg, etc.), and which maintenance commands are available given the current backend. Run this first when diagnosing "why doesn't this command work".
+Shows the active engine URL, installed backend driver, OMOP Alchemy version, optional dependency state (orm-loader, psycopg, etc.), and which maintenance commands are available given the current backend. Run this first when diagnosing "why doesn't this command work".
 
 **When doctor reports a problem:**
 
@@ -198,7 +198,7 @@ For query-side usage and optional ORM metadata registration, see [PostgreSQL Ful
 
 ### Backup and restore
 
-These commands wrap `pg_dump` and `pg_restore` / `psql`. PostgreSQL client tools must be installed and on `PATH`.
+On PostgreSQL, these commands wrap `pg_dump` and `pg_restore` / `psql`; PostgreSQL client tools must be installed and on `PATH`. On DuckDB, they run in-process over the connection instead: no external tool, and `--format` is ignored.
 
 ```bash
 # Create a backup (custom format is recommended — smaller and restorable in parallel)
@@ -211,19 +211,22 @@ omop-alchemy restore-database ./cdm-backup.dump \
   --format custom
 ```
 
-**Format comparison:**
+**Format comparison (PostgreSQL):**
 
 | Format | File extension | Restore tool | Advantages |
 | --- | --- | --- | --- |
 | `custom` (default) | `.dump` | `pg_restore` | Compressed; supports parallel restore (`-j`) and selective restore |
 | `plain` | `.sql` | `psql` | Human-readable SQL; editable but much larger |
 
-**Restore caveats:**
+**Restore caveats (PostgreSQL):**
 - The target database must already exist. The CLI does not create or drop databases.
 - For `plain` format, the schema is embedded in the SQL dump; no selective schema restore is possible.
 - For `custom` format, `pg_restore` can be invoked manually with `-n <schema>` for selective schema restore.
 
 Use `--dry-run` on `backup-database` to see the `pg_dump` command that would be run without executing it.
+
+!!! note
+    **On DuckDB:** the backup artifact is a directory, one Parquet file per table, scoped to the schemas this database entry occupies. Restore is data-only and target tables must already exist (e.g. via `create-missing-tables`). The command resets owned sequences afterward to match the restored data.
 
 ---
 
@@ -301,5 +304,5 @@ omop-alchemy reset-sequences --vocab  # vocabulary tables only
 | `fulltext install` | Add tsvector sidecar columns to vocabulary tables | `--regconfig`, `--no-create-indexes` | PostgreSQL |
 | `fulltext populate` | Populate sidecar tsvector vectors | `--regconfig` | PostgreSQL |
 | `fulltext drop` | Remove tsvector sidecar columns and indexes | | PostgreSQL |
-| `backup-database` | Create a `pg_dump` backup artifact | `--output-path`, `--format`, `--dry-run` | PostgreSQL |
-| `restore-database` | Restore a backup artifact into the target DB | `--format` (required), `--dry-run` | PostgreSQL |
+| `backup-database` | Create a backup artifact (`pg_dump`, or in-process on DuckDB) | `--output-path`, `--format`, `--dry-run` | PostgreSQL, DuckDB |
+| `restore-database` | Restore a backup artifact into the target DB | `--format` (required), `--dry-run` | PostgreSQL, DuckDB |

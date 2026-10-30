@@ -2,25 +2,39 @@
 
 from __future__ import annotations
 
+import re
 from contextlib import ExitStack
 from dataclasses import dataclass
 
 import sqlalchemy as sa
 from oa_configurator import (
+    claimed_schema_tags,
     find_table_in_other_schemas,
     physical_schema_of,
+    reflects_float_as_double_precision,
+    reflects_text_as_varchar,
+    reflects_varchar_length,
     supports_schemas,
 )
+from orm_loader.backends import DatabaseBackend
+from orm_loader.backends import resolve_backend as resolve_loader_backend
+from orm_loader.tables.typing import FileTableProtocol
 from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint, ReflectedIndex
 
 from ..backends import Backend, backend_supports, resolve_backend
 from ._cli_utils import Severity, Status
+from .cli_indexes import (
+    _cluster_column_names,
+    _cluster_target_name,
+    _find_equivalent_index,
+)
 from .context import MaintenanceContext
-from .cli_indexes import _cluster_column_names, _cluster_target_name, _find_equivalent_index
 from .tables import (
     TableCategory,
     select_maintenance_tables,
 )
+
+_VARCHAR_LENGTH = re.compile(r"(varchar)\(\d+\)")
 
 
 def is_blocking_issue(issue: ReconciliationIssue) -> bool:
@@ -100,21 +114,46 @@ def _schema_qualified_tables(engine: sa.Engine) -> dict[int, sa.Table]:
 
 
 def _normalized_type(type_: sa.types.TypeEngine[object], dialect: sa.engine.Dialect) -> str:
-    """Compile a SQLAlchemy type to its dialect-specific string and normalise whitespace/case for comparison."""
-    return type_.compile(dialect=dialect).lower().replace(" ", "")
+    """Compile a SQLAlchemy type to its dialect-specific string and normalise whitespace/case for comparison.
+
+    Strips a varchar length qualifier from the result when *dialect* reflects
+    a declared VARCHAR(n) back without its length, so that comparison
+    doesn't flag a difference reflection itself can never resolve. Likewise
+    folds "text" into "varchar" when dialect reflects a declared TEXT
+    column back as VARCHAR, and "float" into "doubleprecision" when dialect
+    reflects an unparameterized FLOAT column back as DOUBLE PRECISION.
+    """
+    normalized = type_.compile(dialect=dialect).lower().replace(" ", "")
+    if not reflects_varchar_length(dialect.name):
+        normalized = _VARCHAR_LENGTH.sub(r"\1", normalized)
+    if reflects_text_as_varchar(dialect.name) and normalized == "text":
+        normalized = "varchar"
+    if reflects_float_as_double_precision(dialect.name) and normalized == "float":
+        normalized = "doubleprecision"
+    return normalized
+
+
+def _fk_signature(constraint: sa.ForeignKeyConstraint) -> tuple[tuple[str, ...], str, tuple[str, ...]]:
+    """(constrained_cols, referred_table, referred_cols) for an ORM-defined FK constraint, used as a diffing key."""
+    constrained_columns = tuple(element.parent.name for element in constraint.elements)
+    referred_columns = tuple(element.column.name for element in constraint.elements)
+    referred_table = constraint.referred_table.name
+    return (constrained_columns, referred_table, referred_columns)
 
 
 def _expected_foreign_keys(
     table: sa.Table,
 ) -> dict[tuple[tuple[str, ...], str, tuple[str, ...]], sa.ForeignKeyConstraint]:
     """Index ORM-defined FK constraints by (constrained_cols, referred_table, referred_cols) for diffing."""
-    expected: dict[tuple[tuple[str, ...], str, tuple[str, ...]], sa.ForeignKeyConstraint] = {}
-    for constraint in table.foreign_key_constraints:
-        constrained_columns = tuple(element.parent.name for element in constraint.elements)
-        referred_columns = tuple(element.column.name for element in constraint.elements)
-        referred_table = constraint.referred_table.name
-        expected[(constrained_columns, referred_table, referred_columns)] = constraint
-    return expected
+    return {_fk_signature(constraint): constraint for constraint in table.foreign_key_constraints}
+
+
+def _deferred_fk_signatures(
+    loader_backend: DatabaseBackend, table_cls: type[FileTableProtocol]
+) -> dict[tuple[tuple[str, ...], str, tuple[str, ...]], sa.ForeignKeyConstraint]:
+    """table_cls's FK constraints this engine's loader backend never enforces at the DB level,
+    keyed the same way as _expected_foreign_keys. Empty for every backend but DuckDB today."""
+    return {_fk_signature(constraint): constraint for constraint in loader_backend.deferred_fk_constraints(table_cls)}
 
 
 def _actual_foreign_keys(
@@ -227,6 +266,15 @@ def reconcile_schema(
         }
         engine_backends = {
             candidate_engine: resolve_backend(candidate_engine) for candidate_engine in engine_connections
+        }
+        # Includes tags claimed only via create_engine(schema_claims=[...]),
+        # for foreign_key_can_span() below.
+        engine_physical_schemas = {
+            candidate_engine: {
+                tag: physical_schema_of(candidate_engine, schema_tag=tag)
+                for tag in claimed_schema_tags(candidate_engine)
+            }
+            for candidate_engine in context.engines
         }
         for target in context.targets(selected_tables):
             maintenance_table = target.table
@@ -389,8 +437,40 @@ def reconcile_schema(
             # Uses the unqualified table, since two differently-tagged tables can collapse to
             # the same schema (e.g. all-None on SQLite) and hide a genuine cross-tag FK.
             raw_expected_fks = _expected_foreign_keys(maintenance_table.table)
+            deferred_fks = _deferred_fk_signatures(resolve_loader_backend(table_engine, resolved=context.resolved), maintenance_table.model_cls)
 
             for signature, constraint in expected_fks.items():
+                if signature in deferred_fks:
+                    # Anti-join for deferred FKS since presence can't be checked
+                    # by reflection.
+                    deferred_constraint = deferred_fks[signature]
+                    constrained_columns, referred_table, referred_columns = signature
+                    referred_schema_tag = deferred_constraint.referred_table.schema
+                    if referred_schema_tag is None:
+                        raise TypeError(f"{referred_table}: table has no schema tag.")
+                    violation_count = _backend.count_fk_violations(
+                        connection,
+                        maintenance_table.table_name,
+                        referred_table,
+                        list(constrained_columns),
+                        list(referred_columns),
+                        source_schema_tag=table_schema_tag,
+                        referred_schema_tag=referred_schema_tag,
+                    )
+                    if violation_count:
+                        table_issues.append(
+                            ReconciliationIssue(
+                                table_name=maintenance_table.table_name,
+                                category=maintenance_table.category,
+                                component="foreign_key",
+                                object_name=constraint.name if isinstance(constraint.name, str) else ",".join(constrained_columns),
+                                status=Status.MISMATCH,
+                                expected=f"{','.join(constrained_columns)} -> {referred_table}({','.join(referred_columns)})",
+                                actual=f"{violation_count} orphaned row(s)",
+                                detail="Foreign key is not enforced by this backend and an anti-join found orphaned references.",
+                            )
+                        )
+                    continue
                 if signature not in actual_fks:
                     raw_constraint = raw_expected_fks.get(signature)
                     referred_tag = (
@@ -403,7 +483,11 @@ def reconcile_schema(
                         and referred_tag != table_schema_tag
                         and not (
                             _cross_schema_fk_supported
-                            and context.resolved.foreign_key_can_span(table_schema_tag, referred_tag)
+                            and context.resolved.foreign_key_can_span(
+                                table_schema_tag,
+                                referred_tag,
+                                physical_schemas=engine_physical_schemas[table_engine],
+                            )
                         )
                     ):
                         # SQLite cannot create an inline cross-schema FK at all, and no

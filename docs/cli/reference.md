@@ -75,9 +75,8 @@ Load Athena vocabulary CSVs from the configured source path into the target data
 |---|---|---|---|
 | `--athena-source` | str (optional) | (saved default) | Path to the unzipped Athena vocabulary CSV directory. Falls back to the saved athena-source default. |
 | `--table` | str (repeatable, optional) | (none — all tables) | Restrict the load to one or more vocabulary tables by name (e.g. `--table concept --table vocabulary`). Skips the all-required-files preflight; errors if the named CSV is absent from the source directory. |
-| `--merge-strategy` | `replace` / `upsert` / `insert_if_empty` | `replace` | `replace` overwrites rows whose primary keys occur in the source but preserves source-absent rows. `upsert` preserves existing rows on primary-key conflicts. `insert_if_empty` is the fast path for a fresh empty target. Truncate first when the database must exactly mirror the export. |
-| `--quote-mode` | `by_delimiter` / `auto` / `csv` / `literal` | `by_delimiter` | Interpret double-quotes according to the delimiter by default: literal data in tab-delimited Athena files, RFC-4180 quoting in comma-delimited files. Use `csv` or `literal` only to force a mode; `auto` samples file content. |
-| `--staging-chunk-size` | int (optional) | `100000` | [Phase 1] Rows per ORM transaction when loading CSV → staging table. Ignored when the PostgreSQL COPY fast-path is active. Pass `0` to disable chunking. |
+| `--merge-strategy` | `replace` / `upsert` / `insert` | `replace` | `replace` overwrites rows whose primary keys occur in the source but preserves source-absent rows. `upsert` preserves existing rows on primary-key conflicts. `insert` adds the rows without checking keys: the fast path for a fresh empty target, and an existing key fails. Truncate first when the database must exactly mirror the export. |
+| `--quote-mode` | `by_delimiter` / `csv` / `literal` | `by_delimiter` | Interpret double-quotes according to the delimiter by default: literal data in tab-delimited Athena files, RFC-4180 quoting in comma-delimited files. Use `csv` or `literal` only to force a mode. |
 | `--bulk-mode` / `--no-bulk-mode` | bool | `True` | Disable FK triggers and drop indexes globally before loading, then rebuild after. Much faster for a full vocabulary reload. Ignored on backends that do not support it. |
 | `--merge-batch-size` | int (optional) | `None` | [Phase 2] Rows per transaction when merging staging → target table. Default: `None` (single INSERT per table, fastest for high-RAM systems). Set to a positive integer to enable paginated commits for memory-constrained systems; note that pagination adds a COUNT query and an index build on the staging table before the merge begins. |
 | `--dry-run` | bool | `False` | Preview planned actions without applying any changes to the database. |
@@ -264,8 +263,8 @@ Create a database backup that can be restored with `restore-database`.
 
 | Flag | Type / Choices | Default | Description |
 |---|---|---|---|
-| `--output-path` | str (optional) | timestamped file in cwd | Output path for the backup artifact. Defaults to a timestamped file in the current directory. |
-| `--format` | `custom` / `plain` | `custom` | pg_dump output format. `custom` produces a binary `.dump` file. `plain` produces a plain SQL `.sql` file. |
+| `--output-path` | str (optional) | timestamped path in cwd | Output path for the backup artifact (a directory on DuckDB). Defaults to a timestamped path in the current directory. |
+| `--format` | `custom` / `plain` | `custom` | pg_dump output format on PostgreSQL. `custom` produces a binary `.dump` file. `plain` produces a plain SQL `.sql` file. Ignored on DuckDB, which always backs up to a Parquet directory. |
 | `--dry-run` | bool | `False` | Preview planned actions without applying any changes to the database. |
 
 ---
@@ -276,9 +275,13 @@ Restore a database backup that was created with `backup-database`.
 
 | Argument / Flag | Type / Choices | Default | Description |
 |---|---|---|---|
-| `PATH` (argument) | str | (required) | Path to the backup artifact (`.dump` or `.sql`) to restore. |
-| `--format` | `custom` / `plain` | (required) | Format of the artifact to restore. Must match the format used when the backup was created. |
+| `PATH` (argument) | str | (required) | Path to the backup artifact to restore (`.dump`/`.sql` file, or a Parquet directory on DuckDB). |
+| `--format` | `custom` / `plain` | (required) | Format of the artifact to restore on PostgreSQL; must match the format used when the backup was created. Ignored on DuckDB. |
 | `--dry-run` | bool | `False` | Preview planned actions without applying any changes to the database. |
+
+
+!!! note
+    On DuckDB, each target table must already exist (e.g. via `create-missing-tables`); restore loads row data only and resets owned sequences afterward.
 
 ---
 

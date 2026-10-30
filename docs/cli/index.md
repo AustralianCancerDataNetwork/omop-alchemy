@@ -23,8 +23,8 @@ omop-alchemy --help
 | `indexes disable` / `enable` / `cluster` | Drop or recreate ORM-defined secondary indexes; physically cluster tables on their designated index |
 | `foreign-keys disable` / `enable` / `status` / `validate` | Manage PostgreSQL RI trigger enforcement |
 | `fulltext install` / `populate` / `drop` | Manage tsvector sidecar columns on vocabulary tables |
-| `backup-database` | Create a pg_dump backup artifact |
-| `restore-database` | Restore a pg_dump or psql backup artifact |
+| `backup-database` | Create a backup artifact (pg_dump on PostgreSQL, in-process on DuckDB) |
+| `restore-database` | Restore a backup artifact created by `backup-database` |
 
 See the [Command Reference](reference.md) for full parameter details.
 

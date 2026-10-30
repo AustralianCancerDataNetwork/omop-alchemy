@@ -53,7 +53,7 @@ def athena_vocab(connection, tmp_path):
 
     for model in ATHENA_LOAD_ORDER:
         csv_path = _write_fixture_csv(base_path, model.__tablename__, _ATHENA_FIXTURE_DATA[model.__tablename__])
-        model.load_csv(session, csv_path)
+        model.load_file(session, csv_path)
 
     session.commit()
     session.close()

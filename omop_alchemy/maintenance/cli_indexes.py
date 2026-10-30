@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
 import sqlalchemy as sa
-from sqlalchemy.exc import DBAPIError, IntegrityError
 import typer
 
 from oa_configurator import (
+    Dialect,
     ensure_schema,
     supports_schemas,
 )
@@ -318,6 +318,52 @@ def _dropped_indexes_table(bookkeeping_schema: str | None) -> sa.Table:
     )
 
 
+def _insert_ignoring_conflict(connection: sa.Connection, table: sa.Table, values: Mapping[str, Any], *, index_elements: Sequence[str]) -> bool:
+    """INSERT values into table, doing nothing on a unique-constraint conflict.
+
+    Dialect-dispatched ON CONFLICT DO NOTHING, atomic and with no race window.
+    This needs no SAVEPOINT on any dialect. 
+
+    Parameters
+    ----------
+    connection : sqlalchemy.Connection
+    table : sqlalchemy.Table
+    values : Mapping[str, Any]
+        Column values for the row to insert.
+    index_elements : Sequence[str]
+        Column names identifying the unique constraint to ignore conflicts on.
+
+    Returns
+    -------
+    bool
+        True if a row was actually inserted, False if it conflicted and was
+        skipped.
+
+    Notes
+    -----
+    - An explicit RETURNING clause is used to check whether a row was inserted.
+    """
+    dialect = connection.dialect.name
+    if dialect == Dialect.POSTGRESQL:
+        from sqlalchemy.dialects.postgresql import insert as dialect_insert
+    elif dialect == Dialect.SQLITE:
+        from sqlalchemy.dialects.sqlite import insert as dialect_insert
+    elif dialect == Dialect.DUCKDB:
+        from duckdb_sqlalchemy import insert as dialect_insert
+    else:
+        raise ValueError(f"No ON CONFLICT DO NOTHING support registered for dialect {dialect!r}.")
+
+    pk_column = next(iter(table.primary_key.columns))
+    stmt = (
+        dialect_insert(table)
+        .values(**values)
+        .on_conflict_do_nothing(index_elements=index_elements)
+        .returning(pk_column)
+    )
+    result = connection.execute(stmt)
+    return result.first() is not None
+
+
 def _record_captured_index(
     connection: sa.Connection,
     *,
@@ -365,30 +411,18 @@ def _record_captured_index(
     bookkeeping_table = _dropped_indexes_table(bookkeeping_schema)
     bookkeeping_table.create(bind=connection, checkfirst=True)
 
-    savepoint = connection.begin_nested()
-    try:
-        connection.execute(
-            bookkeeping_table.insert(),
-            {
-                "table_name": table_name,
-                "db_schema": _schema_key(db_schema),
-                "index_name": index_name,
-                "column_names_json": json.dumps(list(column_names)),
-                "is_unique": unique,
-            },
-        )
-    except IntegrityError as exc:
-        savepoint.rollback()
-        message = str(exc.orig).lower()
-        # Constraint naming differs between backends
-        # We are preventing to swallow other unique constraint violations
-        # by checking for a specific one
-        if _DROPPED_INDEXES_UNIQUE_CONSTRAINT_NAME not in message and _DROPPED_INDEXES_TABLE_NAME not in message:
-            raise
-        return False
-    else:
-        savepoint.commit()
-        return True
+    return _insert_ignoring_conflict(
+        connection,
+        bookkeeping_table,
+        {
+            "table_name": table_name,
+            "db_schema": _schema_key(db_schema),
+            "index_name": index_name,
+            "column_names_json": json.dumps(list(column_names)),
+            "is_unique": unique,
+        },
+        index_elements=["table_name", "db_schema", "column_names_json", "is_unique"],
+    )
 
 
 def _peek_captured_index(
@@ -453,6 +487,7 @@ def _restore_captured_index(
     *,
     table_name: str,
     db_schema: str | None,
+    schema_tag: str,
     column_names: tuple[str, ...],
     unique: bool,
 ) -> str | None:
@@ -468,6 +503,9 @@ def _restore_captured_index(
         Name of the table to recreate the index on.
     db_schema : str or None
         Schema the target table lives in.
+    schema_tag : str
+        schema_translate_map tag db_schema resolves from, for the native
+        per-backend index_exists() check (see Notes).
     column_names : tuple[str, ...]
         Column names the restored index should cover, in order.
     unique : bool
@@ -483,12 +521,8 @@ def _restore_captured_index(
     Notes
     -----
     If the captured index was already recreated out-of-band (e.g. a concurrent
-    enable invocation, or a manually restored backup), create(checkfirst=True)
-    can still race with the physical CREATE INDEX statement and raise a
-    "relation already exists" DBAPIError; this is caught the same way the
-    equivalent race is handled for newly-created ORM-defined indexes, and
-    treated as a no-op restore (the bookkeeping row is still cleared, since the
-    index is confirmed to exist either way).
+    enable invocation, or a manually restored backup), an explicit existence
+    check beforehand treats that as a no-op restore.
     """
     restored_index_name, bookkeeping_table, row = _peek_captured_index(
         connection=connection,
@@ -512,15 +546,9 @@ def _restore_captured_index(
     restored_index = sa.Index(
         restored_index_name, *[lightweight_table.c[name] for name in column_names], unique=unique
     )
-    savepoint = connection.begin_nested()
-    try:
-        restored_index.create(bind=connection, checkfirst=True)
-    except DBAPIError as exc:
-        savepoint.rollback()
-        if "already exists" not in str(exc.orig).lower():
-            raise
-    else:
-        savepoint.commit()
+    already_exists = resolve_backend(connection).index_exists(connection, restored_index_name, schema_tag=schema_tag)
+    if not already_exists:
+        restored_index.create(bind=connection)
     connection.execute(bookkeeping_table.delete().where(bookkeeping_table.c.id == row.id))
     return restored_index_name
 
@@ -853,7 +881,7 @@ def _manage_indexes(
                     if not dry_run:
                         restored_name = _restore_captured_index(
                             connection,
-                            table_name=table.table_name, db_schema=db_schema,
+                            table_name=table.table_name, db_schema=db_schema, schema_tag=table.schema_tag,
                             column_names=column_names, unique=unique,
                         )
                     else:
@@ -887,20 +915,17 @@ def _manage_indexes(
                                 physical_name=equivalent_name,
                             )
                         elif not dry_run:
-                            savepoint = connection.begin_nested()
-                            try:
-                                schema_index.create(bind=connection, checkfirst=True)
-                            except DBAPIError as exc:
-                                savepoint.rollback()
-                                if "already exists" not in str(exc.orig).lower():
-                                    raise
+                            # Fresh check as a concurrent session could have
+                            # create this index in the meantime.
+                            already_exists = backend.index_exists(connection, index_name, schema_tag=table.schema_tag)
+                            if already_exists:
                                 outcome = _IndexOutcome(
                                     status=Status.SKIPPED,
                                     detail="metadata-defined index already exists (skipped)",
                                     physical_name=index_name,
                                 )
                             else:
-                                savepoint.commit()
+                                schema_index.create(bind=connection)
                                 created_any = True
                                 # outcome stays default: applied / "metadata-defined index created"
                         # dry-run, no restore, no equivalent: outcome stays default ("would be created")

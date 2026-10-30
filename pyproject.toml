@@ -36,7 +36,7 @@ dependencies = [
   "oa-configurator>=2.0.0,<3",
   "typer>=0.19",
   "rich>=13.0",
-  "orm-loader>=2.0.0,<3",
+  "orm-loader>=3.0.0,<4",
   "typing-extensions>=4.5",
 ]
 
@@ -45,12 +45,17 @@ postgres = [
   "psycopg[binary]>=3.2",
 ]
 
+duckdb = [
+  "duckdb-sqlalchemy>=1.5",
+]
+
 semantics = [
   "omop-semantics>=0.6.2",
 ]
 
 dev = [
-  "oa-configurator[dev,postgres]>=2.0.0,<3",
+  "oa-configurator[dev,postgres,duckdb]>=2.0.0,<3",
+  "orm-loader[duckdb]>=3.0.0,<4",
   "ipython>=8.0",
   "requests>=2.33.0",
   "pytest>=9.0.3",
