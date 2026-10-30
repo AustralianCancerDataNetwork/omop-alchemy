@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 import typer.rich_utils as _typer_rich_utils
-from orm_loader.helpers import bootstrap
+from orm_loader.helpers import Base, bootstrap
 from oa_configurator.testing import IsolatedTestDatabase, isolated_test_database, resolve_with_role_schemas, scoped_test_schema
 from oa_configurator import ResolvedCDMDatabase
 import sqlalchemy.orm as so
@@ -57,6 +57,20 @@ class FakeMaintenanceContext:
     def engine_for(self, schema_tag: str) -> Any:
         """Return the one fake engine for any *schema_tag*."""
         return self.engine
+
+
+@pytest.fixture(autouse=True)
+def restore_inline_foreign_keys() -> Iterator[None]:
+    """Undo ``AddConstraint``'s permanent exclusion of ``use_alter`` foreign keys from inline ``CREATE TABLE``.
+
+    A Postgres ``create_all`` on the shared metadata would otherwise make a later SQLite
+    ``create_all`` in the same process leave those keys out.
+    """
+    yield
+    for table in Base.metadata.tables.values():
+        for constraint in table.foreign_key_constraints:
+            if constraint.use_alter:
+                constraint._create_rule = None
 
 
 @pytest.fixture
