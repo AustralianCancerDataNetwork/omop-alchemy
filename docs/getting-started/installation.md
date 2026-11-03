@@ -52,7 +52,7 @@ with Session(engine) as session:
     session.commit()
 ```
 
-To insert ORM objects that reference each other without file loading, wrap the inserts in the backend's `relaxed_foreign_keys`. It relaxes foreign key enforcement and suspends autoflush for the block, restores them on exit and rolls back on error. DuckDB cannot relax its keys, so there the objects must be added parents first.
+To insert ORM objects that reference each other without file loading, wrap the inserts in the backend's `relaxed_foreign_keys`. It relaxes foreign key enforcement and suspends autoflush for the block, restores them on exit and rolls back on error. Flush the inserts inside the block before committing outside it. DuckDB cannot relax its keys, so there the objects must be added parents first.
 
 ```python
 from orm_loader.backends import resolve_backend
@@ -60,6 +60,7 @@ from orm_loader.backends import resolve_backend
 with Session(engine) as session:
     with resolve_backend(session).relaxed_foreign_keys(session):
         session.add_all(objects)
+        session.flush()
     session.commit()
 ```
 
