@@ -22,6 +22,7 @@ from oa_configurator import (
     qualified,
 )
 from orm_loader.backends import STAGING_SCHEMA, resolve_backend
+from orm_loader.backends.base import ForeignKeyViolationError
 from orm_loader.helpers import create_tables
 from orm_loader.tables.typing import FileTableProtocol
 from rich.progress import (
@@ -146,7 +147,7 @@ _ALL_VOCAB_TABLE_NAMES: frozenset[str] = frozenset(
 
 
 class VocabularyLoadError(RuntimeError):
-    """Raised when a single Athena vocabulary table load fails."""
+    """Raised when an Athena vocabulary load or its final validation fails."""
 
 
 _RETRYABLE_FRAGMENTS: tuple[str, ...] = (
@@ -273,6 +274,12 @@ def load_vocab_source(
     With bulk_mode (default on PostgreSQL), secondary indexes and FK triggers
     are toggled globally around the load for speed. Pass --no-bulk-mode when
     loading a single table to avoid the index drop/rebuild overhead.
+
+    Loaded tables are committed before the final cross-table foreign-key
+    validation. If that check fails, VocabularyLoadError explains that the
+    committed rows remain and describes how to recover. On PostgreSQL and
+    DuckDB, a failure during a batched table load also leaves earlier batches
+    committed.
 
     Parameters
     ----------
@@ -526,7 +533,15 @@ def load_vocab_source(
             if loaded_models:
                 with so.Session(vocab_engine) as session:
                     for model in loaded_models:
-                        backend.validate_foreign_keys(model, session)
+                        try:
+                            backend.validate_foreign_keys(model, session)
+                        except ForeignKeyViolationError as exc:
+                            raise VocabularyLoadError(
+                                "Athena vocabulary foreign-key validation failed for "
+                                f"table `{model.__tablename__}`. Loaded vocabulary rows are already committed. "
+                                "Fix the source data and reload the affected tables, or truncate them before retrying. "
+                                f"Underlying error: {exc.__class__.__name__}: {exc}"
+                            ) from exc
     finally:
         if not dry_run:
             from omop_alchemy.toolkit.core.concepts import clear_concept_group_cache
@@ -648,7 +663,8 @@ def load_vocab_source_command(
             "Default: None (no pagination — single INSERT per table, fastest for high-RAM systems). "
             "Set to a positive integer to enable paginated commits for memory-constrained systems; "
             "note that pagination adds a COUNT query and an index build on the staging table "
-            "before the merge begins, which adds significant overhead even at large batch sizes."
+            "before the merge begins, which adds significant overhead even at large batch sizes. "
+            "If the load fails, rows from earlier batches stay committed on PostgreSQL and DuckDB."
         ),
     ),
     dry_run: bool = False,

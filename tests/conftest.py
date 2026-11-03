@@ -25,6 +25,7 @@ from omop_alchemy.cdm.model.vocabulary import (
     Concept_Ancestor,
     Concept_Class,
     Concept_Relationship,
+    Concept_Synonym,
     Domain,
     Relationship,
     Vocabulary,
@@ -142,6 +143,7 @@ ATHENA_LOAD_ORDER = [
     Relationship,
     Concept_Ancestor,
     Concept_Relationship,
+    Concept_Synonym,
 ]
 
 # ---------------------------------------------------------------------------
@@ -151,12 +153,14 @@ ATHENA_LOAD_ORDER = [
 # tuple of row values (one entry per row, in the same order).
 # Empty tuples = table has no rows (header-only CSV).
 
+ATHENA_SYNONYM_NAMES = ('4.25"X4.25"', 'Size 5"', '"BRCA1 positive"', 'Diabète de type 2 – sucré')
+
 _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
     "concept_ancestor": {
-        "ancestor_concept_id": (),
-        "descendant_concept_id": (),
-        "min_levels_of_separation": (),
-        "max_levels_of_separation": (),
+        "ancestor_concept_id": (201826,),
+        "descendant_concept_id": (201826,),
+        "min_levels_of_separation": (0,),
+        "max_levels_of_separation": (0,),
     },
     "concept_class": {
         "concept_class_id": ("Clinical Finding", "Episode", "Ethnicity", "Field", "Gender", "Race", "Type Concept"),
@@ -164,17 +168,17 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
         "concept_class_concept_id": (0, 0, 0, 0, 0, 0, 0),
     },
     "concept_relationship": {
-        "concept_id_1": (),
-        "concept_id_2": (),
-        "relationship_id": (),
-        "valid_start_date": (),
-        "valid_end_date": (),
-        "invalid_reason": (),
+        "concept_id_1": (201826, 0),
+        "concept_id_2": (0, 201826),
+        "relationship_id": ("Is a", "Subsumes"),
+        "valid_start_date": ("19700101", "19700101"),
+        "valid_end_date": ("20991231", "20991231"),
+        "invalid_reason": (None, None),
     },
     "concept_synonym": {
-        "concept_id": (),
-        "concept_synonym_name": (),
-        "language_concept_id": (),
+        "concept_id": (201826,) * 4,
+        "concept_synonym_name": ATHENA_SYNONYM_NAMES,
+        "language_concept_id": (0,) * 4,
     },
     "concept": {
         "concept_id": (

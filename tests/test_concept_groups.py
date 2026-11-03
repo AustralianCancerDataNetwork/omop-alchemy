@@ -103,8 +103,8 @@ def test_semantic_unit_reference_rejects_empty_paths(value_set: str, unit: str):
 
 
 # ── resolution semantics ────────────────────────────────────────────────────
-# The fixture vocabulary ships an empty concept_ancestor, so these tests insert
-# the ancestry they need. They call build_concept_group directly rather than
+# The fixture vocabulary contains only one self-ancestor row; these tests insert
+# the additional ancestry they need. They call build_concept_group directly rather than
 # going through the registry: the registry deliberately builds in its own
 # session, so it would not see uncommitted rows.
 

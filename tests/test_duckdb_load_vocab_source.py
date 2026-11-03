@@ -26,7 +26,7 @@ from oa_configurator.testing import IsolatedTestDatabase, isolated_test_database
 from orm_loader.backends import staging_schema_claim
 from orm_loader.backends.base import DeferredForeignKeyViolationError
 
-from omop_alchemy.cdm.model.vocabulary import Domain
+from omop_alchemy.cdm.model.vocabulary import Concept_Synonym, Domain
 from omop_alchemy.config import OmopAlchemyConfig
 from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.cli_vocab import (
@@ -37,7 +37,7 @@ from omop_alchemy.maintenance.cli_vocab import (
 )
 from omop_alchemy.maintenance.context import MaintenanceContext
 
-from .conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
+from .conftest import ATHENA_SYNONYM_NAMES, _ATHENA_FIXTURE_DATA, _write_fixture_csv
 
 
 @pytest.fixture
@@ -86,6 +86,11 @@ def test_load_vocab_source_end_to_end_on_duckdb(staged_duckdb_engine, staged_duc
     assert all(result.status == Status.LOADED for result in loaded_required.values())
     assert loaded_required["concept"].row_count == 8
     assert loaded_required["relationship"].row_count == 2
+    for table_name, expected in (("concept_ancestor", 1), ("concept_relationship", 2), ("concept_synonym", 4)):
+        assert loaded_required[table_name].row_count == expected
+    with so.Session(staged_duckdb_engine) as session:
+        names = session.scalars(sa.select(Concept_Synonym.concept_synonym_name)).all()
+    assert sorted(names) == sorted(ATHENA_SYNONYM_NAMES)
 
 
 @pytest.mark.duckdb
@@ -132,8 +137,16 @@ def test_load_vocab_source_raises_on_orphaned_deferred_fk_on_duckdb(
     context = MaintenanceContext(
         resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine
     )
-    with pytest.raises(DeferredForeignKeyViolationError):
+    with pytest.raises(VocabularyLoadError, match="already committed") as error:
         load_vocab_source(context, source_path=source)
+    assert isinstance(error.value.__cause__, DeferredForeignKeyViolationError)
+    assert "domain" in str(error.value)
+    assert "reload" in str(error.value) and "truncate" in str(error.value)
+    with so.Session(staged_duckdb_engine) as session:
+        assert session.scalar(sa.select(sa.func.count()).select_from(Domain)) == 7
+        assert session.scalar(
+            sa.select(sa.func.count()).select_from(Domain).where(Domain.domain_concept_id == 999_999)
+        ) == 1
 
 
 @pytest.mark.duckdb
@@ -190,3 +203,37 @@ def test_load_vocab_source_single_cyclic_table_selection_rolls_back_on_duckdb(
 
     with so.Session(staged_duckdb_engine) as verify_session:
         assert verify_session.execute(sa.select(Domain)).scalars().all() == []
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+@pytest.mark.parametrize("strategy", ["replace", "upsert"])
+@pytest.mark.parametrize("batch_size,committed_rows", [(None, 0), (2, 4)])
+def test_failed_synonym_load_preserves_only_committed_batches(
+    staged_duckdb_engine, staged_duckdb_resolved, tmp_path, strategy, batch_size, committed_rows,
+):
+    source = tmp_path / "athena_source"
+    source.mkdir()
+    for table_name, data in _ATHENA_FIXTURE_DATA.items():
+        _write_fixture_csv(source, table_name, data)
+    context = MaintenanceContext(
+        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine,
+    )
+    load_vocab_source(context, source_path=source)
+    with so.Session(staged_duckdb_engine) as session:
+        session.execute(sa.delete(Concept_Synonym))
+        session.commit()
+    _write_fixture_csv(source, "concept_synonym", {
+        "concept_id": (201826, 0, 201826, 0, 999_999, 0),
+        "concept_synonym_name": tuple(f"batch synonym {i}" for i in range(6)),
+        "language_concept_id": (0,) * 6,
+    })
+    with pytest.raises(VocabularyLoadError, match="concept_synonym") as error:
+        load_vocab_source(
+            context, source_path=source, tables=["concept_synonym"],
+            merge_strategy=strategy, merge_batch_size=batch_size,
+        )
+    assert isinstance(error.value.__cause__, sa.exc.IntegrityError)
+    with so.Session(staged_duckdb_engine) as session:
+        names = session.scalars(sa.select(Concept_Synonym.concept_synonym_name)).all()
+    assert sorted(names) == [f"batch synonym {i}" for i in range(committed_rows)]

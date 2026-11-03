@@ -773,3 +773,34 @@ def test_sequence_reset_gate_matches_find_sequence_name_capability(fresh_engine,
 
     assert backend_supports(resolve_backend(fresh_engine), "find_sequence_name") is False
     assert backend_supports(resolve_backend(pg_engine), "find_sequence_name") is True
+
+
+def test_merge_batch_size_help_explains_partial_commits():
+    result = runner.invoke(app, ["load-vocab-source", "--help"])
+    assert result.exit_code == 0
+    text = " ".join(result.stdout.replace("│", " ").split())
+    assert "If the load fails, rows from earlier batches stay committed on PostgreSQL and DuckDB." in text
+
+
+def test_final_validation_preserves_connection_errors(
+    fresh_engine, fresh_resolved, monkeypatch, tmp_path,
+):
+    from orm_loader.backends import resolve_backend
+    from omop_alchemy.maintenance import cli_vocab
+
+    source = _build_required_athena_source(tmp_path)
+    backend = resolve_backend(fresh_engine, resolved=fresh_resolved)
+    connection_error = sa.exc.OperationalError("SELECT 1", {}, RuntimeError("connection lost"))
+
+    def disconnected(*_args, **_kwargs):
+        raise connection_error
+
+    monkeypatch.setattr(cli_vocab, "resolve_backend", lambda *_args, **_kwargs: backend)
+    monkeypatch.setattr(cli_vocab, "_load_vocab_model_csv", lambda *_args, **_kwargs: 1)
+    monkeypatch.setattr(backend, "validate_foreign_keys", disconnected)
+    context = MaintenanceContext(
+        resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine,
+    )
+    with pytest.raises(sa.exc.OperationalError) as error:
+        load_vocab_source(context, source_path=source)
+    assert error.value is connection_error
