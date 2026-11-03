@@ -129,7 +129,8 @@ def test_reconcile_schema_renamed_index_does_not_flip_table_to_drifted(reconcile
     person_result = next(r for r in report.table_results if r.table_name == "person")
 
     assert person_result.status == "matched"
-    assert person_result.issue_count == 1
+    assert person_result.issue_count == 0
+    assert person_result.detail == "No differences detected."
 
 
 @pytest.mark.duckdb
@@ -415,3 +416,60 @@ def test_normalize_index_expression_ignores_cosmetic_noise_but_not_real_drift(a,
 
     backend = PostgresBackend()
     assert (backend.normalize_index_expression(a) == backend.normalize_index_expression(b)) is should_match
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+@pytest.mark.parametrize("declared_type", [sa.Double(), sa.DOUBLE_PRECISION()])
+def test_duckdb_double_types_match_their_reflected_spelling(fresh_duckdb_engine, declared_type):
+    from omop_alchemy.maintenance.cli_schema_reconcile import _normalized_type
+
+    metadata = sa.MetaData()
+    table = sa.Table("double_type_probe", metadata, sa.Column("value", declared_type))
+    metadata.create_all(fresh_duckdb_engine)
+    reflected = sa.inspect(fresh_duckdb_engine).get_columns(table.name)[0]["type"]
+    assert _normalized_type(declared_type, fresh_duckdb_engine.dialect) == _normalized_type(
+        reflected, fresh_duckdb_engine.dialect,
+    )
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+def test_fresh_duckdb_reports_every_deferred_key_as_nonblocking(
+    fresh_duckdb_engine, fresh_duckdb_resolved,
+):
+    from orm_loader.backends import resolve_backend
+    from omop_alchemy.maintenance.tables import select_maintenance_tables
+
+    context = MaintenanceContext(
+        resolved=fresh_duckdb_resolved, engine=fresh_duckdb_engine, vocab_engine=fresh_duckdb_engine,
+    )
+    _create_missing_tables(context, vocabulary_included=True)
+    loader = resolve_backend(fresh_duckdb_engine, resolved=fresh_duckdb_resolved)
+    expected = {
+        (table.table_name, constraint.name)
+        for table in select_maintenance_tables()
+        for constraint in loader.deferred_fk_constraints(table.model_cls)
+    }
+    assert len(expected) == 8
+    report = reconcile_schema(context, vocabulary_included=True)
+    limited = [issue for issue in report.issues if issue.component == "foreign_key_enforcement"]
+    assert {(issue.table_name, issue.object_name) for issue in limited} == expected
+    assert all(issue.status == "limited" and not is_blocking_issue(issue) for issue in limited)
+    assert all(issue.actual == "not enforced by the database; no orphans found" for issue in limited)
+    assert not any(is_blocking_issue(issue) for issue in report.issues)
+    assert all(result.issue_count == 0 for result in report.table_results)
+    assert all(result.detail == "No differences detected." for result in report.table_results)
+
+    from io import StringIO
+    from rich.console import Console
+    from omop_alchemy.maintenance.ui import render_reconciliation_issues
+
+    output = StringIO()
+    console = Console(file=output, width=240, color_system=None)
+    console.print(render_reconciliation_issues(report.issues))
+    rendered = output.getvalue()
+    assert "No Drift" in rendered
+    assert "Differences" not in rendered
+    assert "Schema notices" in rendered
+    assert rendered.count("foreign_key_enforcement") == 8

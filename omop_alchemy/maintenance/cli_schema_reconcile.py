@@ -55,7 +55,7 @@ def is_blocking_issue(issue: ReconciliationIssue) -> bool:
 
 @dataclass(frozen=True)
 class ReconciliationIssue:
-    """A single schema drift detail: column, index, FK, or cluster mismatch between ORM metadata and the database."""
+    """A schema difference or nonblocking notice about a column, index, FK, or cluster."""
 
     table_name: str
     category: TableCategory
@@ -69,7 +69,7 @@ class ReconciliationIssue:
 
 @dataclass(frozen=True)
 class TableReconciliationResult:
-    """Per-table schema reconciliation summary: whether ORM metadata matches the live database."""
+    """Per-table schema summary, counting blocking differences in ``issue_count``."""
 
     table_name: str
     category: TableCategory
@@ -122,6 +122,8 @@ def _normalized_type(type_: sa.types.TypeEngine[object], dialect: sa.engine.Dial
     folds "text" into "varchar" when dialect reflects a declared TEXT
     column back as VARCHAR, and "float" into "doubleprecision" when dialect
     reflects an unparameterized FLOAT column back as DOUBLE PRECISION.
+    On DuckDB, DOUBLE PRECISION and its reflected DOUBLE spelling share
+    the normalized name "double".
     """
     normalized = type_.compile(dialect=dialect).lower().replace(" ", "")
     if not reflects_varchar_length(dialect.name):
@@ -130,6 +132,8 @@ def _normalized_type(type_: sa.types.TypeEngine[object], dialect: sa.engine.Dial
         normalized = "varchar"
     if reflects_float_as_double_precision(dialect.name) and normalized == "float":
         normalized = "doubleprecision"
+    if dialect.name == "duckdb" and normalized == "doubleprecision":
+        normalized = "double"
     return normalized
 
 
@@ -457,19 +461,25 @@ def reconcile_schema(
                         source_schema_tag=table_schema_tag,
                         referred_schema_tag=referred_schema_tag,
                     )
-                    if violation_count:
-                        table_issues.append(
-                            ReconciliationIssue(
-                                table_name=maintenance_table.table_name,
-                                category=maintenance_table.category,
-                                component="foreign_key",
-                                object_name=constraint.name if isinstance(constraint.name, str) else ",".join(constrained_columns),
-                                status=Status.MISMATCH,
-                                expected=f"{','.join(constrained_columns)} -> {referred_table}({','.join(referred_columns)})",
-                                actual=f"{violation_count} orphaned row(s)",
-                                detail="Foreign key is not enforced by this backend and an anti-join found orphaned references.",
-                            )
+                    table_issues.append(
+                        ReconciliationIssue(
+                            table_name=maintenance_table.table_name,
+                            category=maintenance_table.category,
+                            component="foreign_key" if violation_count else "foreign_key_enforcement",
+                            object_name=constraint.name if isinstance(constraint.name, str) else ",".join(constrained_columns),
+                            status=Status.MISMATCH if violation_count else Status.LIMITED,
+                            expected=f"{','.join(constrained_columns)} -> {referred_table}({','.join(referred_columns)})",
+                            actual=(
+                                f"{violation_count} orphaned row(s)" if violation_count
+                                else "not enforced by the database; no orphans found"
+                            ),
+                            detail=(
+                                "Foreign key is not enforced by this backend and an anti-join found orphaned references."
+                                if violation_count else
+                                "Foreign key is not enforced by this backend; an anti-join found no orphaned references."
+                            ),
                         )
+                    )
                     continue
                 if signature not in actual_fks:
                     raw_constraint = raw_expected_fks.get(signature)
@@ -677,11 +687,11 @@ def reconcile_schema(
                     table_name=maintenance_table.table_name,
                     category=maintenance_table.category,
                     status=table_status,
-                    issue_count=len(table_issues),
+                    issue_count=len(blocking_issues),
                     detail=(
                         "No differences detected."
-                        if not table_issues
-                        else f"{len(table_issues)} difference(s) detected."
+                        if not blocking_issues
+                        else f"{len(blocking_issues)} difference(s) detected."
                     ),
                 )
             )

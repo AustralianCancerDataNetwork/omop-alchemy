@@ -294,12 +294,16 @@ def render_reconciliation_results(results: Iterable[TableReconciliationResult]) 
 
 
 def render_reconciliation_issues(issues: Iterable[ReconciliationIssue]) -> RenderableType:
+    from .cli_schema_reconcile import is_blocking_issue
+
     items = list(issues)
+    has_drift = any(is_blocking_issue(issue) for issue in items)
+    no_drift = Panel.fit("No schema drift detected between ORM metadata and the target database.", title="No Drift", border_style="green")
     if not items:
-        return Panel.fit("No schema drift detected between ORM metadata and the target database.", title="No Drift", border_style="green")
+        return no_drift
 
     table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
-    table.title = "[bold]Differences[/bold]"
+    table.title = "[bold]Differences[/bold]" if has_drift else "[bold]Schema notices[/bold]"
     table.add_column("Table", style="bold")
     table.add_column("Component")
     table.add_column("Object")
@@ -319,7 +323,7 @@ def render_reconciliation_issues(issues: Iterable[ReconciliationIssue]) -> Rende
             issue.detail,
         )
 
-    return table
+    return table if has_drift else Group(no_drift, table)
 
 
 def render_reconciliation_summary(report: SchemaReconciliationReport) -> Panel:
