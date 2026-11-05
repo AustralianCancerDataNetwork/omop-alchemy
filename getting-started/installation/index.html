@@ -442,10 +442,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#session-engine-management-for-bulk-operations" class="md-nav__link">
+  <a href="#loading-files" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Session &amp; Engine Management for Bulk Operations
+        Loading files
       
     </span>
   </a>
@@ -3175,10 +3175,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#session-engine-management-for-bulk-operations" class="md-nav__link">
+  <a href="#loading-files" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Session &amp; Engine Management for Bulk Operations
+        Loading files
       
     </span>
   </a>
@@ -3291,51 +3291,28 @@
     <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 </code></pre></div>
 <p><strong>Database configuration</strong> is handled by oa_configurator. See <a href="../configuration/">Configuration</a> for how to set up <code>~/.config/omop/config.toml</code>.</p>
-<h2 id="session-engine-management-for-bulk-operations">Session &amp; Engine Management for Bulk Operations<a class="headerlink" href="#session-engine-management-for-bulk-operations" title="Permanent link">&para;</a></h2>
-<p>ORM-loader module provides context managers for safely relaxing database constraints during high-volume operations such as CSV loads, staging-table merges, and backfills.</p>
-<p>These utilities temporarily change database behaviour and guarantee restoration even on failure.</p>
-<p><code>bulk_load_context</code> temporarily adjusts session-level behaviour to make bulk inserts faster:</p>
-<ul>
-<li>Optionally disables foreign key enforcement</li>
-<li>Optionally disables SQLAlchemy autoflush</li>
-<li>Ensures all settings are restored on exit</li>
-<li>Rolls back the session if an exception occurs</li>
-</ul>
-<p>This context manager is session-scoped and safe to use alongside ORM loaders, and is supported for sqlite and postgres backends.</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@contextmanager</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">bulk_load_context</span><span class="p">(</span>
-    <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">disable_fk</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="n">no_autoflush</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<span class="p">):</span>
-</code></pre></div>
-<p>Usage:</p>
+<h2 id="loading-files">Loading files<a class="headerlink" href="#loading-files" title="Permanent link">&para;</a></h2>
+<p><code>load_file</code> is the entry point for bulk loads. It reads the file in bounded batches, stages the rows, and merges them into the table. During the merge each backend relaxes foreign key checks where it can, and DuckDB, which cannot, validates the constraints it never enforces. Load parent tables before their children.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Session</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">orm_loader.helpers</span><span class="w"> </span><span class="kn">import</span> <span class="n">bulk_load_context</span>
 
 <span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
-    <span class="k">with</span> <span class="n">bulk_load_context</span><span class="p">(</span><span class="n">session</span><span class="p">):</span>
-        <span class="n">MyTable</span><span class="o">.</span><span class="n">load_csv</span><span class="p">(</span>
-            <span class="n">session</span><span class="p">,</span>
-            <span class="n">path</span><span class="o">=</span><span class="s2">&quot;MY_TABLE.csv&quot;</span><span class="p">,</span>
-            <span class="n">dedupe</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">merge_strategy</span><span class="o">=</span><span class="s2">&quot;upsert&quot;</span><span class="p">,</span>
-        <span class="p">)</span>
-
+    <span class="n">MyTable</span><span class="o">.</span><span class="n">load_file</span><span class="p">(</span>
+        <span class="n">session</span><span class="p">,</span>
+        <span class="n">path</span><span class="o">=</span><span class="s2">&quot;MY_TABLE.csv&quot;</span><span class="p">,</span>
+        <span class="n">dedupe</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">merge_strategy</span><span class="o">=</span><span class="s2">&quot;upsert&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
     <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 </code></pre></div>
-<p><code>engine_with_replica_role</code> enforces replica mode at the engine level, meaning:</p>
-<ul>
-<li>All new connections opened during the context run with <code>session_replication_role = replica</code></li>
-<li>The role is restored to DEFAULT afterward</li>
-</ul>
-<p>This is supported for postgres only.</p>
-<p>Use engine_with_replica_role when:</p>
-<ul>
-<li>Running schema-level operations that may open independent sessions</li>
-<li>Using tooling that opens its own connections</li>
-</ul>
+<p>To insert ORM objects that reference each other without file loading, wrap the inserts in the backend's <code>relaxed_foreign_keys</code>. It relaxes foreign key enforcement and suspends autoflush for the block, restores them on exit and rolls back on error. Flush the inserts inside the block before committing outside it. DuckDB cannot relax its keys, so there the objects must be added parents first.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">orm_loader.backends</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_backend</span>
+
+<span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+    <span class="k">with</span> <span class="n">resolve_backend</span><span class="p">(</span><span class="n">session</span><span class="p">)</span><span class="o">.</span><span class="n">relaxed_foreign_keys</span><span class="p">(</span><span class="n">session</span><span class="p">):</span>
+        <span class="n">session</span><span class="o">.</span><span class="n">add_all</span><span class="p">(</span><span class="n">objects</span><span class="p">)</span>
+        <span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+    <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</code></pre></div>
 <h2 id="optional-postgresql-full-text-search">Optional PostgreSQL full-text search<a class="headerlink" href="#optional-postgresql-full-text-search" title="Permanent link">&para;</a></h2>
 <p>OMOP Alchemy can optionally integrate with PostgreSQL full-text search for selected vocabulary text fields.</p>
 <p>This feature is <strong>not required</strong> to use the library and is an optional enhancement rather than part of the core OMOP schema.</p>

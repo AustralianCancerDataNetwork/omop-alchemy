@@ -3170,17 +3170,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#-staging-chunk-size" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        --staging-chunk-size
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -3323,17 +3312,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#-staging-chunk-size" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        --staging-chunk-size
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -3433,8 +3411,8 @@
 <tbody>
 <tr>
 <td><strong>1 — Staging load</strong></td>
-<td>CSV is streamed into a temporary UNLOGGED staging table. On PostgreSQL the native <code>COPY</code> command is used (fast path); ORM/pandas chunked inserts are a fallback.</td>
-<td><code>--staging-chunk-size</code> <em>(fallback only)</em></td>
+<td>The file is read in batches, converted, and written to a temporary staging table with the fastest bulk interface of the backend (<code>COPY</code> on PostgreSQL).</td>
+<td>none</td>
 </tr>
 <tr>
 <td><strong>2 — Merge</strong></td>
@@ -3528,15 +3506,13 @@ full_page_writes=off
 <p>Leave unset for the fastest load on a system with sufficient RAM. Set to a positive integer only when memory is constrained and you need to bound the size of individual transactions:</p>
 <div class="highlight"><pre><span></span><code>--merge-batch-size 5_000_000   # ~11 batches for concept_relationship; adds ~15 min overhead
 </code></pre></div>
-<h3 id="-staging-chunk-size"><code>--staging-chunk-size</code><a class="headerlink" href="#-staging-chunk-size" title="Permanent link">&para;</a></h3>
-<p>Controls ORM/pandas batch size for the CSV → staging phase. <strong>Irrelevant on PostgreSQL</strong> when the <code>COPY</code> fast-path is active (the default for well-formed Athena CSVs). Only tune this if you see <code>COPY</code> errors in the load output. Default: 100,000.</p>
 <h2 id="recommended-invocation">Recommended invocation<a class="headerlink" href="#recommended-invocation" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>load-vocab-source<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--athena-source<span class="w"> </span>/path/to/omop_vocab/<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--merge-strategy<span class="w"> </span>insert_if_empty<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--merge-strategy<span class="w"> </span>insert<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--bulk-mode
 </code></pre></div>
-<p><code>--merge-strategy insert_if_empty</code> is the fastest strategy for a fresh (empty) database — it skips the delete phase entirely. <code>--bulk-mode</code> drops all indexes and disables FK triggers globally before loading and rebuilds after, which is much faster than per-table management for a full reload.</p>
+<p><code>--merge-strategy insert</code> is the fastest strategy for a fresh (empty) database. It skips the delete phase and the key check, so a key that already exists fails. <code>--bulk-mode</code> drops all indexes and disables FK triggers globally before loading and rebuilds after, which is much faster than per-table management for a full reload.</p>
 <p>Pass <code>-vv</code> <strong>before</strong> the subcommand to see detailed progress from the orm-loader internals:</p>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>-vv<span class="w"> </span>load-vocab-source<span class="w"> </span>--athena-source<span class="w"> </span>/path/to/omop_vocab/<span class="w"> </span>...
 </code></pre></div>

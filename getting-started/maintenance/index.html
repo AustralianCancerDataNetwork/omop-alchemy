@@ -3572,7 +3572,7 @@
 <tr>
 <td><code>load-vocab-source</code></td>
 <td>No (PostgreSQL + SQLite)</td>
-<td>Uses ORM CSV loader; <code>--bulk-mode</code> is PostgreSQL-only</td>
+<td>Uses the staged file loader; <code>--bulk-mode</code> is PostgreSQL-only</td>
 </tr>
 <tr>
 <td><code>indexes</code></td>
@@ -3611,8 +3611,8 @@
 </tr>
 <tr>
 <td><code>backup-database</code>, <code>restore-database</code></td>
-<td>Yes</td>
-<td><code>pg_dump</code> / <code>pg_restore</code> / <code>psql</code></td>
+<td>No (PostgreSQL + DuckDB)</td>
+<td><code>pg_dump</code> / <code>pg_restore</code> / <code>psql</code> on PostgreSQL; in-process on DuckDB</td>
 </tr>
 </tbody>
 </table>
@@ -3655,9 +3655,9 @@ omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 <p><strong>About <code>--bulk-mode</code> (default on PostgreSQL):</strong>
 <code>load-vocab-source</code> disables FK triggers and drops vocabulary indexes once before the load loop, then rebuilds them once at the end. This is much faster than the alternative of toggling per table — for a full Athena export the difference can be 10–20×. SQLite ignores this flag. Pass <code>--no-bulk-mode</code> if you need per-table rollback safety.</p>
 <p><strong>About <code>--merge-strategy replace</code>:</strong>
-<code>replace</code> overwrites rows whose primary keys occur in the CSV; it does not delete rows that are absent from the source. The explicit <code>truncate-tables</code> step above is therefore required when the database must exactly mirror a new Athena export. Use <code>upsert</code> for incremental vocabulary patches that must preserve existing conflicting rows. Use <code>insert_if_empty</code> as the fastest path when the target tables are guaranteed empty.</p>
+<code>replace</code> overwrites rows whose primary keys occur in the CSV; it does not delete rows that are absent from the source. The explicit <code>truncate-tables</code> step above is therefore required when the database must exactly mirror a new Athena export. Use <code>upsert</code> for incremental vocabulary patches that must preserve existing conflicting rows. Use <code>insert</code> as the fastest path when the target tables are guaranteed empty; a key that already exists fails.</p>
 <p><strong>About <code>--quote-mode by_delimiter</code>:</strong>
-The default preserves double-quotes as data in tab-delimited Athena exports and uses RFC-4180 quoting for comma-delimited files. Use <code>--quote-mode csv</code> only when the source genuinely wraps fields in CSV quotes; <code>--quote-mode literal</code> forces quotes to remain data. The <code>auto</code> mode samples content and may be less predictable for large files.</p>
+The default preserves double-quotes as data in tab-delimited Athena exports and uses RFC-4180 quoting for comma-delimited files. Use <code>--quote-mode csv</code> only when the source genuinely wraps fields in CSV quotes; <code>--quote-mode literal</code> forces quotes to remain data.</p>
 <p><strong>About <code>--strict</code> on <code>foreign-keys enable</code>:</strong>
 <code>--strict</code> validates all FK relationships before re-enabling RI triggers. If violations are found, no triggers are re-enabled and you get a report of the problematic rows. Omit <code>--strict</code> to re-enable unconditionally.</p>
 <hr />
@@ -3690,7 +3690,7 @@ omop-alchemy<span class="w"> </span>analyze-tables<span class="w"> </span>--scop
 <p><strong>Full environment introspection:</strong></p>
 <div class="highlight"><pre><span></span><code>omop-alchemy<span class="w"> </span>info
 </code></pre></div>
-<p>Shows the active engine URL, installed backend driver, OMOP Alchemy version, optional dependency state (orm-loader, psycopg2/psycopg, etc.), and which maintenance commands are available given the current backend. Run this first when diagnosing "why doesn't this command work".</p>
+<p>Shows the active engine URL, installed backend driver, OMOP Alchemy version, optional dependency state (orm-loader, psycopg, etc.), and which maintenance commands are available given the current backend. Run this first when diagnosing "why doesn't this command work".</p>
 <p><strong>When doctor reports a problem:</strong></p>
 <table>
 <thead>
@@ -3754,7 +3754,7 @@ omop-alchemy<span class="w"> </span>fulltext<span class="w"> </span>populate
 <p>For query-side usage and optional ORM metadata registration, see <a href="../../advanced/fulltext/">PostgreSQL Full-Text Search</a>.</p>
 <hr />
 <h3 id="backup-and-restore">Backup and restore<a class="headerlink" href="#backup-and-restore" title="Permanent link">&para;</a></h3>
-<p>These commands wrap <code>pg_dump</code> and <code>pg_restore</code> / <code>psql</code>. PostgreSQL client tools must be installed and on <code>PATH</code>.</p>
+<p>On PostgreSQL, these commands wrap <code>pg_dump</code> and <code>pg_restore</code> / <code>psql</code>; PostgreSQL client tools must be installed and on <code>PATH</code>. On DuckDB, they run in-process over the connection instead: no external tool, and <code>--format</code> is ignored.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Create a backup (custom format is recommended — smaller and restorable in parallel)</span>
 omop-alchemy<span class="w"> </span>backup-database<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--output-path<span class="w"> </span>./cdm-backup.dump<span class="w"> </span><span class="se">\</span>
@@ -3764,7 +3764,7 @@ omop-alchemy<span class="w"> </span>backup-database<span class="w"> </span><span
 omop-alchemy<span class="w"> </span>restore-database<span class="w"> </span>./cdm-backup.dump<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--format<span class="w"> </span>custom
 </code></pre></div>
-<p><strong>Format comparison:</strong></p>
+<p><strong>Format comparison (PostgreSQL):</strong></p>
 <table>
 <thead>
 <tr>
@@ -3789,11 +3789,15 @@ omop-alchemy<span class="w"> </span>restore-database<span class="w"> </span>./cd
 </tr>
 </tbody>
 </table>
-<p><strong>Restore caveats:</strong>
+<p><strong>Restore caveats (PostgreSQL):</strong>
 - The target database must already exist. The CLI does not create or drop databases.
 - For <code>plain</code> format, the schema is embedded in the SQL dump; no selective schema restore is possible.
 - For <code>custom</code> format, <code>pg_restore</code> can be invoked manually with <code>-n &lt;schema&gt;</code> for selective schema restore.</p>
 <p>Use <code>--dry-run</code> on <code>backup-database</code> to see the <code>pg_dump</code> command that would be run without executing it.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>On DuckDB:</strong> the backup artifact is a directory, one Parquet file per table, scoped to the schemas this database entry occupies. Restore is data-only and target tables must already exist (e.g. via <code>create-missing-tables</code>). The command resets owned sequences afterward to match the restored data.</p>
+</div>
 <hr />
 <h2 id="recovery-when-things-go-wrong">Recovery: when things go wrong<a class="headerlink" href="#recovery-when-things-go-wrong" title="Permanent link">&para;</a></h2>
 <h3 id="bulk-load-or-vocabulary-reload-fails-mid-way">Bulk load or vocabulary reload fails mid-way<a class="headerlink" href="#bulk-load-or-vocabulary-reload-fails-mid-way" title="Permanent link">&para;</a></h3>
@@ -3954,15 +3958,15 @@ See <a href="#schema-drift">Schema drift</a> below for the remediation path
 </tr>
 <tr>
 <td><code>backup-database</code></td>
-<td>Create a <code>pg_dump</code> backup artifact</td>
+<td>Create a backup artifact (<code>pg_dump</code>, or in-process on DuckDB)</td>
 <td><code>--output-path</code>, <code>--format</code>, <code>--dry-run</code></td>
-<td>PostgreSQL</td>
+<td>PostgreSQL, DuckDB</td>
 </tr>
 <tr>
 <td><code>restore-database</code></td>
 <td>Restore a backup artifact into the target DB</td>
 <td><code>--format</code> (required), <code>--dry-run</code></td>
-<td>PostgreSQL</td>
+<td>PostgreSQL, DuckDB</td>
 </tr>
 </tbody>
 </table>

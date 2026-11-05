@@ -3312,7 +3312,7 @@
 <div  class="mermaid">
 flowchart BT
     subgraph L0["orm-loader"]
-        L0a["CSVLoadableTableInterface"]
+        L0a["FileLoadableTableInterface"]
         L0b["SerialisableTableInterface"]
         L0c["Bulk load & casting helpers"]
         L0d["Materialized-view lifecycle"]
@@ -3389,8 +3389,8 @@ flowchart BT
 <tr>
 <td><strong>orm-loader (L0)</strong></td>
 <td>Ingestion and infrastructure</td>
-<td>CSV loading; bulk inserts; type casting; serialization; materialized-view definition and lifecycle operations</td>
-<td>Domain-agnostic: it does not understand OMOP concepts, vocabularies, or clinical meaning. OMOP Alchemy may provide a selectable and logical row identity, while applications own view collections, dependency policy, and deployment. <a href="https://australiancancerdatanetwork.github.io/orm-loader/loaders/">CSVLoadableTableInterface</a><br><a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/serialisable_table/">SerialisableTableInterface</a><br><a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/">Materialized views</a></td>
+<td>File loading; bulk inserts; type casting; serialization; materialized-view definition and lifecycle operations</td>
+<td>Domain-agnostic: it does not understand OMOP concepts, vocabularies, or clinical meaning. OMOP Alchemy may provide a selectable and logical row identity, while applications own view collections, dependency policy, and deployment. <a href="https://australiancancerdatanetwork.github.io/orm-loader/loaders/">FileLoadableTableInterface</a><br><a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/serialisable_table/">SerialisableTableInterface</a><br><a href="https://australiancancerdatanetwork.github.io/orm-loader/tables/mat_view/">Materialized views</a></td>
 </tr>
 <tr>
 <td><strong>cdm.base (L1)</strong></td>

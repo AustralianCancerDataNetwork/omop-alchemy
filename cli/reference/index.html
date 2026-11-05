@@ -4082,21 +4082,15 @@
 </tr>
 <tr>
 <td><code>--merge-strategy</code></td>
-<td><code>replace</code> / <code>upsert</code> / <code>insert_if_empty</code></td>
+<td><code>replace</code> / <code>upsert</code> / <code>insert</code></td>
 <td><code>replace</code></td>
-<td><code>replace</code> overwrites rows whose primary keys occur in the source but preserves source-absent rows. <code>upsert</code> preserves existing rows on primary-key conflicts. <code>insert_if_empty</code> is the fast path for a fresh empty target. Truncate first when the database must exactly mirror the export.</td>
+<td><code>replace</code> overwrites rows whose primary keys occur in the source but preserves source-absent rows. <code>upsert</code> preserves existing rows on primary-key conflicts. <code>insert</code> adds the rows without checking keys: the fast path for a fresh empty target, and an existing key fails. Truncate first when the database must exactly mirror the export.</td>
 </tr>
 <tr>
 <td><code>--quote-mode</code></td>
-<td><code>by_delimiter</code> / <code>auto</code> / <code>csv</code> / <code>literal</code></td>
+<td><code>by_delimiter</code> / <code>csv</code> / <code>literal</code></td>
 <td><code>by_delimiter</code></td>
-<td>Interpret double-quotes according to the delimiter by default: literal data in tab-delimited Athena files, RFC-4180 quoting in comma-delimited files. Use <code>csv</code> or <code>literal</code> only to force a mode; <code>auto</code> samples file content.</td>
-</tr>
-<tr>
-<td><code>--staging-chunk-size</code></td>
-<td>int (optional)</td>
-<td><code>100000</code></td>
-<td>[Phase 1] Rows per ORM transaction when loading CSV → staging table. Ignored when the PostgreSQL COPY fast-path is active. Pass <code>0</code> to disable chunking.</td>
+<td>Interpret double-quotes according to the delimiter by default: literal data in tab-delimited Athena files, RFC-4180 quoting in comma-delimited files. Use <code>csv</code> or <code>literal</code> only to force a mode.</td>
 </tr>
 <tr>
 <td><code>--bulk-mode</code> / <code>--no-bulk-mode</code></td>
@@ -4108,7 +4102,7 @@
 <td><code>--merge-batch-size</code></td>
 <td>int (optional)</td>
 <td><code>None</code></td>
-<td>[Phase 2] Rows per transaction when merging staging → target table. Default: <code>None</code> (single INSERT per table, fastest for high-RAM systems). Set to a positive integer to enable paginated commits for memory-constrained systems; note that pagination adds a COUNT query and an index build on the staging table before the merge begins.</td>
+<td>[Phase 2] Rows per transaction when merging staging → target table. Default: <code>None</code> (single INSERT per table, fastest for high-RAM systems). Set to a positive integer to enable paginated commits for memory-constrained systems; note that pagination adds a COUNT query and an index build on the staging table before the merge begins. If the load fails, rows from earlier batches stay committed on PostgreSQL and DuckDB.</td>
 </tr>
 <tr>
 <td><code>--dry-run</code></td>
@@ -4548,14 +4542,14 @@ omop-alchemy<span class="w"> </span>indexes<span class="w"> </span>cluster<span 
 <tr>
 <td><code>--output-path</code></td>
 <td>str (optional)</td>
-<td>timestamped file in cwd</td>
-<td>Output path for the backup artifact. Defaults to a timestamped file in the current directory.</td>
+<td>timestamped path in cwd</td>
+<td>Output path for the backup artifact (a directory on DuckDB). Defaults to a timestamped path in the current directory.</td>
 </tr>
 <tr>
 <td><code>--format</code></td>
 <td><code>custom</code> / <code>plain</code></td>
 <td><code>custom</code></td>
-<td>pg_dump output format. <code>custom</code> produces a binary <code>.dump</code> file. <code>plain</code> produces a plain SQL <code>.sql</code> file.</td>
+<td>pg_dump output format on PostgreSQL. <code>custom</code> produces a binary <code>.dump</code> file. <code>plain</code> produces a plain SQL <code>.sql</code> file. Ignored on DuckDB, which always backs up to a Parquet directory.</td>
 </tr>
 <tr>
 <td><code>--dry-run</code></td>
@@ -4582,13 +4576,13 @@ omop-alchemy<span class="w"> </span>indexes<span class="w"> </span>cluster<span 
 <td><code>PATH</code> (argument)</td>
 <td>str</td>
 <td>(required)</td>
-<td>Path to the backup artifact (<code>.dump</code> or <code>.sql</code>) to restore.</td>
+<td>Path to the backup artifact to restore (<code>.dump</code>/<code>.sql</code> file, or a Parquet directory on DuckDB).</td>
 </tr>
 <tr>
 <td><code>--format</code></td>
 <td><code>custom</code> / <code>plain</code></td>
 <td>(required)</td>
-<td>Format of the artifact to restore. Must match the format used when the backup was created.</td>
+<td>Format of the artifact to restore on PostgreSQL; must match the format used when the backup was created. Ignored on DuckDB.</td>
 </tr>
 <tr>
 <td><code>--dry-run</code></td>
@@ -4598,6 +4592,10 @@ omop-alchemy<span class="w"> </span>indexes<span class="w"> </span>cluster<span 
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>On DuckDB, each target table must already exist (e.g. via <code>create-missing-tables</code>); restore loads row data only and resets owned sequences afterward.</p>
+</div>
 <hr />
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <p>Connection and schema settings are managed via <code>omop-config</code> (oa_configurator). Use <code>omop-config init</code> to create <code>~/.config/omop/config.toml</code> and <code>omop-config configure omop_alchemy</code> to set package-specific options such as <code>athena_source_path</code>. See <a href="../../getting-started/configuration/">Configuration</a>.</p>

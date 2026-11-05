@@ -3379,7 +3379,7 @@
 <ul>
 <li>a concrete SQLAlchemy declarative class</li>
 <li>representing a real OMOP CDM table</li>
-<li>safe to load from CSV</li>
+<li>safe to load from files</li>
 <li>safe to serialize</li>
 <li>safe to validate structurally</li>
 </ul>
@@ -3396,7 +3396,7 @@
 <p><code>CDMTableBase</code> builds directly on infrastructure provided by <code>orm-loader</code>.</p>
 <p>Specifically, it inherits:</p>
 <ul>
-<li><code>CSVLoadableTableInterface</code> — controlled CSV ingestion</li>
+<li><code>FileLoadableTableInterface</code> — controlled file ingestion</li>
 <li><code>SerialisableTableInterface</code> — safe object serialization</li>
 </ul>
 <p>This separation is intentional:</p>
@@ -3431,11 +3431,11 @@
 <a id="omop_alchemy.cdm.base.cdm_table_base.CDMTableBase"></a>
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><span title="orm_loader.tables.CSVLoadableTableInterface">CSVLoadableTableInterface</span></code>, <code><span title="orm_loader.tables.SerialisableTableInterface">SerialisableTableInterface</span></code></p>
+              Bases: <code><span title="orm_loader.tables.FileLoadableTableInterface">FileLoadableTableInterface</span></code>, <code><span title="orm_loader.tables.SerialisableTableInterface">SerialisableTableInterface</span></code></p>
 
 
 
-        <p>Base class for CDM tables that support CSV loading and validation.</p>
+        <p>Base class for CDM tables that support file loading and validation.</p>
 
 
 

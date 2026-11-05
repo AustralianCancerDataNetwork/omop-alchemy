@@ -3015,6 +3015,78 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#duckdb-specifics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DuckDB specifics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DuckDB specifics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deferred-foreign-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deferred foreign keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relationship-must-load-after-concept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        relationship must load after concept
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge_strategyreplace-fails-on-a-table-thats-both-referenced-and-owns-its-own-fk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        merge_strategy="replace" fails on a table that's both referenced and owns its own FK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#truncate-tables-cascade-is-not-supported" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        truncate-tables --cascade is not supported
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-supports_fast_load-is-false" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why supports_fast_load is False
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3152,6 +3224,78 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#duckdb-specifics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DuckDB specifics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DuckDB specifics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deferred-foreign-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deferred foreign keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relationship-must-load-after-concept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        relationship must load after concept
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge_strategyreplace-fails-on-a-table-thats-both-referenced-and-owns-its-own-fk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        merge_strategy="replace" fails on a table that's both referenced and owns its own FK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#truncate-tables-cascade-is-not-supported" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        truncate-tables --cascade is not supported
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-supports_fast_load-is-false" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why supports_fast_load is False
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3221,17 +3365,21 @@
 
 
 <h1 id="backend-compatibility">Backend Compatibility<a class="headerlink" href="#backend-compatibility" title="Permanent link">&para;</a></h1>
-<p>Every maintenance operation goes through a <code>Backend</code> (<code>PostgresBackend</code> or
-<code>SQLiteBackend</code>). PostgreSQL implements the full <code>Backend</code> interface.
-SQLite implements only what SQLite itself can do; everything else raises
+<p>Every maintenance operation goes through a <code>Backend</code>
+(<code>PostgresBackend</code>, <code>SQLiteBackend</code>, or <code>DuckDBBackend</code>). PostgreSQL
+implements the full <code>Backend</code> interface. SQLite and DuckDB each implement
+only what their own engine can do; everything else raises
 <code>FeatureNotSupportedError</code> at call time rather than failing silently or
-producing a partial result.</p>
+producing a partial result. Run <code>omop-alchemy info</code> against your target
+database to see the exact per-command support matrix, derived live from
+which methods the resolved backend class overrides.</p>
 <table>
 <thead>
 <tr>
 <th>Feature</th>
 <th>PostgreSQL</th>
 <th>SQLite</th>
+<th>DuckDB</th>
 </tr>
 </thead>
 <tbody>
@@ -3239,14 +3387,17 @@ producing a partial result.</p>
 <td>Index existence check</td>
 <td>Yes</td>
 <td>Yes</td>
+<td>Yes</td>
 </tr>
 <tr>
 <td>Drop index if exists</td>
 <td>Yes</td>
-<td>Yes (unqualified — no schema concept)</td>
+<td>Yes (unqualified, no schema concept)</td>
+<td>Yes</td>
 </tr>
 <tr>
 <td><code>ANALYZE</code></td>
+<td>Yes</td>
 <td>Yes</td>
 <td>Yes</td>
 </tr>
@@ -3254,67 +3405,106 @@ producing a partial result.</p>
 <td><code>VACUUM ANALYZE</code></td>
 <td>Yes</td>
 <td>No</td>
+<td>Yes</td>
 </tr>
 <tr>
 <td>FK trigger management / status</td>
 <td>Yes</td>
 <td>No</td>
+<td>No (no trigger mechanism)</td>
 </tr>
 <tr>
 <td>FK constraint violation counting</td>
 <td>Yes</td>
 <td>No</td>
+<td>Yes (anti-join; also covers deferred FKs, see below)</td>
 </tr>
 <tr>
 <td>Table clustering (<code>CLUSTER</code>)</td>
 <td>Yes</td>
+<td>No</td>
 <td>No</td>
 </tr>
 <tr>
 <td>Cluster index inspection</td>
 <td>Yes</td>
 <td>No</td>
+<td>No</td>
 </tr>
 <tr>
 <td>Functional-index expression normalization</td>
 <td>Yes</td>
 <td>No (SQLite never reflects expression-based indexes)</td>
+<td>Yes</td>
 </tr>
 <tr>
-<td><code>TRUNCATE ... RESTART IDENTITY / CASCADE</code></td>
+<td><code>TRUNCATE ... RESTART IDENTITY</code></td>
 <td>Yes</td>
 <td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>TRUNCATE ... CASCADE</code></td>
+<td>Yes</td>
+<td>No</td>
+<td>No, see below</td>
 </tr>
 <tr>
 <td>Sequence lookup / reset</td>
 <td>Yes</td>
 <td>No (SQLite has no sequences)</td>
+<td>Yes</td>
 </tr>
 <tr>
 <td>Full-text search</td>
-<td>Yes — see <a href="../fulltext/">PostgreSQL Full-Text Search</a></td>
+<td>Yes, see <a href="../fulltext/">PostgreSQL Full-Text Search</a></td>
+<td>No</td>
 <td>No</td>
 </tr>
 <tr>
 <td>Database backup / restore</td>
-<td>Yes</td>
+<td>Yes (<code>pg_dump</code>/<code>pg_restore</code>/<code>psql</code>)</td>
 <td>No</td>
+<td>Yes (in-process, no external tool)</td>
 </tr>
 </tbody>
 </table>
 <h2 id="what-this-means-in-practice">What this means in practice<a class="headerlink" href="#what-this-means-in-practice" title="Permanent link">&para;</a></h2>
-<p>Maintenance CLI commands that rely on a not-supported feature raise
-<code>FeatureNotSupportedError</code> on SQLite rather than doing nothing. In
-particular, against a SQLite database:</p>
+<p>A command that relies on a not-supported feature raises
+<code>FeatureNotSupportedError</code> rather than doing nothing. Against SQLite:</p>
 <ul>
-<li><code>indexes cluster</code> and the clustering step of <code>indexes enable</code>
-  are unavailable.</li>
+<li><code>indexes cluster</code> and the clustering step of <code>indexes enable</code> are unavailable.</li>
 <li><code>truncate-tables</code> cannot use <code>RESTART IDENTITY</code>/<code>CASCADE</code>.</li>
 <li><code>fulltext install</code> is unavailable entirely.</li>
 <li><code>backup-database</code>/<code>restore-database</code> are unavailable entirely.</li>
 <li>FK trigger toggling and FK violation counting are unavailable.</li>
 </ul>
-<p>SQLite remains fully supported for the core ORM/CDM layer (models, queries, <code>create-missing-tables</code>, schema-drift detection at engine construction). These limitations are specific to the maintenance operations listed above, which assume a PostgreSQL-grade catalog.</p>
+<h2 id="duckdb-specifics">DuckDB specifics<a class="headerlink" href="#duckdb-specifics" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>fulltext install</code>, table clustering, and FK trigger toggling/status are
+  unavailable, same as SQLite.</li>
+<li><code>truncate-tables --restart-identities</code> works; <code>--cascade</code> does not (see below).</li>
+<li><code>reset-sequences</code> and <code>foreign-keys validate</code> both work, unlike on SQLite.</li>
+<li><code>backup-database</code>/<code>restore-database</code> work: each occupied schema's tables are copied to/from one Parquet file each, scoped to that schema. Restore is data-only; target tables must already exist.</li>
+</ul>
+<h3 id="deferred-foreign-keys">Deferred foreign keys<a class="headerlink" href="#deferred-foreign-keys" title="Permanent link">&para;</a></h3>
+<p>DuckDB can create a foreign key inline at <code>CREATE TABLE</code> time, but cannot execute the deferred <code>ALTER TABLE ADD CONSTRAINT</code> a cyclic or self-referential foreign key otherwise needs.
+Instead, we introduce a shim in oa-configurator that no-ops these statements. Marking specific columns with <code>use_alter=True</code> routes this into the deferred path:</p>
+<ul>
+<li><code>domain.domain_concept_id</code>, <code>vocabulary.vocabulary_concept_id</code>, <code>concept_class.concept_class_concept_id</code>:  break the real <code>concept</code>/<code>concept_class</code>/<code>domain</code>/<code>vocabulary</code> reference cycle. Load these four tables in that order (matches <code>ATHENA_LOAD_ORDER</code>).</li>
+<li><code>relationship.reverse_relationship_id</code>, <code>episode.episode_parent_id</code>,   <code>visit_occurrence.preceding_visit_occurrence_id</code>, <code>visit_detail.preceding_visit_detail_id</code>, <code>visit_detail.parent_visit_detail_id</code>: DuckDB would reject any bulk-load row inserted before its own self-referenced parent row exists, with no FK-toggle to relax that temporarily.</li>
+</ul>
+<p>All FKs falling into this specification are never enforced at the database level on DuckDB. <code>DatabaseBackend.deferred_fk_constraints()</code>
+- <code>orm-loader</code> is the single source of truth for which FKs this applies to: <code>reconcile-schema</code>,<code>foreign-keys validate</code>, and <code>doctor --deep</code> all consult it and run an anti-join check in its place.
+- <code>load_vocab_source</code> validates every deferred FK automatically once the whole load completes, instead of per table: a deferred FK's referenced table can load after its referencer, so checking immediately would flag rows that are only temporarily unresolved.</p>
+<h3 id="relationship-must-load-after-concept"><code>relationship</code> must load after <code>concept</code><a class="headerlink" href="#relationship-must-load-after-concept" title="Permanent link">&para;</a></h3>
+<p><code>relationship.relationship_concept_id</code> is an ordinary enforced FK to <code>concept</code> since it isn't part of any reference cycle. Postgres and SQLite hide this because FK checks are disabled during a bulk load; DuckDB can't disable them, so <code>concept</code> must already be loaded first. <code>REQUIRED_VOCAB_MODELS</code> and <code>ATHENA_LOAD_ORDER</code> both order <code>Concept</code> before <code>Relationship</code> for this reason.</p>
+<h3 id="merge_strategyreplace-fails-on-a-table-thats-both-referenced-and-owns-its-own-fk"><code>merge_strategy="replace"</code> fails on a table that's both referenced and owns its own FK<a class="headerlink" href="#merge_strategyreplace-fails-on-a-table-thats-both-referenced-and-owns-its-own-fk" title="Permanent link">&para;</a></h3>
+<p>DuckDB's <code>replace</code> merge strategy updates matching rows in place, since it rejects deleting a still-referenced row outright with no FK-toggle or deferred-constraint escape hatch. That UPDATE also fails on any column that's part of one of the table's own FK constraints, whenever the row is currently referenced elsewhere, regardless of <code>index_strategy</code> (DuckDB's FK-column bookkeeping isn't a SQLAlchemy <code>Index</code> object <code>index_strategy</code> can drop). In the CDM this affects <code>concept</code>, <code>person</code>, <code>visit_occurrence</code>, <code>provider</code>, and <code>care_site</code>. <code>merge_replace</code> raises a clear error up front, before touching any data, naming the table; use <code>--merge-strategy upsert</code> instead, or reload into an empty database.</p>
+<h3 id="truncate-tables-cascade-is-not-supported"><code>truncate-tables --cascade</code> is not supported<a class="headerlink" href="#truncate-tables-cascade-is-not-supported" title="Permanent link">&para;</a></h3>
+<p>DuckDB's parser accepts <code>CASCADE</code> on a <code>TRUNCATE</code> statement but silently ignores it.Pass the real set of dependent tables explicitly instead; <code>truncate-tables</code> already orders whatever set you give it correctly regardless of input order.</p>
+<h2 id="why-supports_fast_load-is-false">Why <code>supports_fast_load</code> is <code>False</code><a class="headerlink" href="#why-supports_fast_load-is-false" title="Permanent link">&para;</a></h2>
+<p>DuckDB's loader uses the same generic staged-merge path as SQLite rather than a native bulk-COPY equivalent. This is a deliberate choice as the generic path is fast enough at measured CDM-scale load volumes.</p>
 
 
 
