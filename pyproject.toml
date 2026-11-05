@@ -33,7 +33,7 @@ dependencies = [
   "sqlalchemy>=2.0.45",
   "pandas>=2.0",
   "pyyaml>=6.0",
-  "oa-configurator>=2.0.0,<3",
+  "oa-configurator>=2.1.0,<3",
   "typer>=0.19",
   "rich>=13.0",
   "orm-loader>=3.0.0,<4",
@@ -54,7 +54,7 @@ semantics = [
 ]
 
 dev = [
-  "oa-configurator[dev,postgres,duckdb]>=2.0.0,<3",
+  "oa-configurator[dev,postgres,duckdb]>=2.1.0,<3",
   "orm-loader[duckdb]>=3.0.0,<4",
   "ipython>=8.0",
   "requests>=2.33.0",
