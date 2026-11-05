@@ -1,8 +1,11 @@
 import importlib
 import pytest
+import sqlalchemy as sa
 from typer.testing import CliRunner
+from orm_loader.helpers import Base
 from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
 
+from omop_alchemy.cdm.model.vocabulary.domain import Domain
 from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
@@ -38,6 +41,27 @@ def test_truncate_tables_reports_blocking_foreign_key_references(monkeypatch, fr
     assert "foreign key references from tables outside the current selection" in message
     assert "Blocking references:" in message
     assert "--cascade" in message
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+def test_truncate_tables_end_to_end_on_duckdb(fresh_duckdb_engine, fresh_duckdb_resolved):
+    """_truncate_tables must succeed on DuckDB's own engine.connect() connection.
+    """
+    engine = fresh_duckdb_engine
+    Base.metadata.create_all(engine, tables=[Domain.__table__])
+    with engine.begin() as conn:
+        conn.execute(
+            sa.insert(Domain.__table__),
+            {"domain_id": "Drug", "domain_name": "Drug", "domain_concept_id": 1},
+        )
+
+    context = MaintenanceContext(resolved=fresh_duckdb_resolved, engine=engine, vocab_engine=engine)
+    results = _truncate_tables(context, table_names=("domain",), dry_run=False)
+
+    assert any(result.table_name == "domain" and result.row_count == 1 for result in results)
+    with engine.connect() as conn:
+        assert conn.execute(sa.select(sa.func.count()).select_from(Domain.__table__)).scalar_one() == 0
 
 
 def test_truncate_tables_cli_requires_confirmation(monkeypatch):

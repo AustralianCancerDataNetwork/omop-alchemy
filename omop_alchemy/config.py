@@ -41,6 +41,9 @@ class OmopAlchemyConfig(PackageConfigBase):
         unconfigured by design in every environment, since
         ``isolated_test_database(..., dialect="sqlite")`` provisions a
         disposable instance with no config needed at all.
+    test_cdm_db_duckdb : str, optional
+        Same shape as ``test_cdm_db_sqlite``, for tests that must always
+        run against DuckDB specifically.
 
     Notes
     -----
@@ -65,6 +68,15 @@ class OmopAlchemyConfig(PackageConfigBase):
         description=(
             "Disposable SQLite test database; left unconfigured by design "
             "(isolated_test_database(..., dialect='sqlite') provisions one automatically)."
+        ),
+    )
+    test_cdm_db_duckdb: Annotated[
+        str | None, RefTo(CDMDatabaseConfig, is_test=True)
+    ] = Field(
+        default=None,
+        description=(
+            "Disposable DuckDB test database; left unconfigured by design "
+            "(isolated_test_database(..., dialect='duckdb') provisions one automatically)."
         ),
     )
 

@@ -1,8 +1,10 @@
 import dataclasses
 
+import pytest
 import sqlalchemy as sa
 
 from omop_alchemy.maintenance import cli_schema_info
+from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.cli_schema_doctor import collect_doctor_report
 from omop_alchemy.maintenance.context import MaintenanceContext
 
@@ -49,7 +51,18 @@ def test_doctor_uses_supplied_engine_without_resolving_config_or_disposing(
     }
     assert engine not in disposed_engines
 
-    with engine.connect() as connection:
-        assert connection.scalar(sa.text("SELECT 1")) == 1
 
-    engine.dispose()
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+def test_doctor_deep_runs_fk_validation_on_duckdb_despite_no_trigger_support(fresh_duckdb_engine, fresh_duckdb_resolved):
+    context = MaintenanceContext(resolved=fresh_duckdb_resolved, engine=fresh_duckdb_engine, vocab_engine=fresh_duckdb_engine)
+    _create_missing_tables(context, vocabulary_included=True)
+
+    report = collect_doctor_report(context, vocabulary_included=True, deep=True)
+
+    foreign_keys_check = next(c for c in report.checks if c.name == "foreign keys")
+    validation_check = next(c for c in report.checks if c.name == "foreign key validation")
+
+    assert foreign_keys_check.status == "skipped"
+    assert validation_check.status == "passed"
+    assert report.foreign_key_validation is not None

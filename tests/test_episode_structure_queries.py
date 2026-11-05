@@ -35,7 +35,7 @@ def test_canonical_episode_projection_can_include_the_episode_concept_name(sessi
             person_id=source.person_id,
             episode_start_date=date(2020, 2, 1),
             episode_end_date=None,
-            episode_concept_id=0,
+            episode_concept_id=999_999,
             episode_object_concept_id=source.episode_object_concept_id,
             episode_type_concept_id=source.episode_type_concept_id,
         )

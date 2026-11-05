@@ -24,7 +24,12 @@ class Relationship(Base, ReferenceTable, CDMTableBase):
     relationship_name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
     is_hierarchical: so.Mapped[str] = so.mapped_column(sa.String(1), nullable=False)
     defines_ancestry: so.Mapped[str] = so.mapped_column(sa.String(1), nullable=False)
-    reverse_relationship_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "relationship.relationship_id")),nullable=False)
+    # use_alter=True routes this FK through ALTER TABLE ADD CONSTRAINT so DuckDB's shim
+    # can permanently skip it, since DuckDB would otherwise reject bulk-load rows inserted 
+    # before their own parent row exists.
+    reverse_relationship_id: so.Mapped[str] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "relationship.relationship_id"), use_alter=True), nullable=False,
+    )
     relationship_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),nullable=False,)
 
     def __repr__(self):

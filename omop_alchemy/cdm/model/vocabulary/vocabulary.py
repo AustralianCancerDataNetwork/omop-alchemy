@@ -36,7 +36,11 @@ class Vocabulary(Base, ReferenceTable, CDMTableBase):
     vocabulary_name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
     vocabulary_reference: so.Mapped[Optional[str]] = so.mapped_column(sa.String(255), nullable=True)
     vocabulary_version: so.Mapped[Optional[str]] = so.mapped_column(sa.String(255), nullable=True)
-    vocabulary_concept_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")),nullable=False,)
+    # use_alter=True breaks the cyclical FK at creation time, and instead defers it to a 
+    # separate ALTER TABLE ADD CONSTRAINT statement that is handled differently per dialect
+    vocabulary_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id"), use_alter=True), nullable=False,
+    )
 
     def __repr__(self):
         return f"<Vocabulary {self.vocabulary_id}>"
