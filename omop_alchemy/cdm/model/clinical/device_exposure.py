@@ -4,7 +4,6 @@ from oa_configurator import Role
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
 
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     PersonScoped, 
     HealthSystemContext, 
@@ -14,7 +13,6 @@ from omop_alchemy.cdm.base import (
     ExpectedDomain,
     ModifierFieldConcepts,
     ReferenceContext,
-    cdm_table, 
     required_concept_fk,
     optional_concept_fk,
     optional_int,
@@ -28,13 +26,11 @@ if TYPE_CHECKING:
     from ..vocabulary import Concept
     from .person import Person
 
-@cdm_table
 class Device_Exposure(
     PersonScoped,
     CDMTableBase,
     FactTable,
     HealthSystemContext,
-    Base,
 ):
     __tablename__ = "device_exposure"
     __table_args__ = merge_table_args(

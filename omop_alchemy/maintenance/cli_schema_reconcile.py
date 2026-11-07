@@ -58,7 +58,7 @@ class ReconciliationIssue:
     """A schema difference or nonblocking notice about a column, index, FK, or cluster."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
     component: str
     object_name: str
     status: Status
@@ -72,7 +72,9 @@ class TableReconciliationResult:
     """Per-table schema summary, counting blocking differences in ``issue_count``."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
+    is_auxiliary: bool
+    schema_tag: str
     status: Status
     issue_count: int
     detail: str
@@ -315,6 +317,8 @@ def reconcile_schema(
                         TableReconciliationResult(
                             table_name=maintenance_table.table_name,
                             category=maintenance_table.category,
+                            is_auxiliary=maintenance_table.is_auxiliary,
+                            schema_tag=maintenance_table.schema_tag,
                             status=Status.RELOCATED,
                             issue_count=1,
                             detail=detail,
@@ -338,6 +342,8 @@ def reconcile_schema(
                     TableReconciliationResult(
                         table_name=maintenance_table.table_name,
                         category=maintenance_table.category,
+                        is_auxiliary=maintenance_table.is_auxiliary,
+                        schema_tag=maintenance_table.schema_tag,
                         status=Status.MISSING,
                         issue_count=1,
                         detail="Table is missing from the target database.",
@@ -686,6 +692,8 @@ def reconcile_schema(
                 TableReconciliationResult(
                     table_name=maintenance_table.table_name,
                     category=maintenance_table.category,
+                    is_auxiliary=maintenance_table.is_auxiliary,
+                    schema_tag=maintenance_table.schema_tag,
                     status=table_status,
                     issue_count=len(blocking_issues),
                     detail=(

@@ -7,11 +7,9 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_method
 from sqlalchemy.orm.exc import DetachedInstanceError
 
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     role_fk,
     role_table,
-    cdm_table,
     CDMTableBase,
     ReferenceContext,
     required_concept_fk,
@@ -30,8 +28,7 @@ from ..clinical.procedure_occurrence import Procedure_Occurrence
 from ..health_system.provider import Provider
 
 
-@cdm_table
-class Visit_Occurrence(CDMTableBase, Base):
+class Visit_Occurrence(CDMTableBase):
     __tablename__ = "visit_occurrence"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

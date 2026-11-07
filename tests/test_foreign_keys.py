@@ -172,6 +172,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
             type("Target", (), {
                 "table_name": "person",
                 "category": "clinical",
+                "is_auxiliary": False,
                 "schema_tag": Role.PRIMARY.value,
                 "model_name": "Person",
                 "model_module": "omop_alchemy.cdm.model.clinical.person",
@@ -181,6 +182,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
             type("Target", (), {
                 "table_name": "visit_occurrence",
                 "category": "health_system",
+                "is_auxiliary": False,
                 "schema_tag": Role.PRIMARY.value,
                 "model_name": "VisitOccurrence",
                 "model_module": "omop_alchemy.cdm.model.health_system.visit_occurrence",
@@ -247,6 +249,7 @@ def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(monke
             type("Target", (), {
                 "table_name": "person",
                 "category": "clinical",
+                "is_auxiliary": False,
                 "schema_tag": Role.PRIMARY.value,
                 "model_name": "Person",
                 "model_module": "omop_alchemy.cdm.model.clinical.person",
@@ -347,6 +350,7 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch, fresh_re
             type("Target", (), {
                 "table_name": "person",
                 "category": "clinical",
+                "is_auxiliary": False,
                 "schema_tag": Role.PRIMARY.value,
                 "model_name": "Person",
                 "model_module": "omop_alchemy.cdm.model.clinical.person",
@@ -356,6 +360,7 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch, fresh_re
             type("Target", (), {
                 "table_name": "visit_occurrence",
                 "category": "health_system",
+                "is_auxiliary": False,
                 "schema_tag": Role.PRIMARY.value,
                 "model_name": "VisitOccurrence",
                 "model_module": "omop_alchemy.cdm.model.health_system.visit_occurrence",
@@ -428,6 +433,7 @@ def test_foreign_keys_validate_cli_invokes_validation(monkeypatch):
                 ForeignKeyValidationResult(
                     table_name="visit_occurrence",
                     category=TableCategory.HEALTH_SYSTEM,
+                    is_auxiliary=False,
                     schema_tag=Role.PRIMARY.value,
                     outgoing_constraint_count=2,
                     incoming_constraint_count=0,

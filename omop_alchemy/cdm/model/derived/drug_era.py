@@ -3,18 +3,15 @@ import sqlalchemy.orm as so
 from typing import Optional
 from datetime import date
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     role_fk,
-    cdm_table,
     CDMTableBase,
     required_concept_fk,
     merge_table_args,
     omop_index,
 )
 
-@cdm_table
-class Drug_Era(CDMTableBase, Base):
+class Drug_Era(CDMTableBase):
     __tablename__ = "drug_era"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

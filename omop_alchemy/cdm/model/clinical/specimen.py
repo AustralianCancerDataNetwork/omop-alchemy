@@ -3,19 +3,16 @@ import sqlalchemy.orm as so
 from oa_configurator import Role
 from typing import Optional
 from datetime import date
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     role_fk,
     CDMTableBase,
-    cdm_table,
     required_concept_fk,
     optional_concept_fk,
     merge_table_args,
     omop_index,
 )
 
-@cdm_table
-class Specimen(CDMTableBase, Base):
+class Specimen(CDMTableBase):
     __tablename__ = "specimen"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

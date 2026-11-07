@@ -2,10 +2,8 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from datetime import date
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     ReferenceTable,
-    cdm_table,
     CDMTableBase,
     merge_table_args,
     omop_index,
@@ -13,13 +11,10 @@ from omop_alchemy.cdm.base import (
 )
 from omop_alchemy.cdm.model.flags import InvalidReasonMixin
 
-@cdm_table
 class Concept_Relationship(
     ReferenceTable, 
     CDMTableBase, 
-    InvalidReasonMixin, 
-    Base
-    ):
+    InvalidReasonMixin):
     __tablename__ = "concept_relationship"
     __table_args__ = merge_table_args(
         {"schema": Role.VOCAB.value},

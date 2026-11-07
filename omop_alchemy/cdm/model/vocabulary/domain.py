@@ -1,10 +1,8 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     ReferenceTable,
-    cdm_table,
     CDMTableBase,
     merge_table_args,
     omop_primary_key_index_name,
@@ -12,8 +10,7 @@ from omop_alchemy.cdm.base import (
     role_fk,
 )
 
-@cdm_table
-class Domain(Base, ReferenceTable, CDMTableBase):
+class Domain(ReferenceTable, CDMTableBase):
     __tablename__ = "domain"
     __table_args__ = merge_table_args(
         omop_table_options(cluster_on=omop_primary_key_index_name("domain")),

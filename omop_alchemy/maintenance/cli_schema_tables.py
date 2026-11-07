@@ -28,7 +28,9 @@ class TableCreationResult:
     """Outcome of attempting to create one missing ORM-managed table from SQLAlchemy metadata."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
+    is_auxiliary: bool
+    schema_tag: str
     model_name: str
     status: Status
     detail: str
@@ -134,6 +136,8 @@ def _create_missing_tables(
             TableCreationResult(
                 table_name=maintenance_table.table_name,
                 category=maintenance_table.category,
+                is_auxiliary=maintenance_table.is_auxiliary,
+                schema_tag=maintenance_table.schema_tag,
                 model_name=maintenance_table.model_name,
                 status=(
                     Status.BLOCKED

@@ -4,11 +4,9 @@ from typing import Optional
 from datetime import date
 
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from orm_loader.registry import ValidationIssue
 from omop_alchemy.cdm.base import (
     ReferenceTable,
-    cdm_table,
     CDMTableBase,
     DatedEvent,
     merge_table_args,
@@ -17,13 +15,11 @@ from omop_alchemy.cdm.base import (
 )
 from omop_alchemy.cdm.model.flags import InvalidReasonMixin
 
-@cdm_table
 class Source_To_Concept_Map(
     DatedEvent,
     CDMTableBase,
     ReferenceTable,
     InvalidReasonMixin,
-    Base,
 ):
     """
     Maps source codes to standard OMOP concepts.

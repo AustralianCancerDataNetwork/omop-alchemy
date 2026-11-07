@@ -11,10 +11,8 @@ if TYPE_CHECKING:
     from .concept_relationship import Concept_Relationship
 
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     ReferenceTable,
-    cdm_table,
     CDMTableBase,
     ReferenceContext,
     merge_table_args,
@@ -30,13 +28,10 @@ from omop_alchemy.cdm.model.flags import (
     normalised_flag,
 )
 
-@cdm_table
 class Concept(
     ReferenceTable,
     CDMTableBase,
-    InvalidReasonMixin,
-    Base
-):
+    InvalidReasonMixin):
     __tablename__ = "concept"
     __table_args__ = merge_table_args(
         {"schema": Role.VOCAB.value},

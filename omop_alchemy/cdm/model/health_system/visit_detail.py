@@ -4,10 +4,8 @@ from oa_configurator import Role
 from typing import Optional
 from datetime import date
 
-from orm_loader.helpers import Base 
 from omop_alchemy.cdm.base import (
     role_fk,
-    cdm_table,
     CDMTableBase,
     required_concept_fk,
     optional_concept_fk,
@@ -15,8 +13,7 @@ from omop_alchemy.cdm.base import (
     omop_index,
 )
 
-@cdm_table
-class Visit_Detail(CDMTableBase, Base):
+class Visit_Detail(CDMTableBase):
     __tablename__ = "visit_detail"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

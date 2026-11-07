@@ -4,10 +4,8 @@ from oa_configurator import Role
 from sqlalchemy.ext.declarative import declared_attr
 from typing import ClassVar, Optional, TYPE_CHECKING, List
 from datetime import date
-from orm_loader.helpers import Base 
 from omop_alchemy.cdm.base import (
     role_fk,
-    cdm_table,
     CDMTableBase, 
     required_concept_fk,
     optional_concept_fk,
@@ -28,8 +26,7 @@ if TYPE_CHECKING:
     from .episode_event import Episode_EventView
     from ...base.typing import HasEpisodeId
 
-@cdm_table
-class Episode(CDMTableBase, Base, PersonScoped):
+class Episode(CDMTableBase, PersonScoped):
     __tablename__ = "episode"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

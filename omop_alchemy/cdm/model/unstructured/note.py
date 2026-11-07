@@ -4,11 +4,9 @@ from oa_configurator import Role
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
 
-from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
     CDMTableBase,
-    cdm_table, 
     optional_concept_fk,
     PersonScoped,
     HealthSystemContext,
@@ -26,8 +24,7 @@ if TYPE_CHECKING:
     from ..clinical import Person
     from ..health_system import Provider, Visit_Occurrence, Visit_Detail
 
-@cdm_table
-class Note(CDMTableBase, Base, PersonScoped, HealthSystemContext):
+class Note(CDMTableBase, PersonScoped, HealthSystemContext):
     __tablename__ = "note"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

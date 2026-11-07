@@ -3,14 +3,12 @@ import sqlalchemy.orm as so
 from oa_configurator import Role
 from typing import Optional, TYPE_CHECKING
 from datetime import date, datetime
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     PersonScoped, 
     HealthSystemContext, 
     FactTable, 
     ReferenceContext,
     CDMTableBase,
-    cdm_table, 
     required_concept_fk,
     optional_concept_fk,
     optional_int,
@@ -23,13 +21,11 @@ from omop_alchemy.cdm.base import (
 if TYPE_CHECKING:
     from ..vocabulary import Concept
 
-@cdm_table
 class Drug_Exposure(
     PersonScoped,
     CDMTableBase,
     FactTable,
     HealthSystemContext,
-    Base,
 ):
     __tablename__ = "drug_exposure"
     __table_args__ = merge_table_args(

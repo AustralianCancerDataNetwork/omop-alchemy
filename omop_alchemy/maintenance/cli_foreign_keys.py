@@ -37,7 +37,8 @@ class ForeignKeyBase:
     """Identity and CDM category metadata shared across all foreign key result types."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
 
 
@@ -146,6 +147,7 @@ def _collect_fk_info(
             _FKTableInfo(
                 table_name=table.table_name,
                 category=table.category,
+                is_auxiliary=table.is_auxiliary,
                 schema_tag=table.schema_tag,
                 outgoing_constraint_count=outgoing_count,
                 incoming_constraint_count=incoming_count,
@@ -322,6 +324,7 @@ def validate_foreign_key_constraints(
             ForeignKeyValidationResult(
                 table_name=target.table_name,
                 category=target.category,
+                is_auxiliary=target.is_auxiliary,
                 schema_tag=target.schema_tag,
                 outgoing_constraint_count=target.outgoing_constraint_count,
                 incoming_constraint_count=target.incoming_constraint_count,
@@ -384,6 +387,7 @@ def manage_foreign_key_triggers(
                     ForeignKeyManagementResult(
                         table_name=target.table_name,
                         category=target.category,
+                        is_auxiliary=target.is_auxiliary,
                         schema_tag=target.schema_tag,
                         outgoing_constraint_count=target.outgoing_constraint_count,
                         incoming_constraint_count=target.incoming_constraint_count,
@@ -416,6 +420,7 @@ def manage_foreign_key_triggers(
                     ForeignKeyManagementResult(
                         table_name=target.table_name,
                         category=target.category,
+                        is_auxiliary=target.is_auxiliary,
                         schema_tag=target.schema_tag,
                         outgoing_constraint_count=target.outgoing_constraint_count,
                         incoming_constraint_count=target.incoming_constraint_count,
@@ -449,6 +454,7 @@ def collect_foreign_key_trigger_status(
                     ForeignKeyStatusResult(
                         table_name=target.table_name,
                         category=target.category,
+                        is_auxiliary=target.is_auxiliary,
                         schema_tag=target.schema_tag,
                         disabled_trigger_count=disabled_count,
                         enabled_trigger_count=enabled_count,

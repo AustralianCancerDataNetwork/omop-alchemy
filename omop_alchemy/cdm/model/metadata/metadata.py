@@ -3,10 +3,8 @@ import sqlalchemy.orm as so
 from oa_configurator import Role
 from typing import Optional
 from datetime import date
-from orm_loader.helpers import Base
 
 from omop_alchemy.cdm.base import (
-    cdm_table,
     CDMTableBase,
     required_concept_fk,
     ValueMixin,
@@ -14,8 +12,7 @@ from omop_alchemy.cdm.base import (
     omop_index,
 )
 
-@cdm_table
-class Metadata(CDMTableBase, Base, ValueMixin):
+class Metadata(CDMTableBase, ValueMixin):
     __tablename__ = "metadata"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

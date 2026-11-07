@@ -47,7 +47,8 @@ class AnalyzeTableResult:
     """Outcome of an ANALYZE or VACUUM ANALYZE operation for one ORM-managed table."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     operation: str
     status: Status
@@ -59,18 +60,19 @@ def analyze_tables(
     *,
     scope: TableCategory | None = None,
     table_names: tuple[str, ...] | None = None,
+    cdm_auxiliary_only: bool = False,
     vacuum: bool = False,
     dry_run: bool = False,
 ) -> list[AnalyzeTableResult]:
     """Run ANALYZE (or VACUUM ANALYZE) on selected ORM-managed tables to refresh planner statistics.
 
-    Runs on every ORM-managed table if both scope and table_names are omitted.
+    Runs on every ORM-managed table if scope, table_names, and cdm_auxiliary_only are all omitted.
     Each table is analysed on the engine hosting it, one connection per engine.
     """
-    if scope is not None and table_names is not None:
-        raise RuntimeError("Use either `scope` or `table_names`, not both.")
+    if sum([scope is not None, table_names is not None, cdm_auxiliary_only]) > 1:
+        raise RuntimeError("Use only one of `scope`, `table_names`, or `cdm_auxiliary_only`.")
 
-    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names)
+    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names, cdm_auxiliary_only=cdm_auxiliary_only)
     operation = "VACUUM ANALYZE" if vacuum else "ANALYZE"
     results: list[AnalyzeTableResult] = []
 
@@ -82,6 +84,7 @@ def analyze_tables(
                     AnalyzeTableResult(
                         table_name=target.table_name,
                         category=target.table.category,
+                        is_auxiliary=target.table.is_auxiliary,
                         schema_tag=target.schema_tag,
                         operation=operation,
                         status=Status.SKIPPED,
@@ -103,6 +106,7 @@ def analyze_tables(
                 AnalyzeTableResult(
                     table_name=target.table_name,
                     category=target.table.category,
+                    is_auxiliary=target.table.is_auxiliary,
                     schema_tag=target.schema_tag,
                     operation=operation,
                     status=dry_status(dry_run),
@@ -122,7 +126,8 @@ class TruncateTableResult:
     """Outcome of truncating one ORM-managed table, with the pre-truncation row count."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     row_count: int | None
     status: Status
@@ -137,7 +142,7 @@ def _blocking_foreign_key_references(
     """Return tables outside the selection that FK-reference at least one selected table, preventing truncation.
 
     Scans every schema tag claimed on *connection*'s engine (a vocab table can
-    FK-reference a clinical table's PK, or vice versa; likewise an extension
+    FK-reference a clinical table's PK, or vice versa; likewise an auxiliary
     table). A foreign key never spans two databases, so one engine's scan is
     complete for the tables that engine hosts.
     """
@@ -181,6 +186,7 @@ def _truncate_tables(
     *,
     scope: TableCategory | None = None,
     table_names: tuple[str, ...] | None = None,
+    cdm_auxiliary_only: bool = False,
     restart_identities: bool = False,
     cascade: bool = False,
     dry_run: bool = False,
@@ -199,12 +205,12 @@ def _truncate_tables(
     - No provenance guard as the engines were just built in `omop_command`. There is no
     possibility of schema drift between their creation and this command's execution.
     """
-    if scope is not None and table_names is not None:
-        raise RuntimeError("Use either `scope` or `table_names`, not both.")
-    if scope is None and table_names is None:
-        raise RuntimeError("Select tables to truncate with `scope` or `table_names`.")
+    if sum([scope is not None, table_names is not None, cdm_auxiliary_only]) > 1:
+        raise RuntimeError("Use only one of `scope`, `table_names`, or `cdm_auxiliary_only`.")
+    if scope is None and table_names is None and not cdm_auxiliary_only:
+        raise RuntimeError("Select tables to truncate with `scope`, `table_names`, or `cdm_auxiliary_only`.")
 
-    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names)
+    selected_tables = resolve_maintenance_tables(scope=scope, table_names=table_names, cdm_auxiliary_only=cdm_auxiliary_only)
     groups = context.targets_by_engine(selected_tables)
     for engine in groups:
         require_backend_support(resolve_backend(engine), "truncate_table_batch", "Table truncation")
@@ -253,6 +259,7 @@ def _truncate_tables(
         TruncateTableResult(
             table_name=table.table_name,
             category=table.category,
+            is_auxiliary=table.is_auxiliary,
             schema_tag=table.schema_tag,
             row_count=row_counts[table.table_name],
             status=dry_status(dry_run),
@@ -262,6 +269,7 @@ def _truncate_tables(
         else TruncateTableResult(
             table_name=table.table_name,
             category=table.category,
+            is_auxiliary=table.is_auxiliary,
             schema_tag=table.schema_tag,
             row_count=None,
             status=Status.SKIPPED,
@@ -280,7 +288,8 @@ class SequenceTarget:
     """An ORM-managed table with a single-column integer primary key that owns a PostgreSQL sequence."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     pk_column_name: str
 
@@ -290,7 +299,8 @@ class SequenceResetResult:
     """Outcome of resetting one PostgreSQL sequence to table max + 1."""
 
     table_name: str
-    category: TableCategory
+    category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     pk_column_name: str
     sequence_name: str | None
@@ -324,6 +334,7 @@ def collect_sequence_targets(
             SequenceTarget(
                 table_name=table.table_name,
                 category=table.category,
+                is_auxiliary=table.is_auxiliary,
                 schema_tag=table.schema_tag,
                 pk_column_name=pk_column_name,
             )
@@ -364,6 +375,7 @@ def reset_model_sequences(
                         SequenceResetResult(
                             table_name=target.table_name,
                             category=target.category,
+                            is_auxiliary=target.is_auxiliary,
                             schema_tag=target.schema_tag,
                             pk_column_name=target.pk_column_name,
                             sequence_name=None,
@@ -398,6 +410,7 @@ def reset_model_sequences(
                     SequenceResetResult(
                         table_name=target.table_name,
                         category=target.category,
+                        is_auxiliary=target.is_auxiliary,
                         schema_tag=target.schema_tag,
                         pk_column_name=target.pk_column_name,
                         sequence_name=sequence_name,
@@ -431,6 +444,11 @@ def analyze_tables_command(
         "--table",
         help="Specific ORM-managed table name to analyze. Repeat to target multiple tables.",
     ),
+    cdm_auxiliary: bool = typer.Option(
+        False,
+        "--cdm-auxiliary",
+        help="Analyze only CDM auxiliary tables (third-party tables outside the pre-defined CDM domain categories).",
+    ),
     vacuum: bool = typer.Option(
         False,
         "--vacuum",
@@ -439,12 +457,13 @@ def analyze_tables_command(
     dry_run: bool = False,
 ) -> None:
     """Analyse selected ORM-managed tables to update planner statistics."""
-    resolved_scope, resolved_tables = resolve_selection(scope=scope, tables=table)
+    selection = resolve_selection(scope=scope, tables=table, cdm_auxiliary=cdm_auxiliary)
     with console.status("Refreshing planner statistics for selected tables..."):
         results = analyze_tables(
             conn,
-            scope=resolved_scope,
-            table_names=resolved_tables,
+            scope=selection.scope,
+            table_names=selection.tables,
+            cdm_auxiliary_only=selection.cdm_auxiliary,
             vacuum=vacuum,
             dry_run=dry_run,
         )
@@ -496,6 +515,11 @@ def truncate_tables_command(
         "--table",
         help="Specific ORM-managed table name to truncate. Repeat to target multiple tables.",
     ),
+    cdm_auxiliary: bool = typer.Option(
+        False,
+        "--cdm-auxiliary",
+        help="Truncate only CDM auxiliary tables (third-party tables outside the pre-defined CDM domain categories).",
+    ),
     restart_identities: bool = typer.Option(
         False,
         "--restart-identities",
@@ -514,10 +538,10 @@ def truncate_tables_command(
     dry_run: bool = False,
 ) -> None:
     """Truncate selected ORM-managed OMOP tables. Aborts if external FK references would block unless --cascade is set."""
-    resolved_scope, resolved_tables = resolve_selection(scope=scope, tables=table)
-    if resolved_scope is None and resolved_tables is None:
+    selection = resolve_selection(scope=scope, tables=table, cdm_auxiliary=cdm_auxiliary)
+    if selection.scope is None and selection.tables is None and not selection.cdm_auxiliary:
         console.print(
-            render_error("Select tables to truncate with `--scope` or one or more `--table` values.")
+            render_error("Select tables to truncate with `--scope`, one or more `--table` values, or `--cdm-auxiliary`.")
         )
         raise typer.Exit(code=1)
     if not dry_run and not yes:
@@ -528,8 +552,9 @@ def truncate_tables_command(
     with console.status("Truncating selected tables..."):
         results = _truncate_tables(
             conn,
-            scope=resolved_scope,
-            table_names=resolved_tables,
+            scope=selection.scope,
+            table_names=selection.tables,
+            cdm_auxiliary_only=selection.cdm_auxiliary,
             restart_identities=restart_identities,
             cascade=cascade,
             dry_run=dry_run,

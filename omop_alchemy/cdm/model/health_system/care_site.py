@@ -3,10 +3,8 @@ import sqlalchemy.orm as so
 from oa_configurator import Role
 from typing import Optional
 
-from orm_loader.helpers import Base
 from omop_alchemy.cdm.base import (
     role_fk,
-    cdm_table,
     CDMTableBase,
     optional_concept_fk,
     merge_table_args,
@@ -15,8 +13,7 @@ from omop_alchemy.cdm.base import (
     omop_table_options,
 )
 
-@cdm_table
-class Care_Site(CDMTableBase, Base):
+class Care_Site(CDMTableBase):
     __tablename__ = "care_site"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},
