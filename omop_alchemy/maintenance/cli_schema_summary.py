@@ -18,6 +18,7 @@ class TableSummaryResult:
 
     table_name: str
     category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     model_name: str
     primary_key_columns: tuple[str, ...]
@@ -60,6 +61,7 @@ def collect_data_summary(
                 TableSummaryResult(
                     table_name=table.table_name,
                     category=table.category,
+                    is_auxiliary=table.is_auxiliary,
                     schema_tag=table.schema_tag,
                     model_name=table.model_name,
                     primary_key_columns=table.primary_key_names,

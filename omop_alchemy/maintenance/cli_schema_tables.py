@@ -29,6 +29,7 @@ class TableCreationResult:
 
     table_name: str
     category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     model_name: str
     status: Status
@@ -135,6 +136,7 @@ def _create_missing_tables(
             TableCreationResult(
                 table_name=maintenance_table.table_name,
                 category=maintenance_table.category,
+                is_auxiliary=maintenance_table.is_auxiliary,
                 schema_tag=maintenance_table.schema_tag,
                 model_name=maintenance_table.model_name,
                 status=(

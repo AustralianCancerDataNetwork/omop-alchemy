@@ -41,6 +41,7 @@ class IndexTarget:
 
     table_name: str
     category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     index_name: str
     column_names: tuple[str, ...]
@@ -678,6 +679,7 @@ def collect_index_targets(
                 IndexTarget(
                     table_name=table.table_name,
                     category=table.category,
+                    is_auxiliary=table.is_auxiliary,
                     schema_tag=table.schema_tag,
                     index_name=physical_name,
                     column_names=column_names,
@@ -937,6 +939,7 @@ def _manage_indexes(
                     operation="index",
                     table_name=table.table_name,
                     category=table.category,
+                    is_auxiliary=table.is_auxiliary,
                     schema_tag=table.schema_tag,
                     index_name=physical_name,
                     column_names=column_names,
@@ -975,6 +978,7 @@ def _manage_indexes(
                             operation="cluster",
                             table_name=table.table_name,
                             category=table.category,
+                            is_auxiliary=table.is_auxiliary,
                             schema_tag=table.schema_tag,
                             index_name=physical_cluster_name,
                             column_names=cluster_columns,
@@ -1002,6 +1006,7 @@ def _manage_indexes(
                             operation="cluster",
                             table_name=table.table_name,
                             category=table.category,
+                            is_auxiliary=table.is_auxiliary,
                             schema_tag=table.schema_tag,
                             index_name=physical_cluster_name,
                             column_names=cluster_columns,
@@ -1154,6 +1159,7 @@ def cluster_tables_command(
                 operation="cluster",
                 table_name=table.table_name,
                 category=table.category,
+                is_auxiliary=table.is_auxiliary,
                 schema_tag=table.schema_tag,
                 index_name=physical_cluster_name,
                 column_names=cluster_columns,

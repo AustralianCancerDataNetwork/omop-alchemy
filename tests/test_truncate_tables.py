@@ -118,6 +118,7 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
             TruncateTableResult(
                 table_name="person",
                 category=TableCategory.CLINICAL,
+                is_auxiliary=False,
                 schema_tag=Role.PRIMARY.value,
                 row_count=10,
                 status=Status.PLANNED,

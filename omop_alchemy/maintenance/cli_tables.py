@@ -48,6 +48,7 @@ class AnalyzeTableResult:
 
     table_name: str
     category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     operation: str
     status: Status
@@ -83,6 +84,7 @@ def analyze_tables(
                     AnalyzeTableResult(
                         table_name=target.table_name,
                         category=target.table.category,
+                        is_auxiliary=target.table.is_auxiliary,
                         schema_tag=target.schema_tag,
                         operation=operation,
                         status=Status.SKIPPED,
@@ -104,6 +106,7 @@ def analyze_tables(
                 AnalyzeTableResult(
                     table_name=target.table_name,
                     category=target.table.category,
+                    is_auxiliary=target.table.is_auxiliary,
                     schema_tag=target.schema_tag,
                     operation=operation,
                     status=dry_status(dry_run),
@@ -124,6 +127,7 @@ class TruncateTableResult:
 
     table_name: str
     category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     row_count: int | None
     status: Status
@@ -255,6 +259,7 @@ def _truncate_tables(
         TruncateTableResult(
             table_name=table.table_name,
             category=table.category,
+            is_auxiliary=table.is_auxiliary,
             schema_tag=table.schema_tag,
             row_count=row_counts[table.table_name],
             status=dry_status(dry_run),
@@ -264,6 +269,7 @@ def _truncate_tables(
         else TruncateTableResult(
             table_name=table.table_name,
             category=table.category,
+            is_auxiliary=table.is_auxiliary,
             schema_tag=table.schema_tag,
             row_count=None,
             status=Status.SKIPPED,
@@ -283,6 +289,7 @@ class SequenceTarget:
 
     table_name: str
     category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     pk_column_name: str
 
@@ -293,6 +300,7 @@ class SequenceResetResult:
 
     table_name: str
     category: TableCategory | None
+    is_auxiliary: bool
     schema_tag: str
     pk_column_name: str
     sequence_name: str | None
@@ -326,6 +334,7 @@ def collect_sequence_targets(
             SequenceTarget(
                 table_name=table.table_name,
                 category=table.category,
+                is_auxiliary=table.is_auxiliary,
                 schema_tag=table.schema_tag,
                 pk_column_name=pk_column_name,
             )
@@ -366,6 +375,7 @@ def reset_model_sequences(
                         SequenceResetResult(
                             table_name=target.table_name,
                             category=target.category,
+                            is_auxiliary=target.is_auxiliary,
                             schema_tag=target.schema_tag,
                             pk_column_name=target.pk_column_name,
                             sequence_name=None,
@@ -400,6 +410,7 @@ def reset_model_sequences(
                     SequenceResetResult(
                         table_name=target.table_name,
                         category=target.category,
+                        is_auxiliary=target.is_auxiliary,
                         schema_tag=target.schema_tag,
                         pk_column_name=target.pk_column_name,
                         sequence_name=sequence_name,
