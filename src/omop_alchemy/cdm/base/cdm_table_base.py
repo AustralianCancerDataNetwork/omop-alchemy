@@ -2,12 +2,15 @@ from typing import ClassVar
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from orm_loader.tables import CSVLoadableTableInterface, SerialisableTableInterface
+from orm_loader.tables import (
+    FileLoadableTableInterface,
+    SerialisableTableInterface,
+)
 
 
-class CDMTableBase(CSVLoadableTableInterface, SerialisableTableInterface):
+class CDMTableBase(FileLoadableTableInterface, SerialisableTableInterface):
     """
-    Base class for CDM tables that support CSV loading and validation.
+    Base class for CDM tables that support file loading and validation.
     """
 
     __abstract__ = True

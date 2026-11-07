@@ -6,6 +6,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
+from orm_loader.tables.typing import FileTableProtocol
 
 if TYPE_CHECKING:
     from .context import MaintenanceContext
@@ -56,6 +57,7 @@ class MaintenanceTable:
     table_name: str
     model_name: str
     model_module: str
+    model_cls: type[FileTableProtocol]
     category: TableCategory
     table: sa.Table
     primary_key_columns: tuple[sa.Column[object], ...]
@@ -164,7 +166,7 @@ class TableTarget:
         return self.table_name in all_table_names(self.bind, schema=self.physical_schema)
 
 
-def _mapped_cdm_table_classes() -> Iterable[type]:
+def _mapped_cdm_table_classes() -> Iterable[type[FileTableProtocol]]:
     from orm_loader.helpers import Base
 
     import omop_alchemy.cdm.model  # noqa: F401
@@ -186,16 +188,14 @@ def _table_category(mapped_class: type) -> TableCategory:
 def collect_maintenance_tables() -> list[MaintenanceTable]:
     tables: list[MaintenanceTable] = []
 
-    for mapped_class in sorted(
-        _mapped_cdm_table_classes(),
-        key=lambda cls: cls.__table__.name,  # ty: ignore[unresolved-attribute]
-    ):
-        table = mapped_class.__table__  # ty: ignore[unresolved-attribute]
+    for mapped_class in sorted(_mapped_cdm_table_classes(), key=lambda cls: cls.__table__.name):
+        table = mapped_class.__table__
         tables.append(
             MaintenanceTable(
                 table_name=table.name,
                 model_name=mapped_class.__name__,
                 model_module=mapped_class.__module__,
+                model_cls=mapped_class,
                 category=_table_category(mapped_class),
                 table=table,
                 primary_key_columns=tuple(table.primary_key.columns),

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import pytest
 import sqlalchemy as sa
 from oa_configurator import SCHEMA_REGISTRY_SCHEMA
 
+from omop_alchemy.backends.base import Backend
 from omop_alchemy.config import MAINTENANCE_SCHEMA
 from omop_alchemy.maintenance.cli_backup import BackupFormat, _single_connection_backup
 from omop_alchemy.maintenance.cli_foreign_keys import (
@@ -27,10 +30,15 @@ pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 def test_backup_includes_maintenance_schema(pg_engine, pg_resolved, monkeypatch, tmp_path):
     captured = {}
 
-    class FakeBackend:
-        def prepare_backup(self, engine, path, backup_format, *, schemas):
+    class FakeBackend(Backend):
+        name = "Fake"
+        dialect = "fake"
+
+        def prepare_backup(
+            self, engine: sa.Engine, output_path: str, backup_format: str, *, schemas: Sequence[str]
+        ) -> tuple[str, list[str], dict[str, str], str]:
             captured["schemas"] = schemas
-            return "pg_dump", [], {}, engine.url.database
+            return "pg_dump", [], {}, str(engine.url.database)
 
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_backup.resolve_backend",

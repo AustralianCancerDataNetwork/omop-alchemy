@@ -56,7 +56,7 @@ def athena_vocab(connection, tmp_path):
         csv_path = _write_fixture_csv(
             base_path, model.__tablename__, _ATHENA_FIXTURE_DATA[model.__tablename__]
         )
-        model.load_csv(session, csv_path)
+        model.load_file(session, csv_path)
 
     session.commit()
     session.close()
@@ -75,9 +75,16 @@ def test_concept_loaded(db_session, athena_vocab):
 
 def test_concept_ancestor(db_session, athena_vocab):
     """Test that the concept_ancestor table loads without error."""
-    # Minimal fixtures have no ancestor rows; table must be accessible and empty.
-    count = db_session.query(Concept_Ancestor).count()
-    assert count == 0
+    rows = db_session.query(Concept_Ancestor).all()
+    assert [
+        (
+            row.ancestor_concept_id,
+            row.descendant_concept_id,
+            row.min_levels_of_separation,
+            row.max_levels_of_separation,
+        )
+        for row in rows
+    ] == [(201826, 201826, 0, 0)]
 
 
 def test_all_concepts_reference_valid_domain(db_session, athena_vocab):

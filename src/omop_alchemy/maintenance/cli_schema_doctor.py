@@ -302,8 +302,17 @@ def collect_doctor_report(
                     ),
                 )
             )
+        else:
+            checks.append(
+                DoctorCheck(
+                    name="foreign keys",
+                    status=Status.SKIPPED,
+                    detail="Foreign key trigger inspection isn't supported on this backend.",
+                )
+            )
 
-            if deep and backend_supports(backend, "count_fk_violations"):
+        if backend_supports(backend, "count_fk_violations"):
+            if deep:
                 foreign_key_validation = validate_foreign_key_constraints(
                     context, vocabulary_included=vocabulary_included
                 )
@@ -321,14 +330,6 @@ def collect_doctor_report(
                         ),
                     )
                 )
-            elif deep:
-                checks.append(
-                    DoctorCheck(
-                        name="foreign key validation",
-                        status=Status.SKIPPED,
-                        detail="Foreign key validation isn't supported on this backend.",
-                    )
-                )
             else:
                 checks.append(
                     DoctorCheck(
@@ -338,13 +339,6 @@ def collect_doctor_report(
                     )
                 )
         else:
-            checks.append(
-                DoctorCheck(
-                    name="foreign keys",
-                    status=Status.SKIPPED,
-                    detail="Foreign key trigger inspection isn't supported on this backend.",
-                )
-            )
             checks.append(
                 DoctorCheck(
                     name="foreign key validation",

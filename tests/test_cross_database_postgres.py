@@ -20,7 +20,7 @@ from sqlalchemy.exc import UnboundExecutionError
 from omop_alchemy.cdm.base import ConceptValidationMixin
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Person
 from omop_alchemy.cdm.model.clinical.condition_occurrence import Condition_OccurrenceView
-from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Ancestor
+from omop_alchemy.cdm.model.vocabulary import Concept
 from omop_alchemy.cross_database import cdm_sessionmaker, filter_by_keys
 from omop_alchemy.toolkit.core.concepts import RuntimeConceptSetSpec, runtime_concept_predicate
 
@@ -224,15 +224,6 @@ def test_concept_validation_reports_violations_across_databases(pg_split: SplitC
 
 def test_concept_set_membership_across_databases_needs_the_session(pg_split: SplitCDM):
     _seed_conditions(pg_split, 2, concept_ids=(CONDITION_CONCEPT_ID, MISSING_CONCEPT_ID))
-    with pg_split.vocab.begin() as connection:
-        connection.execute(
-            sa.insert(table_of(Concept_Ancestor)).values(
-                ancestor_concept_id=CONDITION_CONCEPT_ID,
-                descendant_concept_id=CONDITION_CONCEPT_ID,
-                min_levels_of_separation=0,
-                max_levels_of_separation=0,
-            )
-        )
     spec = RuntimeConceptSetSpec(include_ancestor_ids=(CONDITION_CONCEPT_ID,))
     column = Condition_Occurrence.condition_concept_id
     sessions = cdm_sessionmaker(pg_split.resolved, primary=pg_split.primary, vocab=pg_split.vocab)

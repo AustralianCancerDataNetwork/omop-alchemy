@@ -17,8 +17,7 @@ import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator.testing import ScopedTestSchema, scoped_test_schema
-from orm_loader.backends import staging_schema_claim
-from orm_loader.helpers import bulk_load_context
+from orm_loader.backends import resolve_backend, staging_schema_claim
 from sqlalchemy.dialects import postgresql
 
 from omop_alchemy.backends import (
@@ -63,7 +62,7 @@ def installed(pg_db) -> Iterator[ScopedTestSchema]:
             )
         )
         with so.Session(scoped.engine) as session:
-            with bulk_load_context(session):
+            with resolve_backend(session).relaxed_foreign_keys(session):
                 session.add(
                     Concept(
                         concept_id=_CONCEPT_ID,

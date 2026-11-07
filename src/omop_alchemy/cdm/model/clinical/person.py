@@ -16,7 +16,6 @@ from omop_alchemy.cdm.base import (
     CDMTableBase,
     DomainValidationMixin,
     ExpectedDomain,
-    HealthSystemContext,
     ReferenceContext,
     cdm_table,
     merge_table_args,
@@ -39,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 @cdm_table
-class Person(CDMTableBase, Base, HealthSystemContext):
+class Person(CDMTableBase, Base):
     __tablename__ = "person"
     __table_args__ = merge_table_args(
         {"schema": Role.PRIMARY.value},

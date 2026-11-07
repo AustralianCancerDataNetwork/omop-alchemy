@@ -17,6 +17,7 @@ from pathlib import Path
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import (
+    Dialect,
     Role,
     UnregisteredSchemaTagError,
     connection_key,
@@ -51,7 +52,7 @@ def cache_scope(session: so.Session) -> str | sa.Engine:
         return engine
     url = engine.url
     if (
-        url.get_backend_name() == "sqlite"
+        url.get_backend_name() in (Dialect.SQLITE, Dialect.DUCKDB)
         and url.database
         and not url.database.startswith(("/", ":"))
     ):

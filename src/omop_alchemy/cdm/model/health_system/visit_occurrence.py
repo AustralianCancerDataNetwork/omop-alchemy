@@ -71,8 +71,14 @@ class Visit_Occurrence(CDMTableBase, Base):
         sa.String(50), nullable=True
     )
 
+    # use_alter=True routes this FK through ALTER TABLE ADD CONSTRAINT so DuckDB's shim
+    # can permanently skip it, since DuckDB would otherwise reject bulk-load rows inserted
+    # before their own parent row exists.
     preceding_visit_occurrence_id: so.Mapped[int | None] = so.mapped_column(
-        sa.ForeignKey(role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id")), nullable=True
+        sa.ForeignKey(
+            role_fk(Role.PRIMARY, "visit_occurrence.visit_occurrence_id"), use_alter=True
+        ),
+        nullable=True,
     )
 
     def __repr__(self) -> str:

@@ -6,12 +6,13 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any, Literal, TypeAlias, cast
+from typing import Annotated, Literal, TypeAlias, cast
 
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 import typer
 from oa_configurator import (
+    ResolvedDatabase,
     Role,
     UnregisteredSchemaTagError,
     claimed_schema_tags,
@@ -20,8 +21,9 @@ from oa_configurator import (
     qualified,
 )
 from orm_loader.backends import STAGING_SCHEMA, resolve_backend
+from orm_loader.backends.base import ForeignKeyViolationError
 from orm_loader.helpers import create_tables
-from orm_loader.tables.typing import CSVTableProtocol
+from orm_loader.tables.typing import FileTableProtocol
 from rich.progress import (
     BarColumn,
     Progress,
@@ -61,16 +63,16 @@ from .ui import (
     render_vocab_load_summary,
 )
 
-MergeStrategy: TypeAlias = Literal["replace", "upsert", "insert_if_empty"]  # noqa: UP040 - typer cannot resolve `type` aliases
-QuoteMode: TypeAlias = Literal["by_delimiter", "auto", "csv", "literal"]  # noqa: UP040 - typer cannot resolve `type` aliases
+MergeStrategy: TypeAlias = Literal["replace", "upsert", "insert"]  # noqa: UP040 - typer cannot resolve `type` aliases
+QuoteMode: TypeAlias = Literal["by_delimiter", "csv", "literal"]  # noqa: UP040 - typer cannot resolve `type` aliases
 
-type VocabularyModel = type[CSVTableProtocol]
+type VocabularyModel = type[FileTableProtocol]
 type VocabularyLoadProgressCallback = Callable[[VocabularyLoadProgress], None]
 
 
 @dataclass(frozen=True)
 class VocabularyLoadResult:
-    """Outcome of loading one Athena vocabulary CSV file via the staged ORM CSV loader."""
+    """Outcome of loading one Athena vocabulary CSV file via the staged file loader."""
 
     table_name: str
     status: Status
@@ -122,8 +124,8 @@ REQUIRED_VOCAB_MODELS: tuple[VocabularyModel, ...] = cast(
         Domain,
         Vocabulary,
         Concept_Class,
-        Relationship,
         Concept,
+        Relationship,
         Concept_Ancestor,
         Concept_Relationship,
         Concept_Synonym,
@@ -144,7 +146,7 @@ _ALL_VOCAB_TABLE_NAMES: frozenset[str] = frozenset(
 
 
 class VocabularyLoadError(RuntimeError):
-    """Raised when a single Athena vocabulary table load fails."""
+    """Raised when an Athena vocabulary load or its final validation fails."""
 
 
 _RETRYABLE_FRAGMENTS: tuple[str, ...] = (
@@ -160,24 +162,6 @@ def _is_retryable_error(exc: Exception) -> bool:
     return isinstance(exc, OperationalError) and any(s in msg for s in _RETRYABLE_FRAGMENTS)
 
 
-def _is_missing_staging_table_error(
-    exc: Exception,
-    *,
-    model: VocabularyModel,
-    session: so.Session,
-) -> bool:
-    """Return True if the exception is a ProgrammingError caused by the staging table not existing yet."""
-    staging_table_name = resolve_backend(session, mapper=model).staging_name_for_table(
-        model.__tablename__
-    )
-    message = str(exc).lower()
-    return (
-        exc.__class__.__name__ == "ProgrammingError"
-        and "does not exist" in message
-        and staging_table_name.lower() in message
-    )
-
-
 def _load_vocab_model_csv(
     session: so.Session,
     *,
@@ -185,31 +169,23 @@ def _load_vocab_model_csv(
     csv_path: Path,
     merge_strategy: MergeStrategy,
     quote_mode: QuoteMode = "by_delimiter",
-    chunksize: int | None = None,
     index_strategy: str = "auto",
     merge_batch_size: int | None = None,
     staging_schema_tag: str | None = None,
+    validate_deferred_fks: bool = True,
+    resolved: ResolvedDatabase | None = None,
 ) -> int:
-    """Call model.load_csv. If the staging table is absent, create it and retry once."""
-    load_kwargs: dict[str, Any] = {
+    """Call model.load_file for one vocabulary table."""
+    load_kwargs: dict[str, object] = {
         "merge_strategy": merge_strategy,
         "quote_mode": quote_mode,
         "index_strategy": index_strategy,
         "merge_batch_size": merge_batch_size,
         "staging_schema_tag": staging_schema_tag,
+        "validate_deferred_fks": validate_deferred_fks,
+        "resolved": resolved,
     }
-    if chunksize is not None:
-        load_kwargs["chunksize"] = chunksize
-
-    try:
-        return int(model.load_csv(session, csv_path, **load_kwargs))
-    except Exception as exc:
-        if not _is_missing_staging_table_error(exc, model=model, session=session):
-            raise
-
-        session.rollback()
-        model.create_staging_table(session, staging_schema_tag=staging_schema_tag)
-        return int(model.load_csv(session, csv_path, **load_kwargs))
+    return int(model.load_file(session, csv_path, **load_kwargs))  # ty: ignore[invalid-argument-type]
 
 
 def _find_vocab_csv_path(source_path: Path, table_name: str) -> Path | None:
@@ -281,7 +257,6 @@ def load_vocab_source(
     dry_run: bool = False,
     merge_strategy: MergeStrategy = "replace",
     quote_mode: QuoteMode = "by_delimiter",
-    chunksize: int | None = 100_000,
     bulk_mode: bool = True,
     merge_batch_size: int | None = None,
     progress_callback: VocabularyLoadProgressCallback | None = None,
@@ -298,6 +273,12 @@ def load_vocab_source(
     With bulk_mode (default on PostgreSQL), secondary indexes and FK triggers
     are toggled globally around the load for speed. Pass --no-bulk-mode when
     loading a single table to avoid the index drop/rebuild overhead.
+
+    Loaded tables are committed before the final cross-table foreign-key
+    validation. If that check fails, VocabularyLoadError explains that the
+    committed rows remain and describes how to recover. On PostgreSQL and
+    DuckDB, a failure during a batched table load also leaves earlier batches
+    committed.
 
     Parameters
     ----------
@@ -404,6 +385,33 @@ def load_vocab_source(
     if not dry_run:
         created_table_count = _create_missing_vocabulary_tables(context)
 
+    backend = resolve_backend(vocab_engine, resolved=context.resolved)
+    all_model_tables = {m.__table__ for m in all_models}
+
+    def _covered_by_this_load(model: VocabularyModel) -> bool:
+        """True if every table model's deferred FKs point at is also being
+        loaded in this call, so validating model right after its own commit
+        would false-positive on a reference that just hasn't loaded yet.
+
+        False means nothing later in this call could satisfy the
+        reference anyway, so model is validated inline instead (see the
+        main loop below), rolling back its own commit if it's a real
+        orphan rather than committing and raising afterward.
+        """
+        referred_tables = {
+            fk.elements[0].column.table for fk in backend.deferred_fk_constraints(model)
+        }
+        return bool(referred_tables) and referred_tables.issubset(all_model_tables)
+
+    if not dry_run and merge_strategy == "replace":
+        # Pre-check against every table that will be loaded to avoid
+        # partial loads leaving some tables replaced and others not
+        # Runs after table creation as it queries row counts.
+        with so.Session(vocab_engine) as preflight_session:
+            for model in all_models:
+                if _find_vocab_csv_path(resolved_source_path, model.__tablename__) is not None:
+                    backend.check_replace_feasible(model, model.pk_names(), preflight_session)
+
     try:
         for model in all_models:
             csv_path = _find_vocab_csv_path(resolved_source_path, model.__tablename__)
@@ -440,7 +448,7 @@ def load_vocab_source(
                         row_count=None,
                         csv_path=str(csv_path),
                         required=required,
-                        detail=f"Athena CSV would be loaded via staged ORM CSV loader (quote_mode={quote_mode!r})",
+                        detail=f"Athena CSV would be loaded via staged file loader (quote_mode={quote_mode!r})",
                     )
                 )
                 continue
@@ -457,15 +465,9 @@ def load_vocab_source(
             for attempt in range(3):
                 try:
                     with so.Session(vocab_engine) as session:
-                        if _prev_attempt_was_crash and merge_strategy == "insert_if_empty":
-                            # A DB crash left partial data committed in this table.
-                            # Truncate so insert_if_empty can retry cleanly. Safe because
-                            # bulk_mode's manage_foreign_key_triggers ran ALTER TABLE ...
-                            # DISABLE TRIGGER ALL on all vocabulary tables, and that state
-                            # persists across crash+recovery in pg_trigger.tgenabled.
-                            # Schema-qualified explicitly so this targets the CDM table
-                            # regardless of search_path ordering -- vocab_schema, since
-                            # this session and the table itself both live on vocab_engine.
+                        if _prev_attempt_was_crash and merge_strategy == "insert":
+                            # A crash left partial rows committed; truncate so insert can retry.
+                            # Safe because bulk mode already disabled the FK triggers.
                             table_ref = qualified(
                                 session, model.__tablename__, physical_schema=vocab_schema
                             )
@@ -478,9 +480,10 @@ def load_vocab_source(
                             merge_strategy=merge_strategy,
                             quote_mode=quote_mode,
                             index_strategy="keep" if _use_bulk_mode else "auto",
-                            chunksize=chunksize,
                             merge_batch_size=merge_batch_size,
                             staging_schema_tag=STAGING_SCHEMA,
+                            validate_deferred_fks=not _covered_by_this_load(model),
+                            resolved=context.resolved,
                         )
                         session.commit()
                     break
@@ -504,7 +507,7 @@ def load_vocab_source(
                     row_count=row_count,
                     csv_path=str(csv_path),
                     required=required,
-                    detail=f"Athena CSV loaded via staged ORM CSV loader (quote_mode={quote_mode!r})",
+                    detail=f"Athena CSV loaded via staged file loader (quote_mode={quote_mode!r})",
                 )
             )
 
@@ -517,6 +520,22 @@ def load_vocab_source(
                 rows_this_table=row_count,
                 table_count=table_count,
             )
+
+        if not dry_run:
+            loaded = {r.table_name for r in results if r.status == Status.LOADED}
+            loaded_models = [m for m in all_models if m.__tablename__ in loaded]
+            if loaded_models:
+                with so.Session(vocab_engine) as session:
+                    for model in loaded_models:
+                        try:
+                            backend.validate_foreign_keys(model, session)
+                        except ForeignKeyViolationError as exc:
+                            raise VocabularyLoadError(
+                                "Athena vocabulary foreign-key validation failed for "
+                                f"table `{model.__tablename__}`. Loaded vocabulary rows are already committed. "
+                                "Fix the source data and reload the affected tables, or truncate them before retrying. "
+                                f"Underlying error: {exc.__class__.__name__}: {exc}"
+                            ) from exc
     finally:
         if not dry_run:
             from omop_alchemy.toolkit.core.concepts import clear_concept_group_cache
@@ -581,7 +600,7 @@ app = typer.Typer(rich_markup_mode="rich")
 
 @app.command(
     "load-vocab-source",
-    help="Load Athena vocabulary CSV files from a configured source path using the ORM staged CSV loader.",
+    help="Load Athena vocabulary CSV files from a configured source path using the staged file loader.",
 )
 @omop_command("load-vocab-source", vocabulary_included=True, dry_run=True)
 def load_vocab_source_command(
@@ -609,7 +628,8 @@ def load_vocab_source_command(
             help="CSV merge strategy. `replace` (default) overwrites rows whose primary keys "
             "appear in the source but does not delete source-absent rows. `upsert` preserves "
             "existing rows on primary-key conflicts. "
-            "`insert_if_empty` is the fast path for a fresh empty target."
+            "`insert` adds the rows without checking keys: the fast path for a fresh empty target, "
+            "and an existing key fails."
         ),
     ] = "replace",
     quote_mode: Annotated[
@@ -617,18 +637,9 @@ def load_vocab_source_command(
         typer.Option(
             help="How the vocabulary CSV loader interprets double-quotes. `by_delimiter` (default) "
             "uses literal quotes for tab-delimited Athena files and RFC-4180 quoting for "
-            "comma-delimited files. `auto` samples file content; `csv` and `literal` force "
-            "one mode for every file."
+            "comma-delimited files. `csv` and `literal` force one mode for every file."
         ),
     ] = "by_delimiter",
-    staging_chunk_size: Annotated[
-        int | None,
-        typer.Option(
-            help="Staging load: rows per ORM transaction when loading CSV → staging table. "
-            "Ignored when the PostgreSQL COPY fast-path is active (the default for "
-            "Athena CSVs). Pass 0 to disable chunking entirely."
-        ),
-    ] = 100_000,
     bulk_mode: Annotated[
         bool,
         typer.Option(
@@ -646,7 +657,8 @@ def load_vocab_source_command(
             "Default: None (no pagination — single INSERT per table, fastest for high-RAM systems). "
             "Set to a positive integer to enable paginated commits for memory-constrained systems; "
             "note that pagination adds a COUNT query and an index build on the staging table "
-            "before the merge begins, which adds significant overhead even at large batch sizes."
+            "before the merge begins, which adds significant overhead even at large batch sizes. "
+            "If the load fails, rows from earlier batches stay committed on PostgreSQL and DuckDB."
         ),
     ] = None,
     dry_run: bool = False,
@@ -696,7 +708,6 @@ def load_vocab_source_command(
             dry_run=dry_run,
             merge_strategy=merge_strategy,
             quote_mode=quote_mode,
-            chunksize=None if staging_chunk_size == 0 else staging_chunk_size,
             bulk_mode=bulk_mode,
             merge_batch_size=merge_batch_size,
             progress_callback=_update_progress,

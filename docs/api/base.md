@@ -18,7 +18,7 @@ In OMOP Alchemy, a *base table* is:
 
 - a concrete SQLAlchemy declarative class
 - representing a real OMOP CDM table
-- safe to load from CSV
+- safe to load from files
 - safe to serialize
 - safe to validate structurally
 
@@ -39,7 +39,7 @@ Those concerns live elsewhere.
 
 Specifically, it inherits:
 
-- `CSVLoadableTableInterface` — controlled CSV ingestion
+- `FileLoadableTableInterface` — controlled file ingestion
 - `SerialisableTableInterface` — safe object serialization
 
 This separation is intentional:
