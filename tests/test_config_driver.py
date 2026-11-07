@@ -10,7 +10,7 @@ from oa_configurator import (
 )
 
 from omop_alchemy.config import (
-    CDM_EXTENSION_SCHEMA,
+    CDM_AUXILIARY_SCHEMA,
     create_cdm_engines,
     get_cdm_context,
 )
@@ -66,14 +66,14 @@ def test_create_cdm_engines_keeps_distinct_in_memory_connections_separate():
         vocab.dispose()
 
 
-def test_create_cdm_engines_includes_a_claim_for_the_extension_schema():
-    """create_cdm_engines() claims CDM_EXTENSION_SCHEMA by default; otherwise
+def test_create_cdm_engines_includes_a_claim_for_the_auxiliary_schema():
+    """create_cdm_engines() claims CDM_AUXILIARY_SCHEMA by default; otherwise
     physical_schema_of() would raise UnregisteredSchemaTagError.
     """
     resolved = _resolved_cdm_database(primary_database=":memory:")
     primary, vocab = create_cdm_engines(resolved)
     try:
-        assert physical_schema_of(primary, schema_tag=CDM_EXTENSION_SCHEMA) is None
+        assert physical_schema_of(primary, schema_tag=CDM_AUXILIARY_SCHEMA) is None
     finally:
         primary.dispose()
 

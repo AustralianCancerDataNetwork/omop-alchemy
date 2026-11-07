@@ -1,4 +1,4 @@
-"""Tests for CDMTableBase / CDMExtensionTableBase auto-tagging via __init_subclass__."""
+"""Tests for CDMTableBase / CDMAuxiliaryTableBase auto-tagging via __init_subclass__."""
 
 import uuid
 from contextlib import contextmanager
@@ -11,9 +11,9 @@ from oa_configurator import Role, SchemaClaim
 from oa_configurator.testing import reset_schema_registry_rows
 from orm_loader.helpers import Base
 
-from omop_alchemy.cdm.base import CDMExtensionTableBase, CDMTableBase
+from omop_alchemy.cdm.base import CDMAuxiliaryTableBase, CDMTableBase
 from omop_alchemy.cdm.base.cdm_table_base import MODEL_MODULE_PREFIX, _redeclares_a_tagged_ancestors_table
-from omop_alchemy.config import CDM_EXTENSION_SCHEMA, CDM_EXTENSION_SCHEMA_OWNER
+from omop_alchemy.config import CDM_AUXILIARY_SCHEMA, CDM_AUXILIARY_SCHEMA_OWNER
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
 from omop_alchemy.maintenance.tables import _mapped_cdm_table_classes, collect_maintenance_tables
@@ -62,7 +62,7 @@ def test_redeclares_a_tagged_ancestors_table_detects_same_tablename_redeclare():
 
 
 # ---------------------------------------------------------------------------
-# CDMTableBase: internal (non-extension) tagging
+# CDMTableBase: internal (non-auxiliary) tagging
 # ---------------------------------------------------------------------------
 
 def test_internal_module_table_is_tagged_with_its_category():
@@ -75,7 +75,7 @@ def test_internal_module_table_is_tagged_with_its_category():
     with _cleanup_table("zz_test_cdm_table_base_internal", schema=Role.PRIMARY.value):
         assert _FakeInternal.__omop_is_cdm_table__ is True
         assert _FakeInternal.__omop_table_category__ == "fake_domain"
-        assert _FakeInternal.__omop_extension_owner__ is None
+        assert _FakeInternal.__omop_auxiliary_owner__ is None
         assert sa.inspect(_FakeInternal, raiseerr=False) is not None
 
 
@@ -89,24 +89,24 @@ def test_internal_module_table_rejects_missing_schema_tag():
             id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
 
-def test_internal_module_table_rejects_extension_table_base():
+def test_internal_module_table_rejects_auxiliary_table_base():
     """A class defined under omop_alchemy.cdm.model.* must use CDMTableBase directly."""
     with pytest.raises(TypeError, match="CDMTableBase"), _cleanup_table(
-        "zz_test_cdm_table_base_internal_ext", schema=CDM_EXTENSION_SCHEMA
+        "zz_test_cdm_table_base_internal_ext", schema=CDM_AUXILIARY_SCHEMA
     ):
-        class _FakeInternalViaExtension(CDMExtensionTableBase):
+        class _FakeInternalViaAuxiliary(CDMAuxiliaryTableBase):
             __module__ = f"{MODEL_MODULE_PREFIX}fake_domain"
             __tablename__ = "zz_test_cdm_table_base_internal_ext"
             id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
 
 def test_external_module_table_rejects_cdm_table_base():
-    """A class outside omop_alchemy.cdm.model.* must use CDMExtensionTableBase, not CDMTableBase."""
-    with pytest.raises(TypeError, match="CDMExtensionTableBase"), _cleanup_table(
+    """A class outside omop_alchemy.cdm.model.* must use CDMAuxiliaryTableBase, not CDMTableBase."""
+    with pytest.raises(TypeError, match="CDMAuxiliaryTableBase"), _cleanup_table(
         "zz_test_cdm_table_base_external", schema=Role.PRIMARY.value
     ):
         class _FakeExternalViaInternal(CDMTableBase):
-            __module__ = "tests.fake_extension_pkg.tables"
+            __module__ = "tests.fake_auxiliary_pkg.tables"
             __tablename__ = "zz_test_cdm_table_base_external"
             __table_args__ = {"schema": Role.PRIMARY.value}
             id: so.Mapped[int] = so.mapped_column(primary_key=True)
@@ -128,46 +128,46 @@ def test_abstract_intermediates_are_never_tagged_two_levels_deep():
 
 
 # ---------------------------------------------------------------------------
-# CDMExtensionTableBase: extension-owner tagging, schema default and lockdown
+# CDMAuxiliaryTableBase: auxiliary-owner tagging, schema default and lockdown
 # ---------------------------------------------------------------------------
 
-def test_extension_table_is_tagged_with_its_owner_and_no_category():
-    class _FakeExtension(CDMExtensionTableBase):
-        __module__ = "tests.fake_extension_pkg.tables"
-        __tablename__ = "zz_test_cdm_table_base_extension"
+def test_auxiliary_table_is_tagged_with_its_owner_and_no_category():
+    class _FakeAuxiliary(CDMAuxiliaryTableBase):
+        __module__ = "tests.fake_auxiliary_pkg.tables"
+        __tablename__ = "zz_test_cdm_table_base_auxiliary"
         id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
-    with _cleanup_table("zz_test_cdm_table_base_extension", schema=CDM_EXTENSION_SCHEMA):
-        assert _FakeExtension.__omop_is_cdm_table__ is True
-        assert _FakeExtension.__omop_table_category__ is None
-        assert _FakeExtension.__omop_extension_owner__ == "tests"
-        assert _FakeExtension.__table__.schema == CDM_EXTENSION_SCHEMA
-        assert sa.inspect(_FakeExtension, raiseerr=False) is not None
+    with _cleanup_table("zz_test_cdm_table_base_auxiliary", schema=CDM_AUXILIARY_SCHEMA):
+        assert _FakeAuxiliary.__omop_is_cdm_table__ is True
+        assert _FakeAuxiliary.__omop_table_category__ is None
+        assert _FakeAuxiliary.__omop_auxiliary_owner__ == "tests"
+        assert _FakeAuxiliary.__table__.schema == CDM_AUXILIARY_SCHEMA
+        assert sa.inspect(_FakeAuxiliary, raiseerr=False) is not None
 
 
-def test_extension_table_cannot_override_its_schema():
-    with pytest.raises(TypeError, match=CDM_EXTENSION_SCHEMA), _cleanup_table(
+def test_auxiliary_table_cannot_override_its_schema():
+    with pytest.raises(TypeError, match=CDM_AUXILIARY_SCHEMA), _cleanup_table(
         "zz_test_cdm_table_base_ext_override", schema=Role.PRIMARY.value
     ):
-        class _FakeExtensionOverride(CDMExtensionTableBase):
-            __module__ = "tests.fake_extension_pkg.tables"
+        class _FakeAuxiliaryOverride(CDMAuxiliaryTableBase):
+            __module__ = "tests.fake_auxiliary_pkg.tables"
             __tablename__ = "zz_test_cdm_table_base_ext_override"
             __table_args__ = {"schema": Role.PRIMARY.value}
             id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
 
-def test_extension_table_may_redeclare_table_args_matching_the_default_schema():
+def test_auxiliary_table_may_redeclare_table_args_matching_the_default_schema():
     """A subclass needing its own __table_args__ (e.g. for a ForeignKeyConstraint)
-    stays valid as long as it restates the same, default extension schema."""
-    class _FakeExtensionRestated(CDMExtensionTableBase):
-        __module__ = "tests.fake_extension_pkg.tables"
+    stays valid as long as it restates the same, default auxiliary schema."""
+    class _FakeAuxiliaryRestated(CDMAuxiliaryTableBase):
+        __module__ = "tests.fake_auxiliary_pkg.tables"
         __tablename__ = "zz_test_cdm_table_base_ext_restated"
-        __table_args__ = {"schema": CDM_EXTENSION_SCHEMA}
+        __table_args__ = {"schema": CDM_AUXILIARY_SCHEMA}
         id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
-    with _cleanup_table("zz_test_cdm_table_base_ext_restated", schema=CDM_EXTENSION_SCHEMA):
-        assert _FakeExtensionRestated.__omop_is_cdm_table__ is True
-        assert _FakeExtensionRestated.__table__.schema == CDM_EXTENSION_SCHEMA
+    with _cleanup_table("zz_test_cdm_table_base_ext_restated", schema=CDM_AUXILIARY_SCHEMA):
+        assert _FakeAuxiliaryRestated.__omop_is_cdm_table__ is True
+        assert _FakeAuxiliaryRestated.__table__.schema == CDM_AUXILIARY_SCHEMA
 
 
 # ---------------------------------------------------------------------------
@@ -181,30 +181,30 @@ def test_every_mapped_cdm_class_is_inspectable():
         assert sa.inspect(cls, raiseerr=False) is not None
 
 
-def test_category_and_extension_table_owner_are_mutually_exclusive():
+def test_category_and_auxiliary_table_owner_are_mutually_exclusive():
     tables = collect_maintenance_tables()
     assert tables
     for table in tables:
-        assert (table.category is None) == table.is_extension
+        assert (table.category is None) == table.is_auxiliary
 
 
 # ---------------------------------------------------------------------------
-# End-to-end: a real create_missing_tables() run creates an extension table
+# End-to-end: a real create_missing_tables() run creates an auxiliary table
 # ---------------------------------------------------------------------------
 
-def test_extension_table_created_via_create_missing_tables_on_sqlite(fresh_resolved):
-    """SQLite has no schema concept, so the extension tag must resolve to an
+def test_auxiliary_table_created_via_create_missing_tables_on_sqlite(fresh_resolved):
+    """SQLite has no schema concept, so the auxiliary tag must resolve to an
     unqualified table. Builds its own engine with the tag explicitly claimed,
     since create_cdm_engines() isn't used here.
     """
-    with _cleanup_table("zz_test_cdm_table_base_sqlite_smoke", schema=CDM_EXTENSION_SCHEMA):
-        class _FakeExtensionSqlite(CDMExtensionTableBase):
-            __module__ = "tests.fake_extension_pkg.sqlite_smoke"
+    with _cleanup_table("zz_test_cdm_table_base_sqlite_smoke", schema=CDM_AUXILIARY_SCHEMA):
+        class _FakeAuxiliarySqlite(CDMAuxiliaryTableBase):
+            __module__ = "tests.fake_auxiliary_pkg.sqlite_smoke"
             __tablename__ = "zz_test_cdm_table_base_sqlite_smoke"
             id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
         engine, vocab_engine = fresh_resolved.create_engines(
-            schema_claims=[SchemaClaim(schema_tag=CDM_EXTENSION_SCHEMA, physical_schema=CDM_EXTENSION_SCHEMA, reserved=True)]
+            schema_claims=[SchemaClaim(schema_tag=CDM_AUXILIARY_SCHEMA, physical_schema=CDM_AUXILIARY_SCHEMA, reserved=True)]
         )
         context = MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=vocab_engine)
         results = _create_missing_tables(context)
@@ -217,36 +217,36 @@ def test_extension_table_created_via_create_missing_tables_on_sqlite(fresh_resol
 
 @pytest.mark.postgresql
 @pytest.mark.db_dialect
-def test_extension_table_creates_its_schema_on_postgres(pg_db, pg_engine, cleanup_after_test):
-    """Ensure_schema must actually CREATE the extension schema when
+def test_auxiliary_table_creates_its_schema_on_postgres(pg_db, pg_engine, cleanup_after_test):
+    """Ensure_schema must actually CREATE the auxiliary schema when
     it doesn't exist yet, not just resolve to a name.
     """
-    class _FakeExtensionPg(CDMExtensionTableBase):
-        __module__ = "tests.fake_extension_pkg.pg_smoke"
+    class _FakeAuxiliaryPg(CDMAuxiliaryTableBase):
+        __module__ = "tests.fake_auxiliary_pkg.pg_smoke"
         __tablename__ = "zz_test_cdm_table_base_pg_smoke"
         id: so.Mapped[int] = so.mapped_column(primary_key=True)
 
-    extension_schema = f"zz_ext_smoke_{uuid.uuid4().hex[:12]}"
-    reset_schema_registry_rows(cleanup_after_test, pg_engine, schema_tags=[CDM_EXTENSION_SCHEMA])
-    assert extension_schema not in sa.inspect(pg_engine).get_schema_names()
+    auxiliary_schema = f"zz_aux_smoke_{uuid.uuid4().hex[:12]}"
+    reset_schema_registry_rows(cleanup_after_test, pg_engine, schema_tags=[CDM_AUXILIARY_SCHEMA])
+    assert auxiliary_schema not in sa.inspect(pg_engine).get_schema_names()
 
-    with _cleanup_table("zz_test_cdm_table_base_pg_smoke", schema=CDM_EXTENSION_SCHEMA):
+    with _cleanup_table("zz_test_cdm_table_base_pg_smoke", schema=CDM_AUXILIARY_SCHEMA):
         engine, vocab_engine = pg_db.resolved.create_engines(
             schema_claims=[SchemaClaim(
-                schema_tag=CDM_EXTENSION_SCHEMA,
-                physical_schema=extension_schema,
-                owner=CDM_EXTENSION_SCHEMA_OWNER,
+                schema_tag=CDM_AUXILIARY_SCHEMA,
+                physical_schema=auxiliary_schema,
+                owner=CDM_AUXILIARY_SCHEMA_OWNER,
             )],
         )
         try:
-            assert extension_schema in sa.inspect(engine).get_schema_names()
+            assert auxiliary_schema in sa.inspect(engine).get_schema_names()
 
             context = MaintenanceContext(resolved=pg_db.resolved, engine=engine, vocab_engine=vocab_engine)
             _create_missing_tables(context)
 
             inspector = sa.inspect(engine)
-            assert extension_schema in inspector.get_schema_names()
-            assert inspector.has_table("zz_test_cdm_table_base_pg_smoke", schema=extension_schema)
+            assert auxiliary_schema in inspector.get_schema_names()
+            assert inspector.has_table("zz_test_cdm_table_base_pg_smoke", schema=auxiliary_schema)
         finally:
             with pg_engine.begin() as connection:
-                connection.execute(sa.text(f'DROP SCHEMA IF EXISTS "{extension_schema}" CASCADE'))
+                connection.execute(sa.text(f'DROP SCHEMA IF EXISTS "{auxiliary_schema}" CASCADE'))

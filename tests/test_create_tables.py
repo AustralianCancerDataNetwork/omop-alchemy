@@ -65,8 +65,8 @@ def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(fresh_r
     """A table tagged with a registered schema tag outside Role is created,
     not silently skipped by a Role-only enumeration.
 
-    Uses a fake MaintenanceTable rather than a real extension table, to keep
-    this test independent of CDMExtensionTableBase's own behavior.
+    Uses a fake MaintenanceTable rather than a real auxiliary table, to keep
+    this test independent of CDMAuxiliaryTableBase's own behavior.
     """
     engine, _ = fresh_resolved.create_engines(
         schema_claims=[SchemaClaim(schema_tag="synthetic_tag", physical_schema=None)]
@@ -83,7 +83,7 @@ def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(fresh_r
         model_module=__name__,
         model_cls=_SyntheticTagTable,
         category=TableCategory.METADATA,
-        extension_table_owner=None,
+        auxiliary_table_owner=None,
         table=_SyntheticTagTable.__table__,  # ty: ignore[invalid-argument-type]
         primary_key_columns=tuple(_SyntheticTagTable.__table__.primary_key.columns),  # ty: ignore[unresolved-attribute]
     )

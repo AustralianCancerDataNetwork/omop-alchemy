@@ -1,5 +1,5 @@
 from .cdm_table_base import CDMTableBase
-from .extension_table_base import CDMExtensionTableBase
+from .auxiliary_table_base import CDMAuxiliaryTableBase
 from .column_helpers import (
     required_concept_fk, 
     optional_concept_fk, 
@@ -37,7 +37,7 @@ from .cdm_constants import ModifierFieldConcepts
 __all__ = [
     "ExpectedDomain",
     "CDMTableBase",
-    "CDMExtensionTableBase",
+    "CDMAuxiliaryTableBase",
     "required_concept_fk",
     "optional_concept_fk",
     "role_fk",

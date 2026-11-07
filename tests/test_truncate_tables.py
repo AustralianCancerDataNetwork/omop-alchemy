@@ -101,7 +101,7 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
         vocab_engine: object = None,
         scope: TableCategory | None = None,
         table_names: tuple[str, ...] | None = None,
-        cdm_extension_only: bool = False,
+        cdm_auxiliary_only: bool = False,
         restart_identities: bool = False,
         cascade: bool = False,
         dry_run: bool = False,
@@ -110,7 +110,7 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
         calls["engine"] = engine
         calls["scope"] = scope
         calls["table_names"] = table_names
-        calls["cdm_extension_only"] = cdm_extension_only
+        calls["cdm_auxiliary_only"] = cdm_auxiliary_only
         calls["restart_identities"] = restart_identities
         calls["cascade"] = cascade
         calls["dry_run"] = dry_run

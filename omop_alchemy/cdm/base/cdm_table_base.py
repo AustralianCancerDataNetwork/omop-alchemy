@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from orm_loader.helpers import Base
-from orm_loader.tables import CSVLoadableTableInterface, SerialisableTableInterface
+from orm_loader.tables import FileLoadableTableInterface, SerialisableTableInterface
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 
@@ -34,7 +34,7 @@ def _redeclares_a_tagged_ancestors_table(cls: type) -> bool:
     )
 
 
-class CDMTableBase(CSVLoadableTableInterface, SerialisableTableInterface, Base):
+class CDMTableBase(FileLoadableTableInterface, SerialisableTableInterface, Base):
     """Base for CDM tables. Automatically tags every concrete subclass,
     inferring its maintenance category from the module path under omop_alchemy.cdm.model.
 
@@ -52,16 +52,16 @@ class CDMTableBase(CSVLoadableTableInterface, SerialisableTableInterface, Base):
     __abstract__ = True
     __omop_is_cdm_table__ = False
     __omop_table_category__: str | None = None
-    __omop_extension_owner__: str | None = None
+    __omop_auxiliary_owner__: str | None = None
     __cdm_extra_checks__: list[str] = []
 
-    def __init_subclass__(cls, *, _is_extension: bool = False, **kwargs: object) -> None:
+    def __init_subclass__(cls, *, _is_auxiliary: bool = False, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
 
         # Reset on cls's own __dict__ first, so a subclass never inherits True by attribute lookup.
         cls.__omop_is_cdm_table__ = False
         cls.__omop_table_category__ = None
-        cls.__omop_extension_owner__ = None
+        cls.__omop_auxiliary_owner__ = None
 
         if cls.__dict__.get("__abstract__", False):
             return
@@ -72,28 +72,28 @@ class CDMTableBase(CSVLoadableTableInterface, SerialisableTableInterface, Base):
             return
 
         is_internal_module = cls.__module__.startswith(MODEL_MODULE_PREFIX)
-        if not _is_extension and not is_internal_module:
+        if not _is_auxiliary and not is_internal_module:
             raise TypeError(
                 f"{cls.__name__} in module {cls.__module__!r} does not live under "
                 f"{MODEL_MODULE_PREFIX!r}; third-party tables should inherit "
-                "CDMExtensionTableBase instead."
+                "CDMAuxiliaryTableBase instead."
             )
-        if _is_extension and is_internal_module:
+        if _is_auxiliary and is_internal_module:
             raise TypeError(
                 f"{cls.__name__} is defined inside {MODEL_MODULE_PREFIX!r} "
-                "and should inherit CDMTableBase directly instead of CDMExtensionTableBase."
+                "and should inherit CDMTableBase directly instead of CDMAuxiliaryTableBase."
             )
 
         schema_tag = cls.__table__.schema
         if schema_tag is None:
             raise TypeError(f"{cls.__name__}: table has no schema tag.")
 
-        if _is_extension:
-            cls.__omop_extension_owner__ = cls.__module__.split(".", 1)[0]
+        if _is_auxiliary:
+            cls.__omop_auxiliary_owner__ = cls.__module__.split(".", 1)[0]
             cls.__omop_table_category__ = None
         else:
             cls.__omop_table_category__ = _infer_table_category(cls)
-            cls.__omop_extension_owner__ = None
+            cls.__omop_auxiliary_owner__ = None
 
         cls.__omop_is_cdm_table__ = True
 

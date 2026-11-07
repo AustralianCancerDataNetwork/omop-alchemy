@@ -61,7 +61,7 @@ class MaintenanceTable:
     model_module: str
     model_cls: type[FileTableProtocol]
     category: TableCategory | None
-    extension_table_owner: str | None
+    auxiliary_table_owner: str | None
     table: sa.Table
     primary_key_columns: tuple[sa.Column[object], ...]
 
@@ -81,8 +81,8 @@ class MaintenanceTable:
         return tag
 
     @property
-    def is_extension(self) -> bool:
-        return self.extension_table_owner is not None
+    def is_auxiliary(self) -> bool:
+        return self.auxiliary_table_owner is not None
 
     @property
     def is_vocabulary(self) -> bool:
@@ -189,7 +189,7 @@ def _mapped_cdm_table_classes() -> Iterable[type[CDMTableBase]]:
 
 def _table_category(mapped_class: type[CDMTableBase]) -> TableCategory | None:
     """Determine the category of a mapped CDM table class."""
-    if mapped_class.__omop_extension_owner__ is not None:
+    if mapped_class.__omop_auxiliary_owner__ is not None:
         # These are third-party tables outside the CDM domain categories
         return None
     category_name = mapped_class.__omop_table_category__
@@ -213,9 +213,9 @@ def collect_maintenance_tables() -> list[MaintenanceTable]:
                 table_name=table.name,
                 model_name=mapped_class.__name__,
                 model_module=mapped_class.__module__,
-                model_cls=mapped_class,
+                model_cls=cast(type[FileTableProtocol], mapped_class),
                 category=_table_category(mapped_class),
-                extension_table_owner=mapped_class.__omop_extension_owner__,
+                auxiliary_table_owner=mapped_class.__omop_auxiliary_owner__,
                 table=table,
                 primary_key_columns=tuple(table.primary_key.columns),
             )
@@ -247,7 +247,7 @@ def select_maintenance_tables(
     categories: Iterable[TableCategory] | None = None,
     exclude_categories: Iterable[TableCategory] | None = None,
     require_single_integer_primary_key: bool = False,
-    cdm_extension_only: bool = False,
+    cdm_auxiliary_only: bool = False,
 ) -> list[MaintenanceTable]:
     selected = collect_maintenance_tables()
 
@@ -271,8 +271,8 @@ def select_maintenance_tables(
             if table.has_single_integer_primary_key
         ]
 
-    if cdm_extension_only:
-        selected = [table for table in selected if table.is_extension]
+    if cdm_auxiliary_only:
+        selected = [table for table in selected if table.is_auxiliary]
 
     return selected
 
@@ -282,7 +282,7 @@ def resolve_maintenance_tables(
     table_names: Iterable[str] | None = None,
     scope: TableCategory | None = None,
     require_single_integer_primary_key: bool = False,
-    cdm_extension_only: bool = False,
+    cdm_auxiliary_only: bool = False,
 ) -> list[MaintenanceTable]:
     if table_names is not None:
         selected_by_name = maintenance_table_map()
@@ -320,7 +320,7 @@ def resolve_maintenance_tables(
 
     return select_maintenance_tables(
         require_single_integer_primary_key=require_single_integer_primary_key,
-        cdm_extension_only=cdm_extension_only,
+        cdm_auxiliary_only=cdm_auxiliary_only,
     )
 
 

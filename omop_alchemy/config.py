@@ -17,15 +17,15 @@ from oa_configurator import (
 from orm_loader.backends import staging_schema_claim
 
 MAINTENANCE_SCHEMA: str = "omop_alchemy_maintenance"
-CDM_EXTENSION_SCHEMA: str = "cdm_extension"
-# Fixed owner for the CDM_EXTENSION_SCHEMA claim
-CDM_EXTENSION_SCHEMA_OWNER: str = "omop_alchemy"
+CDM_AUXILIARY_SCHEMA: str = "cdm_auxiliary"
+# Fixed owner for the CDM_AUXILIARY_SCHEMA claim
+CDM_AUXILIARY_SCHEMA_OWNER: str = "omop_alchemy"
 
-CDM_EXTENSION_SCHEMA_CLAIM: SchemaClaim = SchemaClaim(
-    schema_tag=CDM_EXTENSION_SCHEMA,
-    physical_schema=CDM_EXTENSION_SCHEMA,
+CDM_AUXILIARY_SCHEMA_CLAIM: SchemaClaim = SchemaClaim(
+    schema_tag=CDM_AUXILIARY_SCHEMA,
+    physical_schema=CDM_AUXILIARY_SCHEMA,
     reserved=True,
-    owner=CDM_EXTENSION_SCHEMA_OWNER,
+    owner=CDM_AUXILIARY_SCHEMA_OWNER,
 )
 
 
@@ -144,7 +144,7 @@ def create_cdm_engines(
     ----------
     resolved : ResolvedCDMDatabase
     schema_claims : Iterable[SchemaClaim], optional
-        Extra claims alongside the maintenance/extension/staging defaults.
+        Extra claims alongside the maintenance/auxiliary/staging defaults.
     register_claims : bool, optional
         Forwarded to ``create_engines()``. False only checks the claims
         without writing them.
@@ -154,7 +154,7 @@ def create_cdm_engines(
 
     Notes
     -----
-    - Includes MAINTENANCE_SCHEMA, CDM_EXTENSION_SCHEMA, and staging schema claims by default.
+    - Includes MAINTENANCE_SCHEMA, CDM_AUXILIARY_SCHEMA, and staging schema claims by default.
 
     Returns
     -------
@@ -164,7 +164,7 @@ def create_cdm_engines(
     ------
     ValueError
         If schema_claims includes one of the schema tags claimed by
-        default (MAINTENANCE_SCHEMA, CDM_EXTENSION_SCHEMA, staging). Build
+        default (MAINTENANCE_SCHEMA, CDM_AUXILIARY_SCHEMA, staging). Build
         engines via ``resolved.create_engines()`` directly to use a
         different claim for one of those.
     """
@@ -174,7 +174,7 @@ def create_cdm_engines(
             physical_schema=MAINTENANCE_SCHEMA,
             reserved=True,
         ),
-        CDM_EXTENSION_SCHEMA_CLAIM,
+        CDM_AUXILIARY_SCHEMA_CLAIM,
         staging_schema_claim(),
     ]
     reject_claimed_tags(
