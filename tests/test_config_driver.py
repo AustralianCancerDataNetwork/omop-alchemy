@@ -1,7 +1,9 @@
 """Tests for typed CDM resolution, engine creation, and the concept cache scope."""
+import pytest
 from oa_configurator import (
     CDMDatabaseConfig,
     ConnectionConfig,
+    Dialect,
     ResolvedCDMDatabase,
     StackConfig,
     physical_schema_of,
@@ -21,16 +23,17 @@ def _resolved_cdm_database(
     primary_database: str,
     vocab_database: str | None = None,
     vocab_schema: str = "main",  # default co-located: matches schema_name below
+    dialect: Dialect = Dialect.SQLITE,
 ) -> ResolvedCDMDatabase:
     primary = ConnectionConfig(
-        dialect="sqlite",
+        dialect=dialect,
         database_name=primary_database,
     ).resolve("primary")
     vocab = (
         primary
         if vocab_database is None
         else ConnectionConfig(
-            dialect="sqlite",
+            dialect=dialect,
             database_name=vocab_database,
         ).resolve("vocab")
     )
@@ -123,6 +126,16 @@ def test_cache_scope_resolves_relative_sqlite_paths(tmp_path, monkeypatch) -> No
     monkeypatch.chdir(tmp_path)
     first = _resolved_cdm_database(primary_database="./vocab.db")
     second = _resolved_cdm_database(primary_database="vocab.db")
+
+    assert _scope(first) == _scope(second)
+
+
+@pytest.mark.duckdb
+@pytest.mark.db_dialect
+def test_cache_scope_resolves_relative_duckdb_paths(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    first = _resolved_cdm_database(primary_database="./vocab.duckdb", dialect=Dialect.DUCKDB)
+    second = _resolved_cdm_database(primary_database="vocab.duckdb", dialect=Dialect.DUCKDB)
 
     assert _scope(first) == _scope(second)
 

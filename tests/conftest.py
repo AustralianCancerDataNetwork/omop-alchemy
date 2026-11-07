@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 import typer.rich_utils as _typer_rich_utils
-from orm_loader.helpers import bootstrap
+from orm_loader.helpers import Base, bootstrap
 from oa_configurator.testing import IsolatedTestDatabase, isolated_test_database, resolve_with_role_schemas, scoped_test_schema
 from oa_configurator import ResolvedCDMDatabase
 import sqlalchemy.orm as so
@@ -25,6 +25,7 @@ from omop_alchemy.cdm.model.vocabulary import (
     Concept_Ancestor,
     Concept_Class,
     Concept_Relationship,
+    Concept_Synonym,
     Domain,
     Relationship,
     Vocabulary,
@@ -52,10 +53,25 @@ class FakeMaintenanceContext:
     def __init__(self, engine: Any) -> None:
         self.engine = engine
         self.engines = (engine,)
+        self.resolved = None
 
     def engine_for(self, schema_tag: str) -> Any:
         """Return the one fake engine for any *schema_tag*."""
         return self.engine
+
+
+@pytest.fixture(autouse=True)
+def restore_inline_foreign_keys() -> Iterator[None]:
+    """Undo ``AddConstraint``'s permanent exclusion of ``use_alter`` foreign keys from inline ``CREATE TABLE``.
+
+    A Postgres ``create_all`` on the shared metadata would otherwise make a later SQLite
+    ``create_all`` in the same process leave those keys out.
+    """
+    yield
+    for table in Base.metadata.tables.values():
+        for constraint in table.foreign_key_constraints:
+            if constraint.use_alter:
+                constraint._create_rule = None
 
 
 @pytest.fixture
@@ -86,14 +102,48 @@ def fresh_resolved(fresh_db: IsolatedTestDatabase) -> ResolvedCDMDatabase:
     return fresh_db.resolved
 
 
+@pytest.fixture
+def fresh_duckdb_db(request) -> Iterator[IsolatedTestDatabase]:
+    """Fresh, empty, function-scoped DuckDB database.
+
+    Unlike SQLite, DuckDB's supports_alter=True means create_all() can
+    corrupt shared metadata process-wide (SQLAlchemy's AddConstraint
+    permanently disables a deferred FK's inline rendering on the shared
+    constraint object, not just for this call), so every consuming test
+    must carry pytest.mark.duckdb + pytest.mark.db_dialect. request is
+    forwarded so isolated_test_database() enforces that at setup time.
+    """
+    with isolated_test_database(
+        OmopAlchemyConfig,
+        "test_cdm_db_duckdb",
+        dialect="duckdb",
+        request=request,
+    ) as db:
+        yield db
+
+
+@pytest.fixture
+def fresh_duckdb_engine(fresh_duckdb_db: IsolatedTestDatabase) -> sa.Engine:
+    """fresh_duckdb_db's engine."""
+    return fresh_duckdb_db.connection.engine
+
+
+@pytest.fixture
+def fresh_duckdb_resolved(fresh_duckdb_db: IsolatedTestDatabase) -> ResolvedCDMDatabase:
+    """fresh_duckdb_db's ResolvedCDMDatabase, for maintenance functions that require one."""
+    assert isinstance(fresh_duckdb_db.resolved, ResolvedCDMDatabase)
+    return fresh_duckdb_db.resolved
+
+
 ATHENA_LOAD_ORDER = [
     Domain,
     Vocabulary,
     Concept_Class,
-    Relationship,
     Concept,
+    Relationship,
     Concept_Ancestor,
     Concept_Relationship,
+    Concept_Synonym,
 ]
 
 # ---------------------------------------------------------------------------
@@ -103,12 +153,14 @@ ATHENA_LOAD_ORDER = [
 # tuple of row values (one entry per row, in the same order).
 # Empty tuples = table has no rows (header-only CSV).
 
+ATHENA_SYNONYM_NAMES = ('4.25"X4.25"', 'Size 5"', '"BRCA1 positive"', 'Diabète de type 2 – sucré')
+
 _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
     "concept_ancestor": {
-        "ancestor_concept_id": (),
-        "descendant_concept_id": (),
-        "min_levels_of_separation": (),
-        "max_levels_of_separation": (),
+        "ancestor_concept_id": (201826,),
+        "descendant_concept_id": (201826,),
+        "min_levels_of_separation": (0,),
+        "max_levels_of_separation": (0,),
     },
     "concept_class": {
         "concept_class_id": ("Clinical Finding", "Episode", "Ethnicity", "Field", "Gender", "Race", "Type Concept"),
@@ -116,21 +168,31 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
         "concept_class_concept_id": (0, 0, 0, 0, 0, 0, 0),
     },
     "concept_relationship": {
-        "concept_id_1": (),
-        "concept_id_2": (),
-        "relationship_id": (),
-        "valid_start_date": (),
-        "valid_end_date": (),
-        "invalid_reason": (),
+        "concept_id_1": (201826, 0),
+        "concept_id_2": (0, 201826),
+        "relationship_id": ("Is a", "Subsumes"),
+        "valid_start_date": ("19700101", "19700101"),
+        "valid_end_date": ("20991231", "20991231"),
+        "invalid_reason": (None, None),
     },
     "concept_synonym": {
-        "concept_id": (),
-        "concept_synonym_name": (),
-        "language_concept_id": (),
+        "concept_id": (201826,) * 4,
+        "concept_synonym_name": ATHENA_SYNONYM_NAMES,
+        "language_concept_id": (0,) * 4,
     },
     "concept": {
-        "concept_id": (8507, 8527, 38003564, 32817, 201826, 32546, 1147127),
+        "concept_id": (
+            0,
+            8507,
+            8527,
+            38003564,
+            32817,
+            201826,
+            32546,
+            1147127,
+        ),
         "concept_name": (
+            "No matching concept",
             "MALE",
             "White",
             "Not Hispanic or Latino",
@@ -139,9 +201,28 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
             "Disease Episode",
             "condition_occurrence.condition_occurrence_id",
         ),
-        "domain_id": ("Gender", "Race", "Ethnicity", "Type Concept", "Condition", "Episode", "Metadata"),
-        "vocabulary_id": ("Gender", "Race", "Ethnicity", "Type Concept", "SNOMED", "Episode", "CDM"),
+        "domain_id": (
+            "Metadata",
+            "Gender",
+            "Race",
+            "Ethnicity",
+            "Type Concept",
+            "Condition",
+            "Episode",
+            "Metadata",
+        ),
+        "vocabulary_id": (
+            "CDM",
+            "Gender",
+            "Race",
+            "Ethnicity",
+            "Type Concept",
+            "SNOMED",
+            "Episode",
+            "CDM",
+        ),
         "concept_class_id": (
+            "Field",
             "Gender",
             "Race",
             "Ethnicity",
@@ -150,8 +231,18 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
             "Episode",
             "Field",
         ),
-        "standard_concept": ("S", "S", "S", "S", "S", "S", "S"),
+        "standard_concept": (
+            None,
+            "S",
+            "S",
+            "S",
+            "S",
+            "S",
+            "S",
+            "S",
+        ),
         "concept_code": (
+            "OMOP generated",
             "M",
             "White",
             "Not Hispanic or Latino",
@@ -168,6 +259,7 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
             "19700101",
             "19700101",
             "19700101",
+            "19700101",
         ),
         "valid_end_date": (
             "20991231",
@@ -177,8 +269,18 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
             "20991231",
             "20991231",
             "20991231",
+            "20991231",
         ),
-        "invalid_reason": (None, None, None, None, None, None, None),
+        "invalid_reason": (
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ),
     },
     "domain": {
         "domain_id": ("Condition", "Episode", "Ethnicity", "Gender", "Metadata", "Race", "Type Concept"),
@@ -238,7 +340,7 @@ def _load_fixture_vocabulary(engine: sa.Engine, tmp_dir: Path) -> None:
                     model=model,
                     csv_path=csv_path,
                     merge_strategy="upsert",
-                    quote_mode="auto",
+                    quote_mode="by_delimiter",
                 )
                 session.commit()
             connection.commit()

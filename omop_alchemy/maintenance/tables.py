@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Iterable, cast
+from typing import TYPE_CHECKING, cast
 
 import sqlalchemy as sa
+from orm_loader.tables.typing import FileTableProtocol
 
 if TYPE_CHECKING:
     from .context import MaintenanceContext
@@ -57,6 +59,7 @@ class MaintenanceTable:
     table_name: str
     model_name: str
     model_module: str
+    model_cls: type[FileTableProtocol]
     category: TableCategory | None
     extension_table_owner: str | None
     table: sa.Table
@@ -210,6 +213,7 @@ def collect_maintenance_tables() -> list[MaintenanceTable]:
                 table_name=table.name,
                 model_name=mapped_class.__name__,
                 model_module=mapped_class.__module__,
+                model_cls=mapped_class,
                 category=_table_category(mapped_class),
                 extension_table_owner=mapped_class.__omop_extension_owner__,
                 table=table,
