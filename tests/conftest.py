@@ -1,23 +1,25 @@
 import copy
 import os
 import uuid
+from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
+from typing import Any, NamedTuple, cast
+
 import pytest
 import sqlalchemy as sa
-import typer.rich_utils as _typer_rich_utils
-from orm_loader.helpers import Base, bootstrap
-from oa_configurator.testing import IsolatedTestDatabase, isolated_test_database, resolve_with_role_schemas, scoped_test_schema
-from oa_configurator import ResolvedCDMDatabase
 import sqlalchemy.orm as so
+import typer.rich_utils as _typer_rich_utils
+from oa_configurator import ResolvedCDMDatabase, ResolvedDatabase
+from oa_configurator.testing import (
+    IsolatedTestDatabase,
+    isolated_test_database,
+    resolve_with_role_schemas,
+    scoped_test_schema,
+)
+from orm_loader.helpers import Base, bootstrap
 from sqlalchemy.orm import Session, sessionmaker
 
-from typing import Any, Dict, Iterator, NamedTuple, Tuple
-
-from omop_alchemy.config import OmopAlchemyConfig
-from omop_alchemy.maintenance.cli_tables import _truncate_tables
-from omop_alchemy.maintenance.cli_vocab import _load_vocab_model_csv
-from omop_alchemy.maintenance.tables import select_maintenance_tables
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Observation_Period, Person
 from omop_alchemy.cdm.model.structural import Episode, Episode_Event
 from omop_alchemy.cdm.model.vocabulary import (
@@ -30,7 +32,11 @@ from omop_alchemy.cdm.model.vocabulary import (
     Relationship,
     Vocabulary,
 )
+from omop_alchemy.config import OmopAlchemyConfig
+from omop_alchemy.maintenance.cli_tables import _truncate_tables
+from omop_alchemy.maintenance.cli_vocab import VocabularyModel, _load_vocab_model_csv
 from omop_alchemy.maintenance.context import MaintenanceContext
+from omop_alchemy.maintenance.tables import select_maintenance_tables
 
 # typer forces colorized rich error/output rendering when GITHUB_ACTIONS (or
 # FORCE_COLOR / PY_COLORS) is set -- see typer.rich_utils.FORCE_TERMINAL. Under
@@ -58,6 +64,11 @@ class FakeMaintenanceContext:
     def engine_for(self, schema_tag: str) -> Any:
         """Return the one fake engine for any *schema_tag*."""
         return self.engine
+
+
+def fake_maintenance_context(engine: Any) -> MaintenanceContext:
+    """A FakeMaintenanceContext typed as the MaintenanceContext the callers require."""
+    return cast(MaintenanceContext, FakeMaintenanceContext(engine))
 
 
 @pytest.fixture(autouse=True)
@@ -93,6 +104,19 @@ def fresh_db() -> Iterator[IsolatedTestDatabase]:
 def fresh_engine(fresh_db: IsolatedTestDatabase) -> sa.Engine:
     """fresh_db's engine."""
     return fresh_db.connection.engine
+
+
+def require_cdm(resolved: ResolvedDatabase | None) -> ResolvedCDMDatabase:
+    """Narrow a resolved database to the CDM kind the maintenance API requires."""
+    assert isinstance(resolved, ResolvedCDMDatabase)
+    return resolved
+
+
+def table_of(model: Any) -> sa.Table:
+    """The Table a mapped class is bound to, narrowed from the declarative base's FromClause."""
+    table = model.__table__
+    assert isinstance(table, sa.Table)
+    return table
 
 
 @pytest.fixture
@@ -135,16 +159,19 @@ def fresh_duckdb_resolved(fresh_duckdb_db: IsolatedTestDatabase) -> ResolvedCDMD
     return fresh_duckdb_db.resolved
 
 
-ATHENA_LOAD_ORDER = [
-    Domain,
-    Vocabulary,
-    Concept_Class,
-    Concept,
-    Relationship,
-    Concept_Ancestor,
-    Concept_Relationship,
-    Concept_Synonym,
-]
+ATHENA_LOAD_ORDER = cast(
+    tuple[VocabularyModel, ...],
+    (
+        Domain,
+        Vocabulary,
+        Concept_Class,
+        Concept,
+        Relationship,
+        Concept_Ancestor,
+        Concept_Relationship,
+        Concept_Synonym,
+    ),
+)
 
 # ---------------------------------------------------------------------------
 # In-memory Athena fixture data
@@ -153,9 +180,9 @@ ATHENA_LOAD_ORDER = [
 # tuple of row values (one entry per row, in the same order).
 # Empty tuples = table has no rows (header-only CSV).
 
-ATHENA_SYNONYM_NAMES = ('4.25"X4.25"', 'Size 5"', '"BRCA1 positive"', 'Diabète de type 2 – sucré')
+ATHENA_SYNONYM_NAMES = ('4.25"X4.25"', 'Size 5"', '"BRCA1 positive"', "Diabète de type 2 – sucré")
 
-_ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
+_ATHENA_FIXTURE_DATA: dict[str, dict[str, tuple[Any, ...]]] = {
     "concept_ancestor": {
         "ancestor_concept_id": (201826,),
         "descendant_concept_id": (201826,),
@@ -163,8 +190,24 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
         "max_levels_of_separation": (0,),
     },
     "concept_class": {
-        "concept_class_id": ("Clinical Finding", "Episode", "Ethnicity", "Field", "Gender", "Race", "Type Concept"),
-        "concept_class_name": ("Clinical Finding", "Episode", "Ethnicity", "Field", "Gender", "Race", "Type Concept"),
+        "concept_class_id": (
+            "Clinical Finding",
+            "Episode",
+            "Ethnicity",
+            "Field",
+            "Gender",
+            "Race",
+            "Type Concept",
+        ),
+        "concept_class_name": (
+            "Clinical Finding",
+            "Episode",
+            "Ethnicity",
+            "Field",
+            "Gender",
+            "Race",
+            "Type Concept",
+        ),
         "concept_class_concept_id": (0, 0, 0, 0, 0, 0, 0),
     },
     "concept_relationship": {
@@ -283,8 +326,24 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
         ),
     },
     "domain": {
-        "domain_id": ("Condition", "Episode", "Ethnicity", "Gender", "Metadata", "Race", "Type Concept"),
-        "domain_name": ("Condition", "Episode", "Ethnicity", "Gender", "Metadata", "Race", "Type Concept"),
+        "domain_id": (
+            "Condition",
+            "Episode",
+            "Ethnicity",
+            "Gender",
+            "Metadata",
+            "Race",
+            "Type Concept",
+        ),
+        "domain_name": (
+            "Condition",
+            "Episode",
+            "Ethnicity",
+            "Gender",
+            "Metadata",
+            "Race",
+            "Type Concept",
+        ),
         "domain_concept_id": (0, 0, 0, 0, 0, 0, 0),
     },
     "relationship": {
@@ -296,7 +355,15 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
         "relationship_concept_id": (0, 0),
     },
     "vocabulary": {
-        "vocabulary_id": ("CDM", "Episode", "Ethnicity", "Gender", "Race", "SNOMED", "Type Concept"),
+        "vocabulary_id": (
+            "CDM",
+            "Episode",
+            "Ethnicity",
+            "Gender",
+            "Race",
+            "SNOMED",
+            "Type Concept",
+        ),
         "vocabulary_name": (
             "Common Data Model",
             "OMOP Episode",
@@ -313,15 +380,14 @@ _ATHENA_FIXTURE_DATA: Dict[str, Dict[str, Tuple[Any, ...]]] = {
 }
 
 
-def _write_fixture_csv(directory: Path, table_name: str, data: Dict[str, Tuple[Any, ...]]) -> Path:
+def _write_fixture_csv(directory: Path, table_name: str, data: dict[str, tuple[Any, ...]]) -> Path:
     """Write an in-memory fixture dict to a tab-separated CSV file."""
     path = directory / f"{table_name.upper()}.csv"
     cols = list(data.keys())
     rows = list(zip(*data.values())) if cols and any(data.values()) else []
     with open(path, "w", newline="", encoding="utf-8") as f:
         f.write("\t".join(cols) + "\n")
-        for row in rows:
-            f.write("\t".join("" if v is None else str(v) for v in row) + "\n")
+        f.writelines("\t".join("" if v is None else str(v) for v in row) + "\n" for row in rows)
     return path
 
 
@@ -365,8 +431,7 @@ def _concept_id(
     concept_id = session.scalar(query.order_by(Concept.concept_id).limit(1))
     if concept_id is None:
         raise RuntimeError(
-            f"Missing concept fixture for concept_name={concept_name!r}, "
-            f"domain_id={domain_id!r}"
+            f"Missing concept fixture for concept_name={concept_name!r}, domain_id={domain_id!r}"
         )
     return int(concept_id)
 
@@ -502,6 +567,7 @@ def pg_db(request):
     committing ``Engine``.
     """
     from oa_configurator.testing import isolated_test_database
+
     from omop_alchemy.config import OmopAlchemyConfig
 
     with isolated_test_database(OmopAlchemyConfig, "test_cdm_db_pg", request=request) as db:
@@ -511,13 +577,17 @@ def pg_db(request):
 @pytest.fixture
 def pg_resolved(pg_db) -> ResolvedCDMDatabase:
     """pg_db's own ResolvedCDMDatabase, for maintenance functions that require one."""
-    return pg_db.resolved
+    return require_cdm(pg_db.resolved)
 
 
 @pytest.fixture
 def pg_unscoped_resolved(pg_db) -> ResolvedCDMDatabase:
     """pg_db.resolved with every role on the connection's own default schema."""
-    return resolve_with_role_schemas(pg_db.resolved, {role: None for role in pg_db.resolved.schema_tags()})
+    return require_cdm(
+        resolve_with_role_schemas(
+            pg_db.resolved, {role: None for role in pg_db.resolved.schema_tags()}
+        )
+    )
 
 
 @pytest.fixture
@@ -534,9 +604,9 @@ def pg_engine(pg_unscoped_resolved):
 @pytest.fixture
 def pg_session(pg_engine, pg_unscoped_resolved, cleanup_after_test):
     """Function-scoped PostgreSQL session with every managed table empty for each test.
-    Re-uses one persistent database across the whole suite as creating/tearing down 
+    Re-uses one persistent database across the whole suite as creating/tearing down
     a real database per test would be far more expensive. Everything requiring
-    a genuinely committing engine (``.connect()``/``.begin()``) should requires 
+    a genuinely committing engine (``.connect()``/``.begin()``) should requires
     cleanup.
 
     Notes
@@ -560,7 +630,9 @@ def pg_session(pg_engine, pg_unscoped_resolved, cleanup_after_test):
 
     def _clear_managed_tables() -> None:
         _truncate_tables(
-            MaintenanceContext(resolved=pg_unscoped_resolved, engine=pg_engine, vocab_engine=pg_engine),
+            MaintenanceContext(
+                resolved=pg_unscoped_resolved, engine=pg_engine, vocab_engine=pg_engine
+            ),
             table_names=tuple(table.table_name for table in select_maintenance_tables()),
             cascade=True,
         )
@@ -604,12 +676,8 @@ def sqlite_split(tmp_path) -> Iterator[SplitSQLite]:
     from omop_alchemy.config import create_cdm_engines
 
     connections = {
-        "primary": ConnectionConfig(
-            dialect="sqlite", database_name=str(tmp_path / "primary.db")
-        ),
-        "vocab": ConnectionConfig(
-            dialect="sqlite", database_name=str(tmp_path / "vocab.db")
-        ),
+        "primary": ConnectionConfig(dialect="sqlite", database_name=str(tmp_path / "primary.db")),
+        "vocab": ConnectionConfig(dialect="sqlite", database_name=str(tmp_path / "vocab.db")),
     }
     stack = StackConfig.for_session(
         connections=connections,
@@ -620,8 +688,7 @@ def sqlite_split(tmp_path) -> Iterator[SplitSQLite]:
             )
         },
     )
-    resolved = Resolver(stack).resolve_database("split_cdm")
-    assert isinstance(resolved, ResolvedCDMDatabase)
+    resolved = require_cdm(Resolver(stack).resolve_database("split_cdm"))
     primary, vocab = create_cdm_engines(resolved)
     context = MaintenanceContext(resolved=resolved, engine=primary, vocab_engine=vocab)
     try:
@@ -648,8 +715,13 @@ def pg_split(pg_db, tmp_path) -> Iterator[SplitCDM]:
     suffix = uuid.uuid4().hex[:8]
     connections = {
         role: ConnectionConfig(
-            dialect=url.drivername, host=url.host, port=url.port, user=url.username,
-            password=url.password, database_name=f"split_{role}_{suffix}", test_only=True,
+            dialect=url.drivername,
+            host=url.host,
+            port=url.port,
+            user=url.username,
+            password=url.password,
+            database_name=f"split_{role}_{suffix}",
+            test_only=True,
         )
         for role in ("primary", "vocab")
     }
@@ -660,13 +732,14 @@ def pg_split(pg_db, tmp_path) -> Iterator[SplitCDM]:
         connections=connections,
         databases={
             "split_cdm": CDMDatabaseConfig(
-                connection="primary", vocab_connection="vocab",
-                cdm_schema="public", vocab_schema="public",
+                connection="primary",
+                vocab_connection="vocab",
+                cdm_schema="public",
+                vocab_schema="public",
             )
         },
     )
-    resolved = Resolver(stack).resolve_database("split_cdm")
-    assert isinstance(resolved, ResolvedCDMDatabase)
+    resolved = require_cdm(Resolver(stack).resolve_database("split_cdm"))
     try:
         bootstrap(resolved, create=True)
         primary, vocab = create_cdm_engines(resolved)
@@ -700,7 +773,7 @@ def pg_schema_session(pg_db):
 
 
 @pytest.fixture(scope="function")
-def session(engine) -> Session:  # type: ignore
+def session(engine) -> Iterator[Session]:
     """
     Function-scoped SQLAlchemy session.
 
@@ -709,7 +782,7 @@ def session(engine) -> Session:  # type: ignore
     session = so.Session(engine, expire_on_commit=False)
 
     try:
-        yield session  # type: ignore
+        yield session
     finally:
         session.rollback()
         session.close()
@@ -723,7 +796,7 @@ def session(engine) -> Session:  # type: ignore
 
 
 @pytest.fixture(scope="function")
-def athena_fixtures() -> Dict[str, Dict[str, Tuple[Any, ...]]]:
+def athena_fixtures() -> dict[str, dict[str, tuple[Any, ...]]]:
     """All Athena vocabulary tables as a single dict keyed by ORM table name."""
     return {k: dict(v) for k, v in _ATHENA_FIXTURE_DATA.items()}
 
@@ -739,48 +812,48 @@ def athena_source_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture(scope="function")
-def concept_ancestor() -> Dict[str, Tuple[Any, ...]]:
+def concept_ancestor() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the concept_ancestor fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["concept_ancestor"])
 
 
 @pytest.fixture(scope="function")
-def concept_class() -> Dict[str, Tuple[Any, ...]]:
+def concept_class() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the concept_class fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["concept_class"])
 
 
 @pytest.fixture(scope="function")
-def concept_relationship() -> Dict[str, Tuple[Any, ...]]:
+def concept_relationship() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the concept_relationship fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["concept_relationship"])
 
 
 @pytest.fixture(scope="function")
-def concept_synonym() -> Dict[str, Tuple[Any, ...]]:
+def concept_synonym() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the concept_synonym fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["concept_synonym"])
 
 
 @pytest.fixture(scope="function")
-def concept() -> Dict[str, Tuple[Any, ...]]:
+def concept() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the concept fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["concept"])
 
 
 @pytest.fixture(scope="function")
-def domain() -> Dict[str, Tuple[Any, ...]]:
+def domain() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the domain fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["domain"])
 
 
 @pytest.fixture(scope="function")
-def relationship() -> Dict[str, Tuple[Any, ...]]:
+def relationship() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the relationship fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["relationship"])
 
 
 @pytest.fixture(scope="function")
-def vocabulary() -> Dict[str, Tuple[Any, ...]]:
+def vocabulary() -> dict[str, tuple[Any, ...]]:
     """Mutable copy of the vocabulary fixture data."""
     return copy.deepcopy(_ATHENA_FIXTURE_DATA["vocabulary"])

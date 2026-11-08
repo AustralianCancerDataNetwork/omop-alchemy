@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
+
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from datetime import date, datetime
 from oa_configurator import Role
+from orm_loader.helpers import Base
 from sqlalchemy.dialects import postgresql, sqlite
 
 from omop_alchemy.cdm.base import (
+    ClinicalEventMixin,
     ModifierFieldConcepts,
     ModifierSourceMixin,
-    ClinicalEventMixin,
 )
-from orm_loader.helpers import Base
+from omop_alchemy.cdm.base.event_metadata import ClinicalEventModelSpec
 from omop_alchemy.cdm.model import (
     Condition_Occurrence,
     Device_Exposure,
@@ -25,8 +27,6 @@ from omop_alchemy.cdm.model import (
     Procedure_Occurrence,
 )
 from omop_alchemy.cdm.model.clinical import MeasurementView, ObservationView
-from omop_alchemy.cdm.model.structural import Episode, Episode_EventView
-from omop_alchemy.cdm.base.event_metadata import ClinicalEventModelSpec
 from omop_alchemy.cdm.model.clinical.event_metadata import (
     CLINICAL_EVENT_TARGETS_BY_FIELD_CONCEPT_ID,
     CLINICAL_EVENT_TARGETS_BY_TABLE,
@@ -35,12 +35,7 @@ from omop_alchemy.cdm.model.clinical.event_metadata import (
     clinical_event_model_spec,
     clinical_event_target_for_table,
 )
-from omop_alchemy.toolkit.core.modifiers.projections import _VALUE_COLUMN_TYPES
-from omop_alchemy.toolkit.core.modifiers.contracts import (
-    ModifierColumn,
-    ModifierRow,
-    ValuedModifierRow,
-)
+from omop_alchemy.cdm.model.structural import Episode, Episode_EventView
 from omop_alchemy.toolkit.core.modifiers import (
     CDM_MODIFIER_SOURCE_MODELS,
     MODIFIER_SOURCE_MODEL_SPECS_BY_TABLE,
@@ -54,13 +49,17 @@ from omop_alchemy.toolkit.core.modifiers import (
     modifier_target_model_spec,
     modifier_target_queries,
 )
-
+from omop_alchemy.toolkit.core.modifiers.contracts import (
+    ModifierColumn,
+    ModifierRow,
+    ValuedModifierRow,
+)
+from omop_alchemy.toolkit.core.modifiers.projections import _VALUE_COLUMN_TYPES
+from tests.conftest import table_of
 
 # The full projection shape, in UNION position order. Only the tests need the
 # whole; production code asks for the obligation it actually cares about.
-_ALL_MODIFIER_COLUMNS = (
-    ModifierColumn.required_columns() + ModifierColumn.value_columns()
-)
+_ALL_MODIFIER_COLUMNS = ModifierColumn.required_columns() + ModifierColumn.value_columns()
 
 
 @pytest.mark.parametrize(
@@ -70,13 +69,9 @@ _ALL_MODIFIER_COLUMNS = (
 def test_modifier_projection_has_one_stable_shape(model, source_table: str):
     statement = canonical_modifier_projection(model)
 
-    assert tuple(statement.selected_columns.keys()) == tuple(
-        map(str, _ALL_MODIFIER_COLUMNS)
-    )
+    assert tuple(statement.selected_columns.keys()) == tuple(map(str, _ALL_MODIFIER_COLUMNS))
     compiled = str(
-        statement.compile(
-            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
-        )
+        statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
     )
     assert f"'{source_table}' AS modifier_source_table" in compiled
 
@@ -84,22 +79,16 @@ def test_modifier_projection_has_one_stable_shape(model, source_table: str):
 def test_modifier_union_preserves_shape_and_all_rows():
     statement = canonical_modifier_union(Measurement, Observation)
 
-    assert tuple(statement.selected_columns.keys()) == tuple(
-        map(str, _ALL_MODIFIER_COLUMNS)
-    )
+    assert tuple(statement.selected_columns.keys()) == tuple(map(str, _ALL_MODIFIER_COLUMNS))
     assert "UNION ALL" in str(statement.compile(dialect=sqlite.dialect()))
 
 
 def test_non_modifier_model_fails_at_query_construction():
-    with pytest.raises(
-        UnsupportedModifierSourceModelError, match="ModifierSourceMixin"
-    ) as raised:
+    with pytest.raises(UnsupportedModifierSourceModelError, match="ModifierSourceMixin") as raised:
         canonical_modifier_projection(Person)
 
     assert raised.value.model is Person
-    assert raised.value.reason == (
-        "must declare the OMOP modifier link via ModifierSourceMixin"
-    )
+    assert raised.value.reason == ("must declare the OMOP modifier link via ModifierSourceMixin")
 
 
 def test_unsupported_modifier_target_error_preserves_model_and_reason():
@@ -129,9 +118,7 @@ def test_modifier_target_surface_is_the_clinical_and_structural_registries():
         *CLINICAL_EVENT_TARGETS_BY_TABLE,
         *STRUCTURAL_MODIFIER_TARGETS_BY_TABLE,
     }
-    assert not set(CLINICAL_EVENT_TARGETS_BY_TABLE) & set(
-        STRUCTURAL_MODIFIER_TARGETS_BY_TABLE
-    )
+    assert not set(CLINICAL_EVENT_TARGETS_BY_TABLE) & set(STRUCTURAL_MODIFIER_TARGETS_BY_TABLE)
     assert set(STRUCTURAL_MODIFIER_TARGETS_BY_TABLE) == {"episode"}
 
 
@@ -151,12 +138,8 @@ def test_structural_groupers_never_enter_the_clinical_event_registry():
         target.modifier_field_concept_id()
         for target in STRUCTURAL_MODIFIER_TARGETS_BY_TABLE.values()
     }
-    assert not structural_field_concepts & set(
-        CLINICAL_EVENT_TARGETS_BY_FIELD_CONCEPT_ID
-    )
-    assert not structural_field_concepts & set(
-        Episode_EventView.resolved_event_target_classes()
-    )
+    assert not structural_field_concepts & set(CLINICAL_EVENT_TARGETS_BY_FIELD_CONCEPT_ID)
+    assert not structural_field_concepts & set(Episode_EventView.resolved_event_target_classes())
 
 
 def test_canonical_column_vocabulary_is_stated_once():
@@ -165,17 +148,15 @@ def test_canonical_column_vocabulary_is_stated_once():
     Each names the same columns for a different audience, and nothing in the
     language keeps them in step, so the agreement is asserted here.
     """
-    assert not set(ModifierColumn.required_columns()) & set(
-        ModifierColumn.value_columns()
-    ), "a column cannot be both required and an optional value"
+    assert not set(ModifierColumn.required_columns()) & set(ModifierColumn.value_columns()), (
+        "a column cannot be both required and an optional value"
+    )
     assert set(_ALL_MODIFIER_COLUMNS) == set(ModifierColumn), (
         "every ModifierColumn must be classified as required or value"
     )
     assert len(_ALL_MODIFIER_COLUMNS) == len(ModifierColumn)
 
-    assert tuple(ModifierRow.__annotations__) == tuple(
-        map(str, ModifierColumn.required_columns())
-    )
+    assert tuple(ModifierRow.__annotations__) == tuple(map(str, ModifierColumn.required_columns()))
     assert tuple(ValuedModifierRow.__annotations__) == tuple(
         map(str, ModifierColumn.value_columns())
     )
@@ -218,9 +199,7 @@ def _make_custom_source(**overrides):
         __start_date_col__ = "custom_date"
         __end_date_col__ = "custom_date"
         __type_concept_id_col__ = "custom_concept_id"
-        __modifier_event_id_col__ = overrides.get(
-            "__modifier_event_id_col__", "custom_event_id"
-        )
+        __modifier_event_id_col__ = overrides.get("__modifier_event_id_col__", "custom_event_id")
         __modifier_field_concept_id_col__ = "custom_event_field_concept_id"
 
         custom_source_id: so.Mapped[int] = so.mapped_column(primary_key=True)
@@ -265,17 +244,14 @@ def test_a_source_naming_a_missing_link_column_is_rejected():
     """The mixin supplies the hybrids; the subclass must name real columns."""
     custom = _make_custom_source(__modifier_event_id_col__="no_such_column")
 
-    with pytest.raises(
-        UnsupportedModifierSourceModelError, match="names a missing column"
-    ):
+    with pytest.raises(UnsupportedModifierSourceModelError, match="names a missing column"):
         modifier_source_model_spec(custom)
 
 
 @pytest.mark.parametrize("source_model", [MeasurementView, ObservationView])
-def test_modifier_source_subclass_projects_its_own_event_metadata(
-    source_model, fresh_engine
-):
+def test_modifier_source_subclass_projects_its_own_event_metadata(source_model, fresh_engine):
     original = clinical_event_model_spec(source_model)
+    assert original.event_datetime_column is not None
     specialized = type(
         f"{source_model.__name__}WithOverriddenEventMetadata",
         (source_model,),
@@ -316,11 +292,7 @@ def test_modifier_source_subclass_projects_its_own_event_metadata(
                 "value_as_concept_id": 900_002,
             },
         )
-        row = (
-            connection.execute(canonical_modifier_projection(specialized))
-            .mappings()
-            .one()
-        )
+        row = connection.execute(canonical_modifier_projection(specialized)).mappings().one()
     engine.dispose()
 
     assert row["modifier_id"] == 107
@@ -332,9 +304,7 @@ def test_modifier_source_subclass_projects_its_own_event_metadata(
 @pytest.mark.parametrize(
     "declaration", ["__event_id_col__", "__concept_id_col__", "__start_date_col__"]
 )
-def test_modifier_source_subclass_rejects_missing_declared_columns(
-    source_model, declaration
-):
+def test_modifier_source_subclass_rejects_missing_declared_columns(source_model, declaration):
     specialized = type(
         f"{source_model.__name__}WithMissing{declaration.strip('_')}",
         (source_model,),
@@ -385,49 +355,43 @@ def test_episode_is_a_modifier_target_without_becoming_a_clinical_event():
     ],
 )
 def test_target_resolution_queries_compile_for_supported_models(target):
-    queries = modifier_target_queries(
-        Measurement, target, include_unmatched=True, diagnostics=True
-    )
+    queries = modifier_target_queries(Measurement, target, include_unmatched=True, diagnostics=True)
 
     assert queries.diagnostics is not None
     for dialect in (sqlite.dialect(), postgresql.dialect()):
-        assert "resolved_target_event_id" in str(
-            queries.matches.compile(dialect=dialect)
-        )
+        assert "resolved_target_event_id" in str(queries.matches.compile(dialect=dialect))
         assert "diagnostic_code" in str(queries.diagnostics.compile(dialect=dialect))
 
 
 def _seeded_engine(engine, conditions, measurements):
     """Populate fresh_engine with the given condition and measurement rows."""
-    Base.metadata.create_all(
-        engine, tables=[Condition_Occurrence.__table__, Measurement.__table__]
-    )
+    Base.metadata.create_all(engine, tables=[table_of(Condition_Occurrence), table_of(Measurement)])
     with engine.begin() as connection:
-        connection.execute(Condition_Occurrence.__table__.insert(), conditions)
-        connection.execute(Measurement.__table__.insert(), measurements)
+        connection.execute(table_of(Condition_Occurrence).insert(), conditions)
+        connection.execute(table_of(Measurement).insert(), measurements)
     return engine
 
 
 def _condition(condition_occurrence_id: int, person_id: int):
-    return dict(
-        condition_occurrence_id=condition_occurrence_id,
-        person_id=person_id,
-        condition_concept_id=4,
-        condition_start_date=date(2020, 1, 1),
-        condition_type_concept_id=1,
-    )
+    return {
+        "condition_occurrence_id": condition_occurrence_id,
+        "person_id": person_id,
+        "condition_concept_id": 4,
+        "condition_start_date": date(2020, 1, 1),
+        "condition_type_concept_id": 1,
+    }
 
 
 def _modifier_of(measurement_id: int, person_id: int, target_id: int):
-    return dict(
-        measurement_id=measurement_id,
-        person_id=person_id,
-        measurement_concept_id=9,
-        measurement_date=date(2020, 6, 1),
-        measurement_type_concept_id=1,
-        measurement_event_id=target_id,
-        meas_event_field_concept_id=ModifierFieldConcepts.CONDITION_OCCURRENCE,
-    )
+    return {
+        "measurement_id": measurement_id,
+        "person_id": person_id,
+        "measurement_concept_id": 9,
+        "measurement_date": date(2020, 6, 1),
+        "measurement_type_concept_id": 1,
+        "measurement_event_id": target_id,
+        "meas_event_field_concept_id": ModifierFieldConcepts.CONDITION_OCCURRENCE,
+    }
 
 
 def _diagnostic_codes(engine, target) -> set[tuple[int, str]]:
@@ -446,9 +410,7 @@ def test_a_whole_target_table_can_prove_a_dangling_modifier(fresh_engine):
         measurements=[_modifier_of(100, 10, 1), _modifier_of(101, 10, 99)],
     )
 
-    assert _diagnostic_codes(engine, Condition_Occurrence) == {
-        (101, "missing_target_event")
-    }
+    assert _diagnostic_codes(engine, Condition_Occurrence) == {(101, "missing_target_event")}
 
 
 def test_a_filtered_target_never_reports_a_missing_target_event(fresh_engine):
@@ -511,9 +473,7 @@ def test_target_validation_rejects_null_identity_and_cross_person_links():
     targets = sa.select(
         sa.literal(10).label("person_id"),
         sa.literal(7).label("event_id"),
-        sa.literal(ModifierFieldConcepts.CONDITION_OCCURRENCE).label(
-            "event_field_concept_id"
-        ),
+        sa.literal(ModifierFieldConcepts.CONDITION_OCCURRENCE).label("event_field_concept_id"),
         sa.literal("condition_occurrence").label("event_source_table"),
     )
     queries = modifier_target_queries(modifiers, targets, diagnostics=True)
@@ -561,16 +521,12 @@ def test_postgresql_executes_modifier_target_validation_contracts(pg_session):
     targets = sa.select(
         sa.literal(10).label("person_id"),
         sa.literal(7).label("event_id"),
-        sa.literal(ModifierFieldConcepts.CONDITION_OCCURRENCE).label(
-            "event_field_concept_id"
-        ),
+        sa.literal(ModifierFieldConcepts.CONDITION_OCCURRENCE).label("event_field_concept_id"),
         sa.literal("condition_occurrence").label("event_source_table"),
     )
     queries = modifier_target_queries(modifiers, targets, diagnostics=True)
 
-    assert [
-        row["modifier_id"] for row in pg_session.execute(queries.matches).mappings()
-    ] == [1]
+    assert [row["modifier_id"] for row in pg_session.execute(queries.matches).mappings()] == [1]
     assert queries.diagnostics is not None
     assert {
         (row["modifier_id"], row["diagnostic_code"])

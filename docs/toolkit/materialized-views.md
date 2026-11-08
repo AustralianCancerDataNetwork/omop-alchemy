@@ -20,15 +20,12 @@ from orm_loader.mappers import MaterializedViewIndex
 from orm_loader.mappers import MaterializedViewMixin
 
 
-measurement_summary = (
-    sa.select(
-        Measurement.person_id,
-        Measurement.measurement_concept_id.label("concept_id"),
-        sa.func.max(Measurement.measurement_date).label("last_measurement_date"),
-        sa.func.count().label("measurement_count"),
-    )
-    .group_by(Measurement.person_id, Measurement.measurement_concept_id)
-)
+measurement_summary = sa.select(
+    Measurement.person_id,
+    Measurement.measurement_concept_id.label("concept_id"),
+    sa.func.max(Measurement.measurement_date).label("last_measurement_date"),
+    sa.func.count().label("measurement_count"),
+).group_by(Measurement.person_id, Measurement.measurement_concept_id)
 
 
 class MeasurementSummaryMV(MaterializedViewMixin):

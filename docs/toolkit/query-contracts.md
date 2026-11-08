@@ -187,10 +187,7 @@ attachment_queries = episode_attachment_queries(
 attachments = session.execute(attachment_queries.attachments).mappings().all()
 assert attachment_queries.diagnostics is not None
 diagnostics = session.execute(attachment_queries.diagnostics).mappings().all()
-typed_diagnostics = [
-    EpisodeAttachmentDiagnostic.from_mapping(row)
-    for row in diagnostics
-]
+typed_diagnostics = [EpisodeAttachmentDiagnostic.from_mapping(row) for row in diagnostics]
 ```
 
 The attachment result preserves the event projection and adds `episode_id` and `attachment_method`. Its uniqueness key is `(event_source_table, event_id, episode_id)`. A valid explicit link may legitimately connect an event to more than one episode; each relationship remains a separate attachment under that key.
@@ -401,12 +398,8 @@ Some applications compose positive and negative rules independently rather than 
 from omop_alchemy.toolkit.core.concepts import descendant_concept_select
 
 matching_procedures = select(Procedure_Occurrence).where(
-    Procedure_Occurrence.procedure_concept_id.in_(
-        descendant_concept_select((100, 200))
-    ),
-    Procedure_Occurrence.procedure_concept_id.not_in(
-        descendant_concept_select((400,))
-    ),
+    Procedure_Occurrence.procedure_concept_id.in_(descendant_concept_select((100, 200))),
+    Procedure_Occurrence.procedure_concept_id.not_in(descendant_concept_select((400,))),
 )
 ```
 
@@ -456,13 +449,13 @@ Diagnostics support inspection and validation independently of selection. Consum
 from omop_alchemy.toolkit.core.modifiers import ModifierTargetDiagnostic
 
 checked = modifier_target_queries(
-    Measurement, Condition_Occurrence, diagnostics=True,
+    Measurement,
+    Condition_Occurrence,
+    diagnostics=True,
 )
 assert checked.diagnostics is not None
 diagnostic_rows = session.execute(checked.diagnostics).mappings().all()
-typed_diagnostics = [
-    ModifierTargetDiagnostic.from_mapping(row) for row in diagnostic_rows
-]
+typed_diagnostics = [ModifierTargetDiagnostic.from_mapping(row) for row in diagnostic_rows]
 ```
 
 `EpisodeAttachmentDiagnostic` provides the corresponding convenience for attachment diagnostics, as shown above. These are exported downstream validation contracts; their presence does not imply an in-package workflow or a scheduled consumer integration.

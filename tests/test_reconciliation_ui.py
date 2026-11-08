@@ -13,9 +13,14 @@ from omop_alchemy.maintenance.ui import render_reconciliation_issues
 
 def _issue(status):
     return ReconciliationIssue(
-        table_name="episode", category=TableCategory.STRUCTURAL,
-        component="foreign_key_enforcement", object_name="episode_parent",
-        status=status, expected="enforced", actual="notice detail", detail="retained diagnostic",
+        table_name="episode",
+        category=TableCategory.STRUCTURAL,
+        component="foreign_key_enforcement",
+        object_name="episode_parent",
+        status=status,
+        expected="enforced",
+        actual="notice detail",
+        detail="retained diagnostic",
     )
 
 

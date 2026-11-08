@@ -1,9 +1,14 @@
-import sqlalchemy as sa
 import pytest
+import sqlalchemy as sa
+from oa_configurator import (
+    SCHEMA_TRANSLATE_MAP_KEY,
+    CDMDatabaseConfig,
+    ConnectionConfig,
+    StackConfig,
+)
+from oa_configurator import Role as SchemaRole
 from sqlalchemy.dialects import postgresql
 from typer.testing import CliRunner
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, SCHEMA_TRANSLATE_MAP_KEY, StackConfig
-from oa_configurator import Role as SchemaRole
 
 from omop_alchemy.backends import (
     CONCEPT_NAME_TSVECTOR_COLUMN,
@@ -13,15 +18,15 @@ from omop_alchemy.cdm.model.vocabulary.concept import Concept
 from omop_alchemy.cdm.model.vocabulary.concept_synonym import Concept_Synonym
 from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.cli import app
-from omop_alchemy.maintenance.context import MaintenanceContext
-from tests.conftest import FakeMaintenanceContext
 from omop_alchemy.maintenance.cli_fulltext import (
     FullTextAction,
     FullTextResult,
-    drop_fulltext_columns,
     _install_fulltext_columns,
+    drop_fulltext_columns,
     populate_fulltext_columns,
 )
+from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import fake_maintenance_context
 
 runner = CliRunner()
 
@@ -94,7 +99,7 @@ def test_install_fulltext_columns_builds_postgresql_ddl_without_touching_orm_met
     engine = _FakeEngine()
 
     results = _install_fulltext_columns(
-        FakeMaintenanceContext(engine),  # type: ignore[arg-type]
+        fake_maintenance_context(engine),
         create_indexes=True,
         fastupdate=True,
     )
@@ -103,7 +108,8 @@ def test_install_fulltext_columns_builds_postgresql_ddl_without_touching_orm_met
     assert all(result.status == "applied" for result in results)
     statements = [call[1] for call in engine.connection.calls]
     assert any(
-        'ALTER TABLE public.concept ADD COLUMN IF NOT EXISTS concept_name_tsvector tsvector' in statement
+        "ALTER TABLE public.concept ADD COLUMN IF NOT EXISTS concept_name_tsvector tsvector"
+        in statement
         for statement in statements
     )
     assert any(
@@ -119,14 +125,14 @@ def test_populate_fulltext_columns_issues_update_with_regconfig_and_row_counts()
     engine = _FakeEngine(rowcount=11)
 
     results = populate_fulltext_columns(
-        FakeMaintenanceContext(engine),  # type: ignore[arg-type]
+        fake_maintenance_context(engine),
         regconfig="simple",
     )
 
     assert all(result.status == "applied" for result in results)
     assert [result.row_count for result in results] == [11, 11]
     execute_calls = [call for call in engine.connection.calls if call[0] == "execute"]
-    assert any('UPDATE public.concept' in call[1] for call in execute_calls)
+    assert any("UPDATE public.concept" in call[1] for call in execute_calls)
     assert any("CAST(:regconfig AS REGCONFIG)" in call[1] for call in execute_calls)
     assert all(call[2] == {"regconfig": "simple"} for call in execute_calls)
 
@@ -136,16 +142,19 @@ def test_drop_fulltext_columns_drops_schema_objects():
     engine = _FakeEngine()
 
     results = drop_fulltext_columns(
-        FakeMaintenanceContext(engine),  # type: ignore[arg-type]
+        fake_maintenance_context(engine),
         drop_indexes=True,
     )
 
     assert [result.action for result in results] == [FullTextAction.DROP, FullTextAction.DROP]
     assert all(result.status == "applied" for result in results)
     statements = [call[1] for call in engine.connection.calls]
-    assert any('DROP INDEX IF EXISTS public.idx_gin_concept_name_tsvector' in statement for statement in statements)
     assert any(
-        'ALTER TABLE public.concept DROP COLUMN IF EXISTS concept_name_tsvector' in statement
+        "DROP INDEX IF EXISTS public.idx_gin_concept_name_tsvector" in statement
+        for statement in statements
+    )
+    assert any(
+        "ALTER TABLE public.concept DROP COLUMN IF EXISTS concept_name_tsvector" in statement
         for statement in statements
     )
     assert CONCEPT_NAME_TSVECTOR_COLUMN not in Concept.__table__.c
@@ -194,8 +203,12 @@ def test_fulltext_install_cli_passes_options(monkeypatch, pg_db):
     cfg = StackConfig.for_session(
         connections={
             "db": ConnectionConfig(
-                dialect=url.drivername, host=url.host, port=url.port,
-                user=url.username, password=url.password, database_name=url.database,
+                dialect=url.drivername,
+                host=url.host,
+                port=url.port,
+                user=url.username,
+                password=url.password,
+                database_name=url.database,
                 test_only=False,
             )
         },

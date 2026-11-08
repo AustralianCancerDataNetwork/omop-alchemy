@@ -18,12 +18,7 @@ engine = sa.create_engine(
 )
 
 with so.Session(engine) as session:
-    concepts = (
-        session.query(Concept)
-        .filter(Concept.domain_id == "Drug")
-        .limit(10)
-        .all()
-    )
+    concepts = session.query(Concept).filter(Concept.domain_id == "Drug").limit(10).all()
 ```
 
 

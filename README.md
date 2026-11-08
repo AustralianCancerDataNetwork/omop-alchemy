@@ -37,9 +37,9 @@ OMOP Alchemy is intentionally:
 from omop_alchemy.cdm.model.vocabulary.concept import ConceptView
 
 concept = session.get(ConceptView, 320128)  # Lung cancer
-concept.domain.domain_id                    # "Condition"
-concept.vocabulary.vocabulary_id            # "SNOMED"
-concept.is_standard                         # True
+concept.domain.domain_id  # "Condition"
+concept.vocabulary.vocabulary_id  # "SNOMED"
+concept.is_standard  # True
 ```
 
 ---

@@ -74,12 +74,8 @@ COLLIDING_EVENTS = (
 # Episodes 1001 and 1002 overlap. Their start dates are equally distant from
 # 20 January, so nearest selection must use episode_id as its final tie-break.
 OVERLAPPING_EPISODES = (
-    EpisodeCase(
-        1001, person_id=101, start_date=date(2026, 1, 15), end_date=date(2026, 2, 5)
-    ),
-    EpisodeCase(
-        1002, person_id=101, start_date=date(2026, 1, 25), end_date=date(2026, 2, 20)
-    ),
+    EpisodeCase(1001, person_id=101, start_date=date(2026, 1, 15), end_date=date(2026, 2, 5)),
+    EpisodeCase(1002, person_id=101, start_date=date(2026, 1, 25), end_date=date(2026, 2, 20)),
     EpisodeCase(2001, person_id=202, start_date=date(2026, 1, 10), end_date=None),
 )
 
@@ -88,12 +84,8 @@ OVERLAPPING_EPISODES = (
 # started. A side-neutral nearest policy selects 1003; a policy that prefers
 # already-started episodes selects 1001.
 DIRECTIONAL_PREFERENCE_EPISODES = (
-    EpisodeCase(
-        1001, person_id=101, start_date=date(2026, 1, 15), end_date=date(2026, 2, 5)
-    ),
-    EpisodeCase(
-        1003, person_id=101, start_date=date(2026, 1, 21), end_date=date(2026, 2, 28)
-    ),
+    EpisodeCase(1001, person_id=101, start_date=date(2026, 1, 15), end_date=date(2026, 2, 5)),
+    EpisodeCase(1003, person_id=101, start_date=date(2026, 1, 21), end_date=date(2026, 2, 28)),
 )
 
 

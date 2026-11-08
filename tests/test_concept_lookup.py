@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 import sqlalchemy as sa
+from sqlalchemy import event
 
 from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Synonym
 from omop_alchemy.cdm.query import ConceptFilter
@@ -104,7 +105,7 @@ def test_synonym_lookup_is_scoped_to_indexed_concepts(session):
             statements.append(statement.lower())
 
     engine = session.get_bind().engine
-    sa.event.listen(engine, "before_cursor_execute", capture_sql)
+    event.listen(engine, "before_cursor_execute", capture_sql)
     try:
         index = OMOPConceptSource.build_lookup(
             session,
@@ -116,7 +117,7 @@ def test_synonym_lookup_is_scoped_to_indexed_concepts(session):
             ),
         )
     finally:
-        sa.event.remove(engine, "before_cursor_execute", capture_sql)
+        event.remove(engine, "before_cursor_execute", capture_sql)
 
     assert index.lookup("scoped synonym") == 920001
     assert index.lookup("outside synonym") == 0

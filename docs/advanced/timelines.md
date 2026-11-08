@@ -77,7 +77,7 @@ from omop_alchemy.toolkit.core.timeline import Person_Timeline
 
 with Session(engine) as session:
     person = session.get(Person_Timeline, 42)
-    for event in person.timeline:   # sorted by event_time.start
+    for event in person.timeline:  # sorted by event_time.start
         print(event)
         print(event.to_dict())
 ```
@@ -93,6 +93,7 @@ To add a supported CDM table to the timeline, subclass both `ClinicalEvent` and 
 ```python
 from omop_alchemy.toolkit.core.timeline.event_timeline import ClinicalEvent, EventMapping
 from omop_alchemy.cdm.model.clinical import Procedure_Occurrence
+
 
 class Procedure_Event(ClinicalEvent, Procedure_Occurrence):
     _mapping = EventMapping.from_model(Procedure_Occurrence)

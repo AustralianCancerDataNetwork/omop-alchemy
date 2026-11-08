@@ -59,14 +59,11 @@ def test_body_metric_rules_bsa_mosteller_m2():
 
 
 class WeightTrajectoryStub(WeightTrajectoryMixin):
-    def __init__(self, readings: list[MeasurementReading]) -> None:
-        self.episode_id = 1
-        self.person_id = 1
-        self._readings = readings
+    episode_id = 1
+    person_id = 1
 
-    @property
-    def weight_readings(self) -> list[MeasurementReading]:
-        return self._readings
+    def __init__(self, readings: list[MeasurementReading]) -> None:
+        self.weight_readings = readings
 
     @property
     def height_m(self) -> float | None:
@@ -82,14 +79,11 @@ class WeightTrajectoryStub(WeightTrajectoryMixin):
 
 
 class CriticalWeightTrajectoryStub(OncologyCriticalWeightLossMixin):
-    def __init__(self, readings: list[MeasurementReading]) -> None:
-        self.episode_id = 1
-        self.person_id = 1
-        self._readings = readings
+    episode_id = 1
+    person_id = 1
 
-    @property
-    def weight_readings(self) -> list[MeasurementReading]:
-        return self._readings
+    def __init__(self, readings: list[MeasurementReading]) -> None:
+        self.weight_readings = readings
 
     @property
     def height_m(self) -> float | None:

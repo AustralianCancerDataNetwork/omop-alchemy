@@ -1,0 +1,144 @@
+from functools import cached_property
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, ClassVar
+
+import sqlalchemy as sa
+import sqlalchemy.orm as so
+from oa_configurator import Role
+from orm_loader.helpers import Base
+
+from omop_alchemy.cdm.base import (
+    CDMTableBase,
+    DomainValidationMixin,
+    ExpectedDomain,
+    ReferenceContext,
+    cdm_table,
+    merge_table_args,
+    omop_index,
+    role_fk,
+)
+from omop_alchemy.cdm.model.clinical.event_metadata import (
+    CLINICAL_EVENT_TARGETS_BY_FIELD_CONCEPT_ID,
+)
+
+if TYPE_CHECKING:
+    from ..vocabulary import Concept
+    from .episode import Episode
+
+
+def clear_episode_event_target_class_cache() -> None:
+    """Retain the former cache hook; stable event metadata needs no invalidation."""
+
+
+@cdm_table
+class Episode_Event(CDMTableBase, Base):
+    __tablename__ = "episode_event"
+    __table_args__ = merge_table_args(
+        {"schema": Role.PRIMARY.value},
+        omop_index(__tablename__, "episode_id", cluster=True),
+        omop_index(__tablename__, "episode_event_field_concept_id"),
+    )
+
+    episode_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.PRIMARY, "episode.episode_id")), nullable=False, primary_key=True
+    )
+    event_id: so.Mapped[int] = so.mapped_column(nullable=False, primary_key=True)
+    episode_event_field_concept_id: so.Mapped[int] = so.mapped_column(
+        sa.ForeignKey(role_fk(Role.VOCAB, "concept.concept_id")), nullable=False, primary_key=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<EpisodeEvent ep={self.episode_id} event={self.event_id}>"
+
+
+class Episode_EventContext(ReferenceContext):
+    episode: so.Mapped["Episode"] = ReferenceContext._reference_relationship(
+        target="Episode",
+        local_fk="episode_id",
+    )
+    event_field: so.Mapped["Concept"] = ReferenceContext._reference_relationship(
+        target="Concept",
+        local_fk="episode_event_field_concept_id",
+    )
+
+
+class Episode_EventView(Episode_Event, Episode_EventContext, DomainValidationMixin):
+    """
+    Episode ↔ Event linkage view.
+
+    Identifies which CDM table the EVENT_ID comes from via
+    episode_event_field_concept_id.
+    """
+
+    __tablename__ = "episode_event"
+    # Must match Episode_Event's schema, or SQLAlchemy silently builds a second, unlinked Table object.
+    __table_args__ = ({"schema": Role.PRIMARY.value},)
+    __mapper_args__ = MappingProxyType({"concrete": False})
+
+    __expected_domains__: ClassVar[dict[str, ExpectedDomain]] = {
+        "episode_event_field_concept_id": ExpectedDomain("Metadata"),
+    }
+
+    @classmethod
+    def resolved_event_target_classes(cls) -> dict[int, type[Any]]:
+        """
+        Map episode_event field concepts to ORM classes that can receive them.
+
+        A fresh mapping lets domain-specific subclasses override selected
+        targets without mutating the stable Core registry.
+        """
+        return dict(CLINICAL_EVENT_TARGETS_BY_FIELD_CONCEPT_ID)
+
+    @property
+    def event_table(self) -> str | None:
+        if self.event_field and "." in self.event_field.concept_name:
+            return self.event_field.concept_name.split(".", 1)[0]
+        return None
+
+    @property
+    def resolved_event_class(self) -> type[Any] | None:
+        return self.resolved_event_target_classes().get(self.episode_event_field_concept_id)
+
+    @cached_property
+    def resolved_event(self) -> Any | None:
+        """
+        Navigate one link to its concrete OMOP row, cached per instance.
+
+        This existing convenience is deliberately session-bound: it returns
+        None without an attached session or known target class, and session.get
+        may load a target individually. It does not validate person identity.
+        Measurement/Observation intentionally have no equivalent implicit
+        lookup; use the bulk target/attachment queries for validated links.
+        """
+        session = so.object_session(self)
+        cls = self.resolved_event_class
+        if session is None or cls is None:
+            return None
+
+        return session.get(cls, self.event_id)
+
+    def __repr__(self):
+        target = self.resolved_event
+        if target is not None:
+            return (
+                f"<EpisodeEvent ep={self.episode_id} {target.__class__.__name__}#{self.event_id}>"
+            )
+        return f"<EpisodeEvent ep={self.episode_id} event={self.event_id}>"
+
+    @property
+    def episode_start_datetime(self):
+        return self.episode.episode_start_datetime if self.episode else None
+
+    @property
+    def resolved_event_id_column(self) -> str | None:
+        """
+        Name of the ID column on the resolved event table.
+
+        Derived from episode_event_field_concept_id metadata.
+
+        Example:
+            'condition_occurrence.condition_occurrence_id' resolves to 'condition_occurrence_id'
+        """
+        if self.event_field and "." in self.event_field.concept_name:
+            return self.event_field.concept_name.split(".", 1)[1]
+        return None

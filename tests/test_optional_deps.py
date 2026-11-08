@@ -1,5 +1,4 @@
-"""Tests that omop_alchemy stays importable without optional dependencies.
-"""
+"""Tests that omop_alchemy stays importable without optional dependencies."""
 
 from __future__ import annotations
 
@@ -7,7 +6,9 @@ import subprocess
 import sys
 
 
-def _run_blocked(import_statement: str, *, blocked_module: str = "duckdb_sqlalchemy") -> subprocess.CompletedProcess[str]:
+def _run_blocked(
+    import_statement: str, *, blocked_module: str = "duckdb_sqlalchemy"
+) -> subprocess.CompletedProcess[str]:
     code = f"import sys; sys.modules['{blocked_module}'] = None; {import_statement}"
     return subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
 
