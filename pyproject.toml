@@ -108,3 +108,7 @@ extend-immutable-calls = [
   "omop_alchemy.toolkit.core.modifiers.contracts.ModifierSelectionSpec",
   "omop_alchemy.toolkit.episodes.derivation.contracts.EpisodeWindowSpec",
 ]
+
+[tool.ty.rules]
+# raises on stale suppressions
+unused-ignore-comment = "error"
