@@ -9,6 +9,7 @@ from oa_configurator import Role
 from orm_loader.helpers import Base
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
+from sqlalchemy.orm import QueryableAttribute
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.sql import ColumnElement
 
@@ -150,8 +151,11 @@ class PersonView(Person, PersonContext, DomainValidationMixin):
         return on_date.year - self.year_of_birth
 
     @age_at.expression
-    def age_at(cls, on_date: date) -> ColumnElement[int]:
-        return sa.extract("year", sa.literal(on_date)) - cls.year_of_birth
+    def age_at(
+        cls, on_date: date | ColumnElement[date] | QueryableAttribute[date]
+    ) -> ColumnElement[int]:
+        expr = sa.literal(on_date) if isinstance(on_date, date) else on_date
+        return sa.extract("year", expr) - cls.year_of_birth
 
     @property
     def age(self) -> int | None:

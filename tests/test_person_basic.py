@@ -3,7 +3,7 @@ from datetime import date
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
-from omop_alchemy.cdm.model.clinical import Person, PersonView
+from omop_alchemy.cdm.model.clinical import MeasurementView, Person, PersonView
 from omop_alchemy.cdm.model.vocabulary import Concept
 
 
@@ -84,6 +84,12 @@ def test_age_at_expression(session):
     q = sa.select(PersonView).where(PersonView.age_at(date(2020, 1, 1)) > 0).limit(5)
     rows = session.scalars(q).all()
     assert len(rows) > 0
+
+
+def test_age_at_accepts_column():
+    """age_at takes a column as well as a date; hybrid_method types calls by the instance signature."""
+    expr = PersonView.age_at(MeasurementView.measurement_date)  # ty: ignore[invalid-argument-type]
+    assert "measurement.measurement_date" in str(expr)
 
 
 def test_observation_period_flags(session):
