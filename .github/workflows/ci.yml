@@ -7,9 +7,9 @@ jobs:
   label-gate:
     uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/label-gate.yml@main
   ruff:
-    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/ruff.yml@ruff-ty-workflows
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/ruff.yml@main
   ty:
-    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/ty.yml@ruff-ty-workflows
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/ty.yml@main
   lint-imports:
     runs-on: ubuntu-latest
     steps:
@@ -22,11 +22,11 @@ jobs:
       - run: uv sync --all-extras --dev
       - run: uv run lint-imports
   build-test-sqlite:
-    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-sqlite.yml@ruff-ty-workflows
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-sqlite.yml@main
   build-test-duckdb:
-    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-duckdb.yml@ruff-ty-workflows
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-duckdb.yml@main
   build-test-postgres:
-    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-postgres-v3.yml@ruff-ty-workflows
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-postgres-v3.yml@main
     with:
       postgres-image: postgres:17
       postgres-db: omop_alchemy_ci
