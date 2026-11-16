@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 import pytest
 import sqlalchemy as sa
@@ -13,10 +14,10 @@ from omop_alchemy.toolkit.analytics.oncology import (
     M_STAGE_CONCEPTS,
     METASTATIC_DISEASE_CONCEPTS,
     N_STAGE_CONCEPTS,
-    StageBasis,
-    StageSelectionSpec,
     T_STAGE_CONCEPTS,
     TUMOR_GRADE_CONCEPTS,
+    StageBasis,
+    StageSelectionSpec,
     laterality_modifier_concept_id,
     preferred_stage_select,
     tumor_size_modifier_concept_id,
@@ -93,9 +94,13 @@ def test_stage_selection_default_and_overrides(spec, expected_id: int):
     assert selected["modifier_id"] == expected_id
 
 
+def _assign_basis_priority(spec: Any, value: tuple[StageBasis, ...]) -> None:
+    spec.basis_priority = value
+
+
 def test_stage_selection_spec_is_immutable_and_validates_basis_permutation():
     with pytest.raises(AttributeError):
-        DEFAULT_STAGE_SELECTION.basis_priority = (StageBasis.clinical,)  # type: ignore[misc]
+        _assign_basis_priority(DEFAULT_STAGE_SELECTION, (StageBasis.clinical,))
 
     with pytest.raises(ValueError, match="each StageBasis exactly once"):
         StageSelectionSpec(basis_priority=(StageBasis.pathological,))
@@ -166,9 +171,7 @@ def test_same_numeric_target_id_in_two_target_tables_forms_two_partitions():
     engine = sa.create_engine("sqlite://")
     with engine.connect() as connection:
         rows = (
-            connection.execute(
-                selected_modifier_select(sa.union_all(condition, procedure))
-            )
+            connection.execute(selected_modifier_select(sa.union_all(condition, procedure)))
             .mappings()
             .all()
         )
@@ -236,9 +239,7 @@ def test_postgresql_executes_modifier_selection_and_stage_policy_contracts(pg_se
     stage_source = _stage_source().subquery()
     unclassified = sa.select(
         *(
-            sa.literal("uT2").label(column.key)
-            if column.key == "modifier_concept_code"
-            else column
+            sa.literal("uT2").label(column.key) if column.key == "modifier_concept_code" else column
             for column in stage_source.c
         )
     ).where(stage_source.c.modifier_id == 10)
@@ -295,12 +296,12 @@ def test_postgresql_executes_modifier_selection_and_stage_policy_contracts(pg_se
             for column in source.c
         )
     ).where(source.c.modifier_id == 11)
-    selected = pg_session.execute(
-        selected_modifier_select(sa.union_all(condition, procedure))
-    ).mappings().all()
-    assert {
-        (row["target_field_concept_id"], row["modifier_id"]) for row in selected
-    } == {
+    selected = (
+        pg_session.execute(selected_modifier_select(sa.union_all(condition, procedure)))
+        .mappings()
+        .all()
+    )
+    assert {(row["target_field_concept_id"], row["modifier_id"]) for row in selected} == {
         (1147127, 10),
         (1147082, 11),
     }
@@ -319,15 +320,19 @@ def test_postgresql_executes_modifier_selection_and_stage_policy_contracts(pg_se
             sa.literal(target_field).label("target_field_concept_id"),
         )
 
-    equal_native_ids = pg_session.execute(
-        selected_modifier_select(
-            sa.union_all(
-                modifier("measurement", 1147127),
-                modifier("observation", 1147082),
+    equal_native_ids = (
+        pg_session.execute(
+            selected_modifier_select(
+                sa.union_all(
+                    modifier("measurement", 1147127),
+                    modifier("observation", 1147082),
+                )
             )
         )
-    ).mappings().all()
-    assert {
-        (row["modifier_source_table"], row["modifier_id"])
-        for row in equal_native_ids
-    } == {("measurement", 7), ("observation", 7)}
+        .mappings()
+        .all()
+    )
+    assert {(row["modifier_source_table"], row["modifier_id"]) for row in equal_native_ids} == {
+        ("measurement", 7),
+        ("observation", 7),
+    }

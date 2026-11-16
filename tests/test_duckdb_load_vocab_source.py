@@ -1,6 +1,6 @@
 """DuckDB end-to-end coverage for load_vocab_source.
 
-DuckDB enforces relationship.relationship_concept_id's FK to concept 
+DuckDB enforces relationship.relationship_concept_id's FK to concept
 (and concept.domain_id/vocabulary_id/concept_class_id's FKs to
 their own reference tables) at insert time. REQUIRED_VOCAB_MODELS and
 ATHENA_LOAD_ORDER must load Concept before Relationship for this to succeed
@@ -16,10 +16,11 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import pytest
 import sqlalchemy as sa
+import sqlalchemy.exc as sa_exc
 import sqlalchemy.orm as so
 from oa_configurator import Dialect, ResolvedCDMDatabase
 from oa_configurator.testing import IsolatedTestDatabase, isolated_test_database
@@ -32,18 +33,18 @@ from omop_alchemy.maintenance._cli_utils import Status
 from omop_alchemy.maintenance.cli_vocab import (
     REQUIRED_VOCAB_MODELS,
     VocabularyLoadError,
+    VocabularyModel,
     _create_missing_vocabulary_tables,
     load_vocab_source,
 )
 from omop_alchemy.maintenance.context import MaintenanceContext
 
-from .conftest import ATHENA_SYNONYM_NAMES, _ATHENA_FIXTURE_DATA, _write_fixture_csv
+from .conftest import _ATHENA_FIXTURE_DATA, ATHENA_SYNONYM_NAMES, _write_fixture_csv
 
 
 @pytest.fixture
 def staged_duckdb_db(request) -> Iterator[IsolatedTestDatabase]:
-    """Fresh DuckDB database with orm-loader's staging schema claimed.
-    """
+    """Fresh DuckDB database with orm-loader's staging schema claimed."""
     with isolated_test_database(
         OmopAlchemyConfig,
         "test_cdm_db_duckdb",
@@ -67,26 +68,36 @@ def staged_duckdb_resolved(staged_duckdb_db: IsolatedTestDatabase) -> ResolvedCD
 
 @pytest.mark.duckdb
 @pytest.mark.db_dialect
-def test_load_vocab_source_end_to_end_on_duckdb(staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path):
+def test_load_vocab_source_end_to_end_on_duckdb(
+    staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path
+):
     source = tmp_path / "athena_source"
     source.mkdir()
     for table_name, data in _ATHENA_FIXTURE_DATA.items():
         _write_fixture_csv(source, table_name, data)
 
     context = MaintenanceContext(
-        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine
+        resolved=staged_duckdb_resolved,
+        engine=staged_duckdb_engine,
+        vocab_engine=staged_duckdb_engine,
     )
     report = load_vocab_source(context, source_path=source)
 
     required_names = {m.__tablename__ for m in REQUIRED_VOCAB_MODELS}
     loaded_required = {
-        result.table_name: result for result in report.results if result.table_name in required_names
+        result.table_name: result
+        for result in report.results
+        if result.table_name in required_names
     }
     assert required_names == set(loaded_required)
     assert all(result.status == Status.LOADED for result in loaded_required.values())
     assert loaded_required["concept"].row_count == 8
     assert loaded_required["relationship"].row_count == 2
-    for table_name, expected in (("concept_ancestor", 1), ("concept_relationship", 2), ("concept_synonym", 4)):
+    for table_name, expected in (
+        ("concept_ancestor", 1),
+        ("concept_relationship", 2),
+        ("concept_synonym", 4),
+    ):
         assert loaded_required[table_name].row_count == expected
     with so.Session(staged_duckdb_engine) as session:
         names = session.scalars(sa.select(Concept_Synonym.concept_synonym_name)).all()
@@ -104,7 +115,9 @@ def test_load_vocab_source_repeat_replace_load_on_duckdb(
         _write_fixture_csv(source, table_name, data)
 
     context = MaintenanceContext(
-        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine
+        resolved=staged_duckdb_resolved,
+        engine=staged_duckdb_engine,
+        vocab_engine=staged_duckdb_engine,
     )
     load_vocab_source(context, source_path=source)
 
@@ -130,12 +143,17 @@ def test_load_vocab_source_raises_on_orphaned_deferred_fk_on_duckdb(
     source.mkdir()
     fixtures = {k: dict(v) for k, v in _ATHENA_FIXTURE_DATA.items()}
     domain = fixtures["domain"]
-    fixtures["domain"] = {**domain, "domain_concept_id": (999_999,) + domain["domain_concept_id"][1:]}
+    fixtures["domain"] = {
+        **domain,
+        "domain_concept_id": (999_999,) + domain["domain_concept_id"][1:],
+    }
     for table_name, data in fixtures.items():
         _write_fixture_csv(source, table_name, data)
 
     context = MaintenanceContext(
-        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine
+        resolved=staged_duckdb_resolved,
+        engine=staged_duckdb_engine,
+        vocab_engine=staged_duckdb_engine,
     )
     with pytest.raises(VocabularyLoadError, match="already committed") as error:
         load_vocab_source(context, source_path=source)
@@ -144,9 +162,14 @@ def test_load_vocab_source_raises_on_orphaned_deferred_fk_on_duckdb(
     assert "reload" in str(error.value) and "truncate" in str(error.value)
     with so.Session(staged_duckdb_engine) as session:
         assert session.scalar(sa.select(sa.func.count()).select_from(Domain)) == 7
-        assert session.scalar(
-            sa.select(sa.func.count()).select_from(Domain).where(Domain.domain_concept_id == 999_999)
-        ) == 1
+        assert (
+            session.scalar(
+                sa.select(sa.func.count())
+                .select_from(Domain)
+                .where(Domain.domain_concept_id == 999_999)
+            )
+            == 1
+        )
 
 
 @pytest.mark.duckdb
@@ -158,7 +181,9 @@ def test_load_vocab_source_standalone_cyclic_table_load_rolls_back_on_duckdb(
     orphaned deferred FK.
     """
     context = MaintenanceContext(
-        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine
+        resolved=staged_duckdb_resolved,
+        engine=staged_duckdb_engine,
+        vocab_engine=staged_duckdb_engine,
     )
     _create_missing_vocabulary_tables(context)
 
@@ -168,8 +193,11 @@ def test_load_vocab_source_standalone_cyclic_table_load_rolls_back_on_duckdb(
     orphaned_domain = {**domain, "domain_concept_id": (999_999,) + domain["domain_concept_id"][1:]}
     csv_path = _write_fixture_csv(source, "domain", orphaned_domain)
 
-    with so.Session(staged_duckdb_engine) as session, pytest.raises(DeferredForeignKeyViolationError):
-        Domain.load_file(session, csv_path, resolved=staged_duckdb_resolved)
+    with (
+        so.Session(staged_duckdb_engine) as session,
+        pytest.raises(DeferredForeignKeyViolationError),
+    ):
+        cast(VocabularyModel, Domain).load_file(session, csv_path, resolved=staged_duckdb_resolved)
 
     with so.Session(staged_duckdb_engine) as verify_session:
         assert verify_session.execute(sa.select(Domain)).scalars().all() == []
@@ -179,7 +207,10 @@ def test_load_vocab_source_standalone_cyclic_table_load_rolls_back_on_duckdb(
 @pytest.mark.db_dialect
 @pytest.mark.parametrize("merge_strategy", ["replace", "upsert", "insert"])
 def test_load_vocab_source_single_cyclic_table_selection_rolls_back_on_duckdb(
-    staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path, merge_strategy: Literal["replace", "upsert", "insert"]
+    staged_duckdb_engine,
+    staged_duckdb_resolved,
+    tmp_path: Path,
+    merge_strategy: Literal["replace", "upsert", "insert"],
 ):
     """`load-vocab-source --table domain` (selecting one cyclic table on its
     own, through load_vocab_source itself rather than load_file directly)
@@ -194,7 +225,9 @@ def test_load_vocab_source_single_cyclic_table_selection_rolls_back_on_duckdb(
     _write_fixture_csv(source, "domain", orphaned_domain)
 
     context = MaintenanceContext(
-        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine
+        resolved=staged_duckdb_resolved,
+        engine=staged_duckdb_engine,
+        vocab_engine=staged_duckdb_engine,
     )
     with pytest.raises(VocabularyLoadError, match="domain"):
         load_vocab_source(
@@ -210,30 +243,44 @@ def test_load_vocab_source_single_cyclic_table_selection_rolls_back_on_duckdb(
 @pytest.mark.parametrize("strategy", ["replace", "upsert"])
 @pytest.mark.parametrize("batch_size,committed_rows", [(None, 0), (2, 4)])
 def test_failed_synonym_load_preserves_only_committed_batches(
-    staged_duckdb_engine, staged_duckdb_resolved, tmp_path, strategy, batch_size, committed_rows,
+    staged_duckdb_engine,
+    staged_duckdb_resolved,
+    tmp_path,
+    strategy,
+    batch_size,
+    committed_rows,
 ):
     source = tmp_path / "athena_source"
     source.mkdir()
     for table_name, data in _ATHENA_FIXTURE_DATA.items():
         _write_fixture_csv(source, table_name, data)
     context = MaintenanceContext(
-        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine,
+        resolved=staged_duckdb_resolved,
+        engine=staged_duckdb_engine,
+        vocab_engine=staged_duckdb_engine,
     )
     load_vocab_source(context, source_path=source)
     with so.Session(staged_duckdb_engine) as session:
         session.execute(sa.delete(Concept_Synonym))
         session.commit()
-    _write_fixture_csv(source, "concept_synonym", {
-        "concept_id": (201826, 0, 201826, 0, 999_999, 0),
-        "concept_synonym_name": tuple(f"batch synonym {i}" for i in range(6)),
-        "language_concept_id": (0,) * 6,
-    })
+    _write_fixture_csv(
+        source,
+        "concept_synonym",
+        {
+            "concept_id": (201826, 0, 201826, 0, 999_999, 0),
+            "concept_synonym_name": tuple(f"batch synonym {i}" for i in range(6)),
+            "language_concept_id": (0,) * 6,
+        },
+    )
     with pytest.raises(VocabularyLoadError, match="concept_synonym") as error:
         load_vocab_source(
-            context, source_path=source, tables=["concept_synonym"],
-            merge_strategy=strategy, merge_batch_size=batch_size,
+            context,
+            source_path=source,
+            tables=["concept_synonym"],
+            merge_strategy=strategy,
+            merge_batch_size=batch_size,
         )
-    assert isinstance(error.value.__cause__, sa.exc.IntegrityError)
+    assert isinstance(error.value.__cause__, sa_exc.IntegrityError)
     with so.Session(staged_duckdb_engine) as session:
         names = session.scalars(sa.select(Concept_Synonym.concept_synonym_name)).all()
     assert sorted(names) == [f"batch synonym {i}" for i in range(committed_rows)]

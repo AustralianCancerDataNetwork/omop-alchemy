@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 import sqlalchemy as sa
-from sqlalchemy.orm import Session
 from oa_configurator import Role, physical_schema_of
+from sqlalchemy.orm import Session
 
 from omop_alchemy.backends.resolve import resolve_backend
 from omop_alchemy.cdm.model.vocabulary import Concept, Domain
@@ -39,20 +39,28 @@ def _seed(context: MaintenanceContext, tmp_path) -> None:
     load_vocab_source(context, source_path=source)
 
 
-def test_backup_restore_round_trip_restores_data(staged_duckdb_engine, staged_duckdb_resolved, tmp_path):
+def test_backup_restore_round_trip_restores_data(
+    staged_duckdb_engine, staged_duckdb_resolved, tmp_path
+):
     context = MaintenanceContext(
-        resolved=staged_duckdb_resolved, engine=staged_duckdb_engine, vocab_engine=staged_duckdb_engine
+        resolved=staged_duckdb_resolved,
+        engine=staged_duckdb_engine,
+        vocab_engine=staged_duckdb_engine,
     )
     _seed(context, tmp_path)
 
     with Session(staged_duckdb_engine) as session:
         domain_count = session.execute(sa.select(sa.func.count()).select_from(Domain)).scalar_one()
-        concept_count = session.execute(sa.select(sa.func.count()).select_from(Concept)).scalar_one()
+        concept_count = session.execute(
+            sa.select(sa.func.count()).select_from(Concept)
+        ).scalar_one()
     assert domain_count > 0
     assert concept_count > 0
 
     backup_dir = tmp_path / "backup"
-    results = create_database_backup(context, output_path=backup_dir, backup_format=BackupFormat.PARQUET)
+    results = create_database_backup(
+        context, output_path=backup_dir, backup_format=BackupFormat.PARQUET
+    )
     assert len(results) == 1
     assert results[0].backup_format is BackupFormat.PARQUET
     assert backup_dir.is_dir()
@@ -74,13 +82,21 @@ def test_backup_restore_round_trip_restores_data(staged_duckdb_engine, staged_du
         assert session.execute(sa.select(sa.func.count()).select_from(Domain)).scalar_one() == 0
         assert session.execute(sa.select(sa.func.count()).select_from(Concept)).scalar_one() == 0
 
-    restore_results = restore_database_backup(context, input_path=backup_dir, backup_format=BackupFormat.PARQUET)
+    restore_results = restore_database_backup(
+        context, input_path=backup_dir, backup_format=BackupFormat.PARQUET
+    )
     assert len(restore_results) == 1
     assert restore_results[0].backup_format is BackupFormat.PARQUET
 
     with Session(staged_duckdb_engine) as session:
-        assert session.execute(sa.select(sa.func.count()).select_from(Domain)).scalar_one() == domain_count
-        assert session.execute(sa.select(sa.func.count()).select_from(Concept)).scalar_one() == concept_count
+        assert (
+            session.execute(sa.select(sa.func.count()).select_from(Domain)).scalar_one()
+            == domain_count
+        )
+        assert (
+            session.execute(sa.select(sa.func.count()).select_from(Concept)).scalar_one()
+            == concept_count
+        )
 
 
 def test_backup_only_covers_occupied_schemas(fresh_duckdb_engine, fresh_duckdb_resolved, tmp_path):

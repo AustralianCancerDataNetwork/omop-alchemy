@@ -16,13 +16,12 @@ split-connection case covered separately in omop-graph's
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from datetime import date
-from typing import Iterator
 
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-
 from oa_configurator import Role
 from oa_configurator.testing import (
     ScopedTestSchema,
@@ -38,6 +37,7 @@ from omop_alchemy.cdm.model.derived import Cohort
 from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Class, Domain, Vocabulary
 from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import require_cdm
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -79,7 +79,9 @@ def _bootstrap_vocab(engine: sa.Engine, vocab_schema: str) -> None:
                     valid_start_date=_TODAY,
                     valid_end_date=date(2099, 12, 31),
                 ),
-                Domain(domain_id="Metadata", domain_name="Metadata", domain_concept_id=META_CONCEPT_ID),
+                Domain(
+                    domain_id="Metadata", domain_name="Metadata", domain_concept_id=META_CONCEPT_ID
+                ),
                 Vocabulary(
                     vocabulary_id="OMOP",
                     vocabulary_name="OMOP",
@@ -103,7 +105,11 @@ def _bootstrap_vocab(engine: sa.Engine, vocab_schema: str) -> None:
 
 def test_tables_land_in_the_schema_their_role_declares(three_schema: ScopedTestSchema) -> None:
     _create_missing_tables(
-        MaintenanceContext(resolved=three_schema.resolved, engine=three_schema.engine, vocab_engine=three_schema.engine),
+        MaintenanceContext(
+            resolved=require_cdm(three_schema.resolved),
+            engine=three_schema.engine,
+            vocab_engine=three_schema.engine,
+        ),
         vocabulary_included=True,
     )
 
@@ -124,7 +130,11 @@ def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
     three_schema: ScopedTestSchema,
 ) -> None:
     _create_missing_tables(
-        MaintenanceContext(resolved=three_schema.resolved, engine=three_schema.engine, vocab_engine=three_schema.engine),
+        MaintenanceContext(
+            resolved=require_cdm(three_schema.resolved),
+            engine=three_schema.engine,
+            vocab_engine=three_schema.engine,
+        ),
         vocabulary_included=True,
     )
     _bootstrap_vocab(three_schema.engine, three_schema.schemas[Role.VOCAB])
@@ -188,10 +198,12 @@ def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_data
     for schema in (clinical_schema, vocab_schema, results_schema):
         cleanup_after_test(lambda schema=schema: drop_schema_if_exists(pg_engine, schema))
     reset_schema_registry_rows(cleanup_after_test, pg_engine)
-    resolved = resolve_with_role_schemas(
-        pg_db.resolved,
-        {Role.PRIMARY: clinical_schema, Role.VOCAB: vocab_schema, Role.RESULTS: results_schema},
-        resolver=guarded_resolver(pg_db.resolved),
+    resolved = require_cdm(
+        resolve_with_role_schemas(
+            pg_db.resolved,
+            {Role.PRIMARY: clinical_schema, Role.VOCAB: vocab_schema, Role.RESULTS: results_schema},
+            resolver=guarded_resolver(pg_db.resolved),
+        )
     )
     engine, _ = resolved.create_engines()
 

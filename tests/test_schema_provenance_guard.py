@@ -17,6 +17,7 @@ from typer.testing import CliRunner
 from omop_alchemy.config import OmopAlchemyConfig, create_cdm_engines
 from omop_alchemy.maintenance import _cli_utils
 from omop_alchemy.maintenance.cli import app
+from tests.conftest import require_cdm
 
 pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
 
@@ -36,12 +37,10 @@ def test_create_cdm_engines_rejects_primary_schema_drift(pg_db, schema):
 
     resolver = guarded_resolver(pg_db.resolved)
     guarded = resolver.resolve_database(pg_db.resolved.name)
-    drifted = resolve_with_role_schemas(
-        guarded, {Role.PRIMARY: schema}, resolver=resolver
-    )
+    drifted = resolve_with_role_schemas(guarded, {Role.PRIMARY: schema}, resolver=resolver)
 
     with pytest.raises(SchemaDriftError):
-        create_cdm_engines(drifted)
+        create_cdm_engines(require_cdm(drifted))
 
 
 def test_create_missing_tables_cli_rejects_drift_before_creating_tables(pg_db, monkeypatch):
@@ -56,9 +55,7 @@ def test_create_missing_tables_cli_rejects_drift_before_creating_tables(pg_db, m
     try:
         resolver = guarded_resolver(pg_db.resolved)
         guarded = resolver.resolve_database(pg_db.resolved.name)
-        drifted = resolve_with_role_schemas(
-            guarded, {Role.PRIMARY: schema}, resolver=resolver
-        )
+        drifted = resolve_with_role_schemas(guarded, {Role.PRIMARY: schema}, resolver=resolver)
         monkeypatch.setattr(
             "omop_alchemy.config.get_cdm_context",
             lambda database=None: (OmopAlchemyConfig(), drifted),

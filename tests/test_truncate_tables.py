@@ -1,17 +1,19 @@
 import importlib
+
 import pytest
 import sqlalchemy as sa
-from typer.testing import CliRunner
-from orm_loader.helpers import Base
 from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
+from orm_loader.helpers import Base
+from typer.testing import CliRunner
 
 from omop_alchemy.cdm.model.vocabulary.domain import Domain
-from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance._cli_utils import Status
+from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance.cli_schema import _create_missing_tables
-from omop_alchemy.maintenance.tables import TableCategory
 from omop_alchemy.maintenance.cli_tables import TruncateTableResult, _truncate_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
+from omop_alchemy.maintenance.tables import TableCategory
+from tests.conftest import table_of
 
 runner = CliRunner()
 truncate_tables_module = importlib.import_module("omop_alchemy.maintenance.cli_tables")
@@ -22,20 +24,35 @@ def test_truncate_tables_requires_postgresql(fresh_engine, fresh_resolved):
     engine = fresh_engine
 
     with pytest.raises(RuntimeError) as exc_info:
-        _truncate_tables(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), scope=TableCategory.CLINICAL, dry_run=True)
+        _truncate_tables(
+            MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+            scope=TableCategory.CLINICAL,
+            dry_run=True,
+        )
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
-def test_truncate_tables_reports_blocking_foreign_key_references(monkeypatch, fresh_engine, fresh_resolved):
+def test_truncate_tables_reports_blocking_foreign_key_references(
+    monkeypatch, fresh_engine, fresh_resolved
+):
     """Test truncate tables reports blocking foreign key references."""
     engine = fresh_engine
-    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), vocabulary_included=True)
+    _create_missing_tables(
+        MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+        vocabulary_included=True,
+    )
 
-    monkeypatch.setattr(truncate_tables_module, "require_backend_support", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        truncate_tables_module, "require_backend_support", lambda *args, **kwargs: None
+    )
 
     with pytest.raises(RuntimeError) as exc_info:
-        _truncate_tables(MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine), scope=TableCategory.CLINICAL, dry_run=False)
+        _truncate_tables(
+            MaintenanceContext(resolved=fresh_resolved, engine=engine, vocab_engine=engine),
+            scope=TableCategory.CLINICAL,
+            dry_run=False,
+        )
 
     message = str(exc_info.value)
     assert "foreign key references from tables outside the current selection" in message
@@ -46,13 +63,12 @@ def test_truncate_tables_reports_blocking_foreign_key_references(monkeypatch, fr
 @pytest.mark.duckdb
 @pytest.mark.db_dialect
 def test_truncate_tables_end_to_end_on_duckdb(fresh_duckdb_engine, fresh_duckdb_resolved):
-    """_truncate_tables must succeed on DuckDB's own engine.connect() connection.
-    """
+    """_truncate_tables must succeed on DuckDB's own engine.connect() connection."""
     engine = fresh_duckdb_engine
-    Base.metadata.create_all(engine, tables=[Domain.__table__])
+    Base.metadata.create_all(engine, tables=[table_of(Domain)])
     with engine.begin() as conn:
         conn.execute(
-            sa.insert(Domain.__table__),
+            sa.insert(table_of(Domain)),
             {"domain_id": "Drug", "domain_name": "Drug", "domain_concept_id": 1},
         )
 
@@ -61,7 +77,9 @@ def test_truncate_tables_end_to_end_on_duckdb(fresh_duckdb_engine, fresh_duckdb_
 
     assert any(result.table_name == "domain" and result.row_count == 1 for result in results)
     with engine.connect() as conn:
-        assert conn.execute(sa.select(sa.func.count()).select_from(Domain.__table__)).scalar_one() == 0
+        assert (
+            conn.execute(sa.select(sa.func.count()).select_from(Domain.__table__)).scalar_one() == 0
+        )
 
 
 def test_truncate_tables_cli_requires_confirmation(monkeypatch):

@@ -1,16 +1,17 @@
+from pathlib import Path
+
 import pytest
 from orm_loader.helpers import bootstrap
 from sqlalchemy.orm import sessionmaker
 
 from omop_alchemy.cdm.model.vocabulary import (
-    Domain,
-    Relationship,
     Concept,
     Concept_Ancestor,
     Concept_Relationship,
+    Domain,
+    Relationship,
 )
-from pathlib import Path
-from tests.conftest import ATHENA_LOAD_ORDER, _ATHENA_FIXTURE_DATA, _write_fixture_csv
+from tests.conftest import _ATHENA_FIXTURE_DATA, ATHENA_LOAD_ORDER, _write_fixture_csv
 
 
 @pytest.fixture
@@ -52,7 +53,9 @@ def athena_vocab(connection, tmp_path):
     session = Session()
 
     for model in ATHENA_LOAD_ORDER:
-        csv_path = _write_fixture_csv(base_path, model.__tablename__, _ATHENA_FIXTURE_DATA[model.__tablename__])
+        csv_path = _write_fixture_csv(
+            base_path, model.__tablename__, _ATHENA_FIXTURE_DATA[model.__tablename__]
+        )
         model.load_file(session, csv_path)
 
     session.commit()
@@ -74,8 +77,12 @@ def test_concept_ancestor(db_session, athena_vocab):
     """Test that the concept_ancestor table loads without error."""
     rows = db_session.query(Concept_Ancestor).all()
     assert [
-        (row.ancestor_concept_id, row.descendant_concept_id,
-         row.min_levels_of_separation, row.max_levels_of_separation)
+        (
+            row.ancestor_concept_id,
+            row.descendant_concept_id,
+            row.min_levels_of_separation,
+            row.max_levels_of_separation,
+        )
         for row in rows
     ] == [(201826, 201826, 0, 0)]
 
@@ -94,21 +101,14 @@ def test_all_concepts_reference_valid_domain(db_session, athena_vocab):
 
 def test_relationship_vocab_loaded(db_session, athena_vocab):
     """Test relationship vocab loaded."""
-    rel = (
-        db_session.query(Relationship)
-        .filter_by(relationship_id="Is a")
-        .one()
-    )
+    rel = db_session.query(Relationship).filter_by(relationship_id="Is a").one()
 
     assert rel.reverse_relationship_id == "Subsumes"
 
 
 def test_expected_domains_exist(db_session, athena_vocab):
     """Test expected domains exist."""
-    domains = {
-        d.domain_id
-        for d in db_session.query(Domain.domain_id).all()
-    }
+    domains = {d.domain_id for d in db_session.query(Domain.domain_id).all()}
 
     assert "Condition" in domains
     assert "Gender" in domains
@@ -118,9 +118,7 @@ def test_expected_domains_exist(db_session, athena_vocab):
 def test_domains_are_consistent(db_session, athena_vocab):
     """Test concepts reference domains that exist in the domain table."""
     concepts = (
-        db_session.query(Concept)
-        .filter(Concept.domain_id.in_(["Condition", "Gender"]))
-        .all()
+        db_session.query(Concept).filter(Concept.domain_id.in_(["Condition", "Gender"])).all()
     )
 
     assert concepts
@@ -131,12 +129,7 @@ def test_domains_are_consistent(db_session, athena_vocab):
 
 def test_condition_concepts_exist(db_session, athena_vocab):
     """Test condition concepts exist."""
-    assert (
-        db_session.query(Concept)
-        .filter(Concept.domain_id == "Condition")
-        .count()
-        > 0
-    )
+    assert db_session.query(Concept).filter(Concept.domain_id == "Condition").count() > 0
 
 
 def test_relationships_reference_valid_concepts(db_session, athena_vocab):

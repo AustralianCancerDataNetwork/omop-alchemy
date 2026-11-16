@@ -1,32 +1,38 @@
 import pytest
 import sqlalchemy.orm as so
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
 from typer.testing import CliRunner
 
 from omop_alchemy.cdm.model.vocabulary import Domain
-from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance._cli_utils import Status
-from omop_alchemy.maintenance.cli_schema import _create_missing_tables
+from omop_alchemy.maintenance.cli import app
 from omop_alchemy.maintenance.cli_foreign_keys import (
     ForeignKeyConstraintViolation,
-    validate_foreign_key_constraints,
     _collect_fk_info,
     collect_foreign_key_trigger_status,
     manage_foreign_key_triggers,
+    validate_foreign_key_constraints,
 )
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
+from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
-from tests.conftest import FakeMaintenanceContext
+from tests.conftest import fake_maintenance_context
 
 runner = CliRunner()
 
 
 def test_collect_fk_info_finds_participating_tables(fresh_engine, fresh_resolved):
     """Test _collect_fk_info finds participating tables."""
-    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine))
+    _create_missing_tables(
+        MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine)
+    )
 
     targets = {
         target.table_name: target
-        for target in _collect_fk_info(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine))
+        for target in _collect_fk_info(
+            MaintenanceContext(
+                resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine
+            )
+        )
     }
 
     assert "person" in targets
@@ -38,11 +44,15 @@ def test_collect_fk_info_finds_participating_tables(fresh_engine, fresh_resolved
 def test_validate_foreign_key_constraints_catches_deferred_fk_violation_on_duckdb(
     fresh_duckdb_engine, fresh_duckdb_resolved
 ):
-    """Cyclical FK:domain.domain_concept_id -> concept. """
-    context = MaintenanceContext(resolved=fresh_duckdb_resolved, engine=fresh_duckdb_engine, vocab_engine=fresh_duckdb_engine)
+    """Cyclical FK:domain.domain_concept_id -> concept."""
+    context = MaintenanceContext(
+        resolved=fresh_duckdb_resolved, engine=fresh_duckdb_engine, vocab_engine=fresh_duckdb_engine
+    )
     _create_missing_tables(context, vocabulary_included=True)
 
-    targets = {target.table_name: target for target in _collect_fk_info(context, vocabulary_included=True)}
+    targets = {
+        target.table_name: target for target in _collect_fk_info(context, vocabulary_included=True)
+    }
     assert "domain" in targets
 
     with so.Session(fresh_duckdb_engine) as session:
@@ -58,11 +68,15 @@ def test_validate_foreign_key_constraints_catches_deferred_fk_violation_on_duckd
 
 def test_manage_foreign_key_triggers_supports_dry_run(fresh_engine, fresh_resolved):
     """Test manage foreign key triggers supports dry run."""
-    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine))
+    _create_missing_tables(
+        MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine)
+    )
 
     with pytest.raises(RuntimeError) as exc_info:
         manage_foreign_key_triggers(
-            MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine),
+            MaintenanceContext(
+                resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine
+            ),
             enable=False,
             dry_run=True,
         )
@@ -72,20 +86,32 @@ def test_manage_foreign_key_triggers_supports_dry_run(fresh_engine, fresh_resolv
 
 def test_collect_foreign_key_trigger_status_is_safe_on_sqlite(fresh_engine, fresh_resolved):
     """Test collect foreign key trigger status is safe on sqlite."""
-    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine))
+    _create_missing_tables(
+        MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine)
+    )
 
     with pytest.raises(RuntimeError) as exc_info:
-        collect_foreign_key_trigger_status(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine))
+        collect_foreign_key_trigger_status(
+            MaintenanceContext(
+                resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine
+            )
+        )
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
 def test_validate_foreign_key_constraints_is_safe_on_sqlite(fresh_engine, fresh_resolved):
     """Test validate foreign key constraints is safe on sqlite."""
-    _create_missing_tables(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine))
+    _create_missing_tables(
+        MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine)
+    )
 
     with pytest.raises(RuntimeError) as exc_info:
-        validate_foreign_key_constraints(MaintenanceContext(resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine))
+        validate_foreign_key_constraints(
+            MaintenanceContext(
+                resolved=fresh_resolved, engine=fresh_engine, vocab_engine=fresh_engine
+            )
+        )
 
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
@@ -134,20 +160,31 @@ def _make_fake_backend():
             action = "ENABLE" if enable else "DISABLE"
             conn.exec_driver_sql(f"ALTER TABLE {table_name} {action} TRIGGER ALL")
 
-        def count_fk_violations(self, conn, *, source_table, referred_table, constraint_name, db_schema=None):  # type: ignore[override]
+        def count_fk_violations(
+            self,
+            conn,
+            source_table,
+            referred_table,
+            constrained_cols,
+            referred_cols,
+            *,
+            source_schema_tag=Role.PRIMARY.value,
+            referred_schema_tag=Role.PRIMARY.value,
+        ) -> int:
             return 0
 
     return _FakeBackend()
 
 
-def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failure(monkeypatch, fresh_resolved):
+def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failure(
+    monkeypatch, fresh_resolved
+):
     """Test manage foreign key triggers strict does not enable on validation failure."""
     statements: list[str] = []
 
     class _FakeConnection:
         def exec_driver_sql(self, statement: str):
             statements.append(statement)
-            return None
 
         def __enter__(self):
             return self
@@ -169,24 +206,32 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_fk_info",
         lambda context, *, vocabulary_included=False, vocabulary_only=False: [
-            type("Target", (), {
-                "table_name": "person",
-                "category": "clinical",
-                "schema_tag": Role.PRIMARY.value,
-                "model_name": "Person",
-                "model_module": "omop_alchemy.cdm.model.clinical.person",
-                "outgoing_constraint_count": 1,
-                "incoming_constraint_count": 2,
-            })(),
-            type("Target", (), {
-                "table_name": "visit_occurrence",
-                "category": "health_system",
-                "schema_tag": Role.PRIMARY.value,
-                "model_name": "VisitOccurrence",
-                "model_module": "omop_alchemy.cdm.model.health_system.visit_occurrence",
-                "outgoing_constraint_count": 2,
-                "incoming_constraint_count": 0,
-            })(),
+            type(
+                "Target",
+                (),
+                {
+                    "table_name": "person",
+                    "category": "clinical",
+                    "schema_tag": Role.PRIMARY.value,
+                    "model_name": "Person",
+                    "model_module": "omop_alchemy.cdm.model.clinical.person",
+                    "outgoing_constraint_count": 1,
+                    "incoming_constraint_count": 2,
+                },
+            )(),
+            type(
+                "Target",
+                (),
+                {
+                    "table_name": "visit_occurrence",
+                    "category": "health_system",
+                    "schema_tag": Role.PRIMARY.value,
+                    "model_name": "VisitOccurrence",
+                    "model_module": "omop_alchemy.cdm.model.health_system.visit_occurrence",
+                    "outgoing_constraint_count": 2,
+                    "incoming_constraint_count": 0,
+                },
+            )(),
         ],
     )
     monkeypatch.setattr(
@@ -204,7 +249,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
     )
 
     results = manage_foreign_key_triggers(
-        FakeMaintenanceContext(_FakeEngine()),
+        fake_maintenance_context(_FakeEngine()),
         enable=True,
         strict=True,
     )
@@ -215,14 +260,15 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
     assert "fk_visit_occurrence_person_id_person" in results[1].detail
 
 
-def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(monkeypatch, fresh_resolved):
+def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(
+    monkeypatch, fresh_resolved
+):
     """Test manage foreign key triggers strict enables when validation passes."""
     statements: list[str] = []
 
     class _FakeConnection:
         def exec_driver_sql(self, statement: str):
             statements.append(statement)
-            return None
 
         def __enter__(self):
             return self
@@ -244,15 +290,19 @@ def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(monke
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_fk_info",
         lambda context, *, vocabulary_included=False, vocabulary_only=False: [
-            type("Target", (), {
-                "table_name": "person",
-                "category": "clinical",
-                "schema_tag": Role.PRIMARY.value,
-                "model_name": "Person",
-                "model_module": "omop_alchemy.cdm.model.clinical.person",
-                "outgoing_constraint_count": 1,
-                "incoming_constraint_count": 2,
-            })(),
+            type(
+                "Target",
+                (),
+                {
+                    "table_name": "person",
+                    "category": "clinical",
+                    "schema_tag": Role.PRIMARY.value,
+                    "model_name": "Person",
+                    "model_module": "omop_alchemy.cdm.model.clinical.person",
+                    "outgoing_constraint_count": 1,
+                    "incoming_constraint_count": 2,
+                },
+            )(),
         ],
     )
     monkeypatch.setattr(
@@ -261,7 +311,7 @@ def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(monke
     )
 
     results = manage_foreign_key_triggers(
-        FakeMaintenanceContext(_FakeEngine()),
+        fake_maintenance_context(_FakeEngine()),
         enable=True,
         strict=True,
     )
@@ -326,6 +376,7 @@ def test_enable_foreign_keys_strict_cli_invokes_strict_management(monkeypatch):
 
 def test_validate_foreign_key_constraints_reports_failures(monkeypatch, fresh_resolved):
     """Test validate foreign key constraints reports failures."""
+
     class _FakeConnection:
         def __enter__(self):
             return self
@@ -344,24 +395,32 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch, fresh_re
     monkeypatch.setattr(
         "omop_alchemy.maintenance.cli_foreign_keys._collect_fk_info",
         lambda context, *, vocabulary_included=False, vocabulary_only=False: [
-            type("Target", (), {
-                "table_name": "person",
-                "category": "clinical",
-                "schema_tag": Role.PRIMARY.value,
-                "model_name": "Person",
-                "model_module": "omop_alchemy.cdm.model.clinical.person",
-                "outgoing_constraint_count": 1,
-                "incoming_constraint_count": 2,
-            })(),
-            type("Target", (), {
-                "table_name": "visit_occurrence",
-                "category": "health_system",
-                "schema_tag": Role.PRIMARY.value,
-                "model_name": "VisitOccurrence",
-                "model_module": "omop_alchemy.cdm.model.health_system.visit_occurrence",
-                "outgoing_constraint_count": 2,
-                "incoming_constraint_count": 0,
-            })(),
+            type(
+                "Target",
+                (),
+                {
+                    "table_name": "person",
+                    "category": "clinical",
+                    "schema_tag": Role.PRIMARY.value,
+                    "model_name": "Person",
+                    "model_module": "omop_alchemy.cdm.model.clinical.person",
+                    "outgoing_constraint_count": 1,
+                    "incoming_constraint_count": 2,
+                },
+            )(),
+            type(
+                "Target",
+                (),
+                {
+                    "table_name": "visit_occurrence",
+                    "category": "health_system",
+                    "schema_tag": Role.PRIMARY.value,
+                    "model_name": "VisitOccurrence",
+                    "model_module": "omop_alchemy.cdm.model.health_system.visit_occurrence",
+                    "outgoing_constraint_count": 2,
+                    "incoming_constraint_count": 0,
+                },
+            )(),
         ],
     )
     monkeypatch.setattr(
@@ -378,7 +437,7 @@ def test_validate_foreign_key_constraints_reports_failures(monkeypatch, fresh_re
         },
     )
 
-    report = validate_foreign_key_constraints(FakeMaintenanceContext(_FakeEngine()))  # type: ignore[arg-type]
+    report = validate_foreign_key_constraints(fake_maintenance_context(_FakeEngine()))
 
     assert [result.status for result in report.results] == ["passed", "failed"]
     assert report.results[0].violating_row_count == 0

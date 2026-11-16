@@ -74,6 +74,7 @@ Without the decorator, every command would need this boilerplate:
 from omop_alchemy.config import create_cdm_engines, get_cdm_context
 from omop_alchemy.maintenance.context import MaintenanceContext
 
+
 def my_command() -> None:
     pkg_config, resolved = get_cdm_context()
     engine, vocab_engine = create_cdm_engines(resolved)

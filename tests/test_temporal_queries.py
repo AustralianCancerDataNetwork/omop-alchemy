@@ -12,9 +12,9 @@ from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.exc import UnsupportedCompilationError
 
 from omop_alchemy.toolkit.episodes.derivation import (
+    EpisodeWindowSpec,
     ObservationSelectionPolicy,
     ObservationSelectionSpec,
-    EpisodeWindowSpec,
     TemporalRankingSpec,
     TemporalSelectionPolicy,
     TemporalSidePreference,
@@ -48,7 +48,9 @@ def _temporal_candidates() -> sa.CTE:
     ).cte("temporal_candidates")
 
 
-@pytest.mark.parametrize("dialect", [sqlite.dialect(), postgresql.dialect(), duckdb_sqlalchemy.Dialect()])
+@pytest.mark.parametrize(
+    "dialect", [sqlite.dialect(), postgresql.dialect(), duckdb_sqlalchemy.Dialect()]
+)
 def test_day_delta_compiles_for_supported_dialects(dialect):
     statement = sa.select(
         signed_day_delta(sa.literal(date(2026, 1, 21)), sa.literal(date(2026, 1, 20))),
@@ -114,7 +116,9 @@ def test_day_delta_and_shift_date_execute_on_duckdb(fresh_duckdb_engine):
         ).one()
         assert tuple(delta_values) == (1, -5)
 
-        lower, upper = episode_window_bounds(sa.literal(date(2026, 1, 15)), sa.literal(None, type_=sa.Date()))
+        lower, upper = episode_window_bounds(
+            sa.literal(date(2026, 1, 15)), sa.literal(None, type_=sa.Date())
+        )
         bounds = connection.execute(sa.select(lower, upper)).one()
         assert bounds == (date(2025, 10, 17), date(2027, 1, 15))
 
@@ -197,9 +201,7 @@ def _observation_source() -> sa.CTE:
 
 def test_as_of_observation_selection_filters_before_ranking(session):
     source = _observation_source()
-    spec = ObservationSelectionSpec(
-        policy=ObservationSelectionPolicy.latest_on_or_before_anchor
-    )
+    spec = ObservationSelectionSpec(policy=ObservationSelectionPolicy.latest_on_or_before_anchor)
     ranked = ranked_observation_select(
         source,
         spec,
@@ -225,9 +227,7 @@ def test_as_of_observation_selection_can_exclude_the_anchor_date(session):
     ).subquery()
 
     assert (
-        session.scalar(
-            sa.select(ranked.c.observation_id).where(ranked.c.observation_rank == 1)
-        )
+        session.scalar(sa.select(ranked.c.observation_id).where(ranked.c.observation_rank == 1))
         == 21
     )
 
@@ -236,9 +236,7 @@ def test_as_of_observation_selection_requires_an_anchor():
     with pytest.raises(ValueError, match="requires anchor_date"):
         ranked_observation_select(
             _observation_source(),
-            ObservationSelectionSpec(
-                policy=ObservationSelectionPolicy.latest_on_or_before_anchor
-            ),
+            ObservationSelectionSpec(policy=ObservationSelectionPolicy.latest_on_or_before_anchor),
         )
 
 

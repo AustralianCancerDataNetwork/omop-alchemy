@@ -26,7 +26,9 @@ def test_resolve_backend_returns_duckdb_backend():
 def duckdb_person_table(fresh_duckdb_engine, fresh_duckdb_resolved):
     _create_missing_tables(
         MaintenanceContext(
-            resolved=fresh_duckdb_resolved, engine=fresh_duckdb_engine, vocab_engine=fresh_duckdb_engine
+            resolved=fresh_duckdb_resolved,
+            engine=fresh_duckdb_engine,
+            vocab_engine=fresh_duckdb_engine,
         ),
         vocabulary_included=True,
     )
@@ -45,7 +47,7 @@ def test_duckdb_backend_analyze_table(duckdb_person_table):
 @pytest.mark.parametrize(
     ("sql_text", "expected"),
     [
-        ('\'(lower("concept_name"))\'', "lower(concept_name)"),
+        ("'(lower(\"concept_name\"))'", "lower(concept_name)"),
         ("lower(concept_name)", "lower(concept_name)"),
         ('\'(lower("a"), lower("b"))\'', "lower(a),lower(b)"),
     ],
@@ -91,9 +93,15 @@ def test_duckdb_backend_set_sequence_value_roundtrip(duckdb_person_table):
     underlying sequence object."""
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn:
-        conn.execute(sa.text("INSERT INTO domain (domain_id, domain_name, domain_concept_id) VALUES ('x', 'x', 0)"))
         conn.execute(
-            sa.text("INSERT INTO vocabulary (vocabulary_id, vocabulary_name, vocabulary_concept_id) VALUES ('x', 'x', 0)")
+            sa.text(
+                "INSERT INTO domain (domain_id, domain_name, domain_concept_id) VALUES ('x', 'x', 0)"
+            )
+        )
+        conn.execute(
+            sa.text(
+                "INSERT INTO vocabulary (vocabulary_id, vocabulary_name, vocabulary_concept_id) VALUES ('x', 'x', 0)"
+            )
         )
         conn.execute(
             sa.text(
@@ -113,7 +121,9 @@ def test_duckdb_backend_set_sequence_value_roundtrip(duckdb_person_table):
         sequence_name = backend.find_sequence_name(conn, "person", "person_id")
         assert sequence_name is not None
 
-        backend.set_sequence_value(conn, sequence_name, 1000, table_name="person", column_name="person_id")
+        backend.set_sequence_value(
+            conn, sequence_name, 1000, table_name="person", column_name="person_id"
+        )
         conn.commit()
 
         conn.execute(
@@ -132,10 +142,9 @@ def test_duckdb_backend_set_sequence_value_roundtrip(duckdb_person_table):
 @pytest.mark.duckdb
 @pytest.mark.db_dialect
 def test_duckdb_backend_count_fk_violations_on_a_deferred_fk(duckdb_person_table):
-    """Circular FK are deferred on DuckDB during DDL. count_fk_violations still detects violations 
+    """Circular FK are deferred on DuckDB during DDL. count_fk_violations still detects violations
     through anti-join.
     """
-    
 
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn:
@@ -162,9 +171,15 @@ def test_duckdb_backend_count_fk_violations_on_a_deferred_fk(duckdb_person_table
 def test_duckdb_backend_truncate_table_batch(duckdb_person_table):
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn:
-        conn.execute(sa.text("INSERT INTO domain (domain_id, domain_name, domain_concept_id) VALUES ('x', 'x', 0)"))
         conn.execute(
-            sa.text("INSERT INTO vocabulary (vocabulary_id, vocabulary_name, vocabulary_concept_id) VALUES ('x', 'x', 0)")
+            sa.text(
+                "INSERT INTO domain (domain_id, domain_name, domain_concept_id) VALUES ('x', 'x', 0)"
+            )
+        )
+        conn.execute(
+            sa.text(
+                "INSERT INTO vocabulary (vocabulary_id, vocabulary_name, vocabulary_concept_id) VALUES ('x', 'x', 0)"
+            )
         )
         conn.execute(
             sa.text(
@@ -187,7 +202,9 @@ def test_duckdb_backend_truncate_table_batch(duckdb_person_table):
         )
         conn.commit()
 
-        backend.truncate_table_batch(conn, [(Role.PRIMARY.value, "person")], restart_identities=False, cascade=False)
+        backend.truncate_table_batch(
+            conn, [(Role.PRIMARY.value, "person")], restart_identities=False, cascade=False
+        )
         conn.commit()
 
         count = conn.execute(sa.text("SELECT COUNT(*) FROM person")).scalar_one()
@@ -198,7 +215,7 @@ def test_duckdb_backend_truncate_table_batch(duckdb_person_table):
 @pytest.mark.db_dialect
 def test_duckdb_backend_truncate_table_batch_orders_parent_after_child(duckdb_person_table):
     """Truncating [person, condition_occurrence], in that (parent-first)
-    order, must still succeed: DuckDB checks FK constraints per statement, 
+    order, must still succeed: DuckDB checks FK constraints per statement,
     so truncating person while condition_occurrence still references it would otherwise fail."""
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn:
@@ -257,7 +274,9 @@ def test_duckdb_backend_truncate_table_batch_orders_parent_after_child(duckdb_pe
 def test_duckdb_backend_truncate_table_batch_rejects_cascade(duckdb_person_table):
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn, pytest.raises(FeatureNotSupportedError):
-        backend.truncate_table_batch(conn, [(Role.PRIMARY.value, "person")], restart_identities=False, cascade=True)
+        backend.truncate_table_batch(
+            conn, [(Role.PRIMARY.value, "person")], restart_identities=False, cascade=True
+        )
 
 
 @pytest.mark.duckdb
@@ -268,9 +287,15 @@ def test_duckdb_backend_truncate_table_batch_restarts_identities(duckdb_person_t
     truncation."""
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn:
-        conn.execute(sa.text("INSERT INTO domain (domain_id, domain_name, domain_concept_id) VALUES ('x', 'x', 0)"))
         conn.execute(
-            sa.text("INSERT INTO vocabulary (vocabulary_id, vocabulary_name, vocabulary_concept_id) VALUES ('x', 'x', 0)")
+            sa.text(
+                "INSERT INTO domain (domain_id, domain_name, domain_concept_id) VALUES ('x', 'x', 0)"
+            )
+        )
+        conn.execute(
+            sa.text(
+                "INSERT INTO vocabulary (vocabulary_id, vocabulary_name, vocabulary_concept_id) VALUES ('x', 'x', 0)"
+            )
         )
         conn.execute(
             sa.text(
@@ -299,7 +324,9 @@ def test_duckdb_backend_truncate_table_batch_restarts_identities(duckdb_person_t
         )
         conn.commit()
 
-        backend.truncate_table_batch(conn, [(Role.PRIMARY.value, "person")], restart_identities=True, cascade=False)
+        backend.truncate_table_batch(
+            conn, [(Role.PRIMARY.value, "person")], restart_identities=True, cascade=False
+        )
         conn.commit()
 
         conn.execute(

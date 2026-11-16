@@ -120,9 +120,7 @@ class TestConceptFilterApply:
     def test_include_classification_widens_to_the_union(self):
         """include_classification restores the pre-1.x 'S' or 'C' behaviour."""
         query = sa.select(Concept.concept_id)
-        result = ConceptFilter(
-            require_standard=True, include_classification=True
-        ).apply(query)
+        result = ConceptFilter(require_standard=True, include_classification=True).apply(query)
 
         compiled = str(result.compile(compile_kwargs={"literal_binds": True}))
         assert "'S'" in compiled
@@ -144,9 +142,9 @@ class TestConceptFilterApply:
 
         union_ids = set(
             session.scalars(
-                ConceptFilter(
-                    require_standard=True, include_classification=True
-                ).apply(sa.select(Concept.concept_id))
+                ConceptFilter(require_standard=True, include_classification=True).apply(
+                    sa.select(Concept.concept_id)
+                )
             ).all()
         )
         legacy_ids = set(
@@ -169,9 +167,7 @@ class TestConceptFilterApply:
 
         returned = set(
             session.scalars(
-                ConceptFilter(require_standard=True).apply(
-                    sa.select(Concept.concept_id)
-                )
+                ConceptFilter(require_standard=True).apply(sa.select(Concept.concept_id))
             ).all()
         )
 
@@ -215,9 +211,7 @@ class TestNormalisedFlagExpr:
         ],
     )
     def test_normalises_value(self, session, raw, expected):
-        result = session.scalar(
-            sa.select(normalised_flag_expr(sa.literal(raw, type_=sa.String)))
-        )
+        result = session.scalar(sa.select(normalised_flag_expr(sa.literal(raw, type_=sa.String))))
         assert result == expected
 
 
@@ -272,9 +266,7 @@ class TestConceptViewFlags:
         cv = ConceptView(invalid_reason=invalid_reason)
         assert cv.is_valid is expected
 
-    @pytest.mark.parametrize(
-        "invalid_reason", [None, "", "   ", "D", "U", "X", " X "]
-    )
+    @pytest.mark.parametrize("invalid_reason", [None, "", "   ", "D", "U", "X", " X "])
     def test_is_valid_agrees_with_require_active_filter(self, session, invalid_reason):
         """PR feedback regression test: a 'dirty' row must not be judged
         active by ConceptFilter(require_active=True) but invalid by
@@ -294,9 +286,7 @@ class TestConceptViewFlags:
             session.scalar(
                 sa.select(
                     sa.func.coalesce(
-                        normalised_flag_expr(
-                            sa.literal(standard_concept, type_=sa.String)
-                        )
+                        normalised_flag_expr(sa.literal(standard_concept, type_=sa.String))
                         == StandardConceptFlag.STANDARD.value,
                         sa.false(),
                     )
@@ -323,9 +313,7 @@ class TestPredicateComplement:
             _seed_flagged_concept(session, base + offset, standard_concept=flag)
 
     def _count(self, session, expr):
-        return session.scalar(
-            sa.select(sa.func.count()).select_from(Concept).where(expr)
-        )
+        return session.scalar(sa.select(sa.func.count()).select_from(Concept).where(expr))
 
     def test_is_standard_negation_returns_the_complement(self, session):
         self._seed_all_flags(session, 940000)
@@ -418,6 +406,7 @@ class TestRelationshipFlagPredicates:
             Relationship.is_hierarchical_relationship_expr(),
             Relationship.is_ancestry_defining_expr(),
         ):
+            assert isinstance(expr, sa.ColumnElement)
             compiled = str(expr.compile(compile_kwargs={"literal_binds": True}))
             assert "'1'" in compiled
             assert "'0'" not in compiled
@@ -481,9 +470,7 @@ class TestInvalidReasonMixin:
         gets wrong, and the reason the normalisation exists."""
         for raw in (None, "", "   ", "D"):
             sql_value = session.scalar(
-                sa.select(
-                    normalised_flag_expr(sa.literal(raw, type_=sa.String)).is_(None)
-                )
+                sa.select(normalised_flag_expr(sa.literal(raw, type_=sa.String)).is_(None))
             )
             assert model(invalid_reason=raw).is_valid is bool(sql_value)
 

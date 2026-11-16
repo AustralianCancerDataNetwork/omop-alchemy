@@ -1,9 +1,11 @@
+from datetime import date
+
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
-from datetime import date
-from omop_alchemy.cdm.model.clinical import Person, PersonView
 
+from omop_alchemy.cdm.model.clinical import MeasurementView, Person, PersonView
 from omop_alchemy.cdm.model.vocabulary import Concept
+
 
 def test_person_table_exists(engine):
     """Test person table exists."""
@@ -71,7 +73,6 @@ def test_person_view_repr_contains_semantics(session: Session):
     assert "(" in s
 
 
-
 def test_age_property(session):
     """Test age property."""
     p = session.scalars(sa.select(PersonView).limit(1)).first()
@@ -80,13 +81,15 @@ def test_age_property(session):
 
 def test_age_at_expression(session):
     """Test age at expression."""
-    q = (
-        sa.select(PersonView)
-        .where(PersonView.age_at(date(2020, 1, 1)) > 0)
-        .limit(5)
-    )
+    q = sa.select(PersonView).where(PersonView.age_at(date(2020, 1, 1)) > 0).limit(5)
     rows = session.scalars(q).all()
     assert len(rows) > 0
+
+
+def test_age_at_accepts_column():
+    """age_at takes a column as well as a date; hybrid_method types calls by the instance signature."""
+    expr = PersonView.age_at(MeasurementView.measurement_date)  # ty: ignore[invalid-argument-type]
+    assert "measurement.measurement_date" in str(expr)
 
 
 def test_observation_period_flags(session):
@@ -109,9 +112,7 @@ def test_domain_validation_detects_violation(session):
     p = session.scalars(sa.select(PersonView).limit(1)).first()
 
     # Force a wrong domain (e.g. use a Race concept as gender)
-    wrong = session.scalar(
-        sa.select(Concept.concept_id).where(Concept.domain_id == "Race")
-    )
+    wrong = session.scalar(sa.select(Concept.concept_id).where(Concept.domain_id == "Race"))
 
     p.gender_concept_id = wrong
 
