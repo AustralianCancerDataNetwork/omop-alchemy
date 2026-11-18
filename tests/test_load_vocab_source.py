@@ -833,11 +833,11 @@ def test_sequence_reset_gate_is_closed_for_sqlite(fresh_engine):
 
 
 @pytest.mark.postgresql
-def test_sequence_reset_gate_is_open_for_postgres(pg_engine):
+def test_sequence_reset_gate_is_open_for_postgres(pg_db):
     """The sequence-reset gate must match find_sequence_name support: True for Postgres."""
     from omop_alchemy.backends import backend_supports, resolve_backend
 
-    assert backend_supports(resolve_backend(pg_engine), "find_sequence_name") is True
+    assert backend_supports(resolve_backend(pg_db.committing_engine), "find_sequence_name") is True
 
 
 def test_merge_batch_size_help_explains_partial_commits():

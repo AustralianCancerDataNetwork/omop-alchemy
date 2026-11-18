@@ -185,11 +185,12 @@ def test_clinical_to_vocab_join_compiles_and_executes_in_one_query(
 
 
 def test_create_missing_tables_creates_vocab_and_results_schemas_on_a_fresh_database(
-    pg_db, pg_engine: sa.Engine, cleanup_after_test
+    pg_db, cleanup_after_test
 ) -> None:
     """_create_missing_tables() used to call ensure_schema() only for the
     primary schema; a fresh database needed vocab/results schemas created too.
     """
+    pg_engine = pg_db.committing_engine
     run_id = uuid.uuid4().hex[:8]
     clinical_schema = f"phase32_fresh_clinical_{run_id}"
     vocab_schema = f"phase32_fresh_vocab_{run_id}"

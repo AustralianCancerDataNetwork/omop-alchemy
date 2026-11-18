@@ -17,7 +17,12 @@ from oa_configurator import Role
 from oa_configurator.testing import drop_schema_if_exists, resolve_with_role_schemas
 
 from omop_alchemy.backends.postgres import PostgresBackend
-from omop_alchemy.cdm.model.vocabulary import Concept
+from omop_alchemy.cdm.model.vocabulary import (
+    Concept,
+    Concept_Ancestor,
+    Concept_Relationship,
+    Concept_Synonym,
+)
 from omop_alchemy.config import create_cdm_engines
 from omop_alchemy.maintenance.cli_vocab import (
     VocabularyModel,
@@ -35,18 +40,8 @@ from tests.conftest import (
 pytestmark = pytest.mark.postgresql
 
 
-@pytest.fixture
-def pg_engine(pg_unscoped_resolved):
-    """
-    Notes
-    -----
-    Overrides conftest's bare-engine pg_engine for this module: every test
-    here loads vocabulary data via load_vocab_source(), which (like every
-    real CLI command) expects to run on an engine built through
-    create_cdm_engines()."""
-    engine, _ = create_cdm_engines(pg_unscoped_resolved)
-    yield engine
-    engine.dispose()
+def _count(session, model) -> int:
+    return session.scalar(sa.select(sa.func.count()).select_from(model))
 
 
 def _copy_fixture_source(base_dir: Path) -> Path:
@@ -106,7 +101,9 @@ def _make_concept_source(
 
 
 @pytest.mark.parametrize("bulk_mode", [True, False])
-def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, pg_resolved, tmp_path, bulk_mode):
+def test_end_to_end_vocab_load_on_postgres(
+    pg_session, pg_engine, pg_resolved, pg_cdm, tmp_path, bulk_mode
+):
     """load_vocab_source() completes end-to-end on real Postgres via orm-loader>=0.4.0."""
     source_path = _copy_fixture_source(tmp_path)
     report = load_vocab_source(
@@ -119,19 +116,15 @@ def test_end_to_end_vocab_load_on_postgres(pg_session, pg_engine, pg_resolved, t
     assert all(r.status == "loaded" for r in report.results if r.required)
     assert all(r.status == "skipped" for r in report.results if not r.required)
 
-    count = pg_session.execute(sa.text("SELECT COUNT(*) FROM concept")).scalar()
-    assert count == 8
-    for table_name, expected in (
-        ("concept_ancestor", 1),
-        ("concept_relationship", 2),
-        ("concept_synonym", 4),
-    ):
-        assert pg_session.scalar(sa.text(f"SELECT COUNT(*) FROM {table_name}")) == expected
-    names = pg_session.scalars(sa.text("SELECT concept_synonym_name FROM concept_synonym")).all()
+    assert _count(pg_session, Concept) == 8
+    for model, expected in ((Concept_Ancestor, 1), (Concept_Relationship, 2), (Concept_Synonym, 4)):
+        assert _count(pg_session, model) == expected
+    names = pg_session.scalars(sa.select(Concept_Synonym.concept_synonym_name)).all()
     assert sorted(names) == sorted(ATHENA_SYNONYM_NAMES)
     inspector = sa.inspect(pg_engine)
-    assert len(inspector.get_foreign_keys("concept_synonym")) == 2
-    assert inspector.get_indexes("concept_synonym")
+    schema = pg_cdm.schemas[Role.PRIMARY]
+    assert len(inspector.get_foreign_keys("concept_synonym", schema=schema)) == 2
+    assert inspector.get_indexes("concept_synonym", schema=schema)
 
 
 def test_default_quote_mode_preserves_literal_quotes_on_postgres(
@@ -177,9 +170,7 @@ def test_default_quote_mode_preserves_literal_quotes_on_postgres(
         source_path=source_path,
     )
 
-    concept_name = pg_session.execute(
-        sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
-    ).scalar()
+    concept_name = pg_session.scalar(sa.select(Concept.concept_name).where(Concept.concept_id == 1))
     assert concept_name == quoted_name
 
 
@@ -223,9 +214,7 @@ def test_explicit_csv_quote_mode_strips_quotes_on_postgres(
         quote_mode="csv",
     )
 
-    concept_name = pg_session.execute(
-        sa.text("SELECT concept_name FROM concept WHERE concept_id = 1")
-    ).scalar()
+    concept_name = pg_session.scalar(sa.select(Concept.concept_name).where(Concept.concept_id == 1))
     assert concept_name == long_name
 
 
@@ -248,8 +237,7 @@ def test_load_vocab_model_csv_on_postgres(pg_session, tmp_path):
     pg_session.commit()
 
     assert row_count == 8
-    count = pg_session.execute(sa.text("SELECT COUNT(*) FROM concept")).scalar()
-    assert count == 8
+    assert _count(pg_session, Concept) == 8
 
 
 def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
@@ -285,15 +273,12 @@ def test_replace_strategy_overwrites_matching_and_preserves_absent_rows(
         merge_strategy="replace",
     )
 
-    names = dict(
-        pg_session.execute(
-            sa.text(
-                "SELECT concept_id, concept_name FROM concept "
-                "WHERE concept_id IN (:matching_id, :absent_id)"
-            ),
-            {"matching_id": concept_id, "absent_id": source_absent_id},
-        ).all()
-    )
+    rows = pg_session.execute(
+        sa.select(Concept.concept_id, Concept.concept_name).where(
+            Concept.concept_id.in_([concept_id, source_absent_id])
+        )
+    ).all()
+    names = {row.concept_id: row.concept_name for row in rows}
     assert names[concept_id] == "name_v2"
     assert names[source_absent_id] == "preserved"
 
@@ -315,16 +300,15 @@ def test_upsert_strategy_is_non_destructive(pg_session, pg_engine, pg_resolved, 
         merge_strategy="upsert",
     )
 
-    name = pg_session.execute(
-        sa.text("SELECT concept_name FROM concept WHERE concept_id = :cid"),
-        {"cid": concept_id},
-    ).scalar()
+    name = pg_session.scalar(
+        sa.select(Concept.concept_name).where(Concept.concept_id == concept_id)
+    )
     assert name == "name_v1", (
         f"Expected 'name_v1' after upsert (existing row preserved), got {name!r}"
     )
 
 
-def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cleanup_after_test):
+def test_db_schema_search_path_on_postgres(pg_db, tmp_path, cleanup_after_test):
     """
     load_vocab_source with db_schema creates vocabulary tables in the requested
     PostgreSQL schema and loads data into them correctly.
@@ -339,13 +323,14 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cle
     source_path = _copy_fixture_source(tmp_path)
     quoted_schema = '"' + schema.replace('"', '""') + '"'
 
-    drop_schema_if_exists(pg_engine, schema)
-    cleanup_after_test(lambda: drop_schema_if_exists(pg_engine, schema))
-    with pg_engine.begin() as conn:
+    admin_engine = pg_db.committing_engine
+    drop_schema_if_exists(admin_engine, schema)
+    cleanup_after_test(lambda: drop_schema_if_exists(admin_engine, schema))
+    with admin_engine.begin() as conn:
         conn.execute(sa.text(f"CREATE SCHEMA {quoted_schema}"))
 
     # A single-schema deployment: vocab/results fall back to the CDM schema.
-    scoped_resolved = resolve_with_role_schemas(pg_resolved, {Role.PRIMARY: schema})
+    scoped_resolved = resolve_with_role_schemas(pg_db.resolved, {Role.PRIMARY: schema})
     scoped_engine, _ = create_cdm_engines(require_cdm(scoped_resolved))
 
     try:
@@ -360,12 +345,12 @@ def test_db_schema_search_path_on_postgres(pg_engine, pg_resolved, tmp_path, cle
 
         assert any(r.status == "loaded" for r in report.results if r.required)
 
-        inspector = sa.inspect(pg_engine)
+        inspector = sa.inspect(admin_engine)
         assert inspector.has_table("concept", schema=schema), (
             f"Expected concept table in schema '{schema}'"
         )
 
-        with pg_engine.connect() as conn:
+        with admin_engine.connect() as conn:
             count = conn.execute(sa.text(f"SELECT COUNT(*) FROM {quoted_schema}.concept")).scalar()
         assert count == 8
     finally:

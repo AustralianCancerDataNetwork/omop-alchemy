@@ -237,13 +237,13 @@ def test_reconcile_schema_catches_deferred_fk_violation_on_duckdb(
 
 
 @pytest.mark.postgresql
-def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(pg_db, pg_engine):
+def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(pg_db):
     """A table missing from its expected schema but physically present under
     a different one reports RELOCATED, not a plain MISSING.
     """
     with (
         scoped_test_schema(pg_db.resolved, prefix="reconcile_relocated_a") as scoped,
-        isolated_test_schema(pg_engine, prefix="reconcile_relocated_b") as schema_b,
+        isolated_test_schema(pg_db.committing_engine, prefix="reconcile_relocated_b") as schema_b,
     ):
         engine, resolved = scoped.engine, scoped.resolved
         # vocabulary_included defaults to True: person's gender_concept_id FK

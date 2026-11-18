@@ -72,7 +72,8 @@ def indexed_engine(request):
     both before running and via cleanup_after_test.
     """
     if request.param == Dialect.POSTGRESQL:
-        pg_engine = request.getfixturevalue("pg_engine")
+        pg_db = request.getfixturevalue("pg_db")
+        pg_engine = pg_db.committing_engine
         bookkeeping_schema = get_bookkeeping_schema(pg_engine)
         cleanup_after_test = request.getfixturevalue("cleanup_after_test")
         table_ref = qualified(
@@ -86,7 +87,6 @@ def indexed_engine(request):
         _drop_bookkeeping_table()
         cleanup_after_test(_drop_bookkeeping_table)
 
-        pg_db = request.getfixturevalue("pg_db")
         with scoped_test_schema(pg_db.resolved, prefix="indexed_engine") as scoped:
             _create_missing_tables(
                 MaintenanceContext(
@@ -698,7 +698,7 @@ def test_describe_shape_conflict_mentions_reason_for_sqlite_dialect_options():
 
 @pytest.mark.postgresql
 def test_resolving_cdm_database_with_maintenance_schema_name_raises(
-    pg_db, pg_unscoped_resolved, cleanup_after_test
+    pg_db, pg_scoped, cleanup_after_test
 ):
     """
     Notes
@@ -707,7 +707,7 @@ def test_resolving_cdm_database_with_maintenance_schema_name_raises(
     entries sharing one physical connection is itself unconfigurable (see
     StackConfig's entry-exclusivity checks)"""
     reset_schema_registry_rows(cleanup_after_test, pg_db.committing_engine, [MAINTENANCE_SCHEMA])
-    create_cdm_engines(pg_unscoped_resolved)[0].dispose()
+    create_cdm_engines(require_cdm(pg_scoped.resolved))[0].dispose()
 
     colliding_resolved = require_cdm(
         Resolver.from_active_config()

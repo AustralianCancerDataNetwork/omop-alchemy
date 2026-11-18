@@ -2,6 +2,7 @@ import pytest
 
 from omop_alchemy.maintenance.cli_schema_info import collect_maintenance_info
 from omop_alchemy.maintenance.context import MaintenanceContext
+from tests.conftest import require_cdm
 
 
 def _status_by_command(info):
@@ -49,10 +50,14 @@ def test_command_support_reports_duckdb_ready_for_sequence_truncate_and_fk_valid
 
 @pytest.mark.postgresql
 def test_command_support_reports_postgres_ready_for_every_capability(
-    pg_db, pg_engine, pg_unscoped_resolved
+    pg_scoped,
 ):
     info = collect_maintenance_info(
-        MaintenanceContext(resolved=pg_unscoped_resolved, engine=pg_engine, vocab_engine=pg_engine)
+        MaintenanceContext(
+            resolved=require_cdm(pg_scoped.resolved),
+            engine=pg_scoped.engine,
+            vocab_engine=pg_scoped.engine,
+        )
     )
     statuses = _status_by_command(info)
 

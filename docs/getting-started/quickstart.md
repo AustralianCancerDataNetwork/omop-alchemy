@@ -18,7 +18,7 @@ See [Configuration](configuration.md) for the full field reference.
 
 ## Running PostgreSQL tests locally
 
-The test suite includes PostgreSQL-specific tests that need a `test_cdm_db_pg` database configured in `~/.config/omop/config.toml`. Without it they fail, so deselect them with `pytest -m "not postgresql"`. They're resolved via oa-configurator's `isolated_test_database()`, wrapped in this repo's own `pg_db`/`pg_engine`/`pg_session` fixtures, and marked `@pytest.mark.postgresql`. Run them with `pytest -m postgresql`.
+The test suite includes PostgreSQL-specific tests that need a `test_cdm_db_pg` database configured in `~/.config/omop/config.toml`. Without it they fail, so deselect them with `pytest -m "not postgresql"`. They're resolved via oa-configurator's `isolated_test_database()`, wrapped in this repo's own `pg_db`, `pg_cdm` and `pg_session` fixtures, and marked `@pytest.mark.postgresql`. Run them with `pytest -m postgresql`.
 
 !!! warning "This test database is destructive."
     `pg_session`-backed tests drop and recreate every non-system schema (not just `public`) both before and after each test. `test_cdm_db_pg` must point to a **dedicated, empty test database**, never to a database that contains real data. The test suite enforces this: it fails loudly if the configured database is not marked `test_only = true` in your config. The suite runs sequentially by design and does not support `pytest-xdist`: it fails loudly under `-n 2` or higher rather than racing another worker's reset.

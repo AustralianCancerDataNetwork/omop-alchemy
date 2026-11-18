@@ -23,11 +23,12 @@ from omop_alchemy.maintenance.cli_fulltext import (
 from omop_alchemy.maintenance.cli_tables import _truncate_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
 from omop_alchemy.maintenance.tables import TableCategory
+from tests.conftest import require_cdm
 
 pytestmark = pytest.mark.postgresql
 
 
-def test_backup_includes_maintenance_schema(pg_engine, pg_resolved, monkeypatch, tmp_path):
+def test_backup_includes_maintenance_schema(pg_scoped, monkeypatch, tmp_path):
     captured = {}
 
     class FakeBackend(Backend):
@@ -50,8 +51,8 @@ def test_backup_includes_maintenance_schema(pg_engine, pg_resolved, monkeypatch,
     )
 
     result = _single_connection_backup(
-        pg_engine,
-        pg_resolved,
+        pg_scoped.engine,
+        require_cdm(pg_scoped.resolved),
         output_path=tmp_path / "backup.dump",
         backup_format=BackupFormat.CUSTOM,
         dry_run=True,

@@ -1,5 +1,4 @@
 import copy
-import os
 import uuid
 from collections.abc import Iterator
 from datetime import date
@@ -14,9 +13,9 @@ from oa_configurator import Dialect, ResolvedCDMDatabase, ResolvedDatabase
 from oa_configurator.testing import (
     DIALECT_PARAMS,
     IsolatedTestDatabase,
+    ScopedTestSchema,
     isolated_test_database,
     require_routing_mark,
-    resolve_with_role_schemas,
     scoped_test_schema,
 )
 from orm_loader.helpers import bootstrap
@@ -34,11 +33,9 @@ from omop_alchemy.cdm.model.vocabulary import (
     Relationship,
     Vocabulary,
 )
-from omop_alchemy.config import OmopAlchemyConfig
-from omop_alchemy.maintenance.cli_tables import _truncate_tables
+from omop_alchemy.config import OmopAlchemyConfig, _maintenance_schema_claims
 from omop_alchemy.maintenance.cli_vocab import VocabularyModel, _load_vocab_model_csv
 from omop_alchemy.maintenance.context import MaintenanceContext
-from omop_alchemy.maintenance.tables import select_maintenance_tables
 
 # typer forces colorized rich error/output rendering when GITHUB_ACTIONS (or
 # FORCE_COLOR / PY_COLORS) is set -- see typer.rich_utils.FORCE_TERMINAL. Under
@@ -560,74 +557,47 @@ def pg_db(request):
 
 
 @pytest.fixture
-def pg_resolved(pg_db) -> ResolvedCDMDatabase:
-    """pg_db's own ResolvedCDMDatabase, for maintenance functions that require one."""
-    return require_cdm(pg_db.resolved)
+def pg_scoped(pg_db) -> Iterator[ScopedTestSchema]:
+    """Fresh schema on the shared test database, with the maintenance schemas claimed.
 
-
-@pytest.fixture
-def pg_unscoped_resolved(pg_db) -> ResolvedCDMDatabase:
-    """pg_db.resolved with every role on the connection's own default schema."""
-    return require_cdm(
-        resolve_with_role_schemas(
-            pg_db.resolved, {role: None for role in pg_db.resolved.schema_tags()}
-        )
-    )
-
-
-@pytest.fixture
-def pg_engine(pg_unscoped_resolved):
-    """Committing PostgreSQL engine built from ``pg_unscoped_resolved``, so
-    every Role tag maps to the connection's default schema (``public``).
-    ``pg_session`` resets its tables before and after each test.
+    Every Role tag maps to one uniquely named schema that is dropped after
+    the test, and ``scoped.engine`` is committing. No tables exist yet.
     """
-    engine, _ = pg_unscoped_resolved.create_engines()
-    yield engine
-    engine.dispose()
+    with scoped_test_schema(
+        pg_db.resolved,
+        prefix="scoped",
+        schema_claims=_maintenance_schema_claims(),
+        owner="omop_alchemy",
+    ) as scoped:
+        yield scoped
 
 
 @pytest.fixture
-def pg_session(pg_engine, pg_unscoped_resolved, cleanup_after_test):
-    """Function-scoped PostgreSQL session with every managed table empty for each test.
-    Re-uses one persistent database across the whole suite as creating/tearing down
-    a real database per test would be far more expensive. Everything requiring
-    a genuinely committing engine (``.connect()``/``.begin()``) should requires
-    cleanup.
-
-    Notes
-    -----
-    - No SQLite equivalent of this fixture exists as isolated_test_database()'s
-        SQLite strategy provisions a fresh tempfile database on every call and
-        discards it on exit, so fresh_engine gets per-test isolation for free.
-    - Only safe against a database used by one process at a time.
+def pg_cdm(pg_scoped) -> ScopedTestSchema:
+    """``pg_scoped`` with every CDM table created through bootstrap."""
+    bootstrap(require_cdm(pg_scoped.resolved), create=True)
+    return pg_scoped
 
 
+@pytest.fixture
+def pg_resolved(pg_cdm) -> ResolvedCDMDatabase:
+    """``pg_cdm``'s ResolvedCDMDatabase, pointed at its own schema."""
+    return require_cdm(pg_cdm.resolved)
+
+
+@pytest.fixture
+def pg_engine(pg_cdm) -> sa.Engine:
+    """``pg_cdm``'s committing engine, with the schema translate map applied."""
+    return pg_cdm.engine
+
+
+@pytest.fixture
+def pg_session(pg_engine) -> Iterator[so.Session]:
+    """Session on ``pg_cdm``'s engine with every CDM table created and empty.
+
+    Everything lives in a schema that is dropped after the test, so nothing
+    needs truncating or cleaning up, and tests can run in parallel.
     """
-    worker_count = os.environ.get("PYTEST_XDIST_WORKER_COUNT")
-    if worker_count is not None and int(worker_count) > 1:
-        pytest.fail(
-            "pg_session cannot run safely under parallel pytest-xdist "
-            f"workers ({worker_count} active): it truncates every ORM-managed "
-            "table in a database shared across the whole test session, so "
-            "concurrent workers would race each other's truncates. This "
-            "suite is sequential-only; run it without -n."
-        )
-
-    def _clear_managed_tables() -> None:
-        _truncate_tables(
-            MaintenanceContext(
-                resolved=pg_unscoped_resolved, engine=pg_engine, vocab_engine=pg_engine
-            ),
-            table_names=tuple(table.table_name for table in select_maintenance_tables()),
-            cascade=True,
-        )
-
-    _clear_managed_tables()
-    cleanup_after_test(_clear_managed_tables)
-
-    # bootstrap() builds its own engine off resolved, on the same default schema as pg_engine.
-    bootstrap(pg_unscoped_resolved, create=True)
-
     session = so.Session(pg_engine, expire_on_commit=False)
     try:
         yield session
