@@ -162,9 +162,19 @@ def _old_plain_backup(source_engine, resolved, output_path):
     assert tool_path
 
 
+def _require_pg_client_tools() -> None:
+    """Fail unless ``pg_dump`` and ``psql`` are on the PATH."""
+    missing = [tool for tool in ("pg_dump", "psql") if not shutil.which(tool)]
+    if missing:
+        pytest.fail(
+            f"The plain PostgreSQL round trip needs {' and '.join(missing)} on the PATH. "
+            "Install the PostgreSQL client tools (postgresql-client).",
+            pytrace=False,
+        )
+
+
 def test_current_plain_backup_restores_and_registers_non_test_target(pg_db, tmp_path):
-    if not shutil.which("pg_dump") or not shutil.which("psql"):
-        pytest.skip("plain PostgreSQL round trip requires pg_dump and psql")
+    _require_pg_client_tools()
 
     role_schemas = _unique_role_schemas()
     _resolved, source_primary, source_vocab, source_context = _source_context(pg_db, role_schemas)
@@ -211,8 +221,7 @@ def test_current_plain_backup_restores_and_registers_non_test_target(pg_db, tmp_
 
 
 def test_old_plain_backup_restores_data_then_reports_acknowledgment(pg_db, tmp_path):
-    if not shutil.which("pg_dump") or not shutil.which("psql"):
-        pytest.skip("plain PostgreSQL round trip requires pg_dump and psql")
+    _require_pg_client_tools()
 
     role_schemas = _unique_role_schemas()
     resolved, source_primary, source_vocab, _ = _source_context(pg_db, role_schemas)
@@ -271,8 +280,7 @@ def test_old_plain_backup_restores_data_then_reports_acknowledgment(pg_db, tmp_p
 
 
 def test_restore_with_schema_drift_does_not_acknowledge(pg_db, tmp_path):
-    if not shutil.which("pg_dump") or not shutil.which("psql"):
-        pytest.skip("plain PostgreSQL round trip requires pg_dump and psql")
+    _require_pg_client_tools()
 
     role_schemas = _unique_role_schemas()
     _resolved, source_primary, source_vocab, source_context = _source_context(pg_db, role_schemas)
@@ -311,8 +319,7 @@ def test_restore_with_schema_drift_does_not_acknowledge(pg_db, tmp_path):
 
 
 def test_plain_restore_refuses_existing_dumped_schema_before_psql(pg_db, tmp_path, monkeypatch):
-    if not shutil.which("pg_dump") or not shutil.which("psql"):
-        pytest.skip("plain PostgreSQL round trip requires pg_dump and psql")
+    _require_pg_client_tools()
 
     role_schemas = _unique_role_schemas()
     _resolved, source_primary, source_vocab, source_context = _source_context(pg_db, role_schemas)
