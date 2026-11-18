@@ -4,7 +4,7 @@ from typing import cast
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.exc as sa_exc
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Dialect, Role, StackConfig
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import sessionmaker
 from typer.testing import CliRunner
@@ -63,6 +63,7 @@ def _write_csv_with_size(source_path: Path, table_name: str, size_bytes: int) ->
     return csv_path
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
     fresh_engine,
     fresh_resolved,
@@ -119,6 +120,7 @@ def test_load_vocab_source_on_sqlite_creates_tables_and_reports_loaded_results(
     assert inspector.has_table("concept")
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_clears_concept_group_cache(
     fresh_engine, fresh_resolved, monkeypatch, tmp_path
 ):
@@ -145,6 +147,7 @@ def test_load_vocab_source_clears_concept_group_cache(
     assert cleared
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_requires_full_required_athena_fixture(
     fresh_engine, fresh_resolved, tmp_path
 ):
@@ -177,6 +180,7 @@ def test_drug_strength_model_matches_athena_vocabulary_shape():
     assert "end_datetime" not in column_names
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_dry_run_does_not_create_tables(fresh_engine, fresh_resolved, tmp_path):
     """Test load vocab source dry run does not create tables."""
     engine = fresh_engine
@@ -206,7 +210,7 @@ def test_load_vocab_source_cli_uses_configured_athena_source(monkeypatch, tmp_pa
     athena_dir.mkdir()
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={"db": ConnectionConfig(dialect=Dialect.SQLITE, database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
         tools={OmopAlchemyConfig.tool_name: {"athena_source_path": str(athena_dir)}},
     )
@@ -268,6 +272,7 @@ def test_load_vocab_source_cli_uses_configured_athena_source(monkeypatch, tmp_pa
     assert "load-vocab-source" in result.stdout
 
 
+@pytest.mark.sqlite
 def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_path):
     """Test load vocab model csv passes quote mode."""
     engine = fresh_engine
@@ -319,6 +324,7 @@ def test_load_vocab_model_csv_passes_quote_mode(fresh_engine, monkeypatch, tmp_p
     assert calls["quote_mode"] == "literal"
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_loads_in_fk_dependency_order(
     fresh_engine, fresh_resolved, monkeypatch, tmp_path
 ):
@@ -364,6 +370,7 @@ def test_load_vocab_source_loads_in_fk_dependency_order(
     assert loaded_order[: len(expected_order)] == expected_order
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_reports_weighted_progress(
     fresh_engine, fresh_resolved, monkeypatch, tmp_path
 ):
@@ -409,6 +416,7 @@ def test_load_vocab_source_reports_weighted_progress(
     assert percents == sorted(percents)
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_wraps_failed_table_load(
     fresh_engine, fresh_resolved, monkeypatch, tmp_path
 ):
@@ -458,7 +466,7 @@ def test_load_vocab_source_cli_surfaces_database_error_detail(monkeypatch):
     """Test load vocab source cli surfaces database error detail."""
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={"db": ConnectionConfig(dialect=Dialect.SQLITE, database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
@@ -492,6 +500,7 @@ def test_load_vocab_source_cli_surfaces_database_error_detail(monkeypatch):
     assert "value too long for type character varying(255)" in result.stdout
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(
     fresh_engine, fresh_resolved, monkeypatch, tmp_path
 ):
@@ -534,6 +543,7 @@ def test_load_vocab_source_defaults_to_by_delimiter_quote_mode(
     assert "csv" not in received_quote_modes
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_tables_unknown_name_raises_runtime_error(
     fresh_engine, fresh_resolved, tmp_path
 ):
@@ -549,6 +559,7 @@ def test_load_vocab_source_tables_unknown_name_raises_runtime_error(
         )
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_tables_single_loads_only_that_table(
     fresh_engine, fresh_resolved, monkeypatch, tmp_path
 ):
@@ -589,6 +600,7 @@ def test_load_vocab_source_tables_single_loads_only_that_table(
     assert result_names == {"concept"}
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_tables_multiple_loads_exactly_those(
     fresh_engine, fresh_resolved, monkeypatch, tmp_path
 ):
@@ -627,6 +639,7 @@ def test_load_vocab_source_tables_multiple_loads_exactly_those(
     assert set(loaded_tables) == {"concept", "vocabulary"}
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_tables_skips_required_files_preflight(
     fresh_engine, fresh_resolved, tmp_path
 ):
@@ -651,6 +664,7 @@ def test_load_vocab_source_tables_skips_required_files_preflight(
     assert result_names == {"concept"}
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_tables_missing_csv_raises_runtime_error(
     fresh_engine, fresh_resolved, tmp_path
 ):
@@ -669,6 +683,7 @@ def test_load_vocab_source_tables_missing_csv_raises_runtime_error(
         )
 
 
+@pytest.mark.sqlite
 def test_load_vocab_source_bulk_mode_surfaces_index_warnings(
     fresh_engine, fresh_resolved, monkeypatch, tmp_path
 ):
@@ -809,12 +824,19 @@ def test_render_vocab_index_warnings_lists_messages_when_present():
     assert "1" in summary_text
 
 
-def test_sequence_reset_gate_matches_find_sequence_name_capability(fresh_engine, pg_engine):
-    """The sequence-reset gate must match find_sequence_name support:
-    False for SQLite, True for Postgres."""
+@pytest.mark.sqlite
+def test_sequence_reset_gate_is_closed_for_sqlite(fresh_engine):
+    """The sequence-reset gate must match find_sequence_name support: False for SQLite."""
     from omop_alchemy.backends import backend_supports, resolve_backend
 
     assert backend_supports(resolve_backend(fresh_engine), "find_sequence_name") is False
+
+
+@pytest.mark.postgresql
+def test_sequence_reset_gate_is_open_for_postgres(pg_engine):
+    """The sequence-reset gate must match find_sequence_name support: True for Postgres."""
+    from omop_alchemy.backends import backend_supports, resolve_backend
+
     assert backend_supports(resolve_backend(pg_engine), "find_sequence_name") is True
 
 
@@ -828,6 +850,7 @@ def test_merge_batch_size_help_explains_partial_commits():
     )
 
 
+@pytest.mark.sqlite
 def test_final_validation_preserves_connection_errors(
     fresh_engine,
     fresh_resolved,

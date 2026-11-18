@@ -10,14 +10,16 @@ import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 import typer.rich_utils as _typer_rich_utils
-from oa_configurator import ResolvedCDMDatabase, ResolvedDatabase
+from oa_configurator import Dialect, ResolvedCDMDatabase, ResolvedDatabase
 from oa_configurator.testing import (
+    DIALECT_PARAMS,
     IsolatedTestDatabase,
     isolated_test_database,
+    require_routing_mark,
     resolve_with_role_schemas,
     scoped_test_schema,
 )
-from orm_loader.helpers import Base, bootstrap
+from orm_loader.helpers import bootstrap
 from sqlalchemy.orm import Session, sessionmaker
 
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence, Observation_Period, Person
@@ -71,22 +73,8 @@ def fake_maintenance_context(engine: Any) -> MaintenanceContext:
     return cast(MaintenanceContext, FakeMaintenanceContext(engine))
 
 
-@pytest.fixture(autouse=True)
-def restore_inline_foreign_keys() -> Iterator[None]:
-    """Undo ``AddConstraint``'s permanent exclusion of ``use_alter`` foreign keys from inline ``CREATE TABLE``.
-
-    A Postgres ``create_all`` on the shared metadata would otherwise make a later SQLite
-    ``create_all`` in the same process leave those keys out.
-    """
-    yield
-    for table in Base.metadata.tables.values():
-        for constraint in table.foreign_key_constraints:
-            if constraint.use_alter:
-                constraint._create_rule = None
-
-
 @pytest.fixture
-def fresh_db() -> Iterator[IsolatedTestDatabase]:
+def fresh_db(request) -> Iterator[IsolatedTestDatabase]:
     """Fresh, empty, function-scoped SQLite database.
 
     SQLite has no schema concept, so create_engine() folds every Role tag
@@ -95,7 +83,8 @@ def fresh_db() -> Iterator[IsolatedTestDatabase]:
     with isolated_test_database(
         OmopAlchemyConfig,
         "test_cdm_db_sqlite",
-        dialect="sqlite",
+        dialect=Dialect.SQLITE,
+        request=request,
     ) as db:
         yield db
 
@@ -130,17 +119,13 @@ def fresh_resolved(fresh_db: IsolatedTestDatabase) -> ResolvedCDMDatabase:
 def fresh_duckdb_db(request) -> Iterator[IsolatedTestDatabase]:
     """Fresh, empty, function-scoped DuckDB database.
 
-    Unlike SQLite, DuckDB's supports_alter=True means create_all() can
-    corrupt shared metadata process-wide (SQLAlchemy's AddConstraint
-    permanently disables a deferred FK's inline rendering on the shared
-    constraint object, not just for this call), so every consuming test
-    must carry pytest.mark.duckdb + pytest.mark.db_dialect. request is
-    forwarded so isolated_test_database() enforces that at setup time.
+    Every consuming test must carry pytest.mark.duckdb. request is forwarded
+    so isolated_test_database() enforces that at setup time.
     """
     with isolated_test_database(
         OmopAlchemyConfig,
         "test_cdm_db_duckdb",
-        dialect="duckdb",
+        dialect=Dialect.DUCKDB,
         request=request,
     ) as db:
         yield db
@@ -533,7 +518,7 @@ def engine(tmp_path_factory: pytest.TempPathFactory) -> Iterator[sa.Engine]:
     with isolated_test_database(
         OmopAlchemyConfig,
         "test_cdm_db_sqlite",
-        dialect="sqlite",
+        dialect=Dialect.SQLITE,
         poolclass=sa.pool.StaticPool,
         connect_args={"check_same_thread": False, "timeout": 30},
         # SQLite has no schema concept: isolated_test_database's own default
@@ -676,8 +661,10 @@ def sqlite_split(tmp_path) -> Iterator[SplitSQLite]:
     from omop_alchemy.config import create_cdm_engines
 
     connections = {
-        "primary": ConnectionConfig(dialect="sqlite", database_name=str(tmp_path / "primary.db")),
-        "vocab": ConnectionConfig(dialect="sqlite", database_name=str(tmp_path / "vocab.db")),
+        "primary": ConnectionConfig(
+            dialect=Dialect.SQLITE, database_name=str(tmp_path / "primary.db")
+        ),
+        "vocab": ConnectionConfig(dialect=Dialect.SQLITE, database_name=str(tmp_path / "vocab.db")),
     }
     stack = StackConfig.for_session(
         connections=connections,
@@ -773,12 +760,14 @@ def pg_schema_session(pg_db):
 
 
 @pytest.fixture(scope="function")
-def session(engine) -> Iterator[Session]:
+def session(request, engine) -> Iterator[Session]:
     """
     Function-scoped SQLAlchemy session.
 
-    Each test gets a clean transactional boundary.
+    Each test gets a clean transactional boundary. The session-scoped ``engine``
+    cannot see the test's marks, so this checks the ``sqlite`` mark.
     """
+    require_routing_mark(request, "test_cdm_db_sqlite", Dialect.SQLITE)
     session = so.Session(engine, expire_on_commit=False)
 
     try:
@@ -786,6 +775,39 @@ def session(engine) -> Iterator[Session]:
     finally:
         session.rollback()
         session.close()
+
+
+@pytest.fixture
+def duckdb_session(fresh_duckdb_db: IsolatedTestDatabase) -> Iterator[Session]:
+    """Function-scoped DuckDB session on a fresh database with every managed table created."""
+    assert fresh_duckdb_db.resolved is not None
+    bootstrap(fresh_duckdb_db.resolved, create=True)
+    session = so.Session(fresh_duckdb_db.connection.engine, expire_on_commit=False)
+    try:
+        yield session
+    finally:
+        session.rollback()
+        session.close()
+
+
+_SESSION_FIXTURE_BY_DIALECT = {
+    Dialect.SQLITE: "session",
+    Dialect.POSTGRESQL: "pg_session",
+    Dialect.DUCKDB: "duckdb_session",
+}
+assert set(_SESSION_FIXTURE_BY_DIALECT) == {param.values[0] for param in DIALECT_PARAMS}, (
+    "_SESSION_FIXTURE_BY_DIALECT is missing an entry for a dialect DIALECT_PARAMS now covers."
+)
+
+
+@pytest.fixture(params=DIALECT_PARAMS)
+def dialect_session(request: pytest.FixtureRequest) -> Session:
+    """The session fixture of each dialect in turn, so a test body runs on every dialect.
+
+    The lookup is dynamic, so each dialect's own mark comes from ``DIALECT_PARAMS``
+    on the parametrised value.
+    """
+    return request.getfixturevalue(_SESSION_FIXTURE_BY_DIALECT[request.param])
 
 
 # ---------------------------------------------------------------------------

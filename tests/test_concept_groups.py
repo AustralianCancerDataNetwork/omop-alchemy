@@ -85,7 +85,6 @@ def test_spec_construction_performs_no_io():
 
 
 def test_semantic_unit_reference_is_a_lazy_complete_role_adapter():
-    pytest.importorskip("omop_semantics")
     from omop_semantics.runtime.default_valuesets import runtime
 
     ref = SemanticUnitRef("condition_modifiers", "metastatic_disease_concepts")
@@ -134,6 +133,7 @@ def _ancestry(session, pairs):
     session.flush()
 
 
+@pytest.mark.sqlite
 def test_group_resolves_descendants(session):
     """Parents expand through concept_ancestor."""
     _ancestry(session, [(100, 100), (100, 101), (100, 102)])
@@ -141,6 +141,7 @@ def test_group_resolves_descendants(session):
     assert group.ids == frozenset({100, 101, 102})
 
 
+@pytest.mark.sqlite
 def test_excluded_parents_subtract_their_descendants(session):
     _ancestry(session, [(200, 200), (200, 201), (200, 202), (202, 202)])
     spec = _spec(name="excl", parents=(200,), excluded=(202,))
@@ -148,12 +149,14 @@ def test_excluded_parents_subtract_their_descendants(session):
     assert group.ids == frozenset({200, 201})
 
 
+@pytest.mark.sqlite
 def test_exact_ids_are_included_without_expansion(session):
     """Exact members join the set directly, needing no ancestry at all."""
     group = build_concept_group(session, _spec(name="exact", parents=(), exact=(999999,)))
     assert group.ids == frozenset({999999})
 
 
+@pytest.mark.sqlite
 def test_exact_ids_survive_exclusion(session):
     """Exclusions subtract descendants; exact members are explicit inclusions.
 
@@ -166,6 +169,7 @@ def test_exact_ids_survive_exclusion(session):
     assert 301 in group
 
 
+@pytest.mark.sqlite
 def test_include_descendants_false_uses_anchors_only(session):
     _ancestry(session, [(400, 400), (400, 401)])
     group = build_concept_group(
@@ -174,6 +178,7 @@ def test_include_descendants_false_uses_anchors_only(session):
     assert group.ids == frozenset({400})
 
 
+@pytest.mark.sqlite
 def test_membership_rejects_none(session):
     group = build_concept_group(session, _spec(name="none", parents=(), exact=(1,)))
     assert None not in group
@@ -182,6 +187,7 @@ def test_membership_rejects_none(session):
 # ── the two access paths agree ──────────────────────────────────────────────
 
 
+@pytest.mark.sqlite
 def test_python_and_sql_paths_agree(session):
     """The instance and expression forms must select the same concepts.
 
@@ -225,17 +231,19 @@ def test_empty_group_expression_is_false():
 # ── caching ─────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.sqlite
 def test_expansion_is_cached_per_vocabulary(session):
     """A second request must not rebuild."""
     spec = _spec(name="cached", parents=(), exact=(1,))
     assert resolve_concept_group(session, spec) is resolve_concept_group(session, spec)
 
 
+@pytest.mark.sqlite
 def test_engines_on_one_vocabulary_share_expansions(session):
     """A second engine on the same database reuses the first one's registry,
     and builds on its own engine."""
     engine = session.get_bind().engine
-    other = sa.create_engine(
+    other = sa.create_engine(  # noqa: TID251 - a second engine on one database is the subject
         engine.url,
         execution_options={
             "schema_translate_map": engine.get_execution_options()["schema_translate_map"]
@@ -252,6 +260,7 @@ def test_engines_on_one_vocabulary_share_expansions(session):
         other.dispose()
 
 
+@pytest.mark.sqlite
 def test_engines_on_different_databases_do_not_share(session, fresh_engine):
     with so.Session(fresh_engine) as other_session:
         assert concept_group_registry(session) is not concept_group_registry(other_session)
@@ -259,7 +268,8 @@ def test_engines_on_different_databases_do_not_share(session, fresh_engine):
 
 def test_in_memory_engines_do_not_share():
     """Two in-memory SQLite engines on one URL are separate databases."""
-    first, second = sa.create_engine("sqlite://"), sa.create_engine("sqlite://")
+    first = sa.create_engine("sqlite://")  # noqa: TID251 - two engines on one in-memory URL are the subject
+    second = sa.create_engine("sqlite://")  # noqa: TID251 - two engines on one in-memory URL are the subject
     try:
         with so.Session(first) as a, so.Session(second) as b:
             assert concept_group_registry(a) is not concept_group_registry(b)
@@ -268,6 +278,7 @@ def test_in_memory_engines_do_not_share():
         second.dispose()
 
 
+@pytest.mark.sqlite
 def test_connection_bound_sessions_share_their_engine_scope(session):
     """Session.get_bind() returns a Connection for connection-bound sessions.
 
@@ -283,6 +294,7 @@ def test_connection_bound_sessions_share_their_engine_scope(session):
 # ── bounded cache and its observability ─────────────────────────────────────
 
 
+@pytest.mark.sqlite
 def test_eviction_is_bounded_and_counted(session):
     """A too-small bound must evict, and a rebuild after eviction must be counted.
 
@@ -305,6 +317,7 @@ def test_eviction_is_bounded_and_counted(session):
     assert registry.stats.rebuilds_after_evict == 1
 
 
+@pytest.mark.sqlite
 def test_generous_bound_never_evicts(session):
     registry = ConceptGroupRegistry()
     for name in ("a", "b", "c"):
@@ -314,6 +327,7 @@ def test_generous_bound_never_evicts(session):
     assert registry.stats.entries == 3
 
 
+@pytest.mark.sqlite
 def test_cache_stats_are_reportable(session):
     resolve_concept_group(session, _spec(name="stats", parents=(), exact=(1,)))
     stats = concept_group_cache_stats()
@@ -330,7 +344,6 @@ def test_governed_specs_emit_no_deprecation_warnings():
     Guards against slipping back to group-backed `.ids`, which 0.6 deprecates
     because it does not say whether members expand through descendants.
     """
-    pytest.importorskip("omop_semantics")
     from omop_alchemy.toolkit.analytics.oncology import (
         CANCER_INDICATING_SURGERY,
         DIAGNOSTIC_STAGING_PROCEDURES,
@@ -356,7 +369,6 @@ def test_governed_specs_emit_no_deprecation_warnings():
 
 def test_radiotherapy_spec_matches_governed_group():
     """The RT definition must come from omop-semantics, not be rebuilt locally."""
-    pytest.importorskip("omop_semantics")
     from omop_semantics.runtime.default_valuesets import runtime
 
     from omop_alchemy.toolkit.analytics.oncology import RADIOTHERAPY_PROCEDURES

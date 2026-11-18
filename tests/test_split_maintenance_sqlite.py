@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import sqlalchemy as sa
 
 from omop_alchemy.backends.base import FullTextTargetConfig
@@ -15,6 +16,8 @@ from omop_alchemy.maintenance.cli_schema import _create_missing_tables, collect_
 from omop_alchemy.maintenance.cli_schema_reconcile import reconcile_schema
 from omop_alchemy.maintenance.cli_tables import _truncate_tables, analyze_tables
 from omop_alchemy.maintenance.tables import TableCategory
+
+pytestmark = pytest.mark.sqlite
 
 
 def _create_split_tables(context):

@@ -19,7 +19,7 @@ from omop_alchemy.maintenance import _cli_utils
 from omop_alchemy.maintenance.cli import app
 from tests.conftest import require_cdm
 
-pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
+pytestmark = pytest.mark.postgresql
 
 runner = CliRunner()
 

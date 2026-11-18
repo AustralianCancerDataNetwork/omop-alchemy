@@ -2,7 +2,7 @@ import importlib
 
 import pytest
 import sqlalchemy as sa
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Dialect, Role, StackConfig
 from orm_loader.helpers import Base
 from typer.testing import CliRunner
 
@@ -19,6 +19,7 @@ runner = CliRunner()
 truncate_tables_module = importlib.import_module("omop_alchemy.maintenance.cli_tables")
 
 
+@pytest.mark.sqlite
 def test_truncate_tables_requires_postgresql(fresh_engine, fresh_resolved):
     """Test truncate tables requires postgresql."""
     engine = fresh_engine
@@ -33,6 +34,7 @@ def test_truncate_tables_requires_postgresql(fresh_engine, fresh_resolved):
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
+@pytest.mark.sqlite
 def test_truncate_tables_reports_blocking_foreign_key_references(
     monkeypatch, fresh_engine, fresh_resolved
 ):
@@ -61,7 +63,6 @@ def test_truncate_tables_reports_blocking_foreign_key_references(
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_truncate_tables_end_to_end_on_duckdb(fresh_duckdb_engine, fresh_duckdb_resolved):
     """_truncate_tables must succeed on DuckDB's own engine.connect() connection."""
     engine = fresh_duckdb_engine
@@ -86,7 +87,7 @@ def test_truncate_tables_cli_requires_confirmation(monkeypatch):
     """Test truncate tables cli requires confirmation."""
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={"db": ConnectionConfig(dialect=Dialect.SQLITE, database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
@@ -105,7 +106,7 @@ def test_truncate_tables_cli_invokes_management(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={"db": ConnectionConfig(dialect=Dialect.SQLITE, database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(

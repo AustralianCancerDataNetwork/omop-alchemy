@@ -97,10 +97,24 @@ packages = ["src/omop_alchemy"]
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 [tool.pytest.ini_options]
-addopts = "-m 'not db_dialect'"
+addopts = "--strict-markers"
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+extend-select = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"sqlalchemy.create_engine".msg = "Get a database from an isolated_test_database fixture."
+"sqlalchemy.engine.create_engine".msg = "Get a database from an isolated_test_database fixture."
+"sqlite3.connect".msg = "Get a database from an isolated_test_database fixture."
+"duckdb.connect".msg = "Get a database from an isolated_test_database fixture."
+"pytest.importorskip".msg = "CI installs every extra, so a missing dependency must fail, not skip."
+
+[tool.ruff.lint.per-file-ignores]
+"src/**" = ["TID251"]
+"tests/conftest.py" = ["TID251"]
 
 # ruff does not support non-native immutable objects (e.g. frozen dataclasses) for B008
 [tool.ruff.lint.flake8-bugbear]

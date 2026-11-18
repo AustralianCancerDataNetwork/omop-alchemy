@@ -4,8 +4,7 @@ PostgreSQL integration tests for OMOP_Alchemy vocabulary loading.
 These tests require a running PostgreSQL container. Start one with:
     docker compose -f tests/docker-compose.yaml up -d
 
-Excluded from the default `pytest` invocation (addopts = "-m 'not
-db_dialect'", see oa_configurator.testing). Run explicitly:
+Run them with:
     pytest -m postgresql
 """
 
@@ -33,7 +32,7 @@ from tests.conftest import (
     require_cdm,
 )
 
-pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
+pytestmark = pytest.mark.postgresql
 
 
 @pytest.fixture

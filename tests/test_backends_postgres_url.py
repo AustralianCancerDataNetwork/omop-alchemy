@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import pytest
 import sqlalchemy as sa
 
 from omop_alchemy.backends.postgres import _libpq_connection_uri
 
 
 def test_libpq_uri_preserves_colon_in_database_name():
-    psycopg = pytest.importorskip("psycopg")
+    from psycopg.conninfo import conninfo_to_dict
+
     url = sa.engine.URL.create(
         "postgresql+psycopg",
         username="test_user",
@@ -21,4 +21,4 @@ def test_libpq_uri_preserves_colon_in_database_name():
 
     uri = _libpq_connection_uri(url)
 
-    assert psycopg.conninfo.conninfo_to_dict(uri)["dbname"] == "analytics:staging"
+    assert conninfo_to_dict(uri)["dbname"] == "analytics:staging"

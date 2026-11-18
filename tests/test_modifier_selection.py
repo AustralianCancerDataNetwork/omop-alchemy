@@ -62,6 +62,7 @@ def _stage_source(*, reverse: bool = False) -> sa.CompoundSelect:
     return sa.union_all(*branches)
 
 
+@pytest.mark.sqlite
 @pytest.mark.parametrize(
     ("spec", "expected_id"),
     [
@@ -76,8 +77,8 @@ def _stage_source(*, reverse: bool = False) -> sa.CompoundSelect:
         ),
     ],
 )
-def test_stage_selection_default_and_overrides(spec, expected_id: int):
-    engine = sa.create_engine("sqlite://")
+def test_stage_selection_default_and_overrides(spec, expected_id: int, fresh_engine):
+    engine = fresh_engine
     with engine.connect() as connection:
         selected = (
             connection.execute(
@@ -123,8 +124,9 @@ def test_chronological_policy_does_not_require_a_concept_code_column():
     preferred_stage_select(without_code, spec=StageSelectionSpec.chronological_only())
 
 
-def test_same_basis_tie_is_stable_when_input_order_reverses():
-    engine = sa.create_engine("sqlite://")
+@pytest.mark.sqlite
+def test_same_basis_tie_is_stable_when_input_order_reverses(fresh_engine):
+    engine = fresh_engine
     selected_ids = []
     with engine.connect() as connection:
         for reverse in (False, True):
@@ -156,7 +158,8 @@ def test_same_basis_tie_is_stable_when_input_order_reverses():
     assert selected_ids == [11, 11]
 
 
-def test_same_numeric_target_id_in_two_target_tables_forms_two_partitions():
+@pytest.mark.sqlite
+def test_same_numeric_target_id_in_two_target_tables_forms_two_partitions(fresh_engine):
     source = _stage_source().subquery()
     condition = sa.select(source).where(source.c.modifier_id == 10)
     procedure = sa.select(
@@ -168,7 +171,7 @@ def test_same_numeric_target_id_in_two_target_tables_forms_two_partitions():
         )
     ).where(source.c.modifier_id == 11)
 
-    engine = sa.create_engine("sqlite://")
+    engine = fresh_engine
     with engine.connect() as connection:
         rows = (
             connection.execute(selected_modifier_select(sa.union_all(condition, procedure)))
@@ -183,7 +186,6 @@ def test_same_numeric_target_id_in_two_target_tables_forms_two_partitions():
 
 
 def test_condition_modifier_specs_delegate_to_governed_semantics():
-    pytest.importorskip("omop_semantics")
     from omop_semantics.runtime.default_valuesets import runtime
 
     group_pairs = (
@@ -211,6 +213,7 @@ def test_condition_modifier_specs_delegate_to_governed_semantics():
     )
 
 
+@pytest.mark.postgresql
 def test_postgresql_executes_modifier_selection_and_stage_policy_contracts(pg_session):
     """Execute collision, stable-tie, and stage overrides on PostgreSQL."""
     expected_by_spec = (

@@ -86,6 +86,7 @@ def test_episode_window_rejects_an_unsupported_dialect():
         sa.select(lower, upper).compile(dialect=mysql.dialect())
 
 
+@pytest.mark.sqlite
 def test_day_delta_executes_as_signed_calendar_days(session):
     values = session.execute(
         sa.select(
@@ -104,7 +105,6 @@ def test_day_delta_executes_as_signed_calendar_days(session):
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_day_delta_and_shift_date_execute_on_duckdb(fresh_duckdb_engine):
     """DuckDB's DATE - DATE returns a plain integer day count and not an INTERVAL."""
     with fresh_duckdb_engine.connect() as connection:
@@ -123,6 +123,7 @@ def test_day_delta_and_shift_date_execute_on_duckdb(fresh_duckdb_engine):
         assert bounds == (date(2025, 10, 17), date(2027, 1, 15))
 
 
+@pytest.mark.sqlite
 def test_side_preference_is_applied_before_absolute_distance(session):
     candidates = _temporal_candidates()
     anchor = sa.literal(date(2026, 1, 20))
@@ -153,6 +154,7 @@ def test_side_preference_is_applied_before_absolute_distance(session):
     assert first_id(started_first) == 1001
 
 
+@pytest.mark.sqlite
 def test_episode_window_bounds_are_finite_and_boundary_policy_is_explicit(session):
     start = sa.literal(date(2026, 1, 15))
     end = sa.literal(None, type_=sa.Date())
@@ -199,6 +201,7 @@ def _observation_source() -> sa.CTE:
     ).cte("observations")
 
 
+@pytest.mark.sqlite
 def test_as_of_observation_selection_filters_before_ranking(session):
     source = _observation_source()
     spec = ObservationSelectionSpec(policy=ObservationSelectionPolicy.latest_on_or_before_anchor)
@@ -214,6 +217,7 @@ def test_as_of_observation_selection_filters_before_ranking(session):
     assert selected == 22
 
 
+@pytest.mark.sqlite
 def test_as_of_observation_selection_can_exclude_the_anchor_date(session):
     source = _observation_source()
     spec = ObservationSelectionSpec(
@@ -240,6 +244,7 @@ def test_as_of_observation_selection_requires_an_anchor():
         )
 
 
+@pytest.mark.postgresql
 def test_postgresql_executes_boundary_and_side_preference_contracts(pg_session):
     start = sa.literal(date(2026, 1, 15))
     end = sa.literal(date(2026, 2, 5))

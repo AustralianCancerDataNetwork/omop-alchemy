@@ -5,7 +5,7 @@ from typing import NamedTuple
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from oa_configurator import ResolvedCDMDatabase, Role, physical_schema_of, qualified
+from oa_configurator import Dialect, ResolvedCDMDatabase, Role, physical_schema_of, qualified
 from oa_configurator.testing import DIALECT_PARAMS, isolated_test_schema, scoped_test_schema
 
 from omop_alchemy.backends.sqlite import SQLiteBackend
@@ -40,11 +40,9 @@ def reconcile_engine(request) -> Iterator[_ReconcileEngine]:
 
     Notes
     -----
-    DIALECT_PARAMS marks each param directly, since the postgresql param's
-    dynamic request.getfixturevalue("pg_db") call is invisible
-    to pytest's usual fixturenames-based auto-detection.
+    DIALECT_PARAMS marks each param with its dialect.
     """
-    if request.param == "postgresql":
+    if request.param == Dialect.POSTGRESQL:
         pg_db = request.getfixturevalue("pg_db")
         with scoped_test_schema(pg_db.resolved, prefix="reconcile") as scoped:
             _create_missing_tables(
@@ -64,7 +62,7 @@ def reconcile_engine(request) -> Iterator[_ReconcileEngine]:
             )
             yield _ReconcileEngine(scoped.engine, require_cdm(scoped.resolved))
             return
-    if request.param == "duckdb":
+    if request.param == Dialect.DUCKDB:
         engine = request.getfixturevalue("fresh_duckdb_engine")
         resolved = request.getfixturevalue("fresh_duckdb_resolved")
     else:
@@ -164,7 +162,6 @@ def test_reconcile_schema_renamed_index_does_not_flip_table_to_drifted(reconcile
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_reconcile_schema_catches_deferred_fk_violation_on_duckdb(
     fresh_duckdb_engine, fresh_duckdb_resolved
 ):
@@ -240,7 +237,6 @@ def test_reconcile_schema_catches_deferred_fk_violation_on_duckdb(
 
 
 @pytest.mark.postgresql
-@pytest.mark.db_dialect
 def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(pg_db, pg_engine):
     """A table missing from its expected schema but physically present under
     a different one reports RELOCATED, not a plain MISSING.
@@ -280,7 +276,6 @@ def test_reconcile_schema_reports_relocated_when_table_found_in_another_schema(p
 
 
 @pytest.mark.postgresql
-@pytest.mark.db_dialect
 def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_schema(pg_db):
     """A clinical table, a vocab table, and a results table each live in a
     genuinely different physical schema. Passing resolved must compare each
@@ -316,7 +311,6 @@ def test_reconcile_schema_with_resolved_qualifies_each_table_to_its_own_role_sch
 
 
 @pytest.mark.postgresql
-@pytest.mark.db_dialect
 def test_reconcile_schema_catches_genuine_drift_in_a_functional_index(pg_db):
     """concept's ix_concept_concept_name_lower (a functional index,
     lower(concept_name)) reports no drift when unchanged, and a real
@@ -389,6 +383,7 @@ def test_is_blocking_issue_excludes_renamed_only():
     assert is_blocking_issue(missing) is True
 
 
+@pytest.mark.sqlite
 def test_reconcile_schema_cluster_check_reports_renamed_for_foreign_cluster_index(
     fresh_reconcile_engine, monkeypatch
 ):
@@ -425,6 +420,7 @@ def test_reconcile_schema_cluster_check_reports_renamed_for_foreign_cluster_inde
     assert episode_result.status == "matched"
 
 
+@pytest.mark.sqlite
 def test_reconcile_schema_cluster_check_still_reports_real_mismatch(
     fresh_reconcile_engine, monkeypatch
 ):
@@ -455,6 +451,7 @@ def test_reconcile_schema_cluster_check_still_reports_real_mismatch(
     assert episode_result.status == "drifted"
 
 
+@pytest.mark.sqlite
 def test_reconcile_schema_cluster_check_reports_renamed_for_pk_based_cluster_target(
     fresh_reconcile_engine, monkeypatch
 ):
@@ -532,7 +529,6 @@ def test_normalize_index_expression_ignores_cosmetic_noise_but_not_real_drift(a,
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 @pytest.mark.parametrize("declared_type", [sa.Double(), sa.DOUBLE_PRECISION()])
 def test_duckdb_double_types_match_their_reflected_spelling(fresh_duckdb_engine, declared_type):
     from omop_alchemy.maintenance.cli_schema_reconcile import _normalized_type
@@ -548,7 +544,6 @@ def test_duckdb_double_types_match_their_reflected_spelling(fresh_duckdb_engine,
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_fresh_duckdb_reports_every_deferred_key_as_nonblocking(
     fresh_duckdb_engine,
     fresh_duckdb_resolved,

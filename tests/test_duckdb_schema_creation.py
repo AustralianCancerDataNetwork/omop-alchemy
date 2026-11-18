@@ -26,7 +26,6 @@ from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_create_missing_tables_can_create_vocabulary(
     fresh_duckdb_engine, fresh_duckdb_resolved
 ):
@@ -47,7 +46,6 @@ def test_duckdb_create_missing_tables_can_create_vocabulary(
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_noncircular_fk_still_enforced(fresh_duckdb_engine, fresh_duckdb_resolved):
     """condition_occurrence.person_id -> person is not part of any FK cycle,
     so it renders inline and stays DB-enforced on DuckDB same as any other
@@ -98,7 +96,6 @@ def test_duckdb_noncircular_fk_still_enforced(fresh_duckdb_engine, fresh_duckdb_
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_circular_fk_is_not_db_enforced(fresh_duckdb_engine, fresh_duckdb_resolved):
     """Cyclical FK: domain.domain_concept_id -> concept. An orphaned
     reference inserts without error through FK deferral."""
@@ -117,7 +114,6 @@ def test_duckdb_circular_fk_is_not_db_enforced(fresh_duckdb_engine, fresh_duckdb
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_load_file_self_referential_relationship_pair(
     fresh_duckdb_engine, fresh_duckdb_resolved, tmp_path
 ):
@@ -178,7 +174,6 @@ def test_duckdb_load_file_self_referential_relationship_pair(
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_episode_self_reference_is_not_db_enforced(
     fresh_duckdb_engine, fresh_duckdb_resolved
 ):

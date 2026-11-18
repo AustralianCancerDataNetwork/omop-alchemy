@@ -22,6 +22,8 @@ from omop_alchemy.cdm.base import ConceptValidationMixin
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence
 from omop_alchemy.cdm.model.vocabulary import Concept
 
+pytestmark = pytest.mark.sqlite
+
 
 def _type_concept_id(session) -> int:
     return session.scalar(

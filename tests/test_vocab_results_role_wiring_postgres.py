@@ -39,7 +39,7 @@ from omop_alchemy.maintenance.cli_schema_tables import _create_missing_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
 from tests.conftest import require_cdm
 
-pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
+pytestmark = pytest.mark.postgresql
 
 _TODAY = date(2020, 1, 1)
 META_CONCEPT_ID = 0

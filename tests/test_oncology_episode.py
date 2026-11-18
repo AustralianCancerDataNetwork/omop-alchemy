@@ -245,6 +245,7 @@ def oncology_session(fresh_engine, fresh_resolved) -> Iterator[so.Session]:
         engine.dispose()
 
 
+@pytest.mark.sqlite
 def test_oncology_episode_traverses_orm_children_and_events(oncology_session: so.Session):
     episode = oncology_session.get(OncologyEpisode, 200)
 
@@ -267,6 +268,7 @@ def test_oncology_episode_traverses_orm_children_and_events(oncology_session: so
     assert [exposure.drug_exposure_id for exposure in episode.sact_exposures] == [21]
 
 
+@pytest.mark.sqlite
 def test_oncology_hybrid_membership_agrees_for_instance_and_query(
     oncology_session: so.Session,
 ):
@@ -283,6 +285,7 @@ def test_oncology_hybrid_membership_agrees_for_instance_and_query(
     ).all() == [exposure]
 
 
+@pytest.mark.sqlite
 def test_detached_oncology_membership_and_episode_classification_fail_loudly(
     oncology_session: so.Session,
 ):
@@ -299,6 +302,7 @@ def test_detached_oncology_membership_and_episode_classification_fail_loudly(
         _ = episode.structural_modalities
 
 
+@pytest.mark.sqlite
 def test_oncology_episode_event_reports_dangling_target(oncology_session: so.Session):
     episode = oncology_session.get(OncologyEpisode, 200)
 

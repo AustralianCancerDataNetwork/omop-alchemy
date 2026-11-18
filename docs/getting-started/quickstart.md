@@ -18,7 +18,7 @@ See [Configuration](configuration.md) for the full field reference.
 
 ## Running PostgreSQL tests locally
 
-The test suite includes PostgreSQL-specific tests that skip automatically unless a `test_cdm_db_pg` database is configured in `~/.config/omop/config.toml`. They're resolved via oa-configurator's `isolated_test_database()`, wrapped in this repo's own `pg_db`/`pg_engine`/`pg_session` fixtures, and marked `@pytest.mark.postgresql` (plus `db_dialect` where a test could corrupt shared ORM metadata if run alongside SQLite in the same process). `addopts = "-m 'not db_dialect'"` excludes those by default, so a plain `pytest` run skips them with no manual filtering required. Run them explicitly with `pytest -m postgresql`.
+The test suite includes PostgreSQL-specific tests that need a `test_cdm_db_pg` database configured in `~/.config/omop/config.toml`. Without it they fail, so deselect them with `pytest -m "not postgresql"`. They're resolved via oa-configurator's `isolated_test_database()`, wrapped in this repo's own `pg_db`/`pg_engine`/`pg_session` fixtures, and marked `@pytest.mark.postgresql`. Run them with `pytest -m postgresql`.
 
 !!! warning "This test database is destructive."
     `pg_session`-backed tests drop and recreate every non-system schema (not just `public`) both before and after each test. `test_cdm_db_pg` must point to a **dedicated, empty test database**, never to a database that contains real data. The test suite enforces this: it fails loudly if the configured database is not marked `test_only = true` in your config. The suite runs sequentially by design and does not support `pytest-xdist`: it fails loudly under `-n 2` or higher rather than racing another worker's reset.
@@ -41,4 +41,4 @@ When prompted whether to configure a test database, answer **Y** and supply the 
 pytest -v tests/
 ```
 
-PostgreSQL tests are excluded from a plain `pytest` run by default (see above); run `pytest -m postgresql` to include them, or `pytest -v tests/ -m postgresql` for verbose output. They still auto-skip if `test_cdm_db_pg` is not configured.
+A plain `pytest` runs the PostgreSQL tests too. Run `pytest -m postgresql` for only those, or `pytest -v tests/ -m postgresql` for verbose output. They fail if `test_cdm_db_pg` is not configured, so use `pytest -m "not postgresql"` on a machine without PostgreSQL.

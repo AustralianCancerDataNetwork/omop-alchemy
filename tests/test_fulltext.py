@@ -160,6 +160,7 @@ def test_drop_fulltext_columns_drops_schema_objects():
     assert CONCEPT_NAME_TSVECTOR_COLUMN not in Concept.__table__.c
 
 
+@pytest.mark.sqlite
 @pytest.mark.parametrize(
     "fn_name",
     [
@@ -183,7 +184,6 @@ def test_fulltext_management_requires_postgresql(fresh_engine, fresh_resolved, f
 
 
 @pytest.mark.postgresql
-@pytest.mark.db_dialect
 def test_fulltext_install_cli_passes_options(monkeypatch, pg_db):
     """CLI forwards install options to the fulltext handler implementation.
 

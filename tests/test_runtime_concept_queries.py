@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
 
@@ -69,6 +70,7 @@ def _add_runtime_hierarchy(session) -> None:
     session.flush()
 
 
+@pytest.mark.sqlite
 def test_runtime_hierarchy_applies_union_then_exclusion_in_database(session):
     _add_runtime_hierarchy(session)
     spec = RuntimeConceptSetSpec(
@@ -87,6 +89,7 @@ def test_runtime_hierarchy_applies_union_then_exclusion_in_database(session):
     ]
 
 
+@pytest.mark.sqlite
 def test_runtime_hierarchy_reuses_standardness_policy(session):
     _add_runtime_hierarchy(session)
     standard_only = RuntimeConceptSetSpec(
@@ -115,6 +118,7 @@ def test_runtime_hierarchy_reuses_standardness_policy(session):
     }
 
 
+@pytest.mark.sqlite
 def test_runtime_hierarchy_with_no_inclusions_is_always_false(session):
     statement = sa.select(Concept.concept_id).where(
         runtime_concept_predicate(Concept.concept_id, RuntimeConceptSetSpec())
@@ -141,6 +145,7 @@ def test_runtime_hierarchy_compiles_to_concept_ancestor_subqueries():
         assert "standard_concept" in compiled
 
 
+@pytest.mark.sqlite
 def test_descendant_select_returns_overlapping_descendant_once(session):
     _add_runtime_hierarchy(session)
 
@@ -149,6 +154,7 @@ def test_descendant_select_returns_overlapping_descendant_once(session):
     assert descendants.count(990_003) == 1
 
 
+@pytest.mark.sqlite
 def test_exact_runtime_id_does_not_depend_on_a_concept_row(session):
     configured_id = -1
     statement = sa.select(sa.literal(configured_id)).where(
@@ -161,6 +167,7 @@ def test_exact_runtime_id_does_not_depend_on_a_concept_row(session):
     assert session.scalar(statement) == configured_id
 
 
+@pytest.mark.sqlite
 def test_exclusion_wins_over_an_exact_inclusion(session):
     _add_runtime_hierarchy(session)
     spec = RuntimeConceptSetSpec(
@@ -174,6 +181,7 @@ def test_exclusion_wins_over_an_exact_inclusion(session):
     assert session.scalars(statement).all() == []
 
 
+@pytest.mark.sqlite
 def test_exact_inclusions_are_not_removed_by_descendant_standardness_policy(session):
     _add_runtime_hierarchy(session)
     standard_only = RuntimeConceptSetSpec(

@@ -67,7 +67,6 @@ def staged_duckdb_resolved(staged_duckdb_db: IsolatedTestDatabase) -> ResolvedCD
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_load_vocab_source_end_to_end_on_duckdb(
     staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path
 ):
@@ -105,7 +104,6 @@ def test_load_vocab_source_end_to_end_on_duckdb(
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_load_vocab_source_repeat_replace_load_on_duckdb(
     staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path
 ):
@@ -135,7 +133,6 @@ def test_load_vocab_source_repeat_replace_load_on_duckdb(
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_load_vocab_source_raises_on_orphaned_deferred_fk_on_duckdb(
     staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path
 ):
@@ -173,7 +170,6 @@ def test_load_vocab_source_raises_on_orphaned_deferred_fk_on_duckdb(
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_load_vocab_source_standalone_cyclic_table_load_rolls_back_on_duckdb(
     staged_duckdb_engine, staged_duckdb_resolved, tmp_path: Path
 ):
@@ -204,7 +200,6 @@ def test_load_vocab_source_standalone_cyclic_table_load_rolls_back_on_duckdb(
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 @pytest.mark.parametrize("merge_strategy", ["replace", "upsert", "insert"])
 def test_load_vocab_source_single_cyclic_table_selection_rolls_back_on_duckdb(
     staged_duckdb_engine,
@@ -239,7 +234,6 @@ def test_load_vocab_source_single_cyclic_table_selection_rolls_back_on_duckdb(
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 @pytest.mark.parametrize("strategy", ["replace", "upsert"])
 @pytest.mark.parametrize("batch_size,committed_rows", [(None, 0), (2, 4)])
 def test_failed_synonym_load_preserves_only_committed_batches(

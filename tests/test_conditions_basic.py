@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model.clinical import Condition_OccurrenceView
 
@@ -33,6 +35,7 @@ def test_modifier_target_properties_python():
     assert c.type_concept_id == 789
 
 
+@pytest.mark.sqlite
 def test_event_id_hybrid_expression(session):
     """The event_id hybrid compiles to condition_occurrence_id in SQL."""
     q = session.query(Condition_OccurrenceView).filter(Condition_OccurrenceView.event_id == 1)

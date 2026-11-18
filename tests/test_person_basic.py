@@ -1,5 +1,6 @@
 from datetime import date
 
+import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
@@ -7,12 +8,14 @@ from omop_alchemy.cdm.model.clinical import MeasurementView, Person, PersonView
 from omop_alchemy.cdm.model.vocabulary import Concept
 
 
+@pytest.mark.sqlite
 def test_person_table_exists(engine):
     """Test person table exists."""
     insp = sa.inspect(engine)
     assert "person" in insp.get_table_names()
 
 
+@pytest.mark.sqlite
 def test_person_rows_exist(session: Session):
     """Test person rows exist."""
     count = session.scalar(sa.select(sa.func.count()).select_from(Person))
@@ -20,6 +23,7 @@ def test_person_rows_exist(session: Session):
         assert count > 0
 
 
+@pytest.mark.sqlite
 def test_person_has_required_fields(session: Session):
     """Test person has required fields."""
     p = session.scalars(sa.select(Person).limit(1)).first()
@@ -33,6 +37,7 @@ def test_person_has_required_fields(session: Session):
     assert p.ethnicity_concept_id is not None
 
 
+@pytest.mark.sqlite
 def test_person_repr_is_stable(session: Session):
     """Test person repr is stable."""
     p = session.scalars(sa.select(Person).limit(1)).first()
@@ -42,6 +47,7 @@ def test_person_repr_is_stable(session: Session):
     assert s.endswith(">")
 
 
+@pytest.mark.sqlite
 def test_person_view_resolves_gender(session: Session):
     """Test person view resolves gender."""
     p = session.scalars(sa.select(PersonView).limit(1)).first()
@@ -52,6 +58,7 @@ def test_person_view_resolves_gender(session: Session):
         assert p.gender.domain_id == "Gender"
 
 
+@pytest.mark.sqlite
 def test_person_view_optional_relationships_safe(session: Session):
     """Test person view optional relationships safe."""
     p = session.scalars(sa.select(PersonView).limit(1)).first()
@@ -62,6 +69,7 @@ def test_person_view_optional_relationships_safe(session: Session):
         _ = p.care_site
 
 
+@pytest.mark.sqlite
 def test_person_view_repr_contains_semantics(session: Session):
     """Test person view repr contains semantics."""
     p = session.scalars(sa.select(PersonView).limit(1)).first()
@@ -73,12 +81,14 @@ def test_person_view_repr_contains_semantics(session: Session):
     assert "(" in s
 
 
+@pytest.mark.sqlite
 def test_age_property(session):
     """Test age property."""
     p = session.scalars(sa.select(PersonView).limit(1)).first()
     assert p.age is None or p.age > 0
 
 
+@pytest.mark.sqlite
 def test_age_at_expression(session):
     """Test age at expression."""
     q = sa.select(PersonView).where(PersonView.age_at(date(2020, 1, 1)) > 0).limit(5)
@@ -92,6 +102,7 @@ def test_age_at_accepts_column():
     assert "measurement.measurement_date" in str(expr)
 
 
+@pytest.mark.sqlite
 def test_observation_period_flags(session):
     """Test observation period flags."""
     p = session.scalars(sa.select(PersonView).limit(1)).first()
@@ -100,6 +111,7 @@ def test_observation_period_flags(session):
     assert isinstance(p.is_deceased, bool)
 
 
+@pytest.mark.sqlite
 def test_person_domain_valid(session):
     """Test person domain valid."""
     p = session.scalars(sa.select(PersonView).limit(1)).first()
@@ -107,6 +119,7 @@ def test_person_domain_valid(session):
     assert p.domain_violations == []
 
 
+@pytest.mark.sqlite
 def test_domain_validation_detects_violation(session):
     """Test domain validation detects violation."""
     p = session.scalars(sa.select(PersonView).limit(1)).first()

@@ -65,7 +65,7 @@ def test_create_cdm_engines_keeps_distinct_in_memory_connections_separate():
 
 def test_get_cdm_context_resolves_the_typed_database_field(monkeypatch) -> None:
     stack = StackConfig.for_session(
-        connections={"cdm": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={"cdm": ConnectionConfig(dialect=Dialect.SQLITE, database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="cdm")},
     )
     monkeypatch.setattr("omop_alchemy.config.load_stack_config", lambda: stack)
@@ -114,7 +114,6 @@ def test_cache_scope_resolves_relative_sqlite_paths(tmp_path, monkeypatch) -> No
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_cache_scope_resolves_relative_duckdb_paths(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     first = _resolved_cdm_database(primary_database="./vocab.duckdb", dialect=Dialect.DUCKDB)

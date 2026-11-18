@@ -15,9 +15,9 @@ from omop_alchemy.maintenance.cli_schema import _create_missing_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
 
 
-def test_resolve_backend_returns_duckdb_backend():
-    engine = sa.create_engine("duckdb:///:memory:")
-    backend = resolve_backend(engine)
+@pytest.mark.duckdb
+def test_resolve_backend_returns_duckdb_backend(fresh_duckdb_engine):
+    backend = resolve_backend(fresh_duckdb_engine)
     assert isinstance(backend, DuckDBBackend)
     assert backend.name == "DuckDB"
 
@@ -36,7 +36,6 @@ def duckdb_person_table(fresh_duckdb_engine, fresh_duckdb_resolved):
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_backend_analyze_table(duckdb_person_table):
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn:
@@ -57,7 +56,6 @@ def test_duckdb_backend_normalize_index_expression(sql_text, expected):
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_backend_index_exists_roundtrip(duckdb_person_table):
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn:
@@ -74,7 +72,6 @@ def test_duckdb_backend_index_exists_roundtrip(duckdb_person_table):
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_backend_find_sequence_name(duckdb_person_table):
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn:
@@ -86,7 +83,6 @@ def test_duckdb_backend_find_sequence_name(duckdb_person_table):
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_backend_set_sequence_value_roundtrip(duckdb_person_table):
     """set_sequence_value repoints person_id's DEFAULT at a sequence
     starting from the requested value, surviving the swap of the
@@ -140,7 +136,6 @@ def test_duckdb_backend_set_sequence_value_roundtrip(duckdb_person_table):
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_backend_count_fk_violations_on_a_deferred_fk(duckdb_person_table):
     """Circular FK are deferred on DuckDB during DDL. count_fk_violations still detects violations
     through anti-join.
@@ -167,7 +162,6 @@ def test_duckdb_backend_count_fk_violations_on_a_deferred_fk(duckdb_person_table
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_backend_truncate_table_batch(duckdb_person_table):
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn:
@@ -212,7 +206,6 @@ def test_duckdb_backend_truncate_table_batch(duckdb_person_table):
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_backend_truncate_table_batch_orders_parent_after_child(duckdb_person_table):
     """Truncating [person, condition_occurrence], in that (parent-first)
     order, must still succeed: DuckDB checks FK constraints per statement,
@@ -270,7 +263,6 @@ def test_duckdb_backend_truncate_table_batch_orders_parent_after_child(duckdb_pe
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_backend_truncate_table_batch_rejects_cascade(duckdb_person_table):
     backend = DuckDBBackend()
     with duckdb_person_table.connect() as conn, pytest.raises(FeatureNotSupportedError):
@@ -280,7 +272,6 @@ def test_duckdb_backend_truncate_table_batch_rejects_cascade(duckdb_person_table
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_duckdb_backend_truncate_table_batch_restarts_identities(duckdb_person_table):
     """restart_identities=True resets person_id's sequence back to its
     original START value, not just whatever MAX(person_id)+1 was before

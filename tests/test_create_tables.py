@@ -16,6 +16,7 @@ from omop_alchemy.maintenance.context import MaintenanceContext
 from omop_alchemy.maintenance.tables import MaintenanceTable, TableCategory
 
 
+@pytest.mark.sqlite
 def test_collect_missing_tables_on_empty_database(fresh_engine, fresh_resolved):
     """An empty database reports core clinical and vocabulary tables as missing."""
     missing = collect_missing_tables(
@@ -27,6 +28,7 @@ def test_collect_missing_tables_on_empty_database(fresh_engine, fresh_resolved):
     assert "concept" in table_names
 
 
+@pytest.mark.sqlite
 def test_create_missing_tables_reports_blocked_tables_when_vocabulary_is_missing(
     fresh_engine, fresh_resolved
 ):
@@ -44,6 +46,7 @@ def test_create_missing_tables_reports_blocked_tables_when_vocabulary_is_missing
     assert "concept" in result_by_name["person"].detail
 
 
+@pytest.mark.sqlite
 def test_create_missing_tables_can_recreate_non_vocabulary_tables_when_dependencies_exist(
     fresh_engine, fresh_resolved
 ):
@@ -69,6 +72,7 @@ def test_create_missing_tables_can_recreate_non_vocabulary_tables_when_dependenc
     assert inspector.has_table("concept")
 
 
+@pytest.mark.sqlite
 def test_create_missing_tables_can_create_vocabulary(fresh_engine, fresh_resolved):
     """Including vocabulary creates both clinical and vocabulary tables."""
     _create_missing_tables(
@@ -81,6 +85,7 @@ def test_create_missing_tables_can_create_vocabulary(fresh_engine, fresh_resolve
     assert inspector.has_table("concept")
 
 
+@pytest.mark.sqlite
 def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(
     fresh_resolved, monkeypatch
 ):
@@ -128,7 +133,6 @@ def test_create_missing_tables_creates_table_under_a_non_role_schema_tag(
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_targets_resolves_fk_from_a_schema_claims_only_tag_on_duckdb(fresh_duckdb_resolved):
     """A foreign key from a tag claimed only via create_engine(schema_claims=[...]),
     not present in resolved's own configured schema-translate map, must resolve

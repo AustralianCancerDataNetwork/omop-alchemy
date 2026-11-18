@@ -9,6 +9,7 @@ from omop_alchemy.maintenance.cli_schema_doctor import collect_doctor_report
 from omop_alchemy.maintenance.context import MaintenanceContext
 
 
+@pytest.mark.sqlite
 def test_doctor_uses_supplied_engine_without_resolving_config_or_disposing(
     fresh_engine,
     fresh_resolved,
@@ -55,7 +56,6 @@ def test_doctor_uses_supplied_engine_without_resolving_config_or_disposing(
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_doctor_deep_runs_fk_validation_on_duckdb_despite_no_trigger_support(
     fresh_duckdb_engine, fresh_duckdb_resolved
 ):

@@ -248,6 +248,7 @@ def test_a_source_naming_a_missing_link_column_is_rejected():
         modifier_source_model_spec(custom)
 
 
+@pytest.mark.sqlite
 @pytest.mark.parametrize("source_model", [MeasurementView, ObservationView])
 def test_modifier_source_subclass_projects_its_own_event_metadata(source_model, fresh_engine):
     original = clinical_event_model_spec(source_model)
@@ -402,6 +403,7 @@ def _diagnostic_codes(engine, target) -> set[tuple[int, str]]:
     return {(row["modifier_id"], row["diagnostic_code"]) for row in rows}
 
 
+@pytest.mark.sqlite
 def test_a_whole_target_table_can_prove_a_dangling_modifier(fresh_engine):
     """Absence from an entire table does mean the target row does not exist."""
     engine = _seeded_engine(
@@ -413,6 +415,7 @@ def test_a_whole_target_table_can_prove_a_dangling_modifier(fresh_engine):
     assert _diagnostic_codes(engine, Condition_Occurrence) == {(101, "missing_target_event")}
 
 
+@pytest.mark.sqlite
 def test_a_filtered_target_never_reports_a_missing_target_event(fresh_engine):
     """A narrowed target set cannot distinguish a defect from its own filter.
 
@@ -432,6 +435,7 @@ def test_a_filtered_target_never_reports_a_missing_target_event(fresh_engine):
     assert _diagnostic_codes(engine, narrowed) == set()
 
 
+@pytest.mark.sqlite
 def test_a_filtered_target_still_reports_person_mismatch(fresh_engine):
     """A mismatch is observed on a row that is present, so it stays provable."""
     engine = _seeded_engine(
@@ -446,7 +450,8 @@ def test_a_filtered_target_still_reports_person_mismatch(fresh_engine):
     assert _diagnostic_codes(engine, narrowed) == {(100, "person_mismatch")}
 
 
-def test_target_validation_rejects_null_identity_and_cross_person_links():
+@pytest.mark.sqlite
+def test_target_validation_rejects_null_identity_and_cross_person_links(fresh_engine):
     def modifier(
         modifier_id: int,
         person_id: int,
@@ -478,7 +483,7 @@ def test_target_validation_rejects_null_identity_and_cross_person_links():
     )
     queries = modifier_target_queries(modifiers, targets, diagnostics=True)
 
-    engine = sa.create_engine("sqlite://")
+    engine = fresh_engine
     with engine.connect() as connection:
         matches = connection.execute(queries.matches).mappings().all()
         assert queries.diagnostics is not None
@@ -493,6 +498,7 @@ def test_target_validation_rejects_null_identity_and_cross_person_links():
     }
 
 
+@pytest.mark.postgresql
 def test_postgresql_executes_modifier_target_validation_contracts(pg_session):
     """PostgreSQL rejects incomplete and cross-person links before selection."""
 

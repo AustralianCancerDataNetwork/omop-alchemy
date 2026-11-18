@@ -30,7 +30,7 @@ from omop_alchemy.maintenance.cli_backup import (
 )
 from omop_alchemy.maintenance.context import MaintenanceContext
 
-pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
+pytestmark = pytest.mark.postgresql
 
 
 def _unique_role_schemas(prefix: str = "roundtrip") -> dict[Role, str]:
@@ -48,7 +48,9 @@ def _create_target(pg_db, role_schemas):
     config_name = pg_db.resolved.name
     target_url = source_url.set(database=database_name)
     _refuse_production_collision(target_url)
-    admin = sa.create_engine(target_url.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    admin = sa.create_engine(  # noqa: TID251 - admin connection to create and drop the target database
+        target_url.set(database="postgres"), isolation_level="AUTOCOMMIT"
+    )
     try:
         with admin.connect() as connection:
             connection.exec_driver_sql(f'CREATE DATABASE "{database_name}"')
@@ -89,7 +91,9 @@ def _create_target(pg_db, role_schemas):
 
 def _drop_target(target_url):
     _refuse_production_collision(target_url)
-    admin = sa.create_engine(target_url.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    admin = sa.create_engine(  # noqa: TID251 - admin connection to create and drop the target database
+        target_url.set(database="postgres"), isolation_level="AUTOCOMMIT"
+    )
     try:
         with admin.connect() as connection:
             connection.execute(
