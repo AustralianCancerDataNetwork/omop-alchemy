@@ -28,7 +28,7 @@ from .test_duckdb_load_vocab_source import (
 __all__ = ["staged_duckdb_db", "staged_duckdb_engine", "staged_duckdb_resolved"]
 
 
-pytestmark = [pytest.mark.duckdb, pytest.mark.db_dialect]
+pytestmark = pytest.mark.duckdb
 
 
 def _seed(context: MaintenanceContext, tmp_path) -> None:

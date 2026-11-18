@@ -6,6 +6,8 @@ from omop_alchemy.maintenance.cli_tables import analyze_tables
 from omop_alchemy.maintenance.context import MaintenanceContext
 from omop_alchemy.maintenance.tables import TableCategory
 
+pytestmark = pytest.mark.sqlite
+
 runner = CliRunner()
 
 

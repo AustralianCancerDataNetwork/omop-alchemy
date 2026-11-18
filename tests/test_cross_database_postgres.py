@@ -26,7 +26,7 @@ from omop_alchemy.toolkit.core.concepts import RuntimeConceptSetSpec, runtime_co
 
 from .conftest import SplitCDM, table_of
 
-pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
+pytestmark = pytest.mark.postgresql
 
 CONDITION_CONCEPT_ID = 201826
 TYPE_CONCEPT_ID = 32817

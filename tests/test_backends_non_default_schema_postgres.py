@@ -33,7 +33,7 @@ from omop_alchemy.maintenance.cli_tables import reset_model_sequences
 from omop_alchemy.maintenance.context import MaintenanceContext
 from tests.conftest import require_cdm
 
-pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
+pytestmark = pytest.mark.postgresql
 
 
 @pytest.fixture()

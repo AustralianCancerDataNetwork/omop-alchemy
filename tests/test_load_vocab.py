@@ -13,6 +13,8 @@ from omop_alchemy.cdm.model.vocabulary import (
 )
 from tests.conftest import _ATHENA_FIXTURE_DATA, ATHENA_LOAD_ORDER, _write_fixture_csv
 
+pytestmark = pytest.mark.sqlite
+
 
 @pytest.fixture
 def connection(fresh_engine, fresh_resolved):

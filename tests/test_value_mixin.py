@@ -15,6 +15,8 @@ from omop_alchemy.cdm.model.metadata.metadata import Metadata
 
 from .conftest import _concept_id
 
+pytestmark = pytest.mark.sqlite
+
 
 @pytest.fixture
 def type_concept_id(session):

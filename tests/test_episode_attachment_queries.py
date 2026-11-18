@@ -121,6 +121,7 @@ def _nearest(*, started_first: bool = False) -> TemporalRankingSpec:
     )
 
 
+@pytest.mark.sqlite
 def test_valid_explicit_links_suppress_ranked_fallback_with_colliding_ids(session):
     unlinked = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
@@ -151,6 +152,7 @@ def test_valid_explicit_links_suppress_ranked_fallback_with_colliding_ids(sessio
     assert ("procedure_occurrence", 8, 1001) in identities
 
 
+@pytest.mark.sqlite
 def test_invalid_explicit_link_does_not_suppress_fallback(session):
     event = COLLIDING_EVENTS[2]
     sources = episode_attachment_queries(
@@ -164,6 +166,7 @@ def test_invalid_explicit_link_does_not_suppress_fallback(session):
     assert session.execute(sources.attachments).mappings().one()["episode_id"] == 2001
 
 
+@pytest.mark.sqlite
 def test_foreign_discriminator_link_is_out_of_scope_for_a_single_model(session):
     queries = episode_attachment_queries(
         _event_source(COLLIDING_EVENTS[0]),
@@ -178,6 +181,7 @@ def test_foreign_discriminator_link_is_out_of_scope_for_a_single_model(session):
     assert session.execute(queries.diagnostics).all() == []
 
 
+@pytest.mark.sqlite
 def test_explicit_only_returns_valid_links_without_fallback(session):
     queries = episode_attachment_queries(
         _event_source(*COLLIDING_EVENTS),
@@ -199,6 +203,7 @@ def test_explicit_only_returns_valid_links_without_fallback(session):
     }
 
 
+@pytest.mark.sqlite
 def test_side_preference_is_applied_to_ranked_fallback(session):
     event = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
@@ -224,6 +229,7 @@ def test_side_preference_is_applied_to_ranked_fallback(session):
     assert selected_episode(_nearest(started_first=True)) == 1001
 
 
+@pytest.mark.sqlite
 def test_all_in_window_fallback_retains_each_eligible_episode(session):
     event = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
@@ -245,6 +251,7 @@ def test_all_in_window_fallback_retains_each_eligible_episode(session):
     }
 
 
+@pytest.mark.sqlite
 def test_all_in_window_uses_a_window_contract_without_ranking(session):
     boundary_event = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
@@ -263,6 +270,7 @@ def test_all_in_window_uses_a_window_contract_without_ranking(session):
     assert session.execute(queries.attachments).all() == []
 
 
+@pytest.mark.sqlite
 def test_all_in_window_diagnostics_do_not_report_intended_fanout(session):
     event = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
@@ -300,6 +308,7 @@ def test_non_ranked_attachment_policies_reject_ranking(policy):
         )
 
 
+@pytest.mark.sqlite
 def test_diagnostics_explain_person_mismatches_and_fallback_outcomes(session):
     ambiguous = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
@@ -353,13 +362,6 @@ def test_diagnostics_explain_person_mismatches_and_fallback_outcomes(session):
     assert typed.episode_id == CROSS_PERSON_LINK.episode_id
 
 
-@pytest.mark.parametrize(
-    "session_fixture",
-    [
-        "session",
-        pytest.param("pg_session", marks=[pytest.mark.postgresql, pytest.mark.db_dialect]),
-    ],
-)
 @pytest.mark.parametrize("copies", [(2, 1), (1, 2), (2, 2)])
 @pytest.mark.parametrize("episode_count", [1, 2])
 @pytest.mark.parametrize(
@@ -370,9 +372,9 @@ def test_diagnostics_explain_person_mismatches_and_fallback_outcomes(session):
     ],
 )
 def test_fallback_counts_distinct_episodes_with_duplicate_inputs(
-    request, session_fixture, copies, episode_count, policy
+    dialect_session, copies, episode_count, policy
 ):
-    session = request.getfixturevalue(session_fixture)
+    session = dialect_session
     event_copies, episode_copies = copies
     queries = episode_attachment_queries(
         _event_source(*([COLLIDING_EVENTS[0]] * event_copies)),
@@ -472,6 +474,7 @@ def test_episode_model_can_supply_both_stages():
     assert "attachment_fallback_episodes" in compiled
 
 
+@pytest.mark.postgresql
 def test_postgresql_executes_collision_and_stable_tie_contracts(pg_session):
     unlinked = EventCase(
         identity=ClinicalEventIdentity("procedure_occurrence", 8),
@@ -542,15 +545,8 @@ def _attachment_rows(session, queries) -> set[tuple[int, int, str]]:
     return result
 
 
-@pytest.mark.parametrize(
-    "session_fixture",
-    [
-        "session",
-        pytest.param("pg_session", marks=[pytest.mark.postgresql, pytest.mark.db_dialect]),
-    ],
-)
-def test_ranked_fallback_admits_only_the_fallback_source(request, session_fixture):
-    session = request.getfixturevalue(session_fixture)
+def test_ranked_fallback_admits_only_the_fallback_source(dialect_session):
+    session = dialect_session
     event = _procedure(8, date(2025, 7, 1))
     all_episodes = _episode_source(ROOT_EPISODE, CHILD_EPISODE)
     roots = _episode_source(ROOT_EPISODE, name="root_episodes")
@@ -577,23 +573,14 @@ def test_ranked_fallback_admits_only_the_fallback_source(request, session_fixtur
 
 
 @pytest.mark.parametrize(
-    "session_fixture",
-    [
-        "session",
-        pytest.param("pg_session", marks=[pytest.mark.postgresql, pytest.mark.db_dialect]),
-    ],
-)
-@pytest.mark.parametrize(
     "policy",
     [
         EpisodeAttachmentPolicy.explicit_first_ranked,
         EpisodeAttachmentPolicy.explicit_first_all_in_window,
     ],
 )
-def test_explicit_links_to_episodes_outside_the_fallback_source_are_kept(
-    request, session_fixture, policy
-):
-    session = request.getfixturevalue(session_fixture)
+def test_explicit_links_to_episodes_outside_the_fallback_source_are_kept(dialect_session, policy):
+    session = dialect_session
     inside_root_window = _procedure(8, date(2025, 7, 1))
     outside_every_window = _procedure(9, date(2024, 6, 1))
     linked_twice = _procedure(10, date(2025, 7, 1))
@@ -619,6 +606,7 @@ def test_explicit_links_to_episodes_outside_the_fallback_source_are_kept(
     }
 
 
+@pytest.mark.sqlite
 def test_event_eligible_only_outside_the_fallback_source_is_unattached(session):
     short_root = EpisodeCase(
         3001, person_id=101, start_date=date(2025, 1, 10), end_date=date(2025, 3, 31)
@@ -643,6 +631,7 @@ def test_event_eligible_only_outside_the_fallback_source_is_unattached(session):
     ]
 
 
+@pytest.mark.sqlite
 def test_fallback_ambiguity_counts_only_fallback_candidates(session):
     second_root = EpisodeCase(
         3003, person_id=101, start_date=date(2025, 3, 1), end_date=date(2025, 12, 31)
@@ -685,6 +674,7 @@ def test_fallback_source_must_match_the_policy(policy, supply_fallback, message)
         )
 
 
+@pytest.mark.sqlite
 def test_explicit_source_needs_only_episode_identity_and_person(session):
     identity_only = (
         sa.select(
@@ -737,6 +727,7 @@ def test_fallback_source_must_expose_the_ranking_stable_id():
         )
 
 
+@pytest.mark.sqlite
 @pytest.mark.parametrize(
     "started_ages,future_offsets,expected",
     [
@@ -777,15 +768,8 @@ def test_upcoming_preference_boundaries_and_recent_started_winner(
     assert _attachment_rows(session, queries) == {(8, expected, "fallback")}
 
 
-@pytest.mark.parametrize(
-    "session_fixture",
-    [
-        "session",
-        pytest.param("pg_session", marks=[pytest.mark.postgresql, pytest.mark.db_dialect]),
-    ],
-)
-def test_upcoming_preference_preserves_explicit_identity_and_diagnostics(request, session_fixture):
-    session = request.getfixturevalue(session_fixture)
+def test_upcoming_preference_preserves_explicit_identity_and_diagnostics(dialect_session):
+    session = dialect_session
     anchor = date(2026, 1, 20)
     old = EpisodeCase(1, 101, date(2024, 1, 20), date(2026, 12, 31))
     upcoming = EpisodeCase(2, 101, date(2026, 3, 1), date(2026, 12, 31))
@@ -830,6 +814,7 @@ def test_upcoming_preference_preserves_explicit_identity_and_diagnostics(request
     }
 
 
+@pytest.mark.sqlite
 def test_upcoming_preference_does_not_admit_outside_window_or_suppress_invalid_link(session):
     anchor = date(2026, 1, 20)
     episodes = _episode_source(

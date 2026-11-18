@@ -1,6 +1,7 @@
 import datetime
 from types import MappingProxyType
 
+import pytest
 import sqlalchemy as sa
 from oa_configurator import Role
 
@@ -38,6 +39,7 @@ def test_episode_view_expected_domains():
     assert cls.__expected_domains__["episode_concept_id"].domains == frozenset({"Episode"})
 
 
+@pytest.mark.sqlite
 def test_episode_reference_context(session):
     """Test episode reference context."""
     ep = session.query(EpisodeView).first()
@@ -49,6 +51,7 @@ def test_episode_reference_context(session):
     assert ep.episode_type_concept is not None
 
 
+@pytest.mark.sqlite
 def test_episode_has_episode_events(session):
     """Test episode has episode events."""
     ep = session.query(EpisodeView).filter(EpisodeView.episode_events.any()).first()
@@ -57,6 +60,7 @@ def test_episode_has_episode_events(session):
     assert len(ep.episode_events) > 0
 
 
+@pytest.mark.sqlite
 def test_resolved_episode_event_mixin_targets_diagnostic_rows(session):
     episode = (
         session.query(DiagnosticEpisode).filter(DiagnosticEpisode.episode_events.any()).first()
@@ -69,6 +73,7 @@ def test_resolved_episode_event_mixin_targets_diagnostic_rows(session):
     )
 
 
+@pytest.mark.sqlite
 def test_episode_event_resolves_target(session):
     """Test episode event resolves target."""
     ep = session.query(EpisodeView).filter(EpisodeView.episode_events.any()).first()
@@ -93,6 +98,7 @@ def test_episode_event_resolves_target(session):
     assert getattr(target, col) == ee.event_id
 
 
+@pytest.mark.sqlite
 def test_episode_event_resolution_has_no_diagnostics_for_valid_target(session):
     """Valid episode_event links resolve without advisory issues."""
     ee = (
@@ -110,6 +116,7 @@ def test_episode_event_resolution_has_no_diagnostics_for_valid_target(session):
     assert resolved.event_resolution_diagnostics == []
 
 
+@pytest.mark.sqlite
 def test_episode_event_resolution_reports_unrecognized_field_concept(session):
     """A field concept outside ModifierFieldConcepts is surfaced separately."""
     ee = Episode_Event(
@@ -129,6 +136,7 @@ def test_episode_event_resolution_reports_unrecognized_field_concept(session):
     assert diagnostics[0].kind == "unrecognized_field_concept"
 
 
+@pytest.mark.sqlite
 def test_episode_event_resolution_reports_unmapped_known_field_concept(
     session,
     monkeypatch,
@@ -157,6 +165,7 @@ def test_episode_event_resolution_reports_unmapped_known_field_concept(
     assert diagnostics[0].kind == "unmapped_field_concept"
 
 
+@pytest.mark.sqlite
 def test_episode_event_resolution_reports_dangling_target(session):
     """Recognized field concepts with missing target rows are true dangling links."""
     ee = Episode_Event(
@@ -192,6 +201,7 @@ def test_episode_event_target_classes_are_isolated_from_caller_mutation():
     assert third == second
 
 
+@pytest.mark.sqlite
 def test_episode_view_events_property(session):
     """Test episode view events property."""
     ep = session.query(EpisodeView).filter(EpisodeView.episode_events.any()).first()
@@ -209,6 +219,7 @@ def test_episode_view_events_property(session):
         assert hasattr(target, "person_id")
 
 
+@pytest.mark.sqlite
 def test_episode_parent_relationship(session):
     """Test episode parent relationship."""
     child = session.query(EpisodeView).filter(EpisodeView.episode_parent_id.isnot(None)).first()
@@ -218,6 +229,7 @@ def test_episode_parent_relationship(session):
         assert child.parent_episode.episode_id == child.episode_parent_id
 
 
+@pytest.mark.sqlite
 def test_episode_children_relationship_preserves_episode_view(session):
     """Child navigation returns the concrete episode view being queried."""
     parent = session.get(EpisodeView, 100)
@@ -227,6 +239,7 @@ def test_episode_children_relationship_preserves_episode_view(session):
     assert all(isinstance(child, EpisodeView) for child in parent.children)
 
 
+@pytest.mark.sqlite
 def test_episode_date_bounds(session):
     """Test episode date bounds."""
     ep = session.query(EpisodeView).first()

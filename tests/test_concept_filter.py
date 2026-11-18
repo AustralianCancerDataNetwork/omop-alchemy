@@ -86,6 +86,7 @@ class TestConceptFilterApply:
         assert "trim" in compiled
         assert "is null" in compiled
 
+    @pytest.mark.sqlite
     def test_require_active_does_not_exclude_null_invalid_reason(self, session):
         """Regression test: NULL invalid_reason (the normal, active case) must
         not be dropped by a SQL NOT IN three-valued-logic bug."""
@@ -97,6 +98,7 @@ class TestConceptFilterApply:
         assert returned_ids == all_ids
         assert returned_ids  # sanity: fixtures aren't empty
 
+    @pytest.mark.sqlite
     def test_require_standard_executes_and_matches_fixtures(self, session):
         """Regression test: prove require_standard actually executes and
         matches real 'S' rows, not just that the compiled clause looks right."""
@@ -134,6 +136,7 @@ class TestConceptFilterApply:
 
         assert str(result) == str(query)
 
+    @pytest.mark.sqlite
     def test_include_classification_matches_the_legacy_union(self, session):
         """The composed union must reproduce the old ``IN ('S', 'C')`` result set
         exactly, so callers can restore prior behaviour by opting in."""
@@ -160,6 +163,7 @@ class TestConceptFilterApply:
         # vacuous comparison of two empty sets.
         assert 930001 in union_ids and 930002 in union_ids
 
+    @pytest.mark.sqlite
     def test_require_standard_alone_excludes_classification(self, session):
         """Default behaviour: 'C' is not a valid mapping target."""
         _seed_flagged_concept(session, 931001, standard_concept="S")
@@ -195,6 +199,7 @@ class TestConceptFilterApply:
         assert ConceptFilter(include_classification=True).is_empty()
 
 
+@pytest.mark.sqlite
 class TestNormalisedFlagExpr:
     """normalised_flag_expr must trim whitespace and turn blank strings into
     NULL, while leaving NULL and non-blank values (canonical or not) alone."""
@@ -266,6 +271,7 @@ class TestConceptViewFlags:
         cv = ConceptView(invalid_reason=invalid_reason)
         assert cv.is_valid is expected
 
+    @pytest.mark.sqlite
     @pytest.mark.parametrize("invalid_reason", [None, "", "   ", "D", "U", "X", " X "])
     def test_is_valid_agrees_with_require_active_filter(self, session, invalid_reason):
         """PR feedback regression test: a 'dirty' row must not be judged
@@ -277,6 +283,7 @@ class TestConceptViewFlags:
         cv = ConceptView(invalid_reason=invalid_reason)
         assert cv.is_valid == included_by_filter
 
+    @pytest.mark.sqlite
     @pytest.mark.parametrize(
         "standard_concept", [None, "", "   ", "S", " S ", "C", " C ", "X", " X "]
     )
@@ -297,6 +304,7 @@ class TestConceptViewFlags:
         assert cv.is_standard == included_by_filter
 
 
+@pytest.mark.sqlite
 class TestPredicateComplement:
     """The ``_expr`` predicates must be two-valued.
 
@@ -412,6 +420,7 @@ class TestRelationshipFlagPredicates:
             assert "'0'" not in compiled
             assert "coalesce" in compiled.lower()
 
+    @pytest.mark.sqlite
     def test_defines_ancestry_expr_discriminates_in_sql(self, session):
         """Fixtures carry one ancestry-defining and one non-defining relationship."""
         defining = set(
@@ -426,6 +435,7 @@ class TestRelationshipFlagPredicates:
         assert defining
         assert defining != all_ids  # the '0' row must be excluded
 
+    @pytest.mark.sqlite
     def test_python_and_sql_agree(self, session):
         for rel in session.scalars(sa.select(Relationship)).all():
             sql_value = session.scalar(
@@ -464,6 +474,7 @@ class TestInvalidReasonMixin:
         assert f"{model.__tablename__}.invalid_reason" in compiled
         assert "is null" in compiled
 
+    @pytest.mark.sqlite
     @pytest.mark.parametrize("model", MIXED_IN, ids=lambda m: m.__name__)
     def test_python_and_sql_agree_on_blank(self, session, model):
         """A blank string is *not* SQL NULL — the case a raw ``IS NULL`` test
@@ -475,6 +486,7 @@ class TestInvalidReasonMixin:
             assert model(invalid_reason=raw).is_valid is bool(sql_value)
 
 
+@pytest.mark.sqlite
 class TestNormalisedFlagPairing:
     """``normalised_flag`` is the published Python counterpart to
     ``normalised_flag_expr``; the two must never diverge."""

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from oa_configurator import ConnectionConfig, ResolvedCDMDatabase
+from oa_configurator import ConnectionConfig, Dialect, ResolvedCDMDatabase
 from sqlalchemy.exc import UnboundExecutionError
 
 from omop_alchemy.cdm.model.clinical import Condition_Occurrence
@@ -14,6 +14,7 @@ from omop_alchemy.config import create_cdm_engines
 from omop_alchemy.cross_database import cdm_sessionmaker, filter_by_keys
 
 
+@pytest.mark.sqlite
 def test_filter_by_keys_is_a_subquery_on_one_database(fresh_engine: sa.Engine):
     with so.Session(fresh_engine) as session:
         predicate = filter_by_keys(
@@ -24,6 +25,7 @@ def test_filter_by_keys_is_a_subquery_on_one_database(fresh_engine: sa.Engine):
     assert "SELECT" in str(predicate)
 
 
+@pytest.mark.sqlite
 def test_colocated_session_binds_untagged_statements(fresh_engine, fresh_resolved):
     sessions = cdm_sessionmaker(fresh_resolved, primary=fresh_engine, vocab=fresh_engine)
     with sessions() as session:
@@ -33,10 +35,10 @@ def test_colocated_session_binds_untagged_statements(fresh_engine, fresh_resolve
 
 def test_split_session_prefers_vocab_role_over_staging_tag(tmp_path):
     primary_connection = ConnectionConfig(
-        dialect="sqlite", database_name=str(tmp_path / "primary.db")
+        dialect=Dialect.SQLITE, database_name=str(tmp_path / "primary.db")
     ).resolve("primary")
     vocab_connection = ConnectionConfig(
-        dialect="sqlite", database_name=str(tmp_path / "vocab.db")
+        dialect=Dialect.SQLITE, database_name=str(tmp_path / "vocab.db")
     ).resolve("vocab")
     resolved = ResolvedCDMDatabase(
         name="split",

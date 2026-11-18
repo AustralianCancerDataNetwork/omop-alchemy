@@ -3,6 +3,7 @@ import sqlalchemy as sa
 from oa_configurator import (
     CDMDatabaseConfig,
     ConnectionConfig,
+    Dialect,
     Resolver,
     Role,
     SchemaOwnershipError,
@@ -70,8 +71,9 @@ def indexed_engine(request):
     schema) isn't reset by scoped_test_schema, so it's dropped explicitly
     both before running and via cleanup_after_test.
     """
-    if request.param == "postgresql":
-        pg_engine = request.getfixturevalue("pg_engine")
+    if request.param == Dialect.POSTGRESQL:
+        pg_db = request.getfixturevalue("pg_db")
+        pg_engine = pg_db.committing_engine
         bookkeeping_schema = get_bookkeeping_schema(pg_engine)
         cleanup_after_test = request.getfixturevalue("cleanup_after_test")
         table_ref = qualified(
@@ -85,7 +87,6 @@ def indexed_engine(request):
         _drop_bookkeeping_table()
         cleanup_after_test(_drop_bookkeeping_table)
 
-        pg_db = request.getfixturevalue("pg_db")
         with scoped_test_schema(pg_db.resolved, prefix="indexed_engine") as scoped:
             _create_missing_tables(
                 MaintenanceContext(
@@ -95,7 +96,7 @@ def indexed_engine(request):
                 )
             )
             yield scoped.engine
-    elif request.param == "duckdb":
+    elif request.param == Dialect.DUCKDB:
         engine = request.getfixturevalue("fresh_duckdb_engine")
         resolved = request.getfixturevalue("fresh_duckdb_resolved")
         _create_missing_tables(
@@ -210,6 +211,7 @@ def test_schema_metadata_indexes_keys_match_unadjusted_indexes():
             assert (table.table_name, str(index.name)) in indexes
 
 
+@pytest.mark.sqlite
 def test_manage_indexes_disable_and_enable_on_sqlite(sqlite_indexed_engine, fresh_resolved):
     """Test manage indexes disable and enable on sqlite."""
     engine = sqlite_indexed_engine
@@ -245,6 +247,7 @@ def test_manage_indexes_disable_and_enable_on_sqlite(sqlite_indexed_engine, fres
     assert PERSON_GENDER_INDEX in after_enable
 
 
+@pytest.mark.sqlite
 def test_manage_indexes_enable_analyzes_tables_with_new_indexes(
     sqlite_indexed_engine, fresh_resolved, monkeypatch
 ):
@@ -271,6 +274,7 @@ def test_manage_indexes_enable_analyzes_tables_with_new_indexes(
     assert "person" in analyzed_tables
 
 
+@pytest.mark.sqlite
 def test_manage_indexes_enable_skips_analyze_when_nothing_created(
     sqlite_indexed_engine, fresh_resolved, monkeypatch
 ):
@@ -293,6 +297,7 @@ def test_manage_indexes_enable_skips_analyze_when_nothing_created(
     assert analyzed_tables == []
 
 
+@pytest.mark.sqlite
 @pytest.mark.filterwarnings(
     "ignore:Skipped unsupported reflection of expression-based index:sqlalchemy.exc.SAWarning"
 )
@@ -329,6 +334,7 @@ def test_manage_indexes_enable_is_idempotent_for_expression_indexes(
             assert "already exists" in result.detail
 
 
+@pytest.mark.sqlite
 @pytest.mark.filterwarnings(
     "ignore:Skipped unsupported reflection of expression-based index:sqlalchemy.exc.SAWarning"
 )
@@ -415,6 +421,7 @@ def test_manage_indexes_disable_is_idempotent_on_sqlite(indexed_engine, indexed_
         assert "already absent" in result.detail
 
 
+@pytest.mark.sqlite
 def test_manage_indexes_enable_clusters_then_analyzes(
     sqlite_indexed_engine, fresh_resolved, monkeypatch
 ):
@@ -458,7 +465,7 @@ def test_disable_indexes_cli_invokes_management(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={"db": ConnectionConfig(dialect=Dialect.SQLITE, database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
@@ -525,7 +532,7 @@ def test_enable_indexes_cli_no_cluster_flag_passes_through(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={"db": ConnectionConfig(dialect=Dialect.SQLITE, database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
@@ -689,8 +696,9 @@ def test_describe_shape_conflict_mentions_reason_for_sqlite_dialect_options():
 # same connection. The check itself lives in oa_configurator.
 
 
+@pytest.mark.postgresql
 def test_resolving_cdm_database_with_maintenance_schema_name_raises(
-    pg_db, pg_unscoped_resolved, cleanup_after_test
+    pg_db, pg_scoped, cleanup_after_test
 ):
     """
     Notes
@@ -699,7 +707,7 @@ def test_resolving_cdm_database_with_maintenance_schema_name_raises(
     entries sharing one physical connection is itself unconfigurable (see
     StackConfig's entry-exclusivity checks)"""
     reset_schema_registry_rows(cleanup_after_test, pg_db.committing_engine, [MAINTENANCE_SCHEMA])
-    create_cdm_engines(pg_unscoped_resolved)[0].dispose()
+    create_cdm_engines(require_cdm(pg_scoped.resolved))[0].dispose()
 
     colliding_resolved = require_cdm(
         Resolver.from_active_config()
@@ -931,6 +939,7 @@ def test_bookkeeping_table_not_created_when_nothing_to_capture(indexed_engine, i
     )
 
 
+@pytest.mark.sqlite
 def test_manage_indexes_enable_cluster_uses_restored_physical_name(
     sqlite_indexed_engine, fresh_resolved, monkeypatch
 ):

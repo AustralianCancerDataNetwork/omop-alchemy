@@ -101,6 +101,7 @@ def _add_vocabulary_rows(session) -> None:
     session.flush()
 
 
+@pytest.mark.sqlite
 def test_mapping_preserves_multiple_standard_targets(session):
     _add_vocabulary_rows(session)
 
@@ -123,6 +124,7 @@ def test_mapping_preserves_multiple_standard_targets(session):
     assert rows[0]["standard_vocabulary_id"] == "SNOMED"
 
 
+@pytest.mark.sqlite
 def test_mapping_excludes_other_relationships_and_invalid_or_non_standard_targets(
     session,
 ):
@@ -141,6 +143,7 @@ def test_mapping_excludes_other_relationships_and_invalid_or_non_standard_target
     assert len(rows) == 2
 
 
+@pytest.mark.sqlite
 def test_mapping_returns_standard_concept_self_map(session):
     _add_vocabulary_rows(session)
 
@@ -158,6 +161,7 @@ def test_mapping_returns_standard_concept_self_map(session):
     assert row["standard_concept_id"] == STANDARD_SOURCE_ID
 
 
+@pytest.mark.sqlite
 def test_mapping_can_apply_reproducible_validity_date(session):
     _add_vocabulary_rows(session)
 
@@ -180,6 +184,7 @@ def test_mapping_can_apply_reproducible_validity_date(session):
     }
 
 
+@pytest.mark.sqlite
 def test_mapping_output_honours_its_documented_uniqueness_key(session):
     _add_vocabulary_rows(session)
     rows = (

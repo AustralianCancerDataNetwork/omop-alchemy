@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
 
@@ -24,6 +25,7 @@ def test_canonical_episode_projection_has_stable_fields():
     assert tuple(statement.selected_columns.keys()) == tuple(map(str, CANONICAL_EPISODE_COLUMNS))
 
 
+@pytest.mark.sqlite
 def test_canonical_episode_projection_can_include_the_episode_concept_name(session):
     source = session.get(Episode, 100)
     assert source is not None
@@ -59,6 +61,7 @@ def test_canonical_episode_projection_can_include_the_episode_concept_name(sessi
     assert labels == {100: "Disease Episode", 102: None}
 
 
+@pytest.mark.sqlite
 def test_hierarchy_projections_accept_a_filtered_projected_episode_source(session):
     source = canonical_episode_projection().where(Episode.person_id == 1)
 
@@ -90,6 +93,7 @@ def test_hierarchy_projections_accept_a_filtered_projected_episode_source(sessio
     assert rows == [(100, 0), (101, 1)]
 
 
+@pytest.mark.sqlite
 def test_episode_event_projection_accepts_projected_episode_and_event_sources(
     session,
 ):
@@ -128,6 +132,7 @@ def test_episode_concept_label_projection_compiles_on_supported_dialects():
         assert "LEFT OUTER JOIN" in compiled
 
 
+@pytest.mark.sqlite
 def test_direct_episode_relationships_preserve_person_and_depth(session):
     rows = (
         session.execute(
@@ -148,6 +153,7 @@ def test_direct_episode_relationships_preserve_person_and_depth(session):
     ]
 
 
+@pytest.mark.sqlite
 def test_recursive_episode_projection_includes_root_and_descendants(session):
     hierarchy = episode_descendants(root_episode_id=100)
     rows = session.execute(
@@ -160,12 +166,14 @@ def test_recursive_episode_projection_includes_root_and_descendants(session):
     assert rows == [(100, 0), (101, 1)]
 
 
+@pytest.mark.sqlite
 def test_recursive_episode_projection_can_exclude_root(session):
     hierarchy = episode_descendants(root_episode_id=100, include_root=False)
 
     assert session.execute(sa.select(hierarchy.c.episode_id, hierarchy.c.depth)).all() == [(101, 1)]
 
 
+@pytest.mark.sqlite
 def test_episode_event_projection_carries_owning_depth(session):
     rows = session.execute(episode_event_hierarchy_projection(root_episode_id=100)).mappings().all()
 

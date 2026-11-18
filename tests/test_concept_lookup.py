@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
 import sqlalchemy as sa
 from sqlalchemy import event
 
 from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Synonym
 from omop_alchemy.cdm.query import ConceptFilter
 from omop_alchemy.toolkit.core.concepts import LookupSpec, OMOPConceptSource
+
+pytestmark = pytest.mark.sqlite
 
 
 def _concept(

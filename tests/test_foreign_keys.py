@@ -1,6 +1,6 @@
 import pytest
 import sqlalchemy.orm as so
-from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Role, StackConfig
+from oa_configurator import CDMDatabaseConfig, ConnectionConfig, Dialect, Role, StackConfig
 from typer.testing import CliRunner
 
 from omop_alchemy.cdm.model.vocabulary import Domain
@@ -20,6 +20,7 @@ from tests.conftest import fake_maintenance_context
 runner = CliRunner()
 
 
+@pytest.mark.sqlite
 def test_collect_fk_info_finds_participating_tables(fresh_engine, fresh_resolved):
     """Test _collect_fk_info finds participating tables."""
     _create_missing_tables(
@@ -40,7 +41,6 @@ def test_collect_fk_info_finds_participating_tables(fresh_engine, fresh_resolved
 
 
 @pytest.mark.duckdb
-@pytest.mark.db_dialect
 def test_validate_foreign_key_constraints_catches_deferred_fk_violation_on_duckdb(
     fresh_duckdb_engine, fresh_duckdb_resolved
 ):
@@ -66,6 +66,7 @@ def test_validate_foreign_key_constraints_catches_deferred_fk_violation_on_duckd
     assert any(v.source_table_name == "domain" for v in report.violations)
 
 
+@pytest.mark.sqlite
 def test_manage_foreign_key_triggers_supports_dry_run(fresh_engine, fresh_resolved):
     """Test manage foreign key triggers supports dry run."""
     _create_missing_tables(
@@ -84,6 +85,7 @@ def test_manage_foreign_key_triggers_supports_dry_run(fresh_engine, fresh_resolv
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
+@pytest.mark.sqlite
 def test_collect_foreign_key_trigger_status_is_safe_on_sqlite(fresh_engine, fresh_resolved):
     """Test collect foreign key trigger status is safe on sqlite."""
     _create_missing_tables(
@@ -100,6 +102,7 @@ def test_collect_foreign_key_trigger_status_is_safe_on_sqlite(fresh_engine, fres
     assert "not supported by the SQLite backend" in str(exc_info.value)
 
 
+@pytest.mark.sqlite
 def test_validate_foreign_key_constraints_is_safe_on_sqlite(fresh_engine, fresh_resolved):
     """Test validate foreign key constraints is safe on sqlite."""
     _create_missing_tables(
@@ -120,7 +123,7 @@ def test_disable_foreign_keys_cli_fails_gracefully_for_sqlite(monkeypatch):
     """Test disable foreign keys cli fails gracefully for sqlite."""
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={"db": ConnectionConfig(dialect=Dialect.SQLITE, database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
@@ -176,6 +179,7 @@ def _make_fake_backend():
     return _FakeBackend()
 
 
+@pytest.mark.sqlite
 def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failure(
     monkeypatch, fresh_resolved
 ):
@@ -260,6 +264,7 @@ def test_manage_foreign_key_triggers_strict_does_not_enable_on_validation_failur
     assert "fk_visit_occurrence_person_id_person" in results[1].detail
 
 
+@pytest.mark.sqlite
 def test_manage_foreign_key_triggers_strict_enables_when_validation_passes(
     monkeypatch, fresh_resolved
 ):
@@ -327,7 +332,7 @@ def test_enable_foreign_keys_strict_cli_invokes_strict_management(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={"db": ConnectionConfig(dialect=Dialect.SQLITE, database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(
@@ -374,6 +379,7 @@ def test_enable_foreign_keys_strict_cli_invokes_strict_management(monkeypatch):
     assert "foreign-keys enable" in result.stdout
 
 
+@pytest.mark.sqlite
 def test_validate_foreign_key_constraints_reports_failures(monkeypatch, fresh_resolved):
     """Test validate foreign key constraints reports failures."""
 
@@ -452,7 +458,7 @@ def test_foreign_keys_validate_cli_invokes_validation(monkeypatch):
     calls: dict[str, object] = {}
 
     cfg = StackConfig.for_session(
-        connections={"db": ConnectionConfig(dialect="sqlite", database_name=":memory:")},
+        connections={"db": ConnectionConfig(dialect=Dialect.SQLITE, database_name=":memory:")},
         databases={"cdm_db": CDMDatabaseConfig(connection="db")},
     )
     monkeypatch.setattr(

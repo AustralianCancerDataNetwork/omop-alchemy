@@ -21,8 +21,10 @@ jobs:
           python-version: "3.12"
       - run: uv sync --all-extras --dev
       - run: uv run lint-imports
+  build-test-nodb:
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-nodb.yml@main
   build-test-sqlite:
-    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-sqlite.yml@main
+    uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-sqlite-v2.yml@main
   build-test-duckdb:
     uses: AustralianCancerDataNetwork/cava-devops/.github/workflows/build-test-duckdb.yml@main
   build-test-postgres:

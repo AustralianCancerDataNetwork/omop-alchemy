@@ -35,7 +35,8 @@ def reference_models(request):
         LocalBase.registry.dispose()
 
 
-def test_reference_join_uses_mapped_attribute_and_batches_loading(reference_models):
+@pytest.mark.sqlite
+def test_reference_join_uses_mapped_attribute_and_batches_loading(reference_models, fresh_engine):
     base, source, target = reference_models
     relationship = sa.inspect(source).relationships.reference
     assert relationship.primaryjoin.compare(source.target_identifier == target.identifier)
@@ -43,7 +44,7 @@ def test_reference_join_uses_mapped_attribute_and_batches_loading(reference_mode
     assert relationship.lazy == "selectin"
     assert not relationship.uselist
 
-    engine = sa.create_engine("sqlite://")
+    engine = fresh_engine
     base.metadata.create_all(engine)
     with so.Session(engine) as session:
         session.add_all(

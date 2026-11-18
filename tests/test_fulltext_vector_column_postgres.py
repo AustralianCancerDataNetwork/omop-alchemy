@@ -36,7 +36,7 @@ from omop_alchemy.maintenance.cli_vocab import load_vocab_source
 from omop_alchemy.maintenance.context import MaintenanceContext
 from tests.conftest import _ATHENA_FIXTURE_DATA, _write_fixture_csv, require_cdm
 
-pytestmark = [pytest.mark.postgresql, pytest.mark.db_dialect]
+pytestmark = pytest.mark.postgresql
 
 _backend = PostgresBackend()
 _CONCEPT = cast(sa.Table, Concept.__table__)
