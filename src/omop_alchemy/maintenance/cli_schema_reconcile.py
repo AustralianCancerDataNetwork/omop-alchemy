@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from contextlib import ExitStack
 from dataclasses import dataclass
 
@@ -10,10 +9,8 @@ import sqlalchemy as sa
 from oa_configurator import (
     claimed_schema_tags,
     find_table_in_other_schemas,
+    normalized_type,
     physical_schema_of,
-    reflects_float_as_double_precision,
-    reflects_text_as_varchar,
-    reflects_varchar_length,
     supports_schemas,
 )
 from orm_loader.backends import DatabaseBackend
@@ -33,8 +30,6 @@ from .tables import (
     TableCategory,
     select_maintenance_tables,
 )
-
-_VARCHAR_LENGTH = re.compile(r"(varchar)\(\d+\)")
 
 
 def is_blocking_issue(issue: ReconciliationIssue) -> bool:
@@ -111,30 +106,6 @@ def _schema_qualified_tables(engine: sa.Engine) -> dict[int, sa.Table]:
         )
         for table in Base.metadata.tables.values()
     }
-
-
-def _normalized_type(type_: sa.types.TypeEngine[object], dialect: sa.engine.Dialect) -> str:
-    """Compile a SQLAlchemy type to its dialect-specific string and normalise whitespace/case for comparison.
-
-    Strips a varchar length qualifier from the result when *dialect* reflects
-    a declared VARCHAR(n) back without its length, so that comparison
-    doesn't flag a difference reflection itself can never resolve. Likewise
-    folds "text" into "varchar" when dialect reflects a declared TEXT
-    column back as VARCHAR, and "float" into "doubleprecision" when dialect
-    reflects an unparameterized FLOAT column back as DOUBLE PRECISION.
-    On DuckDB, DOUBLE PRECISION and its reflected DOUBLE spelling share
-    the normalized name "double".
-    """
-    normalized = type_.compile(dialect=dialect).lower().replace(" ", "")
-    if not reflects_varchar_length(dialect.name):
-        normalized = _VARCHAR_LENGTH.sub(r"\1", normalized)
-    if reflects_text_as_varchar(dialect.name) and normalized == "text":
-        normalized = "varchar"
-    if reflects_float_as_double_precision(dialect.name) and normalized == "float":
-        normalized = "doubleprecision"
-    if dialect.name == "duckdb" and normalized == "doubleprecision":
-        normalized = "double"
-    return normalized
 
 
 def _fk_signature(
@@ -373,7 +344,7 @@ def reconcile_schema(
                             component="column",
                             object_name=column_name,
                             status=Status.MISSING,
-                            expected=_normalized_type(column.type, table_engine.dialect),
+                            expected=normalized_type(column.type, table_engine.dialect),
                             actual=None,
                             detail="Column is defined in ORM metadata but missing from the database.",
                         )
@@ -389,7 +360,7 @@ def reconcile_schema(
                             object_name=column_name,
                             status=Status.UNEXPECTED,
                             expected=None,
-                            actual=_normalized_type(column["type"], table_engine.dialect),
+                            actual=normalized_type(column["type"], table_engine.dialect),
                             detail="Column exists in the database but is not defined in ORM metadata.",
                         )
                     )
@@ -397,8 +368,8 @@ def reconcile_schema(
             for column_name in sorted(set(expected_columns).intersection(actual_columns)):
                 expected_column = expected_columns[column_name]
                 actual_column = actual_columns[column_name]
-                expected_type = _normalized_type(expected_column.type, table_engine.dialect)
-                actual_type = _normalized_type(actual_column["type"], table_engine.dialect)
+                expected_type = normalized_type(expected_column.type, table_engine.dialect)
+                actual_type = normalized_type(actual_column["type"], table_engine.dialect)
                 if expected_type != actual_type:
                     table_issues.append(
                         ReconciliationIssue(

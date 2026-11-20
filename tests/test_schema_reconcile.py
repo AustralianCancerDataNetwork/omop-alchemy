@@ -535,13 +535,13 @@ def test_normalize_index_expression_ignores_cosmetic_noise_but_not_real_drift(a,
 @pytest.mark.db_dialect
 @pytest.mark.parametrize("declared_type", [sa.Double(), sa.DOUBLE_PRECISION()])
 def test_duckdb_double_types_match_their_reflected_spelling(fresh_duckdb_engine, declared_type):
-    from omop_alchemy.maintenance.cli_schema_reconcile import _normalized_type
+    from oa_configurator import normalized_type
 
     metadata = sa.MetaData()
     table = sa.Table("double_type_probe", metadata, sa.Column("value", declared_type))
     metadata.create_all(fresh_duckdb_engine)
     reflected = sa.inspect(fresh_duckdb_engine).get_columns(table.name)[0]["type"]
-    assert _normalized_type(declared_type, fresh_duckdb_engine.dialect) == _normalized_type(
+    assert normalized_type(declared_type, fresh_duckdb_engine.dialect) == normalized_type(
         reflected,
         fresh_duckdb_engine.dialect,
     )
