@@ -5,9 +5,10 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
 
-from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Relationship
+from omop_alchemy.cdm.model.vocabulary import Concept, Concept_Relationship, Relationship
 from omop_alchemy.toolkit.core.concepts import (
     STANDARD_CONCEPT_MAPPING_UNIQUENESS,
     StandardConceptMappingSpec,
@@ -61,7 +62,40 @@ def _relationship(
     )
 
 
+def _add_relationships(session) -> None:
+    """Insert the relationships the rows below use, each beside its reverse.
+
+    Notes
+    -----
+    A relationship names its reverse, so the two rows reference each other. One
+    multi-row statement is checked once all its rows exist, which two separate
+    inserts would not satisfy.
+    """
+    names = (
+        ("Maps to", "Mapped from"),
+        ("Mapped from", "Maps to"),
+        ("Maps to value", "Value mapped from"),
+        ("Value mapped from", "Maps to value"),
+    )
+    session.execute(
+        sa.insert(Relationship).values(
+            [
+                {
+                    "relationship_id": name,
+                    "relationship_name": name,
+                    "is_hierarchical": 0,
+                    "defines_ancestry": 0,
+                    "reverse_relationship_id": reverse,
+                    "relationship_concept_id": 0,
+                }
+                for name, reverse in names
+            ]
+        )
+    )
+
+
 def _add_vocabulary_rows(session) -> None:
+    _add_relationships(session)
     session.add_all(
         (
             _concept(SOURCE_ID, "source", standard_concept=None),

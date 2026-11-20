@@ -7,7 +7,6 @@ from datetime import date
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from orm_loader.helpers import bootstrap
 
 from omop_alchemy.cdm.base import ModifierFieldConcepts
 from omop_alchemy.cdm.model import (
@@ -32,6 +31,7 @@ from omop_alchemy.toolkit.analytics.oncology import (
 )
 from omop_alchemy.toolkit.core.concepts import clear_concept_group_cache
 from omop_alchemy.toolkit.episodes.handling import DrugEpisodeMixin
+from tests.conftest import add_concepts
 
 
 @dataclass
@@ -104,10 +104,15 @@ def test_oncology_episode_does_not_expose_generic_drug_episode_interface():
 
 
 @pytest.fixture
-def oncology_session(fresh_engine, fresh_resolved) -> Iterator[so.Session]:
-    """Committed oncology graph so vocabulary-cache sessions see its closure."""
-    engine = fresh_engine
-    bootstrap(fresh_resolved, create=True)
+def oncology_session(fresh_cdm_engine) -> Iterator[so.Session]:
+    """Committed oncology graph so vocabulary-cache sessions see its closure.
+
+    Notes
+    -----
+    Each group of rows is flushed before the rows that reference it, because
+    the models declare no relationships between these tables.
+    """
+    engine = fresh_cdm_engine
 
     rt_concept_id = 9_100_001
     surgery_concept_id = 9_100_002
@@ -117,6 +122,19 @@ def oncology_session(fresh_engine, fresh_resolved) -> Iterator[so.Session]:
     sact_parent_id = SACT_DRUGS.parent_ids()[0]
 
     with so.Session(engine) as seed:
+        add_concepts(
+            seed,
+            rt_concept_id,
+            surgery_concept_id,
+            sact_concept_id,
+            rt_parent_id,
+            surgery_parent_id,
+            sact_parent_id,
+            treatment_regimen_episode_concept_id(),
+            treatment_cycle_episode_concept_id(),
+            ModifierFieldConcepts.PROCEDURE_OCCURRENCE,
+            ModifierFieldConcepts.DRUG_EXPOSURE,
+        )
         seed.add(
             Person(
                 person_id=1,
@@ -126,6 +144,7 @@ def oncology_session(fresh_engine, fresh_resolved) -> Iterator[so.Session]:
                 ethnicity_concept_id=0,
             )
         )
+        seed.flush()
         seed.add_all(
             [
                 Episode(
@@ -159,6 +178,7 @@ def oncology_session(fresh_engine, fresh_resolved) -> Iterator[so.Session]:
                 ),
             ]
         )
+        seed.flush()
         seed.add_all(
             [
                 Procedure_Occurrence(
@@ -187,6 +207,7 @@ def oncology_session(fresh_engine, fresh_resolved) -> Iterator[so.Session]:
                 ),
             ]
         )
+        seed.flush()
         seed.add_all(
             [
                 Episode_Event(
@@ -211,6 +232,7 @@ def oncology_session(fresh_engine, fresh_resolved) -> Iterator[so.Session]:
                 ),
             ]
         )
+        seed.flush()
         seed.add_all(
             [
                 Concept_Ancestor(

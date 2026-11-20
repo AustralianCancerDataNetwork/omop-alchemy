@@ -8,7 +8,6 @@ import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from oa_configurator import Role
-from orm_loader.helpers import Base
 from sqlalchemy.dialects import postgresql, sqlite
 
 from omop_alchemy.cdm.base import (
@@ -55,7 +54,7 @@ from omop_alchemy.toolkit.core.modifiers.contracts import (
     ValuedModifierRow,
 )
 from omop_alchemy.toolkit.core.modifiers.projections import _VALUE_COLUMN_TYPES
-from tests.conftest import table_of
+from tests.conftest import seed_row_parents, table_of
 
 # The full projection shape, in UNION position order. Only the tests need the
 # whole; production code asks for the obligation it actually cares about.
@@ -249,7 +248,7 @@ def test_a_source_naming_a_missing_link_column_is_rejected():
 
 
 @pytest.mark.parametrize("source_model", [MeasurementView, ObservationView])
-def test_modifier_source_subclass_projects_its_own_event_metadata(source_model, fresh_engine):
+def test_modifier_source_subclass_projects_its_own_event_metadata(source_model, fresh_cdm_engine):
     original = clinical_event_model_spec(source_model)
     assert original.event_datetime_column is not None
     specialized = type(
@@ -278,20 +277,18 @@ def test_modifier_source_subclass_projects_its_own_event_metadata(source_model, 
     assert spec.event_date_column == "projected_date"
     assert spec.event_datetime_column == "projected_datetime"
 
-    engine = fresh_engine
-    Base.metadata.create_all(engine, tables=[source_model.__table__])
+    engine = fresh_cdm_engine
+    source_row = {
+        original.event_id_column: 7,
+        "person_id": 101,
+        original.event_concept_id_column: 900_001,
+        original.event_date_column: date(2026, 1, 20),
+        source_model.__type_concept_id_col__: 32817,
+        "value_as_concept_id": 900_002,
+    }
+    seed_row_parents(engine, source_row)
     with engine.begin() as connection:
-        connection.execute(
-            source_model.__table__.insert(),
-            {
-                original.event_id_column: 7,
-                "person_id": 101,
-                original.event_concept_id_column: 900_001,
-                original.event_date_column: date(2026, 1, 20),
-                source_model.__type_concept_id_col__: 32817,
-                "value_as_concept_id": 900_002,
-            },
-        )
+        connection.execute(source_model.__table__.insert(), source_row)
         row = connection.execute(canonical_modifier_projection(specialized)).mappings().one()
     engine.dispose()
 
@@ -364,8 +361,8 @@ def test_target_resolution_queries_compile_for_supported_models(target):
 
 
 def _seeded_engine(engine, conditions, measurements):
-    """Populate fresh_engine with the given condition and measurement rows."""
-    Base.metadata.create_all(engine, tables=[table_of(Condition_Occurrence), table_of(Measurement)])
+    """Populate a fresh CDM database with the given condition and measurement rows."""
+    seed_row_parents(engine, *conditions, *measurements)
     with engine.begin() as connection:
         connection.execute(table_of(Condition_Occurrence).insert(), conditions)
         connection.execute(table_of(Measurement).insert(), measurements)
@@ -402,10 +399,10 @@ def _diagnostic_codes(engine, target) -> set[tuple[int, str]]:
     return {(row["modifier_id"], row["diagnostic_code"]) for row in rows}
 
 
-def test_a_whole_target_table_can_prove_a_dangling_modifier(fresh_engine):
+def test_a_whole_target_table_can_prove_a_dangling_modifier(fresh_cdm_engine):
     """Absence from an entire table does mean the target row does not exist."""
     engine = _seeded_engine(
-        fresh_engine,
+        fresh_cdm_engine,
         conditions=[_condition(1, 10)],
         measurements=[_modifier_of(100, 10, 1), _modifier_of(101, 10, 99)],
     )
@@ -413,7 +410,7 @@ def test_a_whole_target_table_can_prove_a_dangling_modifier(fresh_engine):
     assert _diagnostic_codes(engine, Condition_Occurrence) == {(101, "missing_target_event")}
 
 
-def test_a_filtered_target_never_reports_a_missing_target_event(fresh_engine):
+def test_a_filtered_target_never_reports_a_missing_target_event(fresh_cdm_engine):
     """A narrowed target set cannot distinguish a defect from its own filter.
 
     Both modifiers below point at conditions that genuinely exist. Reporting
@@ -421,7 +418,7 @@ def test_a_filtered_target_never_reports_a_missing_target_event(fresh_engine):
     data-quality defect for downstream baseline counts.
     """
     engine = _seeded_engine(
-        fresh_engine,
+        fresh_cdm_engine,
         conditions=[_condition(1, 10), _condition(2, 10)],
         measurements=[_modifier_of(100, 10, 1), _modifier_of(101, 10, 2)],
     )
@@ -432,10 +429,10 @@ def test_a_filtered_target_never_reports_a_missing_target_event(fresh_engine):
     assert _diagnostic_codes(engine, narrowed) == set()
 
 
-def test_a_filtered_target_still_reports_person_mismatch(fresh_engine):
+def test_a_filtered_target_still_reports_person_mismatch(fresh_cdm_engine):
     """A mismatch is observed on a row that is present, so it stays provable."""
     engine = _seeded_engine(
-        fresh_engine,
+        fresh_cdm_engine,
         conditions=[_condition(1, 10)],
         measurements=[_modifier_of(100, 11, 1)],
     )
