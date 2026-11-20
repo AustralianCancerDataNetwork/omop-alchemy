@@ -120,6 +120,18 @@ def table_of(model: Any) -> sa.Table:
 
 
 @pytest.fixture
+def fresh_cdm_engine(
+    fresh_engine: sa.Engine,
+    fresh_resolved: ResolvedCDMDatabase,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> sa.Engine:
+    """fresh_engine with every CDM table created and the fixture vocabulary loaded."""
+    bootstrap(fresh_resolved, create=True)
+    _load_fixture_vocabulary(fresh_engine, tmp_path_factory.mktemp("fresh-vocabulary"))
+    return fresh_engine
+
+
+@pytest.fixture
 def fresh_resolved(fresh_db: IsolatedTestDatabase) -> ResolvedCDMDatabase:
     """fresh_db's ResolvedCDMDatabase, for maintenance functions that require one."""
     assert isinstance(fresh_db.resolved, ResolvedCDMDatabase)
@@ -436,8 +448,77 @@ def _concept_id(
     return int(concept_id)
 
 
+def add_concepts(session: Session, *concept_ids: int) -> None:
+    """Insert a minimal concept for each id the database does not hold yet.
+
+    Notes
+    -----
+    The concepts use a domain, vocabulary and concept class from the fixture
+    vocabulary, which the session must already contain.
+    """
+    wanted = set(concept_ids)
+    held = set(session.scalars(sa.select(Concept.concept_id).where(Concept.concept_id.in_(wanted))))
+    session.add_all(
+        Concept(
+            concept_id=concept_id,
+            concept_name=f"fixture concept {concept_id}",
+            domain_id="Condition",
+            vocabulary_id="SNOMED",
+            concept_class_id="Clinical Finding",
+            concept_code=f"fixture-{concept_id}",
+            valid_start_date=date(1970, 1, 1),
+            valid_end_date=date(2099, 12, 31),
+        )
+        for concept_id in sorted(wanted - held)
+    )
+    session.flush()
+
+
+def seed_row_parents(engine: sa.Engine, *rows: dict[str, Any]) -> None:
+    """Insert the persons and concepts that raw table rows reference.
+
+    Parameters
+    ----------
+    engine : sqlalchemy.Engine
+        Engine of a database holding the CDM tables and the fixture vocabulary.
+    *rows : dict[str, Any]
+        Rows keyed by column name. Every ``person_id`` and every column ending
+        in ``_concept_id`` names a parent that is inserted if missing.
+    """
+    person_ids = {row["person_id"] for row in rows if "person_id" in row}
+    concept_ids = {
+        value
+        for row in rows
+        for column, value in row.items()
+        if column.endswith("_concept_id") and value is not None
+    }
+    with so.Session(engine) as session:
+        add_concepts(session, *concept_ids)
+        held = set(
+            session.scalars(sa.select(Person.person_id).where(Person.person_id.in_(person_ids)))
+        )
+        session.add_all(
+            Person(
+                person_id=person_id,
+                year_of_birth=1980,
+                gender_concept_id=0,
+                race_concept_id=0,
+                ethnicity_concept_id=0,
+            )
+            for person_id in sorted(person_ids - held)
+        )
+        session.commit()
+
+
 def _seed_basic_clinical_data(session: Session) -> None:
-    """Insert a compact clinical graph used by core model relationship tests."""
+    """Insert a compact clinical graph used by core model relationship tests.
+
+    Notes
+    -----
+    Each row is flushed before the rows that reference it. The models declare
+    no relationships between these tables, so the session does not order the
+    inserts and a database that enforces foreign keys refuses a child sent first.
+    """
     male_concept_id = _concept_id(session, concept_name="MALE", domain_id="Gender")
     race_concept_id = _concept_id(session, concept_name="White", domain_id="Race")
     ethnicity_concept_id = _concept_id(
@@ -466,6 +547,7 @@ def _seed_basic_clinical_data(session: Session) -> None:
             person_source_value="fixture-person-1",
         )
     )
+    session.flush()
     session.add(
         Observation_Period(
             observation_period_id=1,
@@ -475,6 +557,7 @@ def _seed_basic_clinical_data(session: Session) -> None:
             period_type_concept_id=type_concept_id,
         )
     )
+    session.flush()
     session.add(
         Condition_Occurrence(
             condition_occurrence_id=1,
@@ -486,6 +569,7 @@ def _seed_basic_clinical_data(session: Session) -> None:
             condition_source_value="fixture-condition-1",
         )
     )
+    session.flush()
     session.add(
         Episode(
             episode_id=100,
@@ -498,6 +582,7 @@ def _seed_basic_clinical_data(session: Session) -> None:
             episode_source_value="fixture-parent-episode",
         )
     )
+    session.flush()
     session.add(
         Episode(
             episode_id=101,
@@ -511,6 +596,7 @@ def _seed_basic_clinical_data(session: Session) -> None:
             episode_source_value="fixture-child-episode",
         )
     )
+    session.flush()
     session.add(
         Episode_Event(
             episode_id=101,

@@ -22,6 +22,7 @@ from omop_alchemy.toolkit.core.concepts import (
     resolve_concept_group,
 )
 from omop_alchemy.toolkit.core.concepts.registry import ConceptGroupRegistry
+from tests.conftest import add_concepts
 
 
 @dataclass
@@ -119,6 +120,7 @@ ANC = sa.table(
 
 
 def _ancestry(session, pairs):
+    add_concepts(session, *{concept_id for pair in pairs for concept_id in pair})
     session.execute(
         ANC.insert(),
         [
