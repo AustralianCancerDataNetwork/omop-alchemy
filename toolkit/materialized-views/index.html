@@ -3300,15 +3300,12 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">orm_loader.mappers</span><span class="w"> </span><span class="kn">import</span> <span class="n">MaterializedViewMixin</span>
 
 
-<span class="n">measurement_summary</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">sa</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
-        <span class="n">Measurement</span><span class="o">.</span><span class="n">person_id</span><span class="p">,</span>
-        <span class="n">Measurement</span><span class="o">.</span><span class="n">measurement_concept_id</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;concept_id&quot;</span><span class="p">),</span>
-        <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">Measurement</span><span class="o">.</span><span class="n">measurement_date</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;last_measurement_date&quot;</span><span class="p">),</span>
-        <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;measurement_count&quot;</span><span class="p">),</span>
-    <span class="p">)</span>
-    <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Measurement</span><span class="o">.</span><span class="n">person_id</span><span class="p">,</span> <span class="n">Measurement</span><span class="o">.</span><span class="n">measurement_concept_id</span><span class="p">)</span>
-<span class="p">)</span>
+<span class="n">measurement_summary</span> <span class="o">=</span> <span class="n">sa</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+    <span class="n">Measurement</span><span class="o">.</span><span class="n">person_id</span><span class="p">,</span>
+    <span class="n">Measurement</span><span class="o">.</span><span class="n">measurement_concept_id</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;concept_id&quot;</span><span class="p">),</span>
+    <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">Measurement</span><span class="o">.</span><span class="n">measurement_date</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;last_measurement_date&quot;</span><span class="p">),</span>
+    <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;measurement_count&quot;</span><span class="p">),</span>
+<span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Measurement</span><span class="o">.</span><span class="n">person_id</span><span class="p">,</span> <span class="n">Measurement</span><span class="o">.</span><span class="n">measurement_concept_id</span><span class="p">)</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">MeasurementSummaryMV</span><span class="p">(</span><span class="n">MaterializedViewMixin</span><span class="p">):</span>

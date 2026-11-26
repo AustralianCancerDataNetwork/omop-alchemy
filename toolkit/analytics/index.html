@@ -4343,7 +4343,7 @@ omop-semantics-backed concept IDs.</p>
   </span>
 
 <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.height_m" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="n">height_m</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">height_m</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4367,7 +4367,7 @@ omop-semantics-backed concept IDs.</p>
   </span>
 
 <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_weight" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="n">baseline_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MeasurementReading</span><span class="p">]</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">baseline_weight</span><span class="p">:</span> <span class="n">MeasurementReading</span> <span class="o">|</span> <span class="kc">None</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4391,7 +4391,7 @@ omop-semantics-backed concept IDs.</p>
   </span>
 
 <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.latest_weight" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="n">latest_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MeasurementReading</span><span class="p">]</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">latest_weight</span><span class="p">:</span> <span class="n">MeasurementReading</span> <span class="o">|</span> <span class="kc">None</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4415,7 +4415,7 @@ omop-semantics-backed concept IDs.</p>
   </span>
 
 <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bmi" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="n">baseline_bmi</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">baseline_bmi</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4439,7 +4439,7 @@ omop-semantics-backed concept IDs.</p>
   </span>
 
 <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.baseline_bsa_mosteller_m2" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="n">baseline_bsa_mosteller_m2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">baseline_bsa_mosteller_m2</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4462,7 +4462,7 @@ omop-semantics-backed concept IDs.</p>
 
 <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.pct_change_from_baseline" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">pct_change_from_baseline</span><span class="p">(</span>
-    <span class="n">as_of</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MeasurementReading</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">as_of</span><span class="p">:</span> <span class="n">MeasurementReading</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WeightChange</span>
 </code></pre></div>
 
@@ -4525,7 +4525,7 @@ omop-semantics-backed concept IDs.</p>
 <a href="#omop_alchemy.toolkit.analytics.body_metrics.WeightTrajectoryMixin.sustained_loss" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">sustained_loss</span><span class="p">(</span>
     <span class="n">threshold_pct</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span> <span class="n">min_consecutive</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4738,8 +4738,8 @@ arithmetic itself.</p>
 
 <a href="#omop_alchemy.toolkit.analytics.adverse_events.critical_weight_loss_grade" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">critical_weight_loss_grade</span><span class="p">(</span>
-    <span class="n">pct_change</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">bmi</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">pct_change</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">bmi</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">

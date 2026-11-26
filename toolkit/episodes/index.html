@@ -3442,7 +3442,7 @@ traversal.</p>
 
 <a href="#omop_alchemy.toolkit.episodes.handling.DoseEvaluability" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">DoseEvaluability</span><span class="p">(</span>
-    <span class="n">evaluable</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">evaluable</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span>
 </code></pre></div>
 
@@ -3550,9 +3550,9 @@ drug exposure rows.</p>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">DrugExposureSummary</span><span class="p">(</span>
     <span class="n">group_key</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
     <span class="n">n_exposures</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="n">first_start_date</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">date</span><span class="p">],</span>
-    <span class="n">last_start_date</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">date</span><span class="p">],</span>
-    <span class="n">total_quantity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
+    <span class="n">first_start_date</span><span class="p">:</span> <span class="n">date</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">last_start_date</span><span class="p">:</span> <span class="n">date</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">total_quantity</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">dose_unit_source_values</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
     <span class="n">drug_concept_ids</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
 <span class="p">)</span>
@@ -3832,7 +3832,7 @@ person's entire future history.</p>
 <a href="#omop_alchemy.toolkit.episodes.handling.resolve_drug_exposure_series" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">resolve_drug_exposure_series</span><span class="p">(</span>
     <span class="n">episode</span><span class="p">,</span>
-    <span class="n">concept_ids</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">concept_ids</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">include_window</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Drug_Exposure</span><span class="p">]</span>
@@ -3927,8 +3927,8 @@ episode.</p>
 <code>episode_parent_id</code> and resolve clinical facts through <code>Episode_Event</code>.</p>
 <p>The public contracts in this area define episode-attachment identities and
 policies used by query builders. Shared clinical-event row names and identities
-live in <code>toolkit.core.events</code>. </p>
-<p>Projection, attachment, and ranking helpers return SQLAlchemy statements or 
+live in <code>toolkit.core.events</code>.</p>
+<p>Projection, attachment, and ranking helpers return SQLAlchemy statements or
 expressions without executing them.</p>
 
 
@@ -4193,7 +4193,7 @@ expressions without executing them.</p>
 <a href="#omop_alchemy.toolkit.episodes.derivation.EpisodeAttachmentDiagnostic.from_mapping" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">from_mapping</span><span class="p">(</span>
     <span class="n">row</span><span class="p">:</span> <span class="n">_EpisodeAttachmentDiagnosticMapping</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;EpisodeAttachmentDiagnostic&quot;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EpisodeAttachmentDiagnostic</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">

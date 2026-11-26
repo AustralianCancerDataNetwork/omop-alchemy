@@ -3279,12 +3279,7 @@
 <span class="p">)</span>
 
 <span class="k">with</span> <span class="n">so</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
-    <span class="n">concepts</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Concept</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Concept</span><span class="o">.</span><span class="n">domain_id</span> <span class="o">==</span> <span class="s2">&quot;Drug&quot;</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">all</span><span class="p">()</span>
-    <span class="p">)</span>
+    <span class="n">concepts</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Concept</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Concept</span><span class="o">.</span><span class="n">domain_id</span> <span class="o">==</span> <span class="s2">&quot;Drug&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">so</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
     <span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>

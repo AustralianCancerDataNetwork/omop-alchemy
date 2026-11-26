@@ -3676,10 +3676,7 @@
 <span class="n">attachments</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">attachment_queries</span><span class="o">.</span><span class="n">attachments</span><span class="p">)</span><span class="o">.</span><span class="n">mappings</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 <span class="k">assert</span> <span class="n">attachment_queries</span><span class="o">.</span><span class="n">diagnostics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 <span class="n">diagnostics</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">attachment_queries</span><span class="o">.</span><span class="n">diagnostics</span><span class="p">)</span><span class="o">.</span><span class="n">mappings</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-<span class="n">typed_diagnostics</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="n">EpisodeAttachmentDiagnostic</span><span class="o">.</span><span class="n">from_mapping</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">diagnostics</span>
-<span class="p">]</span>
+<span class="n">typed_diagnostics</span> <span class="o">=</span> <span class="p">[</span><span class="n">EpisodeAttachmentDiagnostic</span><span class="o">.</span><span class="n">from_mapping</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">diagnostics</span><span class="p">]</span>
 </code></pre></div>
 <p>The attachment result preserves the event projection and adds <code>episode_id</code> and <code>attachment_method</code>. Its uniqueness key is <code>(event_source_table, event_id, episode_id)</code>. A valid explicit link may legitimately connect an event to more than one episode; each relationship remains a separate attachment under that key.</p>
 <p>Diagnostics are advisory rows and do not change the attachments. They identify cross-person links, fallback ambiguity, and events for which no valid explicit link or fallback candidate exists. Link diagnostics use <code>explicit_episodes</code>; ambiguity counts and missing-candidate reasons use <code>fallback_episodes</code>. <code>EpisodeAttachmentDiagnostic.from_mapping()</code> converts a raw SQLAlchemy mapping into a typed value carrying the event identity, projected and linked Field concepts, episode, candidate count, and message.</p>
@@ -3879,12 +3876,8 @@ AND NOT (descendants of 400 OR exact concept 901)
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.concepts</span><span class="w"> </span><span class="kn">import</span> <span class="n">descendant_concept_select</span>
 
 <span class="n">matching_procedures</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">Procedure_Occurrence</span><span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-    <span class="n">Procedure_Occurrence</span><span class="o">.</span><span class="n">procedure_concept_id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span>
-        <span class="n">descendant_concept_select</span><span class="p">((</span><span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">))</span>
-    <span class="p">),</span>
-    <span class="n">Procedure_Occurrence</span><span class="o">.</span><span class="n">procedure_concept_id</span><span class="o">.</span><span class="n">not_in</span><span class="p">(</span>
-        <span class="n">descendant_concept_select</span><span class="p">((</span><span class="mi">400</span><span class="p">,))</span>
-    <span class="p">),</span>
+    <span class="n">Procedure_Occurrence</span><span class="o">.</span><span class="n">procedure_concept_id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">descendant_concept_select</span><span class="p">((</span><span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">))),</span>
+    <span class="n">Procedure_Occurrence</span><span class="o">.</span><span class="n">procedure_concept_id</span><span class="o">.</span><span class="n">not_in</span><span class="p">(</span><span class="n">descendant_concept_select</span><span class="p">((</span><span class="mi">400</span><span class="p">,))),</span>
 <span class="p">)</span>
 </code></pre></div>
 <p>Use <code>RuntimeConceptSetSpec</code> when the inclusions and exclusions form one configured set with exclusion precedence. Use <code>descendant_concept_select()</code> when the surrounding query or rule model owns how separate predicates are combined.</p>
@@ -3942,13 +3935,13 @@ and prevents a malformed cross-person link from replacing valid evidence.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.modifiers</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModifierTargetDiagnostic</span>
 
 <span class="n">checked</span> <span class="o">=</span> <span class="n">modifier_target_queries</span><span class="p">(</span>
-    <span class="n">Measurement</span><span class="p">,</span> <span class="n">Condition_Occurrence</span><span class="p">,</span> <span class="n">diagnostics</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">Measurement</span><span class="p">,</span>
+    <span class="n">Condition_Occurrence</span><span class="p">,</span>
+    <span class="n">diagnostics</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="k">assert</span> <span class="n">checked</span><span class="o">.</span><span class="n">diagnostics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 <span class="n">diagnostic_rows</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">checked</span><span class="o">.</span><span class="n">diagnostics</span><span class="p">)</span><span class="o">.</span><span class="n">mappings</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-<span class="n">typed_diagnostics</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="n">ModifierTargetDiagnostic</span><span class="o">.</span><span class="n">from_mapping</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">diagnostic_rows</span>
-<span class="p">]</span>
+<span class="n">typed_diagnostics</span> <span class="o">=</span> <span class="p">[</span><span class="n">ModifierTargetDiagnostic</span><span class="o">.</span><span class="n">from_mapping</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">diagnostic_rows</span><span class="p">]</span>
 </code></pre></div>
 <p><code>EpisodeAttachmentDiagnostic</code> provides the corresponding convenience for attachment diagnostics, as shown above. These are exported downstream validation contracts; their presence does not imply an in-package workflow or a scheduled consumer integration.</p>
 <p>Oncology stage preference composes with this generic selector. Its public default is pathological, clinical, then unclassified, followed by earliest time. <code>StageSelectionSpec.clinical_first()</code>, <code>StageSelectionSpec.chronological_only()</code>, and a <code>latest</code> temporal policy are explicit query-scoped alternatives.</p>
@@ -5566,8 +5559,8 @@ are equal.</p>
 <code>episode_parent_id</code> and resolve clinical facts through <code>Episode_Event</code>.</p>
 <p>The public contracts in this area define episode-attachment identities and
 policies used by query builders. Shared clinical-event row names and identities
-live in <code>toolkit.core.events</code>. </p>
-<p>Projection, attachment, and ranking helpers return SQLAlchemy statements or 
+live in <code>toolkit.core.events</code>.</p>
+<p>Projection, attachment, and ranking helpers return SQLAlchemy statements or
 expressions without executing them.</p>
 
 
@@ -5832,7 +5825,7 @@ expressions without executing them.</p>
 <a href="#omop_alchemy.toolkit.episodes.derivation.EpisodeAttachmentDiagnostic.from_mapping" class="headerlink" title="Permanent link">&para;</a></h5>
 <div class="doc-signature highlight"><pre><span></span><code><span class="nf">from_mapping</span><span class="p">(</span>
     <span class="n">row</span><span class="p">:</span> <span class="n">_EpisodeAttachmentDiagnosticMapping</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;EpisodeAttachmentDiagnostic&quot;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EpisodeAttachmentDiagnostic</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">

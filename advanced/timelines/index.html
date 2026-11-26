@@ -3991,6 +3991,28 @@ the corresponding column, and explicit None disables that endpoint.</p>
 
 
 
+<div class="doc doc-object doc-function">
+
+
+<h4 id="omop_alchemy.toolkit.core.timeline.event_timeline.Person_Timeline.to_json" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_json</span>
+
+
+<a href="#omop_alchemy.toolkit.core.timeline.event_timeline.Person_Timeline.to_json" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_json</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return one JSON string per event, in timeline order.</p>
+<p>The return type differs from the single-string <code>to_json</code> of the serialisable
+table interface this class inherits.</p>
+
+
+    </div>
+
+</div>
+
 
 
   </div>
@@ -4004,7 +4026,7 @@ the corresponding column, and explicit None disables that endpoint.</p>
 
 <span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
     <span class="n">person</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">Person_Timeline</span><span class="p">,</span> <span class="mi">42</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">person</span><span class="o">.</span><span class="n">timeline</span><span class="p">:</span>   <span class="c1"># sorted by event_time.start</span>
+    <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">person</span><span class="o">.</span><span class="n">timeline</span><span class="p">:</span>  <span class="c1"># sorted by event_time.start</span>
         <span class="nb">print</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
 </code></pre></div>
@@ -4014,6 +4036,7 @@ the corresponding column, and explicit None disables that endpoint.</p>
 <p>To add a supported CDM table to the timeline, subclass both <code>ClinicalEvent</code> and the target ORM class and build <code>_mapping</code> from its Core metadata:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.toolkit.core.timeline.event_timeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClinicalEvent</span><span class="p">,</span> <span class="n">EventMapping</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">omop_alchemy.cdm.model.clinical</span><span class="w"> </span><span class="kn">import</span> <span class="n">Procedure_Occurrence</span>
+
 
 <span class="k">class</span><span class="w"> </span><span class="nc">Procedure_Event</span><span class="p">(</span><span class="n">ClinicalEvent</span><span class="p">,</span> <span class="n">Procedure_Occurrence</span><span class="p">):</span>
     <span class="n">_mapping</span> <span class="o">=</span> <span class="n">EventMapping</span><span class="o">.</span><span class="n">from_model</span><span class="p">(</span><span class="n">Procedure_Occurrence</span><span class="p">)</span>
