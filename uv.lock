@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -1338,7 +1338,7 @@ requires-dist = [
     { name = "mkdocstrings-python", marker = "extra == 'dev'", specifier = ">=2.0.1" },
     { name = "oa-configurator", specifier = ">=2.1.0,<3" },
     { name = "oa-configurator", extras = ["dev", "duckdb", "postgres"], marker = "extra == 'dev'", specifier = ">=2.1.0,<3" },
-    { name = "omop-semantics", marker = "extra == 'semantics'", specifier = ">=0.6.2" },
+    { name = "omop-semantics", marker = "extra == 'semantics'", specifier = ">=0.8,<0.9" },
     { name = "orm-loader", specifier = ">=3.0.0,<4" },
     { name = "orm-loader", extras = ["duckdb"], marker = "extra == 'dev'", specifier = ">=3.0.0,<4" },
     { name = "pandas", specifier = ">=2.0" },
@@ -1358,7 +1358,7 @@ provides-extras = ["dev", "duckdb", "postgres", "semantics"]
 
 [[package]]
 name = "omop-semantics"
-version = "0.6.2"
+version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "linkml" },
@@ -1368,9 +1368,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c4/c8/89354f4c627a54490aa8d68175665f9f860c65be424e1efdffd16776adc5/omop_semantics-0.6.2.tar.gz", hash = "sha256:ba01bf589cbd7c68163390c07dfefd960780251635773d80a5a9f8243b2be8f5", size = 202242, upload-time = "2026-09-07T02:41:57.009Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7a/9d/854a073862b748ccfe0aa4eb423f5697369c77fb5ed291508f4a2562c49a/omop_semantics-0.8.0.tar.gz", hash = "sha256:4f54ef79308ac0277c168c17a228846130c63e849740c5fff84cc2ca7659f162", size = 208361, upload-time = "2026-11-26T14:05:38.361Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/a3/9b71a40c0a269dffb6188f38cc908e13e2d6290f92201587d45b2bafaf8b/omop_semantics-0.6.2-py3-none-any.whl", hash = "sha256:1a9ac1dd8ae2f31c8ee150b8fb9e644ee21d287b071e1d11b4258f6954bd91bb", size = 66803, upload-time = "2026-09-07T02:41:55.506Z" },
+    { url = "https://files.pythonhosted.org/packages/2e/ef/b97b670c733b71cf2dc1b63a032f174037ccfec1f5b55949b0e5b8b9cff7/omop_semantics-0.8.0-py3-none-any.whl", hash = "sha256:67b187de37724faee6be5621117a645544857557528f836079beb420b0f42783", size = 71667, upload-time = "2026-11-26T14:05:37.043Z" },
 ]
 
 [[package]]
@@ -2273,11 +2273,11 @@ wheels = [
 
 [[package]]
 name = "setuptools"
-version = "84.0.0"
+version = "84.2.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6d/44/f5da03a8ef95d369145c5bb53050e7877c9f3d312e128605fd9504829143/setuptools-84.0.0.tar.gz", hash = "sha256:f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73", size = 1168449, upload-time = "2026-08-08T18:27:58.365Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/70/b3/c19426f783614d625699a4b247faf628ea9ab1db228674491767b417f9e1/setuptools-84.2.1.tar.gz", hash = "sha256:3ff8b3b5492a0aa66960f4419365a86b84e013070d4313e4d4a6894f5d64d6bc", size = 1230289, upload-time = "2026-10-20T19:01:37.742Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/95/9c/c510029fc6ef33a6275cd2c5d3cecd6613dfd6aa401d57c54f1c18852ccf/setuptools-84.0.0-py3-none-any.whl", hash = "sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670", size = 818216, upload-time = "2026-08-08T18:27:56.719Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/55/6dc6d6bb953bdfc52519a0059592c52b6e3b8ad51cf8256dffceb55b0610/setuptools-84.2.1-py3-none-any.whl", hash = "sha256:ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2", size = 876263, upload-time = "2026-10-20T19:01:35.678Z" },
 ]
 
 [[package]]
@@ -2321,11 +2321,11 @@ wheels = [
 
 [[package]]
 name = "soupsieve"
-version = "2.9.2"
+version = "4.1.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/69/99/a6ca3beb3ccacb41fb3321d8a60e5566f9e6467601ef8eba6a17e1b89778/soupsieve-2.9.2.tar.gz", hash = "sha256:4a55d8cf158a9c2e587fa4922f1bbb91d68ac829e2d6f25403a85747c71daf74", size = 122445, upload-time = "2026-08-07T00:57:24.801Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/77/d59ca6aa338bdd8d880234d15b7c466cb176e44502899a9df81ba2e13cd0/soupsieve-4.1.3.tar.gz", hash = "sha256:13f70186c8f40bf8d0ff7bbab09a18fb149600b465269207b5e5b588f55fda08", size = 181564, upload-time = "2026-11-20T12:58:27.613Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/dc/ad025c1ee131eba60c69f4dd5779b18fcf1e6b21a343e2162a84d5d133c7/soupsieve-2.9.2-py3-none-any.whl", hash = "sha256:8089a26fd974ca7a1f30276d3d8492ab266ab15af581642dfe8aa162e0c1c823", size = 37370, upload-time = "2026-08-07T00:57:23.524Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/f7/be207468cac6ad79389f36cf1fce4f2836960df91659979ec486c727bb2e/soupsieve-4.1.3-py3-none-any.whl", hash = "sha256:7a390d1a57d1ab7bb228531e9b8a750a5ebf87db774e0ef6faeeac057d22a5bf", size = 59792, upload-time = "2026-11-20T12:58:26.459Z" },
 ]
 
 [[package]]

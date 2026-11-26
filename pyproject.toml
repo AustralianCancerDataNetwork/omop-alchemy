@@ -50,7 +50,7 @@ duckdb = [
 ]
 
 semantics = [
-  "omop-semantics>=0.6.2",
+  "omop-semantics>=0.8,<0.9",
 ]
 
 dev = [
